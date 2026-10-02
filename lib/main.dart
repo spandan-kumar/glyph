@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'app/creations.dart';
 import 'app/devices.dart';
 import 'app/playback.dart';
 import 'library/catalog.dart';
@@ -13,9 +14,12 @@ Future<void> main() async {
   final catalog = Catalog.parse(await rootBundle.loadString('assets/catalog/starter.json'));
   final devices = DeviceStore();
   final playback = PlaybackController();
+  final creations = CreationsStore();
   // Don't block first paint on the network; the store notifies when ready.
   devices.load();
-  runApp(GlyphApp(catalog: catalog, devices: devices, playback: playback));
+  creations.load();
+  runApp(GlyphApp(
+      catalog: catalog, devices: devices, playback: playback, creations: creations));
 }
 
 class GlyphApp extends StatelessWidget {
@@ -24,11 +28,13 @@ class GlyphApp extends StatelessWidget {
     required this.catalog,
     required this.devices,
     required this.playback,
+    required this.creations,
   });
 
   final Catalog catalog;
   final DeviceStore devices;
   final PlaybackController playback;
+  final CreationsStore creations;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +42,7 @@ class GlyphApp extends StatelessWidget {
       playback: playback,
       devices: devices,
       catalog: catalog,
+      creations: creations,
       child: MaterialApp(
         title: 'Glyph',
         debugShowCheckedModeBanner: false,

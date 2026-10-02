@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../engine/generator.dart';
 
+import '../engine/clip.dart';
+import '../engine/frame.dart';
 import '../engine/gif_baker.dart';
 import '../engine/palette.dart';
 import '../engine/registry.dart';
@@ -43,28 +45,70 @@ abstract final class GlyphActions {
     }
   }
 
-  /// Renders the current animation to a GIF on a background isolate, uploads
-  /// it and saves it as a preset so it plays without the phone.
+  /// Plays a fixed clip (drawing, import, text) and streams it if possible.
+  static Future<void> playClip(BuildContext context, FrameClip clip, String title) async {
+    AppScope.of(context).playback.playGenerator(ClipGenerator(clip, title: title));
+    await ensureStreaming(context);
+  }
+
+  /// Saves whatever is playing so it runs on the matrix without the phone.
+  /// Library effects bake on a background isolate; clips encode their own
+  /// frames; anything else (games, audio) is recorded for 4 s.
   static Future<String?> saveToDevice(BuildContext context) async {
+    final s = AppScope.of(context);
+    final caps = s.devices.caps;
+    final g = s.playback.generator;
+    if (caps == null || g == null) return null;
+    final title = s.playback.item?.title ?? g.name;
+    final w = caps.width, h = caps.height;
+
+    if (g is ClipGenerator) {
+      return saveClipToDevice(context, g.clip, title);
+    }
+    final Future<Uint8List> bytes;
+    if (generators.any((x) => x.id == g.id)) {
+      // compute() with a top-level function avoids capturing BuildContext.
+      bytes = compute(_bake, (
+        g.id,
+        s.playback.params.toMap(),
+        s.playback.palette.id,
+        w,
+        h,
+        s.playback.timeScale,
+      ));
+    } else {
+      final frames = renderFrames(
+        generator: g,
+        params: s.playback.params,
+        palette: s.playback.palette,
+        width: w,
+        height: h,
+        timeScale: s.playback.timeScale,
+      );
+      bytes = compute(_encodeFrames, (frames, 20));
+    }
+    return _upload(context, title, bytes);
+  }
+
+  static Future<String?> saveClipToDevice(
+      BuildContext context, FrameClip clip, String title) async {
+    final caps = AppScope.of(context).devices.caps;
+    if (caps == null) return null;
+    final fitted = clip.fitTo(caps.width, caps.height);
+    return _upload(context, title, compute(_encodeFrames, (fitted.frames, fitted.averageFps)));
+  }
+
+  static Future<String?> _upload(
+      BuildContext context, String title, Future<Uint8List> encoding) async {
     final s = AppScope.of(context);
     final d = s.devices;
     final caps = d.caps, client = d.client;
-    final g = s.playback.generator;
-    if (caps == null || client == null || g == null) return null;
+    if (caps == null || client == null) return null;
     if (!caps.canPlayGifs) {
       return _report(context, 'This controller can\'t play GIFs. Live streaming still works.');
     }
-
-    final title = s.playback.item?.title ?? g.name;
-    final genId = g.id;
-    final params = s.playback.params;
-    final paletteId = s.playback.palette.id;
-    final w = caps.width, h = caps.height;
-    final speed = s.playback.timeScale;
-
     try {
-      // compute() with a top-level function avoids capturing BuildContext.
-      final bytes = await compute(_bake, (genId, params.toMap(), paletteId, w, h, speed));
+      final bytes = await encoding;
       if (!caps.fitsFile(bytes.length)) {
         return context.mounted ? _report(context, 'Not enough space on the controller.') : null;
       }
@@ -118,3 +162,5 @@ Uint8List _bake((String, Map<String, double>, String, int, int, double) a) {
     timeScale: speed,
   ).bytes;
 }
+
+Uint8List _encodeFrames((List<Frame>, int) a) => bakeFrames(a.$1, fps: a.$2).bytes;

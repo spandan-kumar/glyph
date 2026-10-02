@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
 import 'package:glyph/library/catalog.dart';
@@ -24,7 +25,9 @@ void main() {
     final devices = DeviceStore();
     final playback = PlaybackController();
     addTearDown(playback.dispose);
-    await tester.pumpWidget(GlyphApp(catalog: catalog, devices: devices, playback: playback));
+    final creations = CreationsStore(directory: () async => Directory.systemTemp.createTemp('glyph'));
+    await tester.pumpWidget(GlyphApp(
+        catalog: catalog, devices: devices, playback: playback, creations: creations));
     // Previews tick forever, so pump fixed durations instead of settling.
     await tester.pump(const Duration(milliseconds: 300));
     return playback;

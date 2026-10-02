@@ -38,6 +38,15 @@ dependencies:
   bonsoir: ^7.1.0
   shared_preferences: ^2.5.5
   image: ^4.10.1
+  file_picker: ^13.1.0
+  path_provider: ^2.1.6
+  share_plus: ^13.3.1
+  record: ^7.1.1
+  fftea: ^1.5.0+1
+  permission_handler: ^13.0.2
+  wakelock_plus: ^1.8.0
+  home_widget: ^0.10.0
+  flutter_foreground_task: ^11.0.3
 
 dev_dependencies:
   flutter_test:

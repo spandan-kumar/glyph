@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../app/creations.dart';
 import '../app/devices.dart';
 import '../app/playback.dart';
 import '../library/catalog.dart';
@@ -11,17 +12,22 @@ class AppScope extends InheritedWidget {
     required this.playback,
     required this.devices,
     required this.catalog,
+    required this.creations,
     required super.child,
   });
 
   final PlaybackController playback;
   final DeviceStore devices;
   final Catalog catalog;
+  final CreationsStore creations;
 
   static AppScope of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<AppScope>()!;
 
   @override
   bool updateShouldNotify(AppScope old) =>
-      playback != old.playback || devices != old.devices || catalog != old.catalog;
+      playback != old.playback ||
+      devices != old.devices ||
+      catalog != old.catalog ||
+      creations != old.creations;
 }

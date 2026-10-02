@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Glyph listens to music so your matrix can react to it. Audio never leaves your phone.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Glyph finds and controls your WLED LED matrix on your Wi-Fi network.</string>
 	<key>NSBonjourServices</key>
