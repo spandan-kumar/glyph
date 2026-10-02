@@ -1,0 +1,958 @@
+{
+  "version": 1,
+  "categories": ["Chill", "Fire & Energy", "Nature", "Space", "Retro & Digital", "Party", "Holidays", "Abstract"],
+  "items": [
+    {
+      "id": "ocean-plasma",
+      "title": "Ocean Plasma",
+      "category": "Chill",
+      "tags": ["calm", "water", "blue"],
+      "generator": "plasma",
+      "palette": "ocean",
+      "params": {"speed": 0.2, "scale": 0.35}
+    },
+    {
+      "id": "classic-lava-lamp",
+      "title": "Classic Lava Lamp",
+      "category": "Chill",
+      "tags": ["retro", "blobs", "warm"],
+      "generator": "metaballs",
+      "palette": "sunset",
+      "params": {"speed": 0.25, "count": 4}
+    },
+    {
+      "id": "pastel-dream",
+      "title": "Pastel Dream",
+      "category": "Chill",
+      "tags": ["soft", "dreamy"],
+      "generator": "noise",
+      "palette": "pastel",
+      "params": {"speed": 0.15, "scale": 0.3, "warp": 0.4}
+    },
+    {
+      "id": "gentle-rain",
+      "title": "Gentle Rain",
+      "category": "Chill",
+      "tags": ["rain", "water", "calm"],
+      "generator": "ripples",
+      "palette": "ocean",
+      "params": {"rate": 0.25, "speed": 0.3}
+    },
+    {
+      "id": "sleepy-aurora",
+      "title": "Sleepy Aurora",
+      "category": "Chill",
+      "tags": ["night", "sky", "calm"],
+      "generator": "aurora",
+      "palette": "aurora",
+      "params": {"speed": 0.15, "length": 0.6, "shimmer": 0.2}
+    },
+    {
+      "id": "deep-sea-drift",
+      "title": "Deep Sea Drift",
+      "category": "Chill",
+      "tags": ["underwater", "blue"],
+      "generator": "noise",
+      "palette": "ocean",
+      "params": {"speed": 0.2, "scale": 0.55, "warp": 0.7}
+    },
+    {
+      "id": "moonlit-snow",
+      "title": "Moonlit Snow",
+      "category": "Chill",
+      "tags": ["winter", "night"],
+      "generator": "snow",
+      "palette": "ice",
+      "params": {"amount": 0.25, "wind": 0.05, "melt": 0.5},
+      "speed": 0.7
+    },
+    {
+      "id": "resting-heart",
+      "title": "Resting Heart",
+      "category": "Chill",
+      "tags": ["love", "calm"],
+      "generator": "heartbeat",
+      "palette": "heart",
+      "params": {"bpm": 56, "size": 0.55, "rings": 0.35}
+    },
+    {
+      "id": "sunset-glow",
+      "title": "Sunset Glow",
+      "category": "Chill",
+      "tags": ["warm", "evening"],
+      "generator": "plasma",
+      "palette": "sunset",
+      "params": {"speed": 0.15, "scale": 0.2}
+    },
+    {
+      "id": "dandelion-seeds",
+      "title": "Dandelion Seeds",
+      "category": "Chill",
+      "tags": ["spring", "float"],
+      "generator": "snow",
+      "palette": "pastel",
+      "params": {"amount": 0.2, "wind": 0.4, "melt": 0.9},
+      "speed": 0.6
+    },
+    {
+      "id": "slow-swirl",
+      "title": "Slow Swirl",
+      "category": "Chill",
+      "tags": ["spiral", "soft"],
+      "generator": "swirl",
+      "palette": "pastel",
+      "params": {"speed": 0.1, "arms": 1, "twist": 0.3}
+    },
+    {
+      "id": "lagoon-lamp",
+      "title": "Lagoon Lamp",
+      "category": "Chill",
+      "tags": ["blobs", "water"],
+      "generator": "metaballs",
+      "palette": "ocean",
+      "params": {"speed": 0.2, "count": 3}
+    },
+    {
+      "id": "breathing-waves",
+      "title": "Breathing Waves",
+      "category": "Chill",
+      "tags": ["waves", "relax"],
+      "generator": "scope",
+      "palette": "pastel",
+      "params": {"speed": 0.15, "waves": 2, "amp": 0.4}
+    },
+    {
+      "id": "campfire",
+      "title": "Campfire",
+      "category": "Fire & Energy",
+      "tags": ["flame", "cozy"],
+      "generator": "fire",
+      "palette": "lava",
+      "params": {"cooling": 0.45, "sparking": 0.6}
+    },
+    {
+      "id": "blue-flame",
+      "title": "Blue Flame",
+      "category": "Fire & Energy",
+      "tags": ["flame", "gas", "blue"],
+      "generator": "fire",
+      "palette": "ice",
+      "params": {"cooling": 0.55, "sparking": 0.7}
+    },
+    {
+      "id": "toxic-flame",
+      "title": "Toxic Flame",
+      "category": "Fire & Energy",
+      "tags": ["flame", "green"],
+      "generator": "fire",
+      "palette": "matrix",
+      "params": {"cooling": 0.5, "sparking": 0.55}
+    },
+    {
+      "id": "inferno",
+      "title": "Inferno",
+      "category": "Fire & Energy",
+      "tags": ["flame", "intense"],
+      "generator": "fire",
+      "palette": "lava",
+      "params": {"cooling": 0.2, "sparking": 0.95},
+      "speed": 1.3
+    },
+    {
+      "id": "dying-embers",
+      "title": "Dying Embers",
+      "category": "Fire & Energy",
+      "tags": ["embers", "glow"],
+      "generator": "fire",
+      "palette": "lava",
+      "params": {"cooling": 0.85, "sparking": 0.25},
+      "speed": 0.8
+    },
+    {
+      "id": "ghost-fire",
+      "title": "Ghost Fire",
+      "category": "Fire & Energy",
+      "tags": ["flame", "purple", "spooky"],
+      "generator": "fire",
+      "palette": "galaxy",
+      "params": {"cooling": 0.4, "sparking": 0.5}
+    },
+    {
+      "id": "plasma-core",
+      "title": "Plasma Core",
+      "category": "Fire & Energy",
+      "tags": ["energy", "hot"],
+      "generator": "plasma",
+      "palette": "lava",
+      "params": {"speed": 0.7, "scale": 0.6}
+    },
+    {
+      "id": "magma-flow",
+      "title": "Magma Flow",
+      "category": "Fire & Energy",
+      "tags": ["volcano", "molten"],
+      "generator": "noise",
+      "palette": "lava",
+      "params": {"speed": 0.3, "scale": 0.5, "warp": 0.8}
+    },
+    {
+      "id": "hyperdrive",
+      "title": "Hyperdrive",
+      "category": "Fire & Energy",
+      "tags": ["speed", "energy"],
+      "generator": "tunnel",
+      "palette": "neon",
+      "params": {"speed": 0.9, "segments": 6, "spin": 0.6}
+    },
+    {
+      "id": "power-surge",
+      "title": "Power Surge",
+      "category": "Fire & Energy",
+      "tags": ["electric", "waves"],
+      "generator": "scope",
+      "palette": "lava",
+      "params": {"speed": 0.85, "waves": 4, "amp": 0.9}
+    },
+    {
+      "id": "solar-flare",
+      "title": "Solar Flare",
+      "category": "Fire & Energy",
+      "tags": ["sun", "spiral"],
+      "generator": "swirl",
+      "palette": "lava",
+      "params": {"speed": 0.6, "arms": 3, "twist": 0.8}
+    },
+    {
+      "id": "shockwaves",
+      "title": "Shockwaves",
+      "category": "Fire & Energy",
+      "tags": ["impact", "rings"],
+      "generator": "ripples",
+      "palette": "lava",
+      "params": {"rate": 0.75, "speed": 0.85}
+    },
+    {
+      "id": "ember-storm",
+      "title": "Ember Storm",
+      "category": "Fire & Energy",
+      "tags": ["sparks", "embers"],
+      "generator": "twinkle",
+      "palette": "lava",
+      "params": {"density": 0.55, "fade": 0.4}
+    },
+    {
+      "id": "northern-lights",
+      "title": "Northern Lights",
+      "category": "Nature",
+      "tags": ["aurora", "sky", "night"],
+      "generator": "aurora",
+      "palette": "aurora",
+      "params": {"speed": 0.35, "length": 0.5, "shimmer": 0.5}
+    },
+    {
+      "id": "geomagnetic-storm",
+      "title": "Geomagnetic Storm",
+      "category": "Nature",
+      "tags": ["aurora", "intense"],
+      "generator": "aurora",
+      "palette": "aurora",
+      "params": {"speed": 0.7, "length": 0.85, "shimmer": 0.9}
+    },
+    {
+      "id": "sunrise-curtains",
+      "title": "Sunrise Curtains",
+      "category": "Nature",
+      "tags": ["morning", "warm"],
+      "generator": "aurora",
+      "palette": "sunset",
+      "params": {"speed": 0.2, "length": 0.9, "shimmer": 0.2}
+    },
+    {
+      "id": "forest-canopy",
+      "title": "Forest Canopy",
+      "category": "Nature",
+      "tags": ["trees", "green", "leaves"],
+      "generator": "noise",
+      "palette": "forest",
+      "params": {"speed": 0.2, "scale": 0.5, "warp": 0.6}
+    },
+    {
+      "id": "jungle-plasma",
+      "title": "Jungle Plasma",
+      "category": "Nature",
+      "tags": ["green", "tropical"],
+      "generator": "plasma",
+      "palette": "forest",
+      "params": {"speed": 0.3, "scale": 0.45}
+    },
+    {
+      "id": "first-snow",
+      "title": "First Snow",
+      "category": "Nature",
+      "tags": ["winter", "snow"],
+      "generator": "snow",
+      "palette": "ice",
+      "params": {"amount": 0.4, "wind": 0.15, "melt": 0.4}
+    },
+    {
+      "id": "blizzard",
+      "title": "Blizzard",
+      "category": "Nature",
+      "tags": ["winter", "storm"],
+      "generator": "snow",
+      "palette": "ice",
+      "params": {"amount": 0.95, "wind": 0.8, "melt": 0.2},
+      "speed": 1.2
+    },
+    {
+      "id": "autumn-leaves",
+      "title": "Autumn Leaves",
+      "category": "Nature",
+      "tags": ["fall", "leaves"],
+      "generator": "snow",
+      "palette": "sunset",
+      "params": {"amount": 0.35, "wind": 0.5, "melt": 0.7}
+    },
+    {
+      "id": "rain-on-the-pond",
+      "title": "Rain on the Pond",
+      "category": "Nature",
+      "tags": ["rain", "water"],
+      "generator": "ripples",
+      "palette": "ocean",
+      "params": {"rate": 0.6, "speed": 0.5}
+    },
+    {
+      "id": "monsoon",
+      "title": "Monsoon",
+      "category": "Nature",
+      "tags": ["rain", "storm"],
+      "generator": "rain",
+      "palette": "ocean",
+      "params": {"speed": 0.8, "density": 0.85}
+    },
+    {
+      "id": "ocean-swell",
+      "title": "Ocean Swell",
+      "category": "Nature",
+      "tags": ["waves", "sea"],
+      "generator": "scope",
+      "palette": "ocean",
+      "params": {"speed": 0.3, "waves": 3, "amp": 0.5}
+    },
+    {
+      "id": "fireflies",
+      "title": "Fireflies",
+      "category": "Nature",
+      "tags": ["summer", "night"],
+      "generator": "twinkle",
+      "palette": "forest",
+      "params": {"density": 0.25, "fade": 0.7}
+    },
+    {
+      "id": "morning-dew",
+      "title": "Morning Dew",
+      "category": "Nature",
+      "tags": ["sparkle", "fresh"],
+      "generator": "twinkle",
+      "palette": "ice",
+      "params": {"density": 0.2, "fade": 0.75}
+    },
+    {
+      "id": "warp-speed",
+      "title": "Warp Speed",
+      "category": "Space",
+      "tags": ["stars", "travel"],
+      "generator": "starfield",
+      "palette": "ice",
+      "params": {"speed": 0.5, "stars": 35}
+    },
+    {
+      "id": "hyperspace-jump",
+      "title": "Hyperspace Jump",
+      "category": "Space",
+      "tags": ["stars", "fast"],
+      "generator": "starfield",
+      "palette": "neon",
+      "params": {"speed": 1.0, "stars": 70}
+    },
+    {
+      "id": "drifting-stars",
+      "title": "Drifting Stars",
+      "category": "Space",
+      "tags": ["stars", "slow", "calm"],
+      "generator": "starfield",
+      "palette": "galaxy",
+      "params": {"speed": 0.1, "stars": 25}
+    },
+    {
+      "id": "milky-way",
+      "title": "Milky Way",
+      "category": "Space",
+      "tags": ["galaxy", "spiral"],
+      "generator": "galaxy",
+      "palette": "galaxy",
+      "params": {"speed": 0.25, "arms": 2, "twist": 0.5}
+    },
+    {
+      "id": "pinwheel-galaxy",
+      "title": "Pinwheel Galaxy",
+      "category": "Space",
+      "tags": ["galaxy", "blue"],
+      "generator": "galaxy",
+      "palette": "ocean",
+      "params": {"speed": 0.4, "arms": 3, "twist": 0.7}
+    },
+    {
+      "id": "quasar",
+      "title": "Quasar",
+      "category": "Space",
+      "tags": ["galaxy", "hot"],
+      "generator": "galaxy",
+      "palette": "lava",
+      "params": {"speed": 0.7, "arms": 1, "twist": 0.9}
+    },
+    {
+      "id": "nebula",
+      "title": "Nebula",
+      "category": "Space",
+      "tags": ["clouds", "cosmic"],
+      "generator": "noise",
+      "palette": "galaxy",
+      "params": {"speed": 0.15, "scale": 0.4, "warp": 0.9}
+    },
+    {
+      "id": "wormhole",
+      "title": "Wormhole",
+      "category": "Space",
+      "tags": ["tunnel", "portal"],
+      "generator": "tunnel",
+      "palette": "galaxy",
+      "params": {"speed": 0.6, "segments": 5, "spin": 0.5}
+    },
+    {
+      "id": "event-horizon",
+      "title": "Event Horizon",
+      "category": "Space",
+      "tags": ["black", "hole", "spiral"],
+      "generator": "swirl",
+      "palette": "galaxy",
+      "params": {"speed": 0.5, "arms": 2, "twist": 1.0}
+    },
+    {
+      "id": "solar-wind",
+      "title": "Solar Wind",
+      "category": "Space",
+      "tags": ["cosmic", "curtain"],
+      "generator": "aurora",
+      "palette": "galaxy",
+      "params": {"speed": 0.4, "length": 0.6, "shimmer": 0.6}
+    },
+    {
+      "id": "twinkling-sky",
+      "title": "Twinkling Sky",
+      "category": "Space",
+      "tags": ["stars", "night"],
+      "generator": "twinkle",
+      "palette": "ice",
+      "params": {"density": 0.12, "fade": 0.85}
+    },
+    {
+      "id": "alien-dna",
+      "title": "Alien DNA",
+      "category": "Space",
+      "tags": ["sci-fi", "helix"],
+      "generator": "helix",
+      "palette": "matrix",
+      "params": {"speed": 0.35, "twist": 0.5, "rungs": 0.6}
+    },
+    {
+      "id": "pulsar",
+      "title": "Pulsar",
+      "category": "Space",
+      "tags": ["pulse", "cosmic"],
+      "generator": "ripples",
+      "palette": "galaxy",
+      "params": {"rate": 0.8, "speed": 0.9}
+    },
+    {
+      "id": "digital-rain",
+      "title": "Digital Rain",
+      "category": "Retro & Digital",
+      "tags": ["code", "hacker"],
+      "generator": "rain",
+      "palette": "matrix",
+      "params": {"speed": 0.5, "density": 0.5}
+    },
+    {
+      "id": "code-storm",
+      "title": "Code Storm",
+      "category": "Retro & Digital",
+      "tags": ["code", "fast"],
+      "generator": "rain",
+      "palette": "matrix",
+      "params": {"speed": 0.9, "density": 0.95}
+    },
+    {
+      "id": "neon-rain",
+      "title": "Neon Rain",
+      "category": "Retro & Digital",
+      "tags": ["cyberpunk"],
+      "generator": "rain",
+      "palette": "neon",
+      "params": {"speed": 0.6, "density": 0.6}
+    },
+    {
+      "id": "game-of-life",
+      "title": "Game of Life",
+      "category": "Retro & Digital",
+      "tags": ["cellular", "automaton"],
+      "generator": "life",
+      "palette": "neon",
+      "params": {"speed": 0.4}
+    },
+    {
+      "id": "petri-dish",
+      "title": "Petri Dish",
+      "category": "Retro & Digital",
+      "tags": ["cells", "organic"],
+      "generator": "life",
+      "palette": "forest",
+      "params": {"speed": 0.2}
+    },
+    {
+      "id": "green-scope",
+      "title": "Green Scope",
+      "category": "Retro & Digital",
+      "tags": ["oscilloscope", "signal"],
+      "generator": "scope",
+      "palette": "matrix",
+      "params": {"speed": 0.45, "waves": 1, "amp": 0.6}
+    },
+    {
+      "id": "synth-waves",
+      "title": "Synth Waves",
+      "category": "Retro & Digital",
+      "tags": ["synth", "music"],
+      "generator": "scope",
+      "palette": "synthwave",
+      "params": {"speed": 0.5, "waves": 3, "amp": 0.7}
+    },
+    {
+      "id": "retro-tunnel",
+      "title": "Retro Tunnel",
+      "category": "Retro & Digital",
+      "tags": ["80s", "tunnel"],
+      "generator": "tunnel",
+      "palette": "synthwave",
+      "params": {"speed": 0.45, "segments": 4, "spin": 0.3}
+    },
+    {
+      "id": "checker-dive",
+      "title": "Checker Dive",
+      "category": "Retro & Digital",
+      "tags": ["checkerboard", "demo"],
+      "generator": "tunnel",
+      "palette": "neon",
+      "params": {"speed": 0.7, "segments": 8, "spin": -0.4}
+    },
+    {
+      "id": "neon-vortex",
+      "title": "Neon Vortex",
+      "category": "Retro & Digital",
+      "tags": ["spiral", "neon"],
+      "generator": "swirl",
+      "palette": "neon",
+      "params": {"speed": 0.5, "arms": 3, "twist": 0.6}
+    },
+    {
+      "id": "dna-sequence",
+      "title": "DNA Sequence",
+      "category": "Retro & Digital",
+      "tags": ["science", "helix"],
+      "generator": "helix",
+      "palette": "neon",
+      "params": {"speed": 0.4, "twist": 0.4, "rungs": 0.6}
+    },
+    {
+      "id": "arcade-bounce",
+      "title": "Arcade Bounce",
+      "category": "Retro & Digital",
+      "tags": ["arcade", "game"],
+      "generator": "balls",
+      "palette": "neon",
+      "params": {"count": 2, "gravity": 0.2, "trails": 0.3}
+    },
+    {
+      "id": "vaporwave",
+      "title": "Vaporwave",
+      "category": "Retro & Digital",
+      "tags": ["aesthetic", "80s"],
+      "generator": "plasma",
+      "palette": "synthwave",
+      "params": {"speed": 0.3, "scale": 0.3}
+    },
+    {
+      "id": "rainbow-plasma",
+      "title": "Rainbow Plasma",
+      "category": "Party",
+      "tags": ["colorful"],
+      "generator": "plasma",
+      "palette": "rainbow",
+      "params": {"speed": 0.6, "scale": 0.5}
+    },
+    {
+      "id": "disco-sparkle",
+      "title": "Disco Sparkle",
+      "category": "Party",
+      "tags": ["disco", "glitter"],
+      "generator": "twinkle",
+      "palette": "rainbow",
+      "params": {"density": 0.7, "fade": 0.35}
+    },
+    {
+      "id": "party-balls",
+      "title": "Party Balls",
+      "category": "Party",
+      "tags": ["bouncy"],
+      "generator": "balls",
+      "palette": "rainbow",
+      "params": {"count": 6, "gravity": 0.5, "trails": 0.5}
+    },
+    {
+      "id": "juggler",
+      "title": "Juggler",
+      "category": "Party",
+      "tags": ["bouncy", "fast"],
+      "generator": "balls",
+      "palette": "festive",
+      "params": {"count": 8, "gravity": 0.8, "trails": 0.7},
+      "speed": 1.2
+    },
+    {
+      "id": "bass-drop",
+      "title": "Bass Drop",
+      "category": "Party",
+      "tags": ["beat", "music", "pulse"],
+      "generator": "heartbeat",
+      "palette": "neon",
+      "params": {"bpm": 128, "size": 0.7, "rings": 0.9}
+    },
+    {
+      "id": "rave-tunnel",
+      "title": "Rave Tunnel",
+      "category": "Party",
+      "tags": ["rave", "fast"],
+      "generator": "tunnel",
+      "palette": "rainbow",
+      "params": {"speed": 0.9, "segments": 6, "spin": 0.9}
+    },
+    {
+      "id": "hypno-vortex",
+      "title": "Hypno Vortex",
+      "category": "Party",
+      "tags": ["hypnotic", "spiral"],
+      "generator": "swirl",
+      "palette": "rainbow",
+      "params": {"speed": 0.8, "arms": 4, "twist": 0.9}
+    },
+    {
+      "id": "confetti-cannon",
+      "title": "Confetti Cannon",
+      "category": "Party",
+      "tags": ["confetti", "celebrate"],
+      "generator": "fireworks",
+      "palette": "rainbow",
+      "params": {"rate": 0.85, "size": 0.4, "trails": 0.25}
+    },
+    {
+      "id": "club-lights",
+      "title": "Club Lights",
+      "category": "Party",
+      "tags": ["club", "rings"],
+      "generator": "ripples",
+      "palette": "neon",
+      "params": {"rate": 0.85, "speed": 0.7}
+    },
+    {
+      "id": "laser-show",
+      "title": "Laser Show",
+      "category": "Party",
+      "tags": ["lasers"],
+      "generator": "scope",
+      "palette": "neon",
+      "params": {"speed": 1.0, "waves": 4, "amp": 0.9}
+    },
+    {
+      "id": "glow-blobs",
+      "title": "Glow Blobs",
+      "category": "Party",
+      "tags": ["blobs", "neon"],
+      "generator": "metaballs",
+      "palette": "neon",
+      "params": {"speed": 0.6, "count": 5}
+    },
+    {
+      "id": "candy-swirl",
+      "title": "Candy Swirl",
+      "category": "Party",
+      "tags": ["sweet", "colorful"],
+      "generator": "noise",
+      "palette": "pastel",
+      "params": {"speed": 0.6, "scale": 0.5, "warp": 1.0}
+    },
+    {
+      "id": "dance-floor-helix",
+      "title": "Dance Floor Helix",
+      "category": "Party",
+      "tags": ["dance", "colorful"],
+      "generator": "helix",
+      "palette": "rainbow",
+      "params": {"speed": 0.8, "twist": 0.7, "rungs": 1.0}
+    },
+    {
+      "id": "christmas-twinkle",
+      "title": "Christmas Twinkle",
+      "category": "Holidays",
+      "tags": ["christmas", "xmas", "lights"],
+      "generator": "twinkle",
+      "palette": "christmas",
+      "params": {"density": 0.35, "fade": 0.6}
+    },
+    {
+      "id": "white-christmas",
+      "title": "White Christmas",
+      "category": "Holidays",
+      "tags": ["christmas", "xmas", "winter"],
+      "generator": "snow",
+      "palette": "ice",
+      "params": {"amount": 0.55, "wind": 0.1, "melt": 0.3}
+    },
+    {
+      "id": "candy-cane-plasma",
+      "title": "Candy Cane Plasma",
+      "category": "Holidays",
+      "tags": ["christmas", "xmas"],
+      "generator": "plasma",
+      "palette": "christmas",
+      "params": {"speed": 0.3, "scale": 0.4}
+    },
+    {
+      "id": "tinsel-helix",
+      "title": "Tinsel Helix",
+      "category": "Holidays",
+      "tags": ["christmas", "xmas", "tree"],
+      "generator": "helix",
+      "palette": "christmas",
+      "params": {"speed": 0.3, "twist": 0.6, "rungs": 0.8}
+    },
+    {
+      "id": "diwali-fireworks",
+      "title": "Diwali Fireworks",
+      "category": "Holidays",
+      "tags": ["diwali", "india", "festival"],
+      "generator": "fireworks",
+      "palette": "festive",
+      "params": {"rate": 0.7, "size": 0.7, "trails": 0.6}
+    },
+    {
+      "id": "diya-glow",
+      "title": "Diya Glow",
+      "category": "Holidays",
+      "tags": ["diwali", "lamp", "flame"],
+      "generator": "fire",
+      "palette": "festive",
+      "params": {"cooling": 0.6, "sparking": 0.45}
+    },
+    {
+      "id": "holi-colours",
+      "title": "Holi Colours",
+      "category": "Holidays",
+      "tags": ["holi", "india", "festival", "colors"],
+      "generator": "noise",
+      "palette": "rainbow",
+      "params": {"speed": 0.5, "scale": 0.55, "warp": 1.0}
+    },
+    {
+      "id": "new-years-eve",
+      "title": "New Year's Eve",
+      "category": "Holidays",
+      "tags": ["new", "year", "celebrate", "midnight"],
+      "generator": "fireworks",
+      "palette": "rainbow",
+      "params": {"rate": 0.9, "size": 0.8, "trails": 0.5}
+    },
+    {
+      "id": "lunar-new-year",
+      "title": "Lunar New Year",
+      "category": "Holidays",
+      "tags": ["chinese", "new", "year", "red", "gold"],
+      "generator": "fireworks",
+      "palette": "lava",
+      "params": {"rate": 0.6, "size": 0.6, "trails": 0.5}
+    },
+    {
+      "id": "valentine-heart",
+      "title": "Valentine Heart",
+      "category": "Holidays",
+      "tags": ["valentine", "love"],
+      "generator": "heartbeat",
+      "palette": "heart",
+      "params": {"bpm": 72, "size": 0.6, "rings": 0.6}
+    },
+    {
+      "id": "spooky-swirl",
+      "title": "Spooky Swirl",
+      "category": "Holidays",
+      "tags": ["halloween", "spooky"],
+      "generator": "swirl",
+      "palette": "halloween",
+      "params": {"speed": 0.35, "arms": 2, "twist": 0.7}
+    },
+    {
+      "id": "haunted-fog",
+      "title": "Haunted Fog",
+      "category": "Holidays",
+      "tags": ["halloween", "fog", "spooky"],
+      "generator": "noise",
+      "palette": "halloween",
+      "params": {"speed": 0.25, "scale": 0.4, "warp": 0.8}
+    },
+    {
+      "id": "festival-lights",
+      "title": "Festival Lights",
+      "category": "Holidays",
+      "tags": ["festival", "celebrate", "lights"],
+      "generator": "twinkle",
+      "palette": "festive",
+      "params": {"density": 0.4, "fade": 0.65}
+    },
+    {
+      "id": "easter-pastels",
+      "title": "Easter Pastels",
+      "category": "Holidays",
+      "tags": ["easter", "spring"],
+      "generator": "metaballs",
+      "palette": "pastel",
+      "params": {"speed": 0.3, "count": 4}
+    },
+    {
+      "id": "liquid-marble",
+      "title": "Liquid Marble",
+      "category": "Abstract",
+      "tags": ["marble", "fluid"],
+      "generator": "noise",
+      "palette": "sunset",
+      "params": {"speed": 0.25, "scale": 0.45, "warp": 1.0}
+    },
+    {
+      "id": "neon-flow",
+      "title": "Neon Flow",
+      "category": "Abstract",
+      "tags": ["flow", "neon"],
+      "generator": "noise",
+      "palette": "neon",
+      "params": {"speed": 0.4, "scale": 0.45, "warp": 0.5}
+    },
+    {
+      "id": "topography",
+      "title": "Topography",
+      "category": "Abstract",
+      "tags": ["contours", "map"],
+      "generator": "noise",
+      "palette": "forest",
+      "params": {"speed": 0.1, "scale": 0.8, "warp": 0.3}
+    },
+    {
+      "id": "kaleido-swirl",
+      "title": "Kaleido Swirl",
+      "category": "Abstract",
+      "tags": ["kaleidoscope"],
+      "generator": "swirl",
+      "palette": "synthwave",
+      "params": {"speed": 0.4, "arms": 5, "twist": 0.4}
+    },
+    {
+      "id": "silk",
+      "title": "Silk",
+      "category": "Abstract",
+      "tags": ["smooth", "soft"],
+      "generator": "plasma",
+      "palette": "pastel",
+      "params": {"speed": 0.25, "scale": 0.7}
+    },
+    {
+      "id": "prism",
+      "title": "Prism",
+      "category": "Abstract",
+      "tags": ["rainbow", "fine"],
+      "generator": "plasma",
+      "palette": "rainbow",
+      "params": {"speed": 0.2, "scale": 0.9}
+    },
+    {
+      "id": "ink-drops",
+      "title": "Ink Drops",
+      "category": "Abstract",
+      "tags": ["drops", "rings"],
+      "generator": "ripples",
+      "palette": "synthwave",
+      "params": {"rate": 0.45, "speed": 0.35}
+    },
+    {
+      "id": "comet-trails",
+      "title": "Comet Trails",
+      "category": "Abstract",
+      "tags": ["trails", "motion"],
+      "generator": "balls",
+      "palette": "galaxy",
+      "params": {"count": 3, "gravity": 0.1, "trails": 0.95},
+      "speed": 0.6
+    },
+    {
+      "id": "mercury",
+      "title": "Mercury",
+      "category": "Abstract",
+      "tags": ["liquid", "metal"],
+      "generator": "metaballs",
+      "palette": "ice",
+      "params": {"speed": 0.4, "count": 6}
+    },
+    {
+      "id": "sine-weave",
+      "title": "Sine Weave",
+      "category": "Abstract",
+      "tags": ["waves", "lines"],
+      "generator": "scope",
+      "palette": "rainbow",
+      "params": {"speed": 0.35, "waves": 4, "amp": 0.5}
+    },
+    {
+      "id": "infinite-corridor",
+      "title": "Infinite Corridor",
+      "category": "Abstract",
+      "tags": ["tunnel", "minimal"],
+      "generator": "tunnel",
+      "palette": "ocean",
+      "params": {"speed": 0.35, "segments": 2, "spin": 0}
+    },
+    {
+      "id": "spiral-staircase",
+      "title": "Spiral Staircase",
+      "category": "Abstract",
+      "tags": ["tunnel", "spiral"],
+      "generator": "tunnel",
+      "palette": "festive",
+      "params": {"speed": 0.5, "segments": 3, "spin": -0.8}
+    },
+    {
+      "id": "double-helix",
+      "title": "Double Helix",
+      "category": "Abstract",
+      "tags": ["helix", "twist"],
+      "generator": "helix",
+      "palette": "synthwave",
+      "params": {"speed": 0.25, "twist": 0.9, "rungs": 0.3}
+    }
+  ]
+}
