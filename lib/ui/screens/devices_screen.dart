@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../../app/devices.dart';
 import '../../app/test_pattern.dart';
+import '../../features/device/device_features.dart';
+import '../../features/device/widgets/common.dart';
+import '../../wled/device.dart';
 import '../../wled/discovery.dart';
 import '../../wled/layout.dart';
 import '../actions.dart';
@@ -23,12 +26,24 @@ class _DevicesScreenState extends State<DevicesScreen> {
   final _found = <String, DiscoveredDevice>{};
   StreamSubscription<DiscoveredDevice>? _sub;
   bool _scanning = false;
+  bool _wired = false;
 
   @override
   void initState() {
     super.initState();
     _sub = _discovery.devices.listen(_onFound);
     _discovery.start().catchError((_) {});
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_wired) return;
+    _wired = true;
+    final scope = AppScope.of(context);
+    // Idempotent; main() normally does this already.
+    DeviceFeatures.attach(devices: scope.devices, playback: scope.playback);
+    unawaited(scope.devices.probeSaved());
   }
 
   void _onFound(DiscoveredDevice d) {
@@ -94,36 +109,75 @@ class _DevicesScreenState extends State<DevicesScreen> {
     await AppScope.of(context).devices.addAndSelect(d.host, d.name);
   }
 
+  Future<void> _switchTo(DeviceStore devices, SavedDevice d) async {
+    final playback = AppScope.of(context).playback;
+    if (playback.isStreaming) await GlyphActions.stopStreaming(context);
+    await devices.select(d);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final devices = AppScope.of(context).devices;
+    final scope = AppScope.of(context);
+    final devices = scope.devices;
     return SafeArea(
       bottom: false,
       child: ListenableBuilder(
-        listenable: devices,
+        listenable: Listenable.merge([devices, scope.playback]),
         builder: (context, _) {
           final savedHosts = devices.saved.map((d) => d.host).toSet();
           final nearby = _found.values.where((d) => !savedHosts.contains(d.host));
+          final others = [for (final d in devices.saved) if (d.host != devices.selected?.host) d];
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
             children: [
               const Text('Matrix',
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+              if (devices.saved.length > 1) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (final d in devices.saved)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            avatar: _OnlineDot(online: devices.isOnline(d.host)),
+                            label: Text(d.name),
+                            selected: d.host == devices.selected?.host,
+                            onSelected: (_) => d.host == devices.selected?.host
+                                ? null
+                                : _switchTo(devices, d),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               if (devices.selected != null) _ActiveDeviceCard(store: devices),
-              if (devices.saved.any((d) => d.host != devices.selected?.host)) ...[
+              if (others.isNotEmpty && devices.selected != null) _MirrorGroup(store: devices, others: others),
+              if (others.isNotEmpty) ...[
                 const _Header('Saved'),
-                for (final d in devices.saved)
-                  if (d.host != devices.selected?.host)
-                    _DeviceTile(
-                      title: d.name,
-                      subtitle: d.host,
-                      onTap: () => devices.select(d),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () => devices.remove(d),
-                      ),
+                for (final d in others)
+                  _DeviceTile(
+                    title: d.name,
+                    subtitle: _peerSubtitle(devices, d),
+                    online: devices.isOnline(d.host),
+                    onTap: () => _switchTo(devices, d),
+                    trailing: IconButton(
+                      tooltip: 'Forget',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () async {
+                        final ok = await confirm(context,
+                            title: 'Forget ${d.name}?',
+                            message: 'It is removed from Glyph only; nothing on the matrix changes.',
+                            action: 'Forget');
+                        if (ok) await devices.remove(d);
+                      },
                     ),
+                  ),
               ],
               _Header('Nearby', trailing: _scanning
                   ? const SizedBox(
@@ -159,6 +213,38 @@ class _DevicesScreenState extends State<DevicesScreen> {
       ),
     );
   }
+
+  static String _peerSubtitle(DeviceStore devices, SavedDevice d) {
+    final info = devices.peerInfo(d.host);
+    if (info == null) {
+      return devices.isOnline(d.host) == false ? '${d.host} · offline' : d.host;
+    }
+    return '${d.host} · ${_sizeLabel(info)}';
+  }
+}
+
+String _sizeLabel(WledInfo info) => info.hasMatrix
+    ? '${info.matrixWidth}×${info.matrixHeight}'
+    : '${info.ledCount} LEDs';
+
+class _OnlineDot extends StatelessWidget {
+  const _OnlineDot({required this.online});
+
+  final bool? online;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: switch (online) {
+            true => GlyphColors.success,
+            false => GlyphColors.danger,
+            null => GlyphColors.textMuted,
+          },
+        ),
+      );
 }
 
 class _ActiveDeviceCard extends StatelessWidget {
@@ -179,19 +265,22 @@ class _ActiveDeviceCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: info != null ? GlyphColors.success : GlyphColors.danger),
-              ),
+              _OnlineDot(online: info != null ? true : (store.isLoading ? null : false)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(info?.name ?? d.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               ),
+              if (info != null)
+                IconButton(
+                  tooltip: 'Rename on the matrix',
+                  onPressed: () => _rename(context, info.name),
+                  icon: const Icon(Icons.drive_file_rename_outline),
+                ),
               IconButton(
+                  tooltip: 'Refresh',
                   onPressed: store.isLoading ? null : store.refresh,
                   icon: const Icon(Icons.refresh)),
             ]),
@@ -201,13 +290,27 @@ class _ActiveDeviceCard extends StatelessWidget {
             else ...[
               const SizedBox(height: 8),
               _kv('Address', d.host),
-              _kv('Firmware', 'WLED ${info.version} · ${info.arch.toUpperCase()}'),
+              _kv('Firmware', 'WLED ${info.version} · ${info.arch.toUpperCase()}',
+                  warn: !info.versionAtLeast(16)),
               _kv('Size', info.matrixWidth != null
                   ? '${info.matrixWidth} × ${info.matrixHeight} (${info.ledCount} LEDs)'
                   : '${info.ledCount} LEDs (1D strip)'),
               if (info.signal != null)
-                _kv('Wi-Fi', '${info.signal}% (${info.rssi} dBm)',
-                    warn: info.signal! < 40),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(children: [
+                    const SizedBox(
+                        width: 130,
+                        child: Text('Wi-Fi', style: TextStyle(color: GlyphColors.textMuted))),
+                    _SignalBars(percent: info.signal!),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('${info.signal}% (${info.rssi} dBm)',
+                          style: TextStyle(
+                              color: info.signal! < 40 ? GlyphColors.warning : null)),
+                    ),
+                  ]),
+                ),
               if ((info.signal ?? 100) < 40)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 8),
@@ -221,7 +324,7 @@ class _ActiveDeviceCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: 4, bottom: 8),
                   child: LinearProgressIndicator(
-                    value: info.fsUsedKb! / info.fsTotalKb!,
+                    value: (info.fsUsedKb! / info.fsTotalKb!).clamp(0.0, 1.0),
                     borderRadius: BorderRadius.circular(4),
                     minHeight: 6,
                   ),
@@ -229,6 +332,17 @@ class _ActiveDeviceCard extends StatelessWidget {
               ],
               _kv('Saving to matrix', caps!.canPlayGifs ? 'Supported' : 'Not supported',
                   warn: !caps.canPlayGifs),
+              if (!info.versionAtLeast(16))
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: InfoBanner(
+                    icon: Icons.system_update_alt,
+                    color: GlyphColors.warning,
+                    text: 'WLED 16 adds GIF playback and schedule editing. Update from the WLED '
+                        'web page (Settings → Security & Updates), or flash it from a computer at '
+                        'install.wled.me.',
+                  ),
+                ),
               const SizedBox(height: 12),
               Wrap(spacing: 10, runSpacing: 10, children: [
                 FilledButton.tonalIcon(
@@ -252,6 +366,13 @@ class _ActiveDeviceCard extends StatelessWidget {
     );
   }
 
+  Future<void> _rename(BuildContext context, String current) async {
+    final name = await promptText(context,
+        title: 'Rename matrix', initial: current, hint: 'Living room');
+    if (name == null || name.isEmpty || name == current || !context.mounted) return;
+    await guarded(context, () => store.renameOnDevice(name), done: 'Renamed to "$name"');
+  }
+
   Widget _kv(String k, String v, {bool warn = false}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(children: [
@@ -272,6 +393,98 @@ class _ActiveDeviceCard extends StatelessWidget {
   }
 }
 
+class _SignalBars extends StatelessWidget {
+  const _SignalBars({required this.percent});
+
+  final int percent;
+
+  @override
+  Widget build(BuildContext context) {
+    final bars = percent >= 75 ? 4 : percent >= 50 ? 3 : percent >= 25 ? 2 : 1;
+    final color = bars <= 1 ? GlyphColors.danger : bars == 2 ? GlyphColors.warning : GlyphColors.success;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < 4; i++)
+          Container(
+            width: 4,
+            height: 5.0 + i * 3,
+            margin: const EdgeInsets.only(right: 2),
+            decoration: BoxDecoration(
+              color: i < bars ? color : GlyphColors.outline,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Other saved matrices that mirror the live stream, each scaled to its own
+/// size and using its own layout.
+class _MirrorGroup extends StatelessWidget {
+  const _MirrorGroup({required this.store, required this.others});
+
+  final DeviceStore store;
+  final List<SavedDevice> others;
+
+  @override
+  Widget build(BuildContext context) {
+    final playback = AppScope.of(context).playback;
+    final mirrors = store.mirrorHosts;
+    final failed = playback.failedHosts;
+    final live = playback.streamingHosts.length;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _Header('Mirror group',
+          trailing: playback.isStreaming && live > 1
+              ? Text('Streaming to $live matrices',
+                  style: const TextStyle(fontSize: 12, color: GlyphColors.success))
+              : null),
+      const Padding(
+        padding: EdgeInsets.only(bottom: 6),
+        child: Text(
+          'Live animations play on these too, scaled to each one\'s size.',
+          style: TextStyle(fontSize: 13, color: GlyphColors.textMuted),
+        ),
+      ),
+      for (final d in others)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Material(
+            color: GlyphColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            clipBehavior: Clip.antiAlias,
+            child: SwitchListTile(
+              secondary: _OnlineDot(online: store.isOnline(d.host)),
+              title: Text(d.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text(
+                failed.contains(d.host)
+                    ? 'Couldn\'t reach it'
+                    : store.peerInfo(d.host) != null
+                        ? _sizeLabel(store.peerInfo(d.host)!)
+                        : store.isOnline(d.host) == false
+                            ? 'Offline'
+                            : d.host,
+                style: TextStyle(
+                    color: failed.contains(d.host) ? GlyphColors.warning : GlyphColors.textMuted),
+              ),
+              value: mirrors.contains(d.host),
+              onChanged: (v) async {
+                await store.setMirror(d.host, v);
+                await DeviceFeatures.syncMirrors(devices: store, playback: playback);
+                if (!v) {
+                  try {
+                    await store.exitLiveOn(d.host);
+                  } catch (_) {}
+                }
+              },
+            ),
+          ),
+        ),
+    ]);
+  }
+}
+
 class _LayoutEditor extends StatefulWidget {
   const _LayoutEditor({required this.store});
 
@@ -288,6 +501,7 @@ class _LayoutEditorState extends State<_LayoutEditor> {
     setState(() => _l = l);
     final playback = AppScope.of(context).playback;
     await widget.store.updateLayout(l);
+    // Restarts the whole group (mirrors included) with the new layout.
     if (playback.isStreaming) {
       await playback.startStreaming(widget.store.selected!.host, l);
     }
@@ -316,33 +530,26 @@ class _LayoutEditorState extends State<_LayoutEditor> {
               ButtonSegment(value: 3, label: Text('270°')),
             ],
             selected: {_l.rotation},
-            onSelectionChanged: (s) => _apply(MatrixLayout(
-                rotation: s.first,
-                flipX: _l.flipX,
-                flipY: _l.flipY,
-                serpentine: _l.serpentine)),
+            onSelectionChanged: (s) => _apply(_l.copyWith(rotation: s.first)),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Mirror horizontally'),
             value: _l.flipX,
-            onChanged: (v) => _apply(MatrixLayout(
-                rotation: _l.rotation, flipX: v, flipY: _l.flipY, serpentine: _l.serpentine)),
+            onChanged: (v) => _apply(_l.copyWith(flipX: v)),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Mirror vertically'),
             value: _l.flipY,
-            onChanged: (v) => _apply(MatrixLayout(
-                rotation: _l.rotation, flipX: _l.flipX, flipY: v, serpentine: _l.serpentine)),
+            onChanged: (v) => _apply(_l.copyWith(flipY: v)),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Zig-zag rows'),
             subtitle: const Text('Turn on if every other row looks reversed'),
             value: _l.serpentine,
-            onChanged: (v) => _apply(MatrixLayout(
-                rotation: _l.rotation, flipX: _l.flipX, flipY: _l.flipY, serpentine: v)),
+            onChanged: (v) => _apply(_l.copyWith(serpentine: v)),
           ),
         ],
       ),
@@ -374,11 +581,16 @@ class _Header extends StatelessWidget {
 
 class _DeviceTile extends StatelessWidget {
   const _DeviceTile(
-      {required this.title, required this.subtitle, required this.onTap, this.trailing});
+      {required this.title,
+      required this.subtitle,
+      required this.onTap,
+      this.trailing,
+      this.online});
 
   final String title, subtitle;
   final VoidCallback onTap;
   final Widget? trailing;
+  final bool? online;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -388,7 +600,8 @@ class _DeviceTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           child: ListTile(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            leading: const Icon(Icons.grid_4x4, color: GlyphColors.primary),
+            leading: Icon(Icons.grid_4x4,
+                color: online == false ? GlyphColors.textMuted : GlyphColors.primary),
             title: Text(title),
             subtitle: Text(subtitle),
             trailing: trailing,

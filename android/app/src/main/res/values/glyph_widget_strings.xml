@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="glyph_widget_label">Glyph matrix</string>
+    <string name="glyph_widget_description">Power and next preset for your matrix</string>
+    <string name="glyph_widget_default_name">Glyph</string>
+    <string name="glyph_widget_power">Power</string>
+    <string name="glyph_widget_next">Next preset</string>
+</resources>

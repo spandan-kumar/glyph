@@ -1,0 +1,583 @@
+{
+  "pack": "mini",
+  "category": "Symbols",
+  "colors": {"U": "p:0.65!", "u": "p:0.35", "R": "#FF3B4A", "Y": "#FFD23F", "y": "#D99A00", "K": "#101018", "W": "#FFFFFF", "w": "#9AA4B8", "G": "#3DDC57", "B": "#3D8BFF", "b": "#9FD2FF", "O": "#FF7A00", "F": "t:#FFC14D", "S": "t:#FFFFFF", "P": "#B05CFF"},
+  "sprites": [
+    {
+      "id": "mini-heart",
+      "title": "Mini Heart",
+      "tags": ["heart", "love", "tiny", "8x8"],
+      "palette": "heart",
+      "category": "Love",
+      "motion": "pulse",
+      "ms": 500,
+      "frames": [
+        [
+          ".UU.UU..",
+          "UUUUUUU.",
+          "UUUUUUU.",
+          "UUUUUUU.",
+          ".UUUUU..",
+          "..UUU...",
+          "...U....",
+          "........"
+        ],
+        [
+          "........",
+          ".UU.UU..",
+          ".UUUUU..",
+          ".UUUUU..",
+          "..UUU...",
+          "...U....",
+          "........",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-smile",
+      "title": "Mini Smiley",
+      "tags": ["smile", "happy", "emoji", "tiny", "8x8"],
+      "palette": "gold",
+      "category": "Emoji",
+      "motion": "bounce",
+      "ms": [1500, 150],
+      "frames": [
+        [
+          "..YYYY..",
+          ".YYYYYY.",
+          "YYKYYKYY",
+          "YYYYYYYY",
+          "YKYYYYKY",
+          "YYKKKKYY",
+          ".YYYYYY.",
+          "..YYYY.."
+        ],
+        [
+          "..YYYY..",
+          ".YYYYYY.",
+          "YYYYYYYY",
+          "YKKYKKYY",
+          "YKYYYYKY",
+          "YYKKKKYY",
+          ".YYYYYY.",
+          "..YYYY.."
+        ]
+      ]
+    },
+    {
+      "id": "mini-star",
+      "title": "Mini Star",
+      "tags": ["star", "twinkle", "tiny", "8x8"],
+      "palette": "gold",
+      "category": "Space",
+      "ms": 300,
+      "frames": [
+        [
+          "...Y....",
+          "...Y....",
+          "..YYY...",
+          "YYYYYYY.",
+          ".YYYYY..",
+          "..YYY...",
+          ".YY.YY..",
+          ".Y...Y.."
+        ],
+        [
+          "........",
+          "...Y....",
+          "...Y....",
+          ".YYYYY..",
+          "..YYY...",
+          "..Y.Y...",
+          "........",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-arrow",
+      "title": "Mini Arrow",
+      "tags": ["arrow", "right", "tiny", "8x8"],
+      "palette": "neon",
+      "ms": 120,
+      "frames": [
+        [
+          "....U...",
+          "....UU..",
+          "UUUUUUU.",
+          "UUUUUUUU",
+          "UUUUUUU.",
+          "....UU..",
+          "....U...",
+          "........"
+        ],
+        [
+          ".....U..",
+          ".....UU.",
+          ".UUUUUUU",
+          ".UUUUUUU",
+          ".UUUUUUU",
+          ".....UU.",
+          ".....U..",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-check",
+      "title": "Mini Check",
+      "tags": ["check", "yes", "done", "tiny", "8x8"],
+      "palette": "toxic",
+      "motion": "pulse",
+      "ms": 800,
+      "frames": [
+        [
+          "........",
+          ".......G",
+          "......GG",
+          "G....GG.",
+          "GG..GG..",
+          ".GGGG...",
+          "..GG....",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-cross",
+      "title": "Mini Cross",
+      "tags": ["cross", "no", "x", "tiny", "8x8"],
+      "palette": "blood",
+      "motion": "shake",
+      "ms": 800,
+      "frames": [
+        [
+          "R......R",
+          "RR....RR",
+          ".RR..RR.",
+          "..RRRR..",
+          "..RRRR..",
+          ".RR..RR.",
+          "RR....RR",
+          "R......R"
+        ]
+      ]
+    },
+    {
+      "id": "mini-note",
+      "title": "Mini Note",
+      "tags": ["music", "note", "tiny", "8x8"],
+      "palette": "candy",
+      "motion": "bounce",
+      "ms": 800,
+      "frames": [
+        [
+          "...UUUU.",
+          "...U..U.",
+          "...U..U.",
+          "...U..U.",
+          ".UUU.UU.",
+          "UUUUUUU.",
+          ".UU..UU.",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-drop",
+      "title": "Mini Drop",
+      "tags": ["water", "drop", "rain", "tiny", "8x8"],
+      "palette": "ocean",
+      "category": "Weather",
+      "motion": "bounce",
+      "ms": 800,
+      "frames": [
+        [
+          "...B....",
+          "...B....",
+          "..BBB...",
+          ".BBBBB..",
+          ".BbBBB..",
+          ".BbBBB..",
+          "..BBB...",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-flame",
+      "title": "Mini Flame",
+      "tags": ["fire", "flame", "hot", "tiny", "8x8"],
+      "palette": "ember",
+      "category": "Fire & Energy",
+      "ms": 140,
+      "frames": [
+        [
+          "...O....",
+          "..OO....",
+          "..OOO.O.",
+          ".OOFOOO.",
+          ".OFFFOO.",
+          ".OFYFO..",
+          "..OYO...",
+          "........"
+        ],
+        [
+          "....O...",
+          "...OO...",
+          ".O.OOO..",
+          ".OOFOOO.",
+          ".OFFFOO.",
+          ".OFYFO..",
+          "..OYO...",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-ghost",
+      "title": "Mini Ghost",
+      "tags": ["ghost", "halloween", "boo", "tiny", "8x8"],
+      "palette": "halloween",
+      "category": "Holidays",
+      "motion": "float",
+      "ms": 300,
+      "frames": [
+        [
+          "..WWWW..",
+          ".WWWWWW.",
+          ".WKWWKW.",
+          ".WWWWWW.",
+          ".WWWWWW.",
+          ".WWWWWW.",
+          ".W.WW.W.",
+          "........"
+        ],
+        [
+          "..WWWW..",
+          ".WWWWWW.",
+          ".WKWWKW.",
+          ".WWWWWW.",
+          ".WWWWWW.",
+          ".WWWWWW.",
+          ".WW.WW.W",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-critter",
+      "title": "Mini Critter",
+      "tags": ["alien", "retro", "arcade", "tiny", "8x8"],
+      "palette": "toxic",
+      "category": "Gaming",
+      "motion": "sway",
+      "ms": 400,
+      "frames": [
+        [
+          "..UUUU..",
+          ".UUUUUU.",
+          "UWUUWUUU",
+          "UUUUUUUU",
+          "U.UUUU.U",
+          ".U.UU.U.",
+          "U......U",
+          "........"
+        ],
+        [
+          "..UUUU..",
+          ".UUUUUU.",
+          "UUWUUWUU",
+          "UUUUUUUU",
+          "U.UUUU.U",
+          "U.U..U.U",
+          ".U....U.",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-skull",
+      "title": "Mini Skull",
+      "tags": ["skull", "spooky", "halloween", "tiny", "8x8"],
+      "palette": "mono",
+      "category": "Holidays",
+      "ms": [1500, 300],
+      "frames": [
+        [
+          ".WWWWWW.",
+          "WWWWWWWW",
+          "WKKWWKKW",
+          "WKKWWKKW",
+          "WWWKKWWW",
+          ".WWWWWW.",
+          ".W.W.W..",
+          "........"
+        ],
+        [
+          ".WWWWWW.",
+          "WWWWWWWW",
+          "WRRWWRRW",
+          "WRRWWRRW",
+          "WWWKKWWW",
+          ".WWWWWW.",
+          ".W.W.W..",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-sun",
+      "title": "Mini Sun",
+      "tags": ["sun", "sunny", "weather", "tiny", "8x8"],
+      "palette": "gold",
+      "category": "Weather",
+      "ms": 400,
+      "frames": [
+        [
+          "Y..Y..Y.",
+          ".Y.Y.Y..",
+          "..YYY...",
+          "YYYYYYY.",
+          "..YYY...",
+          ".Y.Y.Y..",
+          "Y..Y..Y.",
+          "........"
+        ],
+        [
+          "...Y....",
+          "Y.....Y.",
+          "..YYY...",
+          ".YYYYY.Y",
+          "..YYY...",
+          "Y.....Y.",
+          "...Y....",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-moon",
+      "title": "Mini Moon",
+      "tags": ["moon", "night", "sleep", "tiny", "8x8"],
+      "palette": "twilight",
+      "category": "Weather",
+      "motion": "float",
+      "ms": 600,
+      "frames": [
+        [
+          "..YYY...",
+          ".YY.....",
+          "YY.....S",
+          "YY......",
+          "YY......",
+          ".YY.....",
+          "..YYY...",
+          "........"
+        ],
+        [
+          "..YYY.S.",
+          ".YY.....",
+          "YY......",
+          "YY......",
+          "YY....S.",
+          ".YY.....",
+          "..YYY...",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-bolt",
+      "title": "Mini Bolt",
+      "tags": ["lightning", "bolt", "power", "tiny", "8x8"],
+      "palette": "gold",
+      "ms": [800, 100],
+      "frames": [
+        [
+          ".....Y..",
+          "....YY..",
+          "...YY...",
+          "..YYYYY.",
+          ".....YY.",
+          "....YY..",
+          "...Y....",
+          "........"
+        ],
+        [
+          ".....W..",
+          "....WW..",
+          "...WW...",
+          "..WWWWW.",
+          ".....WW.",
+          "....WW..",
+          "...W....",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-key",
+      "title": "Mini Key",
+      "tags": ["key", "unlock", "tiny", "8x8"],
+      "palette": "gold",
+      "category": "Gaming",
+      "motion": "float",
+      "ms": 800,
+      "frames": [
+        [
+          ".YYY....",
+          "Y...Y...",
+          "Y...Y...",
+          ".YYYYYYY",
+          ".....Y.Y",
+          ".....Y..",
+          "........",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-coin",
+      "title": "Mini Coin",
+      "tags": ["coin", "gold", "money", "tiny", "8x8"],
+      "palette": "gold",
+      "category": "Gaming",
+      "motion": "bounce",
+      "ms": 130,
+      "frames": [
+        [
+          "..YYYY..",
+          ".YYyYYY.",
+          ".YYyYYY.",
+          ".YYyYYY.",
+          ".YYyYYY.",
+          ".YYyYYY.",
+          "..YYYY..",
+          "........"
+        ],
+        [
+          "...YY...",
+          "..YYYY..",
+          "..YyYY..",
+          "..YyYY..",
+          "..YyYY..",
+          "..YYYY..",
+          "...YY...",
+          "........"
+        ],
+        [
+          "...yy...",
+          "...yy...",
+          "...yy...",
+          "...yy...",
+          "...yy...",
+          "...yy...",
+          "...yy...",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-gift",
+      "title": "Mini Gift",
+      "tags": ["gift", "present", "christmas", "birthday", "tiny", "8x8"],
+      "palette": "christmas",
+      "category": "Holidays",
+      "motion": "bounce",
+      "ms": 800,
+      "frames": [
+        [
+          "..Y.Y...",
+          "...Y....",
+          "RRRYRRR.",
+          "RRRYRRR.",
+          ".RRYRR..",
+          ".RRYRR..",
+          ".RRYRR..",
+          "........"
+        ]
+      ]
+    },
+    {
+      "id": "mini-tree",
+      "title": "Mini Xmas Tree",
+      "tags": ["christmas", "tree", "tiny", "8x8"],
+      "palette": "christmas",
+      "category": "Holidays",
+      "ms": 300,
+      "frames": [
+        [
+          "...S....",
+          "...G....",
+          "..GRG...",
+          ".GGGBG..",
+          "..GYG...",
+          ".GRGGGG.",
+          "GGGGBGGG",
+          "...yy..."
+        ],
+        [
+          "...S....",
+          "...G....",
+          "..GYG...",
+          ".GGGRG..",
+          "..GBG...",
+          ".GYGGGG.",
+          "GGGGRGGG",
+          "...yy..."
+        ]
+      ]
+    },
+    {
+      "id": "mini-wifi",
+      "title": "Mini Wi-Fi",
+      "tags": ["wifi", "signal", "tiny", "8x8"],
+      "palette": "ocean",
+      "ms": [300, 300, 300, 800],
+      "frames": [
+        [
+          "........",
+          "........",
+          "........",
+          "........",
+          "........",
+          "........",
+          "...U....",
+          "........"
+        ],
+        [
+          "........",
+          "........",
+          "........",
+          "........",
+          "..UUU...",
+          ".U...U..",
+          "...U....",
+          "........"
+        ],
+        [
+          "........",
+          "........",
+          ".UUUUU..",
+          "U.....U.",
+          "..UUU...",
+          ".U...U..",
+          "...U....",
+          "........"
+        ],
+        [
+          "UUUUUUU.",
+          "U.....U.",
+          ".UUUUU..",
+          "U.....U.",
+          "..UUU...",
+          ".U...U..",
+          "...U....",
+          "........"
+        ]
+      ]
+    }
+  ]
+}

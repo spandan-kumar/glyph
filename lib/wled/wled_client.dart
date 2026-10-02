@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import 'device.dart';
+import 'presets.dart';
+import 'schedule.dart';
 
 class WledException implements Exception {
   WledException(this.message, [this.cause]);
@@ -284,6 +286,147 @@ class WledClient {
           'GIF file name must be at most $maxGifNameLength chars with no folders: $fileName');
     }
     return n;
+  }
+
+  /// Live device config (GET /json/cfg serializes the running config, so it
+  /// is current right after a POST, unlike the /cfg.json file which is
+  /// written later in the device loop).
+  Future<Map<String, dynamic>> config() => _getMap('/json/cfg');
+
+  /// Partial config update via POST /json/cfg. Only keys present are changed
+  /// (cfg.cpp deserializeConfig uses `x = json | x` throughout) and the
+  /// config is then saved to flash; nothing reboots unless "rb" is sent.
+  /// Returns 401 when a settings PIN is set and not unlocked.
+  Future<void> setConfig(Map<String, dynamic> patch) async {
+    final res = await _send(() => _http.post(_uri('/json/cfg'),
+        headers: const {'Content-Type': 'application/json'},
+        body: jsonEncode(patch)));
+    if (res.statusCode == 401) {
+      throw WledException('Device settings are PIN-locked; unlock them in WLED first', 401);
+    }
+    _check(res, '/json/cfg');
+  }
+
+  /// Renames the device itself (cfg id.name, the "server description" shown
+  /// in the WLED UI and /json/info "name"; at most 32 chars).
+  Future<void> setDeviceName(String name) {
+    final n = name.trim();
+    if (n.isEmpty) throw WledException('Name can\'t be empty');
+    return setConfig({
+      'id': {'name': n.length > 32 ? n.substring(0, 32) : n}
+    });
+  }
+
+  Future<WledSchedule> schedule() async => WledSchedule.fromConfig(await config());
+
+  /// Replaces every timer (an empty list removes them all).
+  Future<void> saveTimers(List<WledTimer> timers) {
+    if (timers.length > WledSchedule.maxTimers) {
+      throw WledException('At most ${WledSchedule.maxTimers} schedules');
+    }
+    for (final t in timers) {
+      final err = t.validate();
+      if (err != null) throw WledException(err);
+    }
+    return setConfig(WledSchedule.timersPatch(timers));
+  }
+
+  /// Preset applied at power-on; 0 for none.
+  Future<void> setBootPreset(int presetId) =>
+      setConfig(WledSchedule.bootPresetPatch(presetId));
+
+  /// Every stored preset with its JSON body, sorted by id.
+  Future<List<WledPreset>> presetList() async {
+    try {
+      return WledPreset.parseAll(await _get('/presets.json'));
+    } on WledException catch (e) {
+      if (e.cause == 404) return const [];
+      rethrow;
+    }
+  }
+
+  /// Saves a playlist preset the way the WLED UI does (index.js saveP):
+  /// `"o": true` with a "playlist" object makes savePreset store the
+  /// playlist rather than a state snapshot. WLED loads (starts) the playlist
+  /// as part of the same request and writes it in the next loop iteration.
+  Future<void> savePlaylist(
+      {required int id, required String name, required WledPlaylist playlist}) {
+    if (id < 1 || id > 250) throw WledException('Preset id must be 1..250');
+    if (playlist.entries.isEmpty) throw WledException('Add at least one preset');
+    if (playlist.entries.length > WledPlaylist.maxEntries) {
+      throw WledException('At most ${WledPlaylist.maxEntries} entries');
+    }
+    if (playlist.entries.any((e) => e.presetId == id)) {
+      throw WledException('A playlist can\'t contain itself');
+    }
+    final n = name.trim().isEmpty ? 'Playlist $id' : name.trim();
+    return setState({
+      'psave': id,
+      'n': n.length > 32 ? n.substring(0, 32) : n,
+      'playlist': playlist.toJson(),
+      'on': true,
+      'o': true,
+    });
+  }
+
+  /// Renames preset [id] keeping its content. State and API presets are
+  /// re-saved as an API call (`"o": true`), which savePreset writes verbatim
+  /// minus o/v/time/error/psave; WLED also applies the body, so the preset
+  /// starts playing. Playlists are re-saved (and so restarted).
+  Future<void> renamePreset(int id, String name) async {
+    final n = name.trim();
+    if (n.isEmpty) throw WledException('Name can\'t be empty');
+    final body = _mapOf((await _getMap('/presets.json'))['$id']);
+    if (body.isEmpty) throw WledException('Preset $id no longer exists');
+    final preset = WledPreset(id: id, name: n, body: body);
+    final pl = preset.playlist;
+    if (pl != null) return savePlaylist(id: id, name: n, playlist: pl);
+    await setState({
+      ...Map<String, dynamic>.of(body)
+        ..remove('psave')
+        ..remove('pdel')
+        ..remove('rb')
+        ..remove('np'),
+      'psave': id,
+      'n': n.length > 32 ? n.substring(0, 32) : n,
+      'o': true,
+    });
+  }
+
+  /// Advances a running device playlist (json.cpp "np").
+  Future<void> nextInPlaylist() => setState({'np': true});
+
+  /// Nightlight (json.cpp "nl", led.cpp handleNightlight): mode 1 fades
+  /// brightness to [targetBri] over [minutes], 0 waits then jumps to it, 2
+  /// also fades to the secondary colour. Fading from off does nothing. Mode 3
+  /// runs the Sunrise effect instead (a sunrise when off, a sunset when on,
+  /// at most 60 min) and ignores [targetBri].
+  Future<void> setNightlight(
+          {required bool on, int? minutes, int? mode, int? targetBri}) =>
+      setState({
+        'nl': {
+          'on': on,
+          if (minutes != null) 'dur': minutes.clamp(1, 255),
+          if (mode != null) 'mode': mode.clamp(0, 3),
+          if (targetBri != null) 'tbri': targetBri.clamp(0, 255),
+        }
+      });
+
+  /// Raw bytes of a file on the device filesystem (e.g. "/duck.gif"); WLED
+  /// serves FS files at their path. Retried once.
+  Future<Uint8List> fileBytes(String path) async {
+    final p = _slash(path);
+    http.Response? res;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        res = await _send(() => _http.get(_uri(Uri.encodeFull(p))), uploadTimeout);
+        break;
+      } on WledException {
+        if (attempt == 1) rethrow;
+      }
+    }
+    _check(res!, p);
+    return res.bodyBytes;
   }
 
   void close() => _http.close();

@@ -1,8 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
+import '../../app/background.dart';
 import '../../engine/palette.dart';
+import '../../features/audio/visualizers.dart';
 import '../actions.dart';
 import '../scope.dart';
 import '../theme.dart';
@@ -25,23 +25,23 @@ class _NowPlayingSheet extends StatefulWidget {
 }
 
 class _NowPlayingSheetState extends State<_NowPlayingSheet> {
-  double _brightness = 128;
-  Timer? _briDebounce;
   bool _saving = false;
   String? _saveResult;
 
-  @override
-  void dispose() {
-    _briDebounce?.cancel();
-    super.dispose();
-  }
-
-  void _setBrightness(double v) {
-    setState(() => _brightness = v);
-    _briDebounce?.cancel();
-    _briDebounce = Timer(const Duration(milliseconds: 120), () {
-      AppScope.of(context).devices.client?.setBrightness(v.round());
-    });
+  Future<void> _setBackground(bool on) async {
+    final scope = AppScope.of(context);
+    final playback = scope.playback, devices = scope.devices;
+    if (!on) return BackgroundStreaming.stop();
+    await BackgroundStreaming.start(
+      title: 'Glyph is streaming to ${devices.info?.name ?? 'your matrix'}',
+      microphone: playback.generator is AudioVisualizer,
+      onStop: () {
+        playback.pause();
+        playback.stopStreaming();
+        devices.client?.exitLive();
+      },
+    );
+    BackgroundStreaming.watch(playback);
   }
 
   @override
@@ -101,14 +101,27 @@ class _NowPlayingSheetState extends State<_NowPlayingSheet> {
                             : GlyphActions.stopStreaming(context)
                         : null,
                   ),
+                  if (BackgroundStreaming.supported && playback.isStreaming)
+                    ValueListenableBuilder<bool>(
+                      valueListenable: BackgroundStreaming.running,
+                      builder: (context, running, _) => SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Keep running in background'),
+                        subtitle: const Text('Streams with the screen off'),
+                        value: running,
+                        onChanged: _setBackground,
+                      ),
+                    ),
                   Row(children: [
                     const Icon(Icons.brightness_6_outlined,
                         size: 20, color: GlyphColors.textMuted),
                     Expanded(
                       child: Slider(
-                        value: _brightness,
+                        value: (devices.brightness ?? 128).toDouble(),
                         max: 255,
-                        onChanged: devices.isConnected ? _setBrightness : null,
+                        onChanged: devices.isConnected
+                            ? (v) => devices.setBrightness(v.round())
+                            : null,
                       ),
                     ),
                   ]),
@@ -213,14 +226,14 @@ class _Section extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        decoration: BoxDecoration(
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Material(
           color: GlyphColors.surfaceHigh,
           borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title.toUpperCase(),
@@ -229,9 +242,11 @@ class _Section extends StatelessWidget {
                     letterSpacing: 1.2,
                     fontWeight: FontWeight.w600,
                     color: GlyphColors.textMuted)),
-            const SizedBox(height: 8),
-            child,
-          ],
+                const SizedBox(height: 8),
+                child,
+              ],
+            ),
+          ),
         ),
       );
 }

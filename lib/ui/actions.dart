@@ -5,7 +5,9 @@ import '../engine/generator.dart';
 
 import '../engine/clip.dart';
 import '../engine/frame.dart';
+import '../app/background.dart';
 import '../engine/gif_baker.dart';
+import '../engine/gif_encoder.dart';
 import '../engine/palette.dart';
 import '../engine/registry.dart';
 import '../library/catalog.dart';
@@ -38,8 +40,9 @@ abstract final class GlyphActions {
   static Future<void> stopStreaming(BuildContext context) async {
     final s = AppScope.of(context);
     await s.playback.stopStreaming();
+    await BackgroundStreaming.stop();
     try {
-      await s.devices.client?.exitLive();
+      await Future.wait([s.devices.client!.exitLive(), s.devices.exitLiveMirrors()]);
     } catch (_) {
       // WLED drops out of live mode on its own after the realtime timeout.
     }
@@ -66,7 +69,7 @@ abstract final class GlyphActions {
       return saveClipToDevice(context, g.clip, title);
     }
     final Future<Uint8List> bytes;
-    if (generators.any((x) => x.id == g.id)) {
+    if (findGenerator(g.id) != null) {
       // compute() with a top-level function avoids capturing BuildContext.
       bytes = compute(_bake, (
         g.id,
@@ -95,7 +98,9 @@ abstract final class GlyphActions {
     final caps = AppScope.of(context).devices.caps;
     if (caps == null) return null;
     final fitted = clip.fitTo(caps.width, caps.height);
-    return _upload(context, title, compute(_encodeFrames, (fitted.frames, fitted.averageFps)));
+    // Keep each frame's own timing; GIF delays are centiseconds, min 2.
+    final delays = [for (final ms in fitted.delaysMs) (ms / 10).round().clamp(2, 65535)];
+    return _upload(context, title, compute(_encodeClip, (fitted.frames, delays)));
   }
 
   static Future<String?> _upload(
@@ -164,3 +169,5 @@ Uint8List _bake((String, Map<String, double>, String, int, int, double) a) {
 }
 
 Uint8List _encodeFrames((List<Frame>, int) a) => bakeFrames(a.$1, fps: a.$2).bytes;
+
+Uint8List _encodeClip((List<Frame>, List<int>) a) => encodeGif(a.$1, a.$2);

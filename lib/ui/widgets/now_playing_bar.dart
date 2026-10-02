@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../features/games/core/game_generator.dart';
+import '../../features/games/game_page.dart';
 import '../actions.dart';
 import '../scope.dart';
 import '../theme.dart';
@@ -22,7 +24,15 @@ class NowPlayingBar extends StatelessWidget {
         final canStream = scope.devices.isConnected;
 
         return GestureDetector(
-          onTap: () => showNowPlayingSheet(context),
+          onTap: () {
+            final g = playback.generator;
+            // A running game reopens its controller instead of the generic sheet.
+            if (g is GameGenerator) {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => GamePage(def: g.def)));
+            } else {
+              showNowPlayingSheet(context);
+            }
+          },
           child: Container(
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
             padding: const EdgeInsets.all(8),

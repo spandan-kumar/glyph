@@ -1,0 +1,420 @@
+{
+  "pack": "faces",
+  "category": "Emoji",
+  "colors": {
+    "Y": "#FFC83D", "O": "#D9821A", "K": "#1A0C00", "W": "#FFFFFF", "R": "#E8283C",
+    "M": "#7A1020", "B": "#4FB4FF", "P": "#FF6F91", "S": "t:#FFFFFF", "G": "#9AA0B4",
+    "D": "#2C2C48", "Z": "#9AD8FF"
+  },
+  "parts": {
+    "face": [
+      ".....OOOOOO.....",
+      "...OOYYYYYYOO...",
+      "..OYYYYYYYYYYO..",
+      ".OYYYYYYYYYYYYO.",
+      ".OYYYYYYYYYYYYO.",
+      "OYYYYYYYYYYYYYYO",
+      "OYYYYYYYYYYYYYYO",
+      "OYYYYYYYYYYYYYYO",
+      "OYYYYYYYYYYYYYYO",
+      "OYYYYYYYYYYYYYYO",
+      "OYYYYYYYYYYYYYYO",
+      ".OYYYYYYYYYYYYO.",
+      ".OYYYYYYYYYYYYO.",
+      "..OYYYYYYYYYYO..",
+      "...OOYYYYYYOO...",
+      ".....OOOOOO....."
+    ],
+    "eyes": [
+      ".....OOOOOO.....",
+      "...OOYYYYYYOO...",
+      "..OYYYYYYYYYYO..",
+      ".OYYYYYYYYYYYYO.",
+      ".OYYKKYYYYKKYYO.",
+      "OYYYKKYYYYKKYYYO",
+      "OYYYKKYYYYKKYYYO",
+      "OYYYYYYYYYYYYYYO",
+      "OYYYYYYYYYYYYYYO",
+      "OYYYYYYYYYYYYYYO",
+      "OYYYYYYYYYYYYYYO",
+      ".OYYYYYYYYYYYYO.",
+      ".OYYYYYYYYYYYYO.",
+      "..OYYYYYYYYYYO..",
+      "...OOYYYYYYOO...",
+      ".....OOOOOO....."
+    ]
+  },
+  "sprites": [
+    {
+      "id": "smile", "title": "Smiley", "tags": ["happy", "smile", "emoji", "yellow", "friendly"],
+      "palette": "sunset", "ms": [2400, 140, 900, 140],
+      "frames": [
+        {"base": "eyes", "patch": [{"at": [3, 9], "rows": ["K        K", " K      K", "  KKKKKK"]}]},
+        {"base": 0, "patch": [{"at": [4, 4], "rows": ["YY    YY", "YY    YY"]}]}
+      ],
+      "seq": [0, 1, 0, 1]
+    },
+    {
+      "id": "grin", "title": "Big Grin", "tags": ["happy", "grin", "teeth", "emoji", "yellow"],
+      "palette": "sunset", "motion": "bounce", "ms": [1800, 140],
+      "frames": [
+        {"base": "eyes", "patch": [{"at": [3, 9], "rows": ["KKKKKKKKKK", "KWWWWWWWWK", " KWWWWWWK", "  KKKKKK"]}]},
+        {"base": 0, "patch": [{"at": [4, 4], "rows": ["YY    YY", "YY    YY"]}]}
+      ]
+    },
+    {
+      "id": "laugh", "title": "Laughing Out Loud", "tags": ["laugh", "lol", "funny", "tears", "emoji", "yellow"],
+      "palette": "sunset", "motion": "shake", "ms": 220,
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [3, 4], "rows": [" K      K", "K K    K K"]},
+          {"at": [3, 8], "rows": ["KKKKKKKKKK", "KWWWWWWWWK", " KRRRRRRK", "  KRRRRK", "   KKKK"]},
+          {"at": [1, 6], "rows": ["B            B"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [3, 4], "rows": [" K      K", "K K    K K"]},
+          {"at": [3, 8], "rows": ["KKKKKKKKKK", "KWWWWWWWWK", " KRRRRRRK", "  KKKKKK"]},
+          {"at": [0, 8], "rows": ["B              B"]}
+        ]}
+      ]
+    },
+    {
+      "id": "wink", "title": "Wink", "tags": ["wink", "flirty", "playful", "emoji", "yellow"],
+      "palette": "sunset", "ms": [1300, 900],
+      "frames": [
+        {"base": "eyes", "patch": [{"at": [3, 9], "rows": ["K        K", " K      K", "  KKKKKK"]}]},
+        {"base": 0, "patch": [{"at": [9, 4], "rows": [" YYY", " YYY", "KKKK"]}, {"at": [3, 9], "rows": ["          ", " K     KK", "  KKKKK"]}]}
+      ]
+    },
+    {
+      "id": "love", "title": "Heart Eyes", "tags": ["love", "heart", "crush", "romantic", "valentine", "emoji"],
+      "palette": "heart", "ms": [380, 260],
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [2, 4], "rows": [".R.R.  .R.R.", "RRRRR..RRRRR", ".RRR....RRR.", "..R......R.."]},
+          {"at": [3, 9], "rows": ["K        K", " K      K", "  KKKKKK"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [2, 3], "rows": ["RR.RR  RR.RR", "RWRRR..RWRRR", "RRRRR..RRRRR", ".RRR....RRR.", "..R......R.."]},
+          {"at": [3, 9], "rows": ["KKKKKKKKKK", " KWWWWWWK", "  KKKKKK"]}
+        ]}
+      ]
+    },
+    {
+      "id": "kiss", "title": "Blowing a Kiss", "tags": ["kiss", "love", "mwah", "valentine", "emoji"],
+      "palette": "heart", "ms": [500, 300, 300, 300],
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [3, 5], "rows": ["KK      KK", "  K    K"]},
+          {"at": [7, 9], "rows": ["KK", " K", "KK", " K"]},
+          {"at": [2, 9], "rows": ["PP        PP"]}
+        ]},
+        {"base": 0, "patch": [{"at": [10, 8], "rows": ["R.R", "RRR", ".R."]}]},
+        {"base": 0, "patch": [{"at": [12, 4], "rows": ["R.R", "RRR", ".R."]}]},
+        {"base": 0, "patch": [{"at": [13, 0], "rows": ["R.R", "RRR", ".R."]}]}
+      ]
+    },
+    {
+      "id": "cool", "title": "Too Cool", "tags": ["cool", "sunglasses", "chill", "swag", "emoji"],
+      "palette": "sunset", "ms": [1600, 120, 120, 120],
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [0, 4], "rows": ["KKKKKKKKKKKKKKKK", " DDDDDD  DDDDDD", "  DDDD    DDDD"]},
+          {"at": [4, 9], "rows": ["       K", "K     K", " KKKKK"]}
+        ]},
+        {"base": 0, "patch": [{"at": [2, 5], "rows": ["W"]}]},
+        {"base": 0, "patch": [{"at": [4, 5], "rows": ["W", " W"]}]},
+        {"base": 0, "patch": [{"at": [11, 5], "rows": ["W", " W"]}]}
+      ]
+    },
+    {
+      "id": "sleepy", "title": "Sleepy Head", "tags": ["sleep", "tired", "zzz", "night", "bedtime", "emoji"],
+      "palette": "twilight", "motion": "float", "ms": 600,
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [3, 6], "rows": ["KKKK  KKKK"]},
+          {"at": [7, 10], "rows": ["KK", "KK"]},
+          {"at": [11, 3], "rows": ["ZZZ", ".Z.", "ZZZ"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [3, 6], "rows": ["KKKK  KKKK"]},
+          {"at": [7, 10], "rows": ["KK"]},
+          {"at": [12, 1], "rows": ["ZZZ", ".Z.", "ZZZ"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [3, 6], "rows": ["KKKK  KKKK"]},
+          {"at": [7, 10], "rows": ["KK"]},
+          {"at": [13, 0], "rows": ["ZZZ", ".Z.", "ZZZ"]},
+          {"at": [10, 4], "rows": ["ZZ", "ZZ"]}
+        ]}
+      ]
+    },
+    {
+      "id": "cry", "title": "Crying", "tags": ["sad", "cry", "tears", "upset", "emoji", "blue"],
+      "palette": "ocean", "ms": 180,
+      "frames": [
+        {"base": "eyes", "patch": [{"at": [4, 7], "rows": ["B     B"]}, {"at": [4, 10], "rows": [" KKKKKK", "K      K"]}]},
+        {"base": "eyes", "patch": [{"at": [4, 7], "rows": ["B     B", "B     B"]}, {"at": [4, 10], "rows": [" KKKKKK", "K      K"]}, {"at": [4, 12], "rows": ["B      B"]}]},
+        {"base": "eyes", "patch": [{"at": [4, 8], "rows": ["B     B"]}, {"at": [4, 10], "rows": [" KKKKKK", "K      K"]}, {"at": [4, 13], "rows": ["B      B"]}]},
+        {"base": "eyes", "patch": [{"at": [4, 9], "rows": ["B     B"]}, {"at": [4, 10], "rows": [" KKKKKK", "K      K"]}, {"at": [4, 14], "rows": ["B      B"]}]}
+      ]
+    },
+    {
+      "id": "wow", "title": "Wow!", "tags": ["wow", "surprised", "shock", "omg", "emoji"],
+      "palette": "sunset", "ms": [900, 900],
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [3, 3], "rows": ["KK      KK"]},
+          {"at": [4, 5], "rows": ["KK    KK", "KK    KK", "KK    KK"]},
+          {"at": [6, 9], "rows": [" KK", "KMMK", "KMMK", " KK"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [3, 2], "rows": ["KK      KK"]},
+          {"at": [4, 4], "rows": ["KK    KK", "KK    KK", "KK    KK"]},
+          {"at": [5, 9], "rows": [" KKKK", "KMMMMK", "KMMMMK", "KMMMMK", " KKKK"]}
+        ]}
+      ]
+    },
+    {
+      "id": "angry", "title": "Fuming", "tags": ["angry", "mad", "rage", "grumpy", "emoji", "red"],
+      "palette": "blood", "motion": "shake", "ms": 260,
+      "colors": {"Y": "#FF6A3D", "O": "#B71C1C"},
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [2, 3], "rows": ["KK        KK", "  KK    KK"]},
+          {"at": [4, 5], "rows": ["KK    KK", "KK    KK"]},
+          {"at": [4, 10], "rows": [" KKKKKK", "K      K"]},
+          {"at": [0, 0], "rows": ["G", ".G"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [2, 3], "rows": ["KK        KK", "  KK    KK"]},
+          {"at": [4, 5], "rows": ["KK    KK", "KK    KK"]},
+          {"at": [4, 10], "rows": [" KKKKKK", "K      K"]},
+          {"at": [14, 0], "rows": [".G", "G"]}
+        ]}
+      ]
+    },
+    {
+      "id": "sad", "title": "Feeling Blue", "tags": ["sad", "down", "unhappy", "emoji"],
+      "palette": "ocean", "ms": [2000, 600, 140],
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [4, 3], "rows": ["KK    KK", "  K  K"]},
+          {"at": [4, 5], "rows": ["KK    KK", "KK    KK"]},
+          {"at": [5, 10], "rows": [" KKKK", "K    K"]}
+        ]},
+        {"base": 0, "patch": [{"at": [4, 7], "rows": ["B"]}]},
+        {"base": 0, "patch": [{"at": [4, 5], "rows": ["YY    YY", "KK    KK"]}]}
+      ]
+    },
+    {
+      "id": "nervous", "title": "Nervous Sweat", "tags": ["nervous", "awkward", "sweat", "oops", "emoji"],
+      "palette": "ocean", "ms": 300,
+      "frames": [
+        {"base": "eyes", "patch": [{"at": [4, 10], "rows": ["K  KK  K", " KK  KK"]}, {"at": [12, 1], "rows": ["B", "B"]}]},
+        {"base": "eyes", "patch": [{"at": [4, 10], "rows": [" KK  KK", "K  KK  K"]}, {"at": [12, 2], "rows": ["B", "B"]}]},
+        {"base": "eyes", "patch": [{"at": [4, 10], "rows": ["K  KK  K", " KK  KK"]}, {"at": [12, 3], "rows": ["B", "B"]}]},
+        {"base": "eyes", "patch": [{"at": [4, 10], "rows": [" KK  KK", "K  KK  K"]}, {"at": [13, 4], "rows": ["B", "B"]}]}
+      ]
+    },
+    {
+      "id": "silly", "title": "Silly Tongue", "tags": ["silly", "goofy", "tongue", "playful", "emoji"],
+      "palette": "candy", "motion": "sway", "ms": 280,
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [4, 4], "rows": ["KK", "KK", "KK"]},
+          {"at": [10, 5], "rows": ["KK", "K"]},
+          {"at": [3, 9], "rows": ["K        K", " KKKKKKKK", "    RRR", "    RRR", "     R"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [4, 4], "rows": ["KK", "KK", "KK"]},
+          {"at": [10, 5], "rows": ["KK", "K"]},
+          {"at": [3, 9], "rows": ["K        K", " KKKKKKKK", "     RRR", "     RRR", "      R"]}
+        ]}
+      ]
+    },
+    {
+      "id": "dizzy", "title": "Dizzy", "tags": ["dizzy", "confused", "stars", "knocked out", "emoji"],
+      "palette": "gold", "ms": 200,
+      "colors": {"S": "#FFF59D"},
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [3, 4], "rows": ["K K    K K", " K      K", "K K    K K"]},
+          {"at": [4, 10], "rows": [" K  K", "K KK K KK"]},
+          {"at": [1, 1], "rows": ["S"]}, {"at": [13, 0], "rows": ["S"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [3, 4], "rows": ["K K    K K", " K      K", "K K    K K"]},
+          {"at": [4, 10], "rows": ["K  K", " KK K KK"]},
+          {"at": [7, 0], "rows": ["S"]}, {"at": [15, 3], "rows": ["S"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [3, 4], "rows": ["K K    K K", " K      K", "K K    K K"]},
+          {"at": [4, 10], "rows": [" K  K", "K KK K KK"]},
+          {"at": [13, 0], "rows": ["S"]}, {"at": [0, 3], "rows": ["S"]}
+        ]}
+      ]
+    },
+    {
+      "id": "party-face", "title": "Party Face", "tags": ["party", "birthday", "celebrate", "hat", "confetti", "emoji"],
+      "palette": "festive", "motion": "bounce", "ms": 240,
+      "colors": {"H": "p:0.15", "h": "p:0.6", "C": "c:0.0", "c": "c:0.5"},
+      "frames": [
+        {"base": "eyes", "patch": [
+          {"at": [3, 9], "rows": ["KKKKKKKKKK", " KWWWWWWK", "  KKKKKK"]},
+          {"at": [10, 0], "rows": ["..H", ".Hh", "HhH", "hHHh"]},
+          {"at": [0, 0], "rows": ["C"]}, {"at": [2, 2], "rows": ["c"]}
+        ]},
+        {"base": "eyes", "patch": [
+          {"at": [3, 9], "rows": ["KKKKKKKKKK", " KWWWWWWK", "  KKKKKK"]},
+          {"at": [10, 0], "rows": ["..H", ".Hh", "HhH", "hHHh"]},
+          {"at": [1, 1], "rows": ["c"]}, {"at": [15, 6], "rows": ["C"]}
+        ]}
+      ]
+    },
+    {
+      "id": "sick", "title": "Feeling Queasy", "tags": ["sick", "ill", "nauseous", "green", "emoji"],
+      "palette": "toxic", "motion": "sway", "ms": [700, 700],
+      "colors": {"Y": "#A5D66A", "O": "#4E8A2A"},
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [3, 5], "rows": ["KKK    KKK", " KK    KK"]},
+          {"at": [4, 10], "rows": [" KK  KK", "K  KK  K"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [3, 5], "rows": ["KKK    KKK", " KK    KK"]},
+          {"at": [4, 10], "rows": ["K  KK  K", " KK  KK"]}
+        ]}
+      ]
+    },
+    {
+      "id": "freezing", "title": "Freezing Cold", "tags": ["cold", "freezing", "winter", "shiver", "blue", "emoji"],
+      "palette": "ice", "motion": "shake", "ms": 140,
+      "colors": {"Y": "#8AD4FF", "O": "#1D6FB8", "I": "#E8F8FF"},
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [4, 4], "rows": ["KK    KK", "KK    KK"]},
+          {"at": [4, 9], "rows": ["KKKKKKKK", "KWKWKWKK", "KKKKKKKK"]},
+          {"at": [5, 14], "rows": ["I  I", "I"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [4, 4], "rows": ["KK    KK", "KK    KK"]},
+          {"at": [4, 9], "rows": ["KKKKKKKK", "KKWKWKWK", "KKKKKKKK"]},
+          {"at": [5, 14], "rows": ["I  I", "I"]}
+        ]}
+      ]
+    },
+    {
+      "id": "overheated", "title": "Overheated", "tags": ["hot", "heat", "summer", "sweat", "red", "emoji"],
+      "palette": "ember", "ms": 260,
+      "colors": {"Y": "#FF8A50", "O": "#C43C12"},
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [4, 5], "rows": ["KK    KK", "KK    KK"]},
+          {"at": [4, 9], "rows": [" KKKKKK", "KMMMMMMK", " KRRRRK", "  RRR"]},
+          {"at": [1, 4], "rows": ["B"]}, {"at": [14, 6], "rows": ["B"]}
+        ]},
+        {"base": "face", "patch": [
+          {"at": [4, 5], "rows": ["KK    KK", "KK    KK"]},
+          {"at": [4, 9], "rows": [" KKKKKK", "KMMMMMMK", " KRRRRK", "   RRR"]},
+          {"at": [1, 5], "rows": ["B"]}, {"at": [14, 7], "rows": ["B"]}
+        ]}
+      ]
+    },
+    {
+      "id": "starstruck", "title": "Star Struck", "tags": ["stars", "amazed", "starstruck", "excited", "emoji"],
+      "palette": "gold", "ms": 300,
+      "frames": [
+        {"base": "face", "patch": [
+          {"at": [2, 3], "rows": ["..S......S..", ".SSS....SSS.", "SSSSS..SSSSS", ".SSS....SSS.", ".S.S....S.S."]},
+          {"at": [3, 9], "rows": ["KKKKKKKKKK", " KWWWWWWK", "  KRRRRK", "   KKKK"]}
+        ]}
+      ]
+    },
+    {
+      "id": "neutral", "title": "Poker Face", "tags": ["neutral", "meh", "blank", "deadpan", "emoji"],
+      "palette": "sunset", "ms": [2600, 140],
+      "frames": [
+        {"base": "eyes", "patch": [{"at": [4, 10], "rows": ["KKKKKKKK"]}]},
+        {"base": 0, "patch": [{"at": [4, 4], "rows": ["YY    YY", "YY    YY"]}]}
+      ]
+    },
+    {
+      "id": "eyeroll", "title": "Eye Roll", "tags": ["eyeroll", "whatever", "bored", "sarcastic", "emoji"],
+      "palette": "sunset", "ms": [500, 250, 250, 250, 900],
+      "frames": [
+        {"base": "face", "patch": [{"at": [3, 4], "rows": ["WWW  WWW", "WWW  WWW", "WKW  WKW"]}, {"at": [5, 10], "rows": ["KKKKKK"]}]},
+        {"base": "face", "patch": [{"at": [3, 4], "rows": ["WWW  WWW", "KWW  KWW", "WWW  WWW"]}, {"at": [5, 10], "rows": ["KKKKKK"]}]},
+        {"base": "face", "patch": [{"at": [3, 4], "rows": ["WKW  WKW", "WWW  WWW", "WWW  WWW"]}, {"at": [5, 10], "rows": ["KKKKKK"]}]},
+        {"base": "face", "patch": [{"at": [3, 4], "rows": ["WWW  WWW", "WWK  WWK", "WWW  WWW"]}, {"at": [5, 10], "rows": ["KKKKKK"]}]},
+        {"base": "face", "patch": [{"at": [3, 4], "rows": ["WKW  WKW", "WWW  WWW", "WWW  WWW"]}, {"at": [5, 10], "rows": ["KKKKK"]}]}
+      ],
+      "seq": [0, 1, 2, 3, 4]
+    },
+    {
+      "id": "upside-down", "title": "Upside Down", "tags": ["upside down", "silly", "sarcasm", "emoji"],
+      "palette": "sunset", "motion": "sway", "ms": 1000,
+      "frames": [
+        {"base": "eyes", "patch": [{"at": [3, 9], "rows": ["K        K", " K      K", "  KKKKKK"]}], "flip": "v"}
+      ]
+    },
+    {
+      "id": "robot-face", "title": "Robot Buddy", "tags": ["robot", "bot", "tech", "android", "sci-fi"],
+      "palette": "cyberpunk", "ms": 160,
+      "colors": {"A": "#9AA7B8", "a": "#5D6A7C", "L": "c:0.75", "E": "#FF2E63", "e": "#601020"},
+      "frames": [
+        [
+          ".......L........",
+          ".......a........",
+          "...aaaaaaaaaa...",
+          "..aAAAAAAAAAAa..",
+          "..aAAAAAAAAAAa..",
+          "..aADDDDDDDDAa..",
+          "aaaADEeDDDDDAaaa",
+          "aAaADDDDDDDDAaAa",
+          "aaaADDDDDDDDAaaa",
+          "..aAAAAAAAAAAa..",
+          "..aAAaAaAaAAAa..",
+          "..aAAaAaAaAAAa..",
+          "..aAAAAAAAAAAa..",
+          "...aaaaaaaaaa...",
+          ".....aaaaaa.....",
+          "....aaaaaaaa...."
+        ],
+        {"base": 0, "patch": [{"at": [4, 6], "rows": ["DDEeDDDD"]}]},
+        {"base": 0, "patch": [{"at": [4, 6], "rows": ["DDDDEeDD"]}]},
+        {"base": 0, "patch": [{"at": [4, 6], "rows": ["DDDDDDEe"]}]},
+        {"base": 0, "patch": [{"at": [4, 6], "rows": ["DDDDDeED"]}]},
+        {"base": 0, "patch": [{"at": [4, 6], "rows": ["DDDeEDDD"]}]},
+        {"base": 0, "patch": [{"at": [4, 6], "rows": ["DeEDDDDD"]}]}
+      ],
+      "seq": [0, 1, 2, 3, 4, 5, 6]
+    },
+    {
+      "id": "alien-face", "title": "Little Green Visitor", "tags": ["alien", "ufo", "space", "green", "sci-fi"],
+      "palette": "toxic", "motion": "float", "ms": [1800, 150],
+      "colors": {"A": "#7BEA5C", "a": "#2E8B2E", "T": "t:#E8FF7A"},
+      "frames": [
+        [
+          "..T..........T..",
+          "...a........a...",
+          "....a.aaaa.a....",
+          ".....aAAAAa.....",
+          "...aaAAAAAAaa...",
+          "..aAAAAAAAAAAa..",
+          ".aAAAAAAAAAAAAa.",
+          ".aAKKKKAAKKKKAa.",
+          ".aAKKKWAAKKKWAa.",
+          ".aAAKKKAAKKKAAa.",
+          "..aAAAAAAAAAAa..",
+          "..aAAAAAAAAAAa..",
+          "...aAAAKKAAAa...",
+          "....aAAAAAAa....",
+          ".....aaAAaa.....",
+          ".......aa......."
+        ],
+        {"base": 0, "patch": [{"at": [3, 7], "rows": ["AAAA  AAAA", "KKKK  KKKK", "AAAA  AAAA"]}]}
+      ]
+    }
+  ]
+}

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'app/creations.dart';
 import 'app/devices.dart';
 import 'app/playback.dart';
+import 'features/device/device_features.dart';
+import 'library/bundled_catalog.dart';
 import 'library/catalog.dart';
 import 'ui/scope.dart';
 import 'ui/screens/home_shell.dart';
@@ -11,11 +12,13 @@ import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final catalog = Catalog.parse(await rootBundle.loadString('assets/catalog/starter.json'));
+  final catalog = await loadBundledCatalog();
   final devices = DeviceStore();
   final playback = PlaybackController();
   final creations = CreationsStore();
   // Don't block first paint on the network; the store notifies when ready.
+  // Keeps the home-screen widget and mirror group in sync with the store.
+  DeviceFeatures.attach(devices: devices, playback: playback);
   devices.load();
   creations.load();
   runApp(GlyphApp(

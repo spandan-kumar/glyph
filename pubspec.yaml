@@ -103,3 +103,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# permission_handler_android 14.x requires compileSdk 37, which Flutter's
+# current Android Gradle plugin (9.1, max 36) can't build. Drop when Flutter's
+# template moves to an AGP that supports API 37.
+dependency_overrides:
+  permission_handler_android: 13.0.1

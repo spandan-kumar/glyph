@@ -5,6 +5,7 @@ import '../../features/audio/audio_screen.dart';
 import '../../features/editor/editor_screen.dart';
 import '../../features/games/games_screen.dart';
 import '../../features/import/import_screen.dart';
+import '../../features/import/sharing.dart';
 import '../../features/text/text_studio_screen.dart';
 import '../actions.dart';
 import '../scope.dart';
@@ -187,6 +188,23 @@ class _CreationTile extends StatelessWidget {
               onTap: () {
                 Navigator.pop(ctx);
                 GlyphActions.saveClipToDevice(context, creation.clip, creation.title);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.gif_box_outlined),
+              title: const Text('Share as GIF'),
+              onTap: () {
+                Navigator.pop(ctx);
+                shareCreationAsGif(context, creation);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.ios_share),
+              title: const Text('Share Glyph file'),
+              subtitle: const Text('Opens editable in Glyph'),
+              onTap: () {
+                Navigator.pop(ctx);
+                shareCreationFile(context, creation);
               },
             ),
             ListTile(

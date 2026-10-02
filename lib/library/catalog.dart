@@ -50,6 +50,8 @@ class LibraryItem {
     this.params = const {},
     this.speed,
     this.asset,
+    this.featured,
+    this.added = 0,
   });
 
   final String id;
@@ -63,6 +65,12 @@ class LibraryItem {
   /// Playback-rate multiplier; null means 1.
   final double? speed;
   final LibraryAsset? asset;
+
+  /// Editorial rank for the Featured shelf (lower first); null = not featured.
+  final int? featured;
+
+  /// Catalog revision the item arrived in; drives "New" sorting.
+  final int added;
 
   factory LibraryItem.fromJson(Map<String, dynamic> j) => LibraryItem(
         id: j['id'] as String,
@@ -79,6 +87,8 @@ class LibraryItem {
         asset: j['asset'] == null
             ? null
             : LibraryAsset.fromJson(j['asset'] as Map<String, dynamic>),
+        featured: (j['featured'] as num?)?.toInt(),
+        added: (j['added'] as num?)?.toInt() ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -91,14 +101,32 @@ class LibraryItem {
         'palette': paletteId,
         if (speed != null) 'speed': speed,
         if (asset != null) 'asset': asset!.toJson(),
+        if (featured != null) 'featured': featured,
+        if (added != 0) 'added': added,
       };
 
-  bool _matches(String token) =>
-      title.toLowerCase().contains(token) ||
-      category.toLowerCase().contains(token) ||
-      generatorId.contains(token) ||
-      paletteId.contains(token) ||
-      tags.any((t) => t.toLowerCase().contains(token));
+  bool get isPixelArt => generatorId.startsWith('sprite:');
+
+  /// How well [token] matches, 0 for no match. Title hits beat tag hits beat
+  /// category hits beat generator/palette hits.
+  int _score(String token) {
+    final t = title.toLowerCase();
+    if (t == token) return 100;
+    if (t.startsWith(token)) return 80;
+    if (t.split(RegExp(r'[^a-z0-9]+')).any((w) => w.startsWith(token))) return 60;
+    if (t.contains(token)) return 40;
+    var best = 0;
+    for (final tag in tags) {
+      final l = tag.toLowerCase();
+      final s = l == token ? 35 : (l.startsWith(token) ? 28 : (l.contains(token) ? 18 : 0));
+      if (s > best) best = s;
+    }
+    if (best > 0) return best;
+    final c = category.toLowerCase();
+    if (c.contains(token)) return c.startsWith(token) ? 15 : 12;
+    if (generatorId.contains(token) || paletteId.contains(token)) return 5;
+    return 0;
+  }
 }
 
 class Catalog {
@@ -122,27 +150,45 @@ class Catalog {
     return out;
   }
 
-  /// Items whose title, category, tags, generator or palette contain every
-  /// word of [q]. Title matches sort first.
+  /// Items matching every word of [q] in their title, tags, category,
+  /// generator or palette, best matches first (catalog order breaks ties).
   List<LibraryItem> search(String q) {
     final tokens =
         q.toLowerCase().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
     if (tokens.isEmpty) return List.of(items);
-    final hits = items.where((i) => tokens.every(i._matches)).toList();
-    int rank(LibraryItem i) {
-      final title = i.title.toLowerCase();
-      if (title.startsWith(tokens.first)) return 0;
-      if (tokens.every(title.contains)) return 1;
-      return 2;
+    final phrase = tokens.join(' ');
+    final scored = <(LibraryItem, int, int)>[];
+    for (var k = 0; k < items.length; k++) {
+      final i = items[k];
+      var total = 0;
+      for (final t in tokens) {
+        final s = i._score(t);
+        if (s == 0) {
+          total = -1;
+          break;
+        }
+        total += s;
+      }
+      if (total < 0) continue;
+      // Whole-phrase title hits ("blue flame") beat scattered word hits.
+      if (tokens.length > 1 && i.title.toLowerCase().contains(phrase)) total += 50;
+      scored.add((i, total, k));
     }
-
-    // Stable sort by rank, keeping catalog order within a rank.
-    final order = {for (var k = 0; k < hits.length; k++) hits[k]: k};
-    hits.sort((a, b) {
-      final r = rank(a).compareTo(rank(b));
-      return r != 0 ? r : order[a]!.compareTo(order[b]!);
+    scored.sort((a, b) {
+      final r = b.$2.compareTo(a.$2);
+      return r != 0 ? r : a.$3.compareTo(b.$3);
     });
-    return hits;
+    return [for (final s in scored) s.$1];
+  }
+
+  /// Featured items in editorial order.
+  List<LibraryItem> get featured =>
+      items.where((i) => i.featured != null).toList()..sort((a, b) => a.featured!.compareTo(b.featured!));
+
+  /// Items carrying any of [tags] (case-insensitive), in catalog order.
+  List<LibraryItem> tagged(Iterable<String> tags) {
+    final want = {for (final t in tags) t.toLowerCase()};
+    return items.where((i) => i.tags.any((t) => want.contains(t.toLowerCase()))).toList();
   }
 
   List<LibraryItem> inCategory(String c) =>

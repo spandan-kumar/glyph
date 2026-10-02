@@ -7,11 +7,12 @@ import '../engine/generator.dart';
 import '../engine/palette.dart';
 import '../engine/registry.dart';
 import '../library/catalog.dart';
-import '../wled/ddp.dart';
+import '../wled/ddp_group.dart';
 import '../wled/layout.dart';
 
 /// Owns the "now playing" animation: runs the render loop, exposes the latest
-/// frame for previews, and streams frames to the selected device over DDP.
+/// frame for previews, and streams frames over DDP to the selected device and
+/// any mirrored matrices (each scaled to its own size).
 class PlaybackController extends ChangeNotifier {
   PlaybackController({int width = 16, int height = 16})
       : _frame = Frame(width, height);
@@ -31,8 +32,8 @@ class PlaybackController extends ChangeNotifier {
   final _clock = Stopwatch();
   Duration _last = Duration.zero;
 
-  DdpSender? _sender;
-  MatrixLayout _layout = const MatrixLayout();
+  DdpGroupSender? _group;
+  List<DdpTarget> _mirrors = const [];
 
   /// Bumps every rendered frame; previews repaint off this without
   /// rebuilding the whole widget tree.
@@ -45,9 +46,25 @@ class PlaybackController extends ChangeNotifier {
   LibraryItem? get item => _item;
   double get timeScale => _timeScale;
   bool get isPlaying => _timer != null;
-  bool get isStreaming => _sender?.isOpen ?? false;
-  int get framesSent => _sender?.framesSent ?? 0;
-  int get sendErrors => _sender?.errors ?? 0;
+  bool get isStreaming => _group?.isOpen ?? false;
+
+  /// Frames delivered to the primary target.
+  int get framesSent => _group?.framesSent ?? 0;
+
+  /// Dropped frames across every target.
+  int get sendErrors => _group?.errors ?? 0;
+
+  /// Targets of the current stream (primary first); empty when not streaming.
+  List<DdpTarget> get targets => _group?.targets ?? const [];
+
+  /// Hosts actually receiving frames right now.
+  List<String> get streamingHosts => _group?.activeHosts ?? const [];
+
+  /// Secondary targets that could not be opened.
+  List<String> get failedHosts => _group?.failedHosts ?? const [];
+
+  /// Extra matrices that [startStreaming] mirrors to.
+  List<DdpTarget> get mirrors => _mirrors;
 
   void playItem(LibraryItem item) {
     _item = item;
@@ -121,30 +138,50 @@ class PlaybackController extends ChangeNotifier {
     _last = now;
     _t += dt;
     _instance?.render(_frame, _t, dt, _params, _palette);
-    final s = _sender;
-    if (s != null && s.isOpen) s.send(_layout.apply(_frame));
+    final g = _group;
+    if (g != null && g.isOpen) g.send(_frame);
     frameTick.value++;
   }
 
-  Future<void> startStreaming(String host, MatrixLayout layout) async {
+  /// Streams to [host] plus the current [mirrors].
+  Future<void> startStreaming(String host, MatrixLayout layout) =>
+      startStreamingTo([DdpTarget(host, layout: layout), ..._mirrors]);
+
+  /// Streams to every target; the first is the primary and is rendered at the
+  /// current frame size. Throws if the primary can't be opened; unreachable
+  /// others are skipped (see [failedHosts]).
+  Future<void> startStreamingTo(List<DdpTarget> targets) async {
     await stopStreaming(notify: false);
-    _layout = layout;
-    final s = DdpSender(host);
-    await s.open();
-    _sender = s;
+    if (targets.isEmpty) return notifyListeners();
+    final g = DdpGroupSender(targets);
+    await g.open();
+    _group = g;
     notifyListeners();
   }
 
+  /// Sets the matrices mirrored alongside the primary. While streaming the
+  /// group is reopened so the change applies immediately.
+  Future<void> setMirrors(List<DdpTarget> mirrors) async {
+    if (listEquals(mirrors, _mirrors)) return;
+    _mirrors = List.unmodifiable(mirrors);
+    final primary = targets.isEmpty ? null : targets.first;
+    if (primary != null && isStreaming) {
+      await startStreamingTo([primary, ..._mirrors]);
+    } else {
+      notifyListeners();
+    }
+  }
+
   Future<void> stopStreaming({bool notify = true}) async {
-    _sender?.close();
-    _sender = null;
+    _group?.close();
+    _group = null;
     if (notify) notifyListeners();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _sender?.close();
+    _group?.close();
     frameTick.dispose();
     super.dispose();
   }

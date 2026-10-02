@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget (GlyphWidgetProvider.kt). RemoteViews-safe views only. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/glyph_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/glyph_widget_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingEnd="8dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/glyph_widget_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/glyph_widget_default_name"
+            android:textColor="#FFEDEDF5"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/glyph_widget_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FF8C8CA3"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/glyph_widget_power"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/glyph_widget_button_bg"
+        android:contentDescription="@string/glyph_widget_power"
+        android:padding="10dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/glyph_ic_power" />
+
+    <ImageButton
+        android:id="@+id/glyph_widget_next"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/glyph_widget_button_bg"
+        android:contentDescription="@string/glyph_widget_next"
+        android:padding="10dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/glyph_ic_next" />
+</LinearLayout>
