@@ -250,13 +250,14 @@ class WledClient {
           '${freeKb < 0 ? 0 : freeKb} KB free');
     }
     // Upload first, without touching what the matrix shows, so a failed
-    // upload leaves it exactly as it was. Only once the file is verified do
-    // we switch over (leave live mode, play the GIF, save the preset).
+    // upload leaves it exactly as it was. Once the file is verified, load
+    // the GIF while live frames still cover it, then leave live mode so the
+    // switch is instant (no flash of whatever played before).
     await _releaseFile(name);
     await uploadFileReliably('/$name', gif, onRetry: onRetry);
+    await playGif(name, imageEffectId: fx);
     await beforeSwitch?.call();
     await exitLive();
-    await playGif(name, imageEffectId: fx);
     return saveCurrentAsPreset(presetName, id: presetId);
   }
 

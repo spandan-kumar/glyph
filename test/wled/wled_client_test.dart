@@ -89,9 +89,10 @@ void main() {
       'tt': 0,
       'seg': {'id': 0, 'fx': 0}
     });
-    expect(posts[1], {'live': false});
-    expect(posts[2]['seg'], containsPair('n', 'glyph_test.gif'));
-    expect(posts[2]['seg'], containsPair('fx', 53));
+    // The GIF is loaded while still live, then live mode ends: no flash.
+    expect(posts[1]['seg'], containsPair('n', 'glyph_test.gif'));
+    expect(posts[1]['seg'], containsPair('fx', 53));
+    expect(posts[2], {'live': false});
     expect(posts[3], {'psave': 2, 'n': 'Glyph test', 'ib': true, 'sb': true});
     expect(requests.where((r) => r.url.path == '/upload'), hasLength(1));
     // The matrix only leaves live mode after the file is safely uploaded.
