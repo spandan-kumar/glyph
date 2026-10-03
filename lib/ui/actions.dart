@@ -58,7 +58,9 @@ abstract final class GlyphActions {
 
   /// Saves whatever is playing so it runs on the matrix without the phone.
   /// Library effects bake on a background isolate; clips encode their own
-  /// frames; anything else (games, audio) is recorded for 4 s.
+  /// frames; anything else (games, audio) is recorded for about 4 s. Effects
+  /// are baked as seamless loops (renderLoop), since the matrix replays the
+  /// GIF end to start forever.
   static Future<String?> saveToDevice(BuildContext context) async {
     final s = AppScope.of(context);
     final caps = s.devices.caps;
@@ -66,9 +68,11 @@ abstract final class GlyphActions {
     if (caps == null || g == null) return null;
     final title = s.playback.item?.title ?? g.name;
     final w = caps.width, h = caps.height;
-    // On weak Wi-Fi a shorter, lighter loop uploads far more reliably.
+    // On weak Wi-Fi a shorter, lighter loop uploads far more reliably. Keep
+    // the frame rate: WLED plays 50 ms frames evenly, 66 ms ones judder.
     final weak = (s.devices.info?.signal ?? 100) < 40;
-    final seconds = weak ? 3.0 : 4.0, fps = weak ? 15 : 20;
+    final seconds = weak ? 3.0 : 4.0;
+    const fps = deviceGifFps;
 
     if (g is ClipGenerator) {
       return saveClipToDevice(context, g.clip, title);
@@ -87,7 +91,7 @@ abstract final class GlyphActions {
         fps,
       ));
     } else {
-      final frames = renderFrames(
+      final loop = renderLoop(
         generator: g,
         params: s.playback.params,
         palette: s.playback.palette,
@@ -97,7 +101,7 @@ abstract final class GlyphActions {
         seconds: seconds,
         fps: fps,
       );
-      bytes = compute(_encodeFrames, (frames, fps));
+      bytes = compute(_encodeLoop, loop);
     }
     return _upload(context, title, bytes);
   }
@@ -107,8 +111,17 @@ abstract final class GlyphActions {
     final caps = AppScope.of(context).devices.caps;
     if (caps == null) return null;
     final fitted = clip.fitTo(caps.width, caps.height);
-    // Keep each frame's own timing; GIF delays are centiseconds, min 2.
-    final delays = [for (final ms in fitted.delaysMs) (ms / 10).round().clamp(2, 65535)];
+    // Keep each frame's own timing. GIF delays are whole centiseconds (min
+    // 2), so round each frame's end time rather than each delay: the loop
+    // then lasts as long as the clip instead of drifting.
+    final delays = <int>[];
+    var elapsedMs = 0, totalCs = 0;
+    for (final ms in fitted.delaysMs) {
+      elapsedMs += ms;
+      final d = ((elapsedMs / 10).round() - totalCs).clamp(2, 65535);
+      delays.add(d);
+      totalCs += d;
+    }
     return _upload(context, title, compute(_encodeClip, (fitted.frames, delays)));
   }
 
@@ -149,13 +162,13 @@ abstract final class GlyphActions {
       d.noteKept(presetId, title);
       final kb = (bytes.length / 1024).toStringAsFixed(1);
       return context.mounted
-          ? _report(context, 'Kept on your matrix ($kb KB). Unplug your phone — it keeps playing.')
+          ? _report(context, 'Sent to your device ($kb KB). It keeps playing without your phone.')
           : null;
     } catch (e) {
       // Nothing changed on the matrix: carry on streaming at full rate.
       s.playback.streamThrottled = false;
       final why = e is WledException ? e.message : '$e';
-      return context.mounted ? _report(context, 'Couldn\'t keep it: $why') : null;
+      return context.mounted ? _report(context, 'Couldn\'t send it: $why') : null;
     }
   }
 
@@ -185,6 +198,6 @@ Uint8List _bake((String, Map<String, double>, String, int, int, double, double, 
   ).bytes;
 }
 
-Uint8List _encodeFrames((List<Frame>, int) a) => bakeFrames(a.$1, fps: a.$2).bytes;
+Uint8List _encodeLoop(LoopFrames loop) => bakeLoop(loop).bytes;
 
 Uint8List _encodeClip((List<Frame>, List<int>) a) => encodeGif(a.$1, a.$2);

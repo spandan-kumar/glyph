@@ -8,7 +8,7 @@ import '../../../wled/presets.dart';
 import '../device_manager.dart';
 import 'common.dart';
 
-/// Shows: kept items the matrix plays one after another, on its own.
+/// Shows: saved items the device plays one after another, on its own.
 class ShowsSection extends StatelessWidget {
   const ShowsSection({super.key, required this.manager, required this.store, required this.onPlay});
 
@@ -27,11 +27,12 @@ class ShowsSection extends StatelessWidget {
         if (shows.isEmpty)
           EmptyNote(
             text: canCreate
-                ? 'Line up a few kept animations and your matrix plays them one after another.'
-                : 'Keep a few animations first, then line them up into a show.',
+                ? 'Line up a few saved animations and your device plays them one after another.'
+                : 'Send a few animations to your device first, then line them up into a show.',
           ),
         for (final p in shows)
           Padding(
+            key: ValueKey(p.id),
             padding: const EdgeInsets.only(bottom: 10),
             child: ShowCard(
               manager: manager,
@@ -60,7 +61,7 @@ class ShowsSection extends StatelessWidget {
     final ok = await confirm(
       context,
       title: 'Delete “${p.name}”?',
-      message: 'The animations in it stay on your matrix.',
+      message: 'The animations in it stay on your device.',
     );
     if (!ok || !context.mounted) return;
     await guarded(context, () => manager.deletePreset(p.id), done: 'Deleted “${p.name}”');
@@ -121,6 +122,7 @@ class ShowCard extends StatelessWidget {
               ),
               PopupMenuButton<String>(
                 tooltip: 'Show options',
+                shape: squareMenu,
                 icon: const Icon(Icons.more_horiz_rounded, color: Lb.text2),
                 onSelected: (v) => v == 'edit' ? onEdit?.call() : onDelete?.call(),
                 itemBuilder: (_) => const [
@@ -141,8 +143,9 @@ class ShowCard extends StatelessWidget {
                 final shown = entries.length > fit ? fit - 1 : entries.length;
                 return Row(
                   children: [
-                    for (final e in entries.take(shown.clamp(0, entries.length)))
+                    for (final (i, e) in entries.take(shown.clamp(0, entries.length)).indexed)
                       Padding(
+                        key: ValueKey((i, e.presetId)),
                         padding: const EdgeInsets.only(right: gap),
                         child: SizedBox.square(
                           dimension: size,
@@ -182,7 +185,7 @@ class _MiniTile extends StatelessWidget {
         border: Border.all(color: Lb.line),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(2),
+        borderRadius: BorderRadius.circular(Lb.rTile),
         child: p == null ? const DotGlyph(color: Lb.text3, dim: true) : PresetThumb(manager: manager, preset: p),
       ),
     );
@@ -194,7 +197,7 @@ Future<void> openShowEditor(BuildContext context, DeviceManager manager, {WledPr
       MaterialPageRoute<void>(builder: (_) => ShowEditor(manager: manager, existing: existing)),
     );
 
-/// Picks kept items for a show and how long each one plays.
+/// Picks saved items for a show and how long each one plays.
 class ShowEditor extends StatefulWidget {
   const ShowEditor({super.key, required this.manager, this.existing});
 
@@ -262,6 +265,7 @@ class _ShowEditorState extends State<ShowEditor> {
               children: [
                 for (final p in choices)
                   SizedBox(
+                    key: ValueKey(p.id),
                     width: 96,
                     child: GestureDetector(
                       onTap: () => Navigator.pop(ctx, p.id),
@@ -291,7 +295,7 @@ class _ShowEditorState extends State<ShowEditor> {
     final name = _name.text.trim().isEmpty ? 'My show' : _name.text.trim();
     final ok = await guarded(context, () async {
       await m.savePlaylist(id: widget.existing?.id, name: name, playlist: _pl);
-    }, done: 'Show saved — it\'s playing on your matrix');
+    }, done: 'Show saved — it\'s playing on your device');
     if (!mounted) return;
     setState(() => _saving = false);
     if (ok) Navigator.pop(context);
@@ -325,7 +329,7 @@ class _ShowEditorState extends State<ShowEditor> {
               style: LbType.body,
               decoration: const InputDecoration(hintText: 'Name it, e.g. Evening mix'),
             ),
-            Text('Your matrix plays these one after another, by itself.', style: LbType.small),
+            Text('Your device plays these one after another, by itself.', style: LbType.small),
             const SizedBox(height: 16),
             _options(),
             const SizedBox(height: 20),
@@ -340,7 +344,7 @@ class _ShowEditorState extends State<ShowEditor> {
               ],
             ),
             const SizedBox(height: 6),
-            if (entries.isEmpty) const EmptyNote(text: 'Add kept animations to play in order.'),
+            if (entries.isEmpty) const EmptyNote(text: 'Add saved animations to play in order.'),
           ],
         ),
         itemCount: entries.length,
@@ -376,6 +380,7 @@ class _ShowEditorState extends State<ShowEditor> {
             children: [
               Expanded(child: Text('Repeat', style: LbType.bodyStrong)),
               SegmentedButton<bool>(
+                style: squareSegments,
                 showSelectedIcon: false,
                 segments: const [
                   ButtonSegment(value: true, label: Text('Forever')),
@@ -499,7 +504,7 @@ class _EntryRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    p?.name ?? 'Removed from your matrix',
+                    p?.name ?? 'Removed from your device',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: LbType.bodyStrong.copyWith(color: p == null ? Lb.danger : null),
@@ -562,6 +567,7 @@ class _ChipMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PopupMenuButton<int>(
+    shape: squareMenu,
     onSelected: onSelected,
     itemBuilder: (_) => [for (final v in values) PopupMenuItem(value: v, child: Text(format(v)))],
     child: Padding(

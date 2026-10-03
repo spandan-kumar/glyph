@@ -1,11 +1,8 @@
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../engine/clip.dart';
-import '../../../engine/frame.dart';
-import '../../../features/import/decode.dart';
 import '../../../ui/design/ambient.dart';
 import '../../../ui/design/parts.dart';
 import '../../../ui/design/tokens.dart';
@@ -14,7 +11,20 @@ import '../../../ui/widgets/live_preview.dart';
 import '../../../wled/presets.dart';
 import '../device_manager.dart';
 
-/// Friendly name for something saved on the matrix ("Turn off" for the
+/// Square corners for SegmentedButton (its theme default is a pill).
+const squareSegments = ButtonStyle(
+  shape: WidgetStatePropertyAll(
+    RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Lb.rControl))),
+  ),
+);
+
+/// Square, hairlined popup menus.
+const squareMenu = RoundedRectangleBorder(
+  borderRadius: BorderRadius.all(Radius.circular(Lb.rControl)),
+  side: Lb.hairline,
+);
+
+/// Friendly name for something saved on the device ("Turn off" for the
 /// switch-off entry, a gentle note when it has gone).
 String keptName(DeviceManager m, int id) {
   final p = m.preset(id);
@@ -23,7 +33,7 @@ String keptName(DeviceManager m, int id) {
   return p.name;
 }
 
-/// Things worth showing as "Kept": animations, GIFs and saved looks. Shows,
+/// Things worth showing as "Saved": animations, GIFs and saved looks. Shows,
 /// raw web commands and the plain "off" entry are left out.
 List<WledPreset> keptItems(DeviceManager m) => [
   for (final p in m.presets)
@@ -333,9 +343,9 @@ Future<bool> guarded(BuildContext context, Future<void> Function() task, {String
 /// Error text without library prefixes or device jargon.
 String friendlyError(Object e) {
   final s = '$e'.replaceFirst('WledException: ', '').replaceFirst('ClientException: ', '');
-  if (s.contains('preset slots')) return 'Your matrix is full. Remove something first.';
+  if (s.contains('preset slots')) return 'Your device is full. Remove something first.';
   if (s.contains('SocketException') || s.contains('TimeoutException') || s.contains('offline')) {
-    return 'Couldn\'t reach your matrix. Is it on?';
+    return 'Couldn\'t reach your device. Is it on?';
   }
   return s;
 }
@@ -354,7 +364,7 @@ class LedBezel extends StatelessWidget {
     padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
       color: const Color(0xFF050403),
-      borderRadius: BorderRadius.circular(Lb.rTile + 4),
+      borderRadius: BorderRadius.circular(Lb.rControl),
       border: Border.all(color: active ? accent.withValues(alpha: 0.8) : Lb.line),
       boxShadow: active ? [BoxShadow(color: accent.withValues(alpha: 0.25), blurRadius: 14)] : null,
     ),
@@ -362,9 +372,13 @@ class LedBezel extends StatelessWidget {
   );
 }
 
-/// A GIF stored on the matrix, fetched once and played back as LED dots so
+/// A GIF stored on the device, fetched once and played back as LED dots so
 /// it looks like every other panel in the app. Without [size] it fills its
 /// parent.
+///
+/// Each file (and each new version of one) gets fresh state: the preview of
+/// one file is never carried over to another when a list shifts after a
+/// delete, nor to a replacement sent under the same name.
 class GifThumb extends StatelessWidget {
   const GifThumb({super.key, required this.manager, required this.name, this.size});
 
@@ -372,51 +386,40 @@ class GifThumb extends StatelessWidget {
   final String name;
   final double? size;
 
-  static final _clips = <String, Future<FrameClip?>>{};
-
-  Future<FrameClip?> _clip() => _clips.putIfAbsent('${manager.store.selected?.host}/$name', () async {
-        try {
-          final src = await compute(decodeSourceMessage, await manager.gif(name));
-          return FrameClip(
-            width: src.width,
-            height: src.height,
-            delaysMs: src.delaysMs,
-            frames: [for (final f in src.frames) Frame(src.width, src.height)..rgb.setAll(0, f)],
-          );
-        } catch (_) {
-          return null;
-        }
-      });
-
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: size,
-    height: size,
-    child: FutureBuilder<FrameClip?>(
-      future: _clip(),
-      builder: (context, snap) {
-        final clip = snap.data;
-        if (clip == null) {
-          return DotGlyph(color: Lb.text3, dim: snap.connectionState != ConnectionState.done);
-        }
-        return FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox.square(
-            dimension: 96,
-            child: LivePreview.generator(
-              generator: ClipGenerator(clip, title: name),
-              previewKey: 'kept:$name',
-              size: clip.width,
+  Widget build(BuildContext context) {
+    final future = manager.gifClip(name);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: FutureBuilder<FrameClip?>(
+        key: ObjectKey(future),
+        future: future,
+        builder: (context, snap) {
+          final clip = snap.data;
+          if (clip == null) {
+            return DotGlyph(color: Lb.text3, dim: snap.connectionState != ConnectionState.done);
+          }
+          return FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox.square(
+              dimension: 96,
+              child: LivePreview.generator(
+                generator: ClipGenerator(clip, title: name),
+                previewKey: 'device-gif:$name#${identityHashCode(clip)}',
+                size: clip.width,
+              ),
             ),
-          ),
-        );
-      },
-    ),
-  );
+          );
+        },
+      ),
+    );
+  }
 }
 
-/// Thumbnail for anything kept on the matrix: its GIF when there is one,
-/// otherwise a soft LED glow in its colour. Without [size] it fills.
+/// Thumbnail for anything saved on the device: its GIF when there is one,
+/// otherwise a soft LED glow in its colour (dark when its file is missing).
+/// Without [size] it fills.
 class PresetThumb extends StatelessWidget {
   const PresetThumb({super.key, required this.manager, required this.preset, this.size});
 
@@ -427,15 +430,17 @@ class PresetThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gif = preset.gifName;
-    if (gif != null && manager.files.keys.any((f) => f.toLowerCase() == '/${gif.toLowerCase()}')) {
-      return GifThumb(manager: manager, name: gif, size: size);
+    if (gif != null && manager.hasFile(gif)) {
+      return GifThumb(key: ValueKey(gif.toLowerCase()), manager: manager, name: gif, size: size);
     }
     final c = preset.primaryColor;
     final tint = c != null && c != 0 ? Color(0xFF000000 | c) : Lb.phosphor;
     return SizedBox(
       width: size,
       height: size,
-      child: DotGlyph(color: preset.turnsOff ? Lb.text3 : tint, seed: preset.id),
+      child: manager.isFileMissing(preset)
+          ? const DotGlyph(color: Lb.text3, dim: true)
+          : DotGlyph(color: preset.turnsOff ? Lb.text3 : tint, seed: preset.id),
     );
   }
 }

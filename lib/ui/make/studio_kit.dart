@@ -18,6 +18,30 @@ Color readAccent(BuildContext context) {
   return scope?.notifier?.accent ?? Lb.phosphor;
 }
 
+/// Crisp rectangle for buttons, chips and menus in the studio (UX: matrix
+/// geometry). LED dots and rotary knobs are the only round things.
+const studioShape = RoundedRectangleBorder(
+  borderRadius: BorderRadius.all(Radius.circular(Lb.rControl)),
+);
+
+/// [studioShape] with a hairline, for outlined controls.
+const studioOutlinedShape = RoundedRectangleBorder(
+  borderRadius: BorderRadius.all(Radius.circular(Lb.rControl)),
+  side: Lb.hairline,
+);
+
+/// Square icon buttons (M3 defaults to circles).
+final ButtonStyle studioIconStyle = IconButton.styleFrom(shape: studioShape);
+
+/// Square segmented buttons (M3 defaults to a stadium).
+final ButtonStyle studioSegmentStyle = SegmentedButton.styleFrom(shape: studioShape);
+
+/// Square-cornered popup menus (matches the app theme's menus).
+const studioMenuShape = RoundedRectangleBorder(
+  borderRadius: BorderRadius.all(Radius.circular(Lb.rPanel)),
+  side: Lb.hairline,
+);
+
 /// A feature screen pushed on top of the shell: the room glow continues
 /// behind a transparent app bar with a quiet heading title.
 class StudioScaffold extends StatelessWidget {
@@ -143,9 +167,9 @@ class StudioKnobRow extends StatelessWidget {
       ]);
 }
 
-/// "On your matrix": a small lit dot breathing next to a mono label.
+/// "On your device": a small lit dot breathing next to a mono label.
 class LivePulse extends StatefulWidget {
-  const LivePulse({super.key, this.label = 'On your matrix', this.color});
+  const LivePulse({super.key, this.label = 'On your device', this.color});
 
   final String label;
   final Color? color;
@@ -290,7 +314,7 @@ void studioToast(BuildContext context, String msg, {SnackBarAction? action}) =>
       ?..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(msg), action: action));
 
-/// Takes the person to the Matrix tab to connect. Works from a tab (the
+/// Takes the person to the Device tab to connect. Works from a tab (the
 /// shell is an ancestor) and from a screen pushed over the shell (the shell
 /// is a sibling route underneath: switch its tab, then pop back to it).
 void goToMatrix(BuildContext context) {
@@ -312,7 +336,7 @@ void goToMatrix(BuildContext context) {
   if (nav != null) (nav.context as Element).visitChildren(visit);
   final target = inside;
   if (nav == null || target == null) {
-    studioToast(context, 'Connect a matrix in the Matrix tab.');
+    studioToast(context, 'Connect a device in the Device tab.');
     return;
   }
   HomeShell.go(target, 2);

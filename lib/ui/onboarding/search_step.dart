@@ -15,7 +15,7 @@ import '../scope.dart';
 typedef DeviceSource = Stream<DiscoveredDevice> Function();
 typedef HostProbe = Future<DiscoveredDevice?> Function(String host);
 
-/// How the search step finds matrices. Swappable in tests.
+/// How the search step finds devices. Swappable in tests.
 class SetupServices {
   const SetupServices({
     this.discover = mdnsDevices,
@@ -25,7 +25,7 @@ class SetupServices {
     this.helpAfter = const Duration(seconds: 6),
   });
 
-  /// Matrices announcing themselves on the network (mDNS).
+  /// Devices announcing themselves on the network (mDNS).
   final DeviceSource discover;
 
   /// Fallback that knocks on every address of the local network.
@@ -71,14 +71,14 @@ Stream<DiscoveredDevice> subnetDevices() async* {
   if (ip != null) yield* scanSubnet(ip);
 }
 
-/// Step 2: a radar sweep while we look; found matrices glow as tiles.
+/// Step 2: a radar sweep while we look; found devices glow as tiles.
 class SearchStep extends StatefulWidget {
   const SearchStep({
     super.key,
     required this.services,
     required this.onConnect,
     this.onBack,
-    this.title = 'Looking for your matrix',
+    this.title = 'Looking for your device',
   });
 
   final SetupServices services;
@@ -244,8 +244,8 @@ class _SearchStepState extends State<SearchStep> with SingleTickerProviderStateM
 }
 
 const _tips = [
-  'Your phone and matrix need to be on the same Wi-Fi.',
-  'Your matrix needs WLED 0.14 or newer.',
+  'Your phone and device need to be on the same Wi-Fi.',
+  'Your device needs WLED 0.14 or newer.',
   'Its address is on your router\'s list of devices, or in the WLED app.',
 ];
 
@@ -269,7 +269,7 @@ class _HelpPanel extends StatelessWidget {
   );
 }
 
-/// A matrix that answered: a small glowing panel, its name and address.
+/// A device that answered: a small glowing panel, its name and address.
 class FoundTile extends StatelessWidget {
   const FoundTile({
     super.key,
@@ -406,7 +406,7 @@ class _AddressSheetState extends State<AddressSheet> {
   );
 }
 
-/// A slow radar sweep drawn as LED dots; found matrices show as blips.
+/// A slow radar sweep drawn as LED dots; found devices show as blips.
 class RadarPainter extends CustomPainter {
   RadarPainter(this.t, {this.blips = const []}) : super(repaint: t);
 

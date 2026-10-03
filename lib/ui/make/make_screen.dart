@@ -30,6 +30,7 @@ class _MakeScreenState extends State<MakeScreen> {
   final _draw = ClipGenerator(drawDemoClip, title: 'Draw');
   final _write = writeDemo();
   final _clock = clockDemo();
+  final _timer = timerDemo();
   final _gif = ClipGenerator(gifDemoClip, title: 'Bring a GIF');
   final _music = musicDemo();
   final _play = playDemo();
@@ -55,7 +56,7 @@ class _MakeScreenState extends State<MakeScreen> {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text('Make', style: LbType.display),
                     const SizedBox(height: 8),
-                    Text('Draw it, write it, bring it — it shows up on your matrix.',
+                    Text('Draw it, write it, bring it — it shows up on your device.',
                         style: LbType.body.copyWith(color: Lb.text2)),
                   ]),
                 ),
@@ -68,7 +69,7 @@ class _MakeScreenState extends State<MakeScreen> {
                       big: true,
                       label: 'Draw',
                       line: connected ? null : 'Pixel by pixel',
-                      lineWidget: connected ? const LivePulse(label: 'Draws live on your matrix') : null,
+                      lineWidget: connected ? const LivePulse(label: 'Draws live on your device') : null,
                       generator: _draw,
                       onTap: () => _open(const EditorScreen(blank: true)),
                     ),
@@ -76,13 +77,19 @@ class _MakeScreenState extends State<MakeScreen> {
                       label: 'Write',
                       line: 'Say it big',
                       generator: _write,
-                      onTap: () => _open(const TextStudioScreen()),
+                      onTap: () => _open(const TextStudioScreen(mode: 'text')),
                     ),
                     clock: _StudioTile(
                       label: 'Clock',
                       line: 'Tick tock',
                       generator: _clock,
                       onTap: () => _open(const TextStudioScreen(mode: 'clock')),
+                    ),
+                    timer: _StudioTile(
+                      label: 'Timer',
+                      line: '3, 2, 1…',
+                      generator: _timer,
+                      onTap: () => _open(const TextStudioScreen(mode: 'countdown')),
                     ),
                     gif: _StudioTile(
                       label: 'Bring a GIF',
@@ -96,7 +103,7 @@ class _MakeScreenState extends State<MakeScreen> {
                       generator: _music,
                       onTap: () => _open(const AudioScreen()),
                     ),
-                    play: _StudioTile(
+                    play: _StudioBanner(
                       label: 'Play',
                       line: '${gameDefs.length} games',
                       generator: _play,
@@ -152,19 +159,32 @@ class _MakeScreenState extends State<MakeScreen> {
   }
 }
 
-/// Draw is the big one (2×2); Write and Clock stack beside it; the rest
-/// sit in a row underneath.
+/// Seven tools on a three-column grid, read in order:
+///
+///     ┌───────────┬─────┐
+///     │           │Write│
+///     │   Draw    ├─────┤
+///     │           │Clock│
+///     ├─────┬─────┼─────┤
+///     │Timer│ GIF │Music│
+///     ├─────┴─────┴─────┤
+///     │ Play ▸ ░░░░░░░░ │   arcade marquee, game running wide
+///     └─────────────────┘
+///
+/// Draw is the big one (2×2); the text tools start beside it and spill into
+/// the row below; Play closes the studio as a full-width strip.
 class _StudioGrid extends StatelessWidget {
   const _StudioGrid({
     required this.draw,
     required this.write,
     required this.clock,
+    required this.timer,
     required this.gif,
     required this.music,
     required this.play,
   });
 
-  final Widget draw, write, clock, gif, music, play;
+  final Widget draw, write, clock, timer, gif, music, play;
 
   static const _gap = 10.0;
 
@@ -175,6 +195,15 @@ class _StudioGrid extends StatelessWidget {
           child: LayoutBuilder(builder: (context, c) {
             final cell = (c.maxWidth - 2 * _gap) / 3;
             final h = cell * 1.36;
+            Widget row(List<Widget> tiles) => SizedBox(
+                  height: h,
+                  child: Row(children: [
+                    for (var i = 0; i < tiles.length; i++) ...[
+                      if (i > 0) const SizedBox(width: _gap),
+                      SizedBox(width: cell, child: tiles[i]),
+                    ],
+                  ]),
+                );
             return Column(children: [
               SizedBox(
                 height: 2 * h + _gap,
@@ -192,19 +221,90 @@ class _StudioGrid extends StatelessWidget {
                 ]),
               ),
               const SizedBox(height: _gap),
-              SizedBox(
-                height: h,
-                child: Row(children: [
-                  SizedBox(width: cell, child: gif),
-                  const SizedBox(width: _gap),
-                  SizedBox(width: cell, child: music),
-                  const SizedBox(width: _gap),
-                  SizedBox(width: cell, child: play),
-                ]),
-              ),
+              row([timer, gif, music]),
+              const SizedBox(height: _gap),
+              SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: play),
             ]);
           }),
         ),
+      );
+}
+
+/// The hairline panel every studio tool sits in.
+class _ToolPanel extends StatelessWidget {
+  const _ToolPanel({required this.label, required this.onTap, required this.padding, required this.child});
+
+  final String label;
+  final VoidCallback onTap;
+  final EdgeInsetsGeometry padding;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: Material(
+          color: Lb.panel,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(Lb.rPanel)),
+            side: Lb.hairline,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(onTap: onTap, child: Padding(padding: padding, child: child)),
+        ),
+      );
+}
+
+Widget _toolLine(String line) => Text(
+      line.toUpperCase(),
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.ellipsis,
+      style: LbType.label,
+    );
+
+/// A wide strip: name on the left, the tool's demo running wide beside it.
+class _StudioBanner extends StatelessWidget {
+  const _StudioBanner({
+    required this.label,
+    required this.line,
+    required this.generator,
+    required this.onTap,
+  });
+
+  final String label, line;
+  final Generator generator;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => _ToolPanel(
+        label: label,
+        onTap: onTap,
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        child: Row(children: [
+          Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, maxLines: 1, style: LbType.title),
+              const SizedBox(height: 3),
+              _toolLine(line),
+            ],
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: LedLoop(
+                generator: generator,
+                width: 24,
+                height: 12,
+                borderRadius: Lb.rTile,
+              ),
+            ),
+          ),
+        ]),
       );
 }
 
@@ -226,55 +326,32 @@ class _StudioTile extends StatelessWidget {
   final bool big;
 
   @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      child: Material(
-        color: Lb.panel,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(Lb.rPanel)),
-          side: Lb.hairline,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: EdgeInsets.all(big ? 14 : 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Center(
-                    child: LedLoop(
-                      generator: generator,
-                      glow: big,
-                      bezel: big,
-                      borderRadius: big ? Lb.rControl : Lb.rTile,
-                    ),
-                  ),
+  Widget build(BuildContext context) => _ToolPanel(
+        label: label,
+        onTap: onTap,
+        padding: EdgeInsets.all(big ? 14 : 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Center(
+                child: LedLoop(
+                  generator: generator,
+                  glow: big,
+                  bezel: big,
+                  borderRadius: big ? Lb.rControl : Lb.rTile,
                 ),
-                SizedBox(height: big ? 12 : 8),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(label, maxLines: 1, style: LbType.heading),
-                ),
-                const SizedBox(height: 3),
-                lineWidget ??
-                    Text(
-                      (line ?? '').toUpperCase(),
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style: LbType.label,
-                    ),
-              ],
+              ),
             ),
-          ),
+            SizedBox(height: big ? 12 : 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(label, maxLines: 1, style: big ? LbType.title : LbType.heading),
+            ),
+            const SizedBox(height: 3),
+            lineWidget ?? _toolLine(line ?? ''),
+          ],
         ),
-      ),
-    );
-  }
+      );
 }

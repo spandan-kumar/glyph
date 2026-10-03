@@ -74,7 +74,7 @@ class _ChannelPage extends StatelessWidget {
   }
 }
 
-/// Search: instant results as tiles, moods as hairline chips. Tuning in
+/// Search: instant results as tiles, moods as square hairline tokens. Tuning in
 /// closes the page and returns `true`.
 Future<bool?> openSearch(BuildContext context, TuneController tune) =>
     Navigator.of(context).push<bool>(_route(tune, const _SearchPage()));
@@ -202,7 +202,10 @@ class _MoodChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: selected ? Lb.raised : Colors.transparent,
-      shape: StadiumBorder(side: BorderSide(color: selected ? Lb.text2 : Lb.line)),
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.all(Radius.circular(Lb.rControl)),
+        side: BorderSide(color: selected ? Lb.text2 : Lb.line),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,

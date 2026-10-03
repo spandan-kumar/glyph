@@ -6,37 +6,34 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:glyph/engine/frame.dart';
+import 'package:glyph/engine/generator.dart';
+import 'package:glyph/engine/generators/intro.dart';
+import 'package:glyph/engine/palette.dart';
 import 'package:image/image.dart' as img;
-
-// 10×10 grid. '#' = lit, '*' = the spark (brightest, white-hot), '.' = unlit.
-const _art = [
-  '..........',
-  '...####...',
-  '..#....#..',
-  '.#........',
-  '.#...###..',
-  '.#.....#..',
-  '..#....#..',
-  '...####...',
-  '.........*',
-  '..........',
-];
 
 const _bg = 0xFF0B0A09;
 const _off = 0xFF1D1A17;
 
-// Gradient stops across the glyph (top-left → bottom-right).
-const _stops = [0xFFFFB547, 0xFFFF6A5C, 0xFFE0408A];
+/// The logo as the intro leaves it: the last frame of [GlyphIntro], with
+/// the spark at full brightness. Null = unlit.
+List<List<int?>> _finalFrame() {
+  final inst = GlyphIntro().create(16, 16, 1);
+  final f = Frame(16, 16);
+  // Step through the whole intro so the physics settle, then read the end.
+  for (var i = 0; i <= (GlyphIntro.duration + 0.6) * 60; i++) {
+    inst.render(f, i / 60, 1 / 60, Params({}), palettes.first);
+  }
+  final out = [
+    for (var y = 0; y < 16; y++) [for (var x = 0; x < 16; x++) f.get(x, y) == 0 ? null : 0xFF000000 | f.get(x, y)],
+  ];
+  out[glyphSparkCell.$2][glyphSparkCell.$1] = glyphSpark;
+  return out;
+}
 
 int _lerp(int a, int b, double t) {
   int ch(int s) => (((a >> s) & 0xFF) + (((b >> s) & 0xFF) - ((a >> s) & 0xFF)) * t).round();
   return 0xFF000000 | (ch(16) << 16) | (ch(8) << 8) | ch(0);
-}
-
-int _gradient(double t) {
-  final seg = t * (_stops.length - 1);
-  final i = seg.floor().clamp(0, _stops.length - 2);
-  return _lerp(_stops[i], _stops[i + 1], seg - i);
 }
 
 img.ColorRgba8 _c(int argb, [int? alpha]) =>
@@ -58,38 +55,39 @@ img.Image render(int size, {double inset = 0.14, bool background = true, bool ro
       img.compositeImage(im, mask);
     }
   }
-  final n = _art.length;
+  final px = _finalFrame();
+  const n = 16;
   final area = size * (1 - 2 * inset);
   final cell = area / n;
   final ox = size * inset, oy = size * inset;
-  final r = cell * 0.38;
+  final r = cell * 0.4;
+  bool glows(int c) => c != glyphShadow;
 
-  // Bloom pass: big soft discs under the lit dots.
+  // Bloom pass: soft discs under the lit dots (the shadow doesn't glow).
   final glow = img.Image(width: size, height: size, numChannels: 4);
   for (var y = 0; y < n; y++) {
     for (var x = 0; x < n; x++) {
-      final ch = _art[y][x];
-      if (ch == '.') continue;
-      final color = ch == '*' ? 0xFFFFF4D6 : _gradient((x + y) / (2 * (n - 1)));
+      final color = px[y][x];
+      if (color == null || !glows(color)) continue;
       final cx = (ox + (x + 0.5) * cell).round(), cy = (oy + (y + 0.5) * cell).round();
-      img.fillCircle(glow, x: cx, y: cy, radius: (cell * 0.95).round(), color: _c(color, ch == '*' ? 120 : 70), antialias: true);
+      img.fillCircle(glow, x: cx, y: cy, radius: (cell * 0.95).round(), color: _c(color, color == glyphSpark ? 130 : 75), antialias: true);
     }
   }
-  final blurred = img.gaussianBlur(glow, radius: max(1, (cell * 0.6).round()));
-  img.compositeImage(im, blurred);
+  img.compositeImage(im, img.gaussianBlur(glow, radius: max(1, (cell * 0.6).round())));
 
   for (var y = 0; y < n; y++) {
     for (var x = 0; x < n; x++) {
-      final ch = _art[y][x];
+      final color = px[y][x];
       final cx = (ox + (x + 0.5) * cell).round(), cy = (oy + (y + 0.5) * cell).round();
-      if (ch == '.') {
+      if (color == null) {
         if (background) img.fillCircle(im, x: cx, y: cy, radius: r.round(), color: _c(_off), antialias: true);
         continue;
       }
-      final color = ch == '*' ? 0xFFFFF4D6 : _gradient((x + y) / (2 * (n - 1)));
       img.fillCircle(im, x: cx, y: cy, radius: r.round(), color: _c(color), antialias: true);
-      // Hot core: emitted light, not paint.
-      img.fillCircle(im, x: cx, y: cy, radius: (r * 0.45).round(), color: _c(_lerp(color, 0xFFFFFFFF, 0.55), 200), antialias: true);
+      if (glows(color)) {
+        // Hot core: emitted light, not paint.
+        img.fillCircle(im, x: cx, y: cy, radius: (r * 0.45).round(), color: _c(_lerp(color, 0xFFFFFFFF, 0.5), 200), antialias: true);
+      }
     }
   }
   return im;

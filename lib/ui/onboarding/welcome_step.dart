@@ -27,7 +27,7 @@ class WelcomeStep extends StatelessWidget {
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
           onPressed: onFind,
-          child: const Text('Find my matrix'),
+          child: const Text('Find my device'),
         ),
         const SizedBox(height: 8),
         TextButton(

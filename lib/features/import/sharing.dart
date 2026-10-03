@@ -58,7 +58,7 @@ Creation parseGlyphFile(String text) {
     final w = clip['w'] as int, h = clip['h'] as int;
     final frames = clip['frames'] as List, delays = clip['delays'] as List;
     if (w < 1 || h < 1 || w > _maxGlyphSide || h > _maxGlyphSide) {
-      throw const FormatException('Unsupported matrix size in the Glyph file.');
+      throw const FormatException('Unsupported size in the Glyph file.');
     }
     if (frames.isEmpty || frames.length > _maxGlyphFrames || frames.length != delays.length) {
       throw const FormatException('The Glyph file has a broken frame list.');

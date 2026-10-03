@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../app/devices.dart';
+import '../../engine/clip.dart';
+import '../../engine/frame.dart';
+import '../import/decode.dart';
 import '../../wled/presets.dart';
 import '../../wled/schedule.dart';
 import '../../wled/wled_client.dart';
@@ -29,7 +32,9 @@ class DeviceManager extends ChangeNotifier {
   bool _loaded = false;
   String? _error;
   String? _scheduleError;
+  bool _filesListed = false;
   final _thumbs = <String, Future<Uint8List>>{};
+  final _clips = <String, Future<FrameClip?>>{};
   Future<void> _queue = Future.value();
 
   List<WledPreset> get presets => _presets;
@@ -42,6 +47,19 @@ class DeviceManager extends ChangeNotifier {
       if (!p.isPlaylist) p,
   ];
   Map<String, int> get files => _files;
+
+  /// Whether [file] ("duck.gif" or "/duck.gif") is on the device.
+  bool hasFile(String file) {
+    final f = (file.startsWith('/') ? file : '/$file').toLowerCase();
+    return _files.keys.any((k) => k.toLowerCase() == f);
+  }
+
+  /// A saved item whose animation file has been deleted from the device.
+  /// False while the file list is unknown.
+  bool isFileMissing(WledPreset p) {
+    final gif = p.gifName;
+    return gif != null && _filesListed && !hasFile(gif);
+  }
   WledSchedule? get schedule => _schedule;
   bool get isLoading => _loading;
   bool get isLoaded => _loaded;
@@ -58,6 +76,8 @@ class DeviceManager extends ChangeNotifier {
       // Something new was kept elsewhere in the app (e.g. Tune's Keep).
       if (h != null && store.keptRevision != _seenKept) {
         _seenKept = store.keptRevision;
+        // A file may have been sent again under the same name.
+        _forgetAllPictures();
         scheduleMicrotask(reloadPresets);
       }
       return;
@@ -66,9 +86,10 @@ class DeviceManager extends ChangeNotifier {
     _host = h;
     _presets = const [];
     _files = const {};
+    _filesListed = false;
     _schedule = null;
     _effects = const [];
-    _thumbs.clear();
+    _forgetAllPictures();
     _loaded = false;
     _error = _scheduleError = null;
     if (h != null) scheduleMicrotask(load);
@@ -87,7 +108,7 @@ class DeviceManager extends ChangeNotifier {
         _error = 'Couldn\'t load presets: ${_msg(e)}';
       }
       try {
-        _files = await c.files();
+        _setFiles(await c.files());
       } catch (_) {
         // Listing is optional; the Files tab shows what it has.
       }
@@ -115,7 +136,7 @@ class DeviceManager extends ChangeNotifier {
     await _serial(() async {
       _presets = await c.presetList();
       try {
-        _files = await c.files();
+        _setFiles(await c.files());
       } catch (_) {}
     });
     notifyListeners();
@@ -143,7 +164,7 @@ class DeviceManager extends ChangeNotifier {
       case PresetKind.api:
         return 'API command';
       case PresetKind.state:
-        if (p.turnsOff) return 'Turns the matrix off';
+        if (p.turnsOff) return 'Turns the device off';
         final gif = p.gifName;
         if (gif != null) return 'GIF · $gif';
         final fx = effectName(p.effectId);
@@ -178,15 +199,63 @@ class DeviceManager extends ChangeNotifier {
     return null;
   }
 
-  /// First frame/animation of a GIF on the device, cached per session.
+  /// The bytes of a GIF on the device, cached until the file changes.
   Future<Uint8List> gif(String name) {
-    final key = name.startsWith('/') ? name : '/$name';
+    final path = name.startsWith('/') ? name : '/$name';
+    final key = _key(name);
     final c = _client;
     if (c == null) return Future.error(StateError('Not connected'));
-    return _thumbs[key] ??= _serial(() => c.fileBytes(key)).catchError((Object e) {
+    return _thumbs[key] ??= _serial(() => c.fileBytes(path)).catchError((Object e) {
       _thumbs.remove(key);
       throw e;
     });
+  }
+
+  /// A GIF on the device decoded for previews, or null when it can't be
+  /// read. Cached until the file is deleted or changes size; a failed read
+  /// is retried next time. Each new decode is a new object, so previews can
+  /// tell a replaced file from the old one.
+  Future<FrameClip?> gifClip(String name) {
+    final key = _key(name);
+    return _clips[key] ??= () async {
+      try {
+        final src = await compute(decodeSourceMessage, await gif(name));
+        return FrameClip(
+          width: src.width,
+          height: src.height,
+          delaysMs: src.delaysMs,
+          frames: [for (final f in src.frames) Frame(src.width, src.height)..rgb.setAll(0, f)],
+        );
+      } catch (_) {
+        scheduleMicrotask(() => _clips.remove(key));
+        return null;
+      }
+    }();
+  }
+
+  static String _key(String name) => (name.startsWith('/') ? name : '/$name').toLowerCase();
+
+  void _forget(String path) {
+    final key = _key(path);
+    _thumbs.remove(key);
+    _clips.remove(key);
+  }
+
+  void _forgetAllPictures() {
+    _thumbs.clear();
+    _clips.clear();
+  }
+
+  /// Takes a fresh file listing; pictures of files that went away or
+  /// changed size are dropped from the caches.
+  void _setFiles(Map<String, int> next) {
+    final before = {for (final e in _files.entries) _key(e.key): e.value};
+    final after = {for (final e in next.entries) _key(e.key): e.value};
+    for (final MapEntry(:key, :value) in before.entries) {
+      if (after[key] != value) _forget(key);
+    }
+    _files = next;
+    _filesListed = true;
   }
 
   Future<void> apply(int id) => store.applyPreset(id);
@@ -206,7 +275,7 @@ class DeviceManager extends ChangeNotifier {
     await c.deletePreset(id);
     if (withFile && gif != null && presetsUsingFile(gif).every((p) => p.id == id)) {
       await c.deleteFile('/$gif');
-      _thumbs.remove('/$gif');
+      _forget(gif);
     }
     await reloadPresets(settle: false);
     await store.refresh();
@@ -214,7 +283,7 @@ class DeviceManager extends ChangeNotifier {
 
   Future<void> deleteFile(String path) async {
     await _client?.deleteFile(path);
-    _thumbs.remove(path.startsWith('/') ? path : '/$path');
+    _forget(path);
     await reloadPresets(settle: false);
     await store.refresh();
   }

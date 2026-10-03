@@ -3,6 +3,7 @@ import 'dart:math';
 import '../../engine/clip.dart';
 import '../../engine/frame.dart';
 import '../../engine/generator.dart';
+import '../../engine/palette.dart';
 import '../../features/audio/audio_engine.dart';
 import '../../features/audio/visualizers.dart';
 import '../../features/editor/templates.dart';
@@ -184,6 +185,56 @@ Generator clockDemo() => ClockGenerator(TextSettings(
       seconds: true,
       date: false,
     ));
+
+/// A timer counting down from ten at double speed, pulsing through the
+/// last seconds, bursting into "GO!" at zero, then starting over.
+Generator timerDemo() => _TimerDemo();
+
+class _TimerDemo extends Generator {
+  @override
+  String get id => '_timer_demo';
+  @override
+  String get name => 'Timer';
+  @override
+  String get defaultPalette => 'sunset';
+
+  @override
+  EffectInstance create(int width, int height, int seed) => _TimerDemoInstance(width, height);
+}
+
+class _TimerDemoInstance extends EffectInstance {
+  _TimerDemoInstance(this.w, this.h);
+
+  static const _from = 10; // seconds on the timer
+  static const _pace = 2.0; // demo seconds per real second
+  static const _cycle = _from / _pace + 2.4; // count down, celebrate, repeat
+
+  static final _epoch = DateTime(2026);
+  static final _settings = TextSettings(
+    font: 'bold',
+    large: true,
+    colorMode: 'animated',
+    palette: 'sunset',
+    durationSec: _from,
+    doneText: 'GO!',
+  );
+
+  final int w, h;
+  CountdownInstance? _run;
+  double _start = 0;
+  DateTime _now = _epoch;
+
+  @override
+  void render(Frame out, double t, double dt, Params p, Palette pal) {
+    if (_run == null || t - _start >= _cycle) {
+      _start = t;
+      // The countdown reads the time through [_now], so it runs on demo time.
+      _run = CountdownInstance(_settings, w, h, () => _now, _epoch.add(const Duration(seconds: _from)));
+    }
+    _now = _epoch.add(Duration(microseconds: ((t - _start) * _pace * 1e6).round()));
+    _run!.render(out, t, dt, p, pal);
+  }
+}
 
 /// Spectrum bars dancing to their own idle beat (no microphone).
 Generator musicDemo() => SpectrumBars(_Quiet());

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../engine/clip.dart';
+import '../../features/device/widgets/device_settings.dart';
 import '../../features/text/fonts.dart';
 import '../../wled/layout.dart';
 import '../actions.dart';
@@ -15,7 +16,7 @@ import '../scope.dart';
 import 'orientation.dart';
 import 'setup_clips.dart';
 
-/// Plays [clip] on the phone and, when connected, on the matrix. Doesn't
+/// Plays [clip] on the phone and, when connected, on the device. Doesn't
 /// wait for the stream to open.
 void playSetupClip(BuildContext context, FrameClip Function(int w, int h) build, String title) {
   final caps = AppScope.of(context).devices.caps;
@@ -23,7 +24,7 @@ void playSetupClip(BuildContext context, FrameClip Function(int w, int h) build,
   unawaited(GlyphActions.playClip(context, clip, title));
 }
 
-/// Saves [layout] for the selected matrix and restarts the live stream so
+/// Saves [layout] for the selected device and restarts the live stream so
 /// it takes effect straight away.
 Future<void> applyLayout(BuildContext context, MatrixLayout layout) async {
   final s = AppScope.of(context);
@@ -165,8 +166,8 @@ class _ArrowQuestion extends StatelessWidget {
       onTap: () => onAnswer(s),
     );
     return _Frame(
-      title: 'Which way is the arrow pointing on your matrix?',
-      subtitle: 'Look at the matrix, not your phone.',
+      title: 'Which way is the arrow pointing on your device?',
+      subtitle: 'Look at your device, not your phone.',
       onBack: onBack,
       child: Column(
         children: [
@@ -237,7 +238,7 @@ class _MirrorQuestion extends StatelessWidget {
     final playback = AppScope.of(context).playback;
     return _Frame(
       title: 'Does it look mirrored?',
-      subtitle: 'Your matrix should show a capital L, the right way round, like this:',
+      subtitle: 'Your device should show a capital L, the right way round, like this:',
       onBack: onBack,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -274,20 +275,36 @@ class _Sideways extends StatelessWidget {
   final VoidCallback onBack;
 
   @override
-  Widget build(BuildContext context) => _Frame(
-    title: 'This one needs a turn in its own settings',
-    subtitle: 'Your matrix isn\'t square, so Glyph can\'t turn it sideways. Open your matrix\'s '
-        'web page → LED Preferences → 2D and change how the panel is turned.',
-    onBack: onBack,
-    child: FilledButton(
-      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
-      onPressed: onDone,
-      child: const Text('Got it'),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final store = AppScope.of(context).devices;
+    return _Frame(
+      title: 'This one needs a turn in its own settings',
+      subtitle: 'Your device isn\'t square, so Glyph can\'t turn it sideways. Open Device settings '
+          '→ LED Preferences → 2D and change how the panel is turned.',
+      onBack: onBack,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+            onPressed: onDone,
+            child: const Text('Got it'),
+          ),
+          if (store.isConnected) ...[
+            const SizedBox(height: 10),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+              onPressed: () => DeviceSettingsPage.open(context, store),
+              child: const Text('Open Device settings'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
-/// The guided fix as its own page (Matrix → Fix orientation).
+/// The guided fix as its own page (Device → Fix orientation).
 class OrientationFixPage extends StatelessWidget {
   const OrientationFixPage({super.key});
 

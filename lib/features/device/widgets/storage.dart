@@ -36,7 +36,7 @@ class StorageSection extends StatelessWidget {
     final info = store.info;
     final used = info?.fsUsedKb, total = info?.fsTotalKb;
     if (used == null || total == null || total <= 0) {
-      return const EmptyNote(text: 'Your matrix doesn\'t say how much room it has.');
+      return const EmptyNote(text: 'Your device doesn\'t say how much room it has.');
     }
     final f = used / total;
     final unused = _unusedGifBytes(manager);
@@ -58,9 +58,9 @@ class StorageSection extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             f > 0.85
-                ? 'Almost full — remove something to keep more.'
+                ? 'Almost full — delete something to make room for more.'
                 : unused > 0
-                ? '${formatBytes(unused)} is taken by animations nothing uses.'
+                ? '${formatBytes(unused)} is used by old files that nothing plays anymore. Tap to free it up.'
                 : 'Room for ${total - used} KB more.',
             style: LbType.small,
           ),
@@ -70,12 +70,34 @@ class StorageSection extends StatelessWidget {
   }
 }
 
-int _unusedGifBytes(DeviceManager m) => m.files.entries
-    .where((e) => e.key.toLowerCase().endsWith('.gif') && m.presetsUsingFile(e.key).isEmpty)
-    .fold<int>(0, (s, e) => s + e.value);
+/// Animation files that nothing saved on the device plays anymore.
+List<MapEntry<String, int>> _unusedGifs(DeviceManager m) => [
+  for (final e in m.files.entries)
+    if (e.key.toLowerCase().endsWith('.gif') && m.presetsUsingFile(e.key).isEmpty) e,
+];
 
-/// What's taking space on the matrix: animation files (with what uses them)
-/// and everything else.
+int _unusedGifBytes(DeviceManager m) => _unusedGifs(m).fold<int>(0, (s, e) => s + e.value);
+
+/// What a file on the device is, in plain words.
+String describeFile(String path) {
+  final p = path.toLowerCase();
+  final name = p.startsWith('/') ? p.substring(1) : p;
+  if (name.endsWith('.gif')) return 'An animation';
+  if (name == 'cfg.json') return 'Your device\'s settings';
+  if (name == 'bkp.cfg.json') return 'A backup copy of its settings';
+  if (name == 'presets.json') return 'The list of everything saved on it — animations, shows, looks';
+  if (name == 'wsec.json') return 'Its Wi-Fi password and security settings';
+  if (name == 'version-info.json') return 'Which WLED version it runs';
+  if (RegExp(r'^ledmap\d*\.json$').hasMatch(name)) return 'How its lights are wired';
+  if (RegExp(r'^palette\d+\.json$').hasMatch(name)) return 'A custom colour palette';
+  if (RegExp(r'\.html?(\.gz)?$').hasMatch(name)) return 'An extra tool for its web page';
+  if (name.endsWith('.json')) return 'Settings for one of its extra tools';
+  if (RegExp(r'\.(png|jpe?g|bmp)$').hasMatch(name)) return 'A picture';
+  return 'A file stored on it';
+}
+
+/// What's taking space on the device: animation files (with what plays
+/// them) and everything else, each explained in plain words.
 class StoragePage extends StatelessWidget {
   const StoragePage({super.key, required this.manager, required this.store});
 
@@ -93,6 +115,8 @@ class StoragePage extends StatelessWidget {
         final gifs = [for (final e in entries) if (e.key.toLowerCase().endsWith('.gif')) e];
         final others = [for (final e in entries) if (!e.key.toLowerCase().endsWith('.gif')) e];
         final used = info?.fsUsedKb, total = info?.fsTotalKb;
+        final unused = _unusedGifs(manager);
+        final unusedBytes = unused.fold<int>(0, (s, e) => s + e.value);
         return RefreshIndicator(
           onRefresh: () async {
             await store.refresh();
@@ -105,17 +129,32 @@ class StoragePage extends StatelessWidget {
                 Text('$used KB of $total KB used', style: LbType.title),
                 const SizedBox(height: 12),
                 DotBar(fraction: used / total, color: used / total > 0.85 ? Lb.phosphor : Lb.text),
-                const SizedBox(height: 24),
+                const SizedBox(height: 14),
               ],
+              Text(
+                'This is your device\'s own memory. Animations you send to it take up most of '
+                'the room. Deleting one that nothing plays anymore makes space for new ones.',
+                style: LbType.small,
+              ),
+              if (unused.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _FreeUp(bytes: unusedBytes, count: unused.length, onTap: () => _freeUp(context, unused)),
+              ],
+              const SizedBox(height: 24),
               MonoLabel('Animations · ${gifs.length}'),
               const SizedBox(height: 10),
               if (gifs.isEmpty)
-                const EmptyNote(text: 'No animation files on your matrix.')
+                const EmptyNote(text: 'No animation files on your device.')
               else
                 RowGroup(children: [for (final e in gifs) _row(context, e.key, e.value, gif: true)]),
               if (others.isNotEmpty) ...[
                 const SizedBox(height: 24),
                 const MonoLabel('Other files'),
+                const SizedBox(height: 6),
+                Text(
+                  'Files WLED uses to run. The ones with a lock can\'t be deleted.',
+                  style: LbType.small,
+                ),
                 const SizedBox(height: 10),
                 RowGroup(children: [for (final e in others) _row(context, e.key, e.value)]),
               ],
@@ -129,19 +168,18 @@ class StoragePage extends StatelessWidget {
   Widget _row(BuildContext context, String path, int size, {bool gif = false}) {
     final users = manager.presetsUsingFile(path);
     final locked = isProtectedFile(path);
-    final usage = gif
+    final what = gif
         ? users.isEmpty
-              ? 'Nothing uses it'
-              : 'Used by ${users.map((p) => p.name).join(', ')}'
-        : locked
-        ? 'Your matrix needs this'
-        : null;
+              ? 'An old animation nothing plays anymore'
+              : 'Animation for ${users.map((p) => p.name).join(', ')}'
+        : describeFile(path);
     return Row1(
+      key: ValueKey(path),
       leading: gif
           ? SizedBox.square(dimension: 40, child: LedBezel(child: GifThumb(manager: manager, name: path)))
           : Icon(locked ? Icons.lock_outline_rounded : Icons.insert_drive_file_outlined, color: Lb.text3),
       title: path.substring(1),
-      subtitle: [formatBytes(size), ?usage].join(' · '),
+      subtitle: [what, if (locked) 'Your device needs this', formatBytes(size)].join(' · '),
       trailing: locked
           ? null
           : IconButton(
@@ -158,10 +196,52 @@ class StoragePage extends StatelessWidget {
       context,
       title: 'Delete $name?',
       message: users.isEmpty
-          ? 'Frees ${formatBytes(size)} on your matrix.'
-          : 'Used by ${users.join(', ')}. They\'ll show nothing until you keep it again.',
+          ? 'Frees ${formatBytes(size)} on your device.'
+          : users.length == 1
+          ? '“${users.single}” uses this file — it will stop working.'
+          : '${users.map((u) => '“$u”').join(', ')} use this file — they will stop working.',
     );
     if (!ok || !context.mounted) return;
     await guarded(context, () => manager.deleteFile(path), done: 'Deleted $name');
   }
+
+  Future<void> _freeUp(BuildContext context, List<MapEntry<String, int>> files) async {
+    final bytes = files.fold<int>(0, (s, e) => s + e.value);
+    final ok = await confirm(
+      context,
+      title: 'Free up ${formatBytes(bytes)}?',
+      message: 'Deletes ${files.length} old animation file${files.length == 1 ? '' : 's'} that nothing '
+          'plays anymore. Everything you\'ve saved keeps playing.',
+      action: 'Free up',
+    );
+    if (!ok || !context.mounted) return;
+    await guarded(context, () async {
+      for (final f in files) {
+        await manager.deleteFile(f.key);
+      }
+    }, done: 'Freed up ${formatBytes(bytes)}');
+  }
+}
+
+/// "31 KB of old animations nothing plays anymore" with a button to clear them.
+class _FreeUp extends StatelessWidget {
+  const _FreeUp({required this.bytes, required this.count, required this.onTap});
+
+  final int bytes, count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => LbPanel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '${formatBytes(bytes)} is used by $count old file${count == 1 ? '' : 's'} that nothing plays anymore.',
+          style: LbType.bodyStrong,
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton(onPressed: onTap, child: Text('Free up ${formatBytes(bytes)}')),
+      ],
+    ),
+  );
 }

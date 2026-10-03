@@ -8,7 +8,7 @@ import '../../wled/fixtures.dart';
 import '../../wled/manage_fixtures.dart';
 
 /// In-memory WLED 16 built from real-device fixtures, served through
-/// package:http's MockClient. Records every POST.
+/// package:http's MockClient. Records every POST and every GET path.
 class FakeWled {
   FakeWled() {
     presets = {
@@ -18,12 +18,23 @@ class FakeWled {
     state = jsonDecode(stateV16) as Map<String, dynamic>;
     cfg = jsonDecode(cfgV16) as Map<String, dynamic>;
     cfg['timers'] = {'ins': jsonDecode(timersBackV16)};
+    files = (jsonDecode(filesV16) as List).cast<Map<String, dynamic>>();
   }
+
+  /// The device's file listing; deletes remove entries.
+  late List<Map<String, dynamic>> files;
+
+  /// Per-file GIF contents ("/duck.gif" → bytes); others get [gif].
+  final gifs = <String, List<int>>{};
 
   late Map<String, dynamic> presets;
   late Map<String, dynamic> state;
   late Map<String, dynamic> cfg;
   final posts = <(String path, Map<String, dynamic> body)>[];
+  final gets = <String>[];
+
+  /// Files removed through /edit?func=delete.
+  final deleted = <String>[];
   bool offline = false;
 
   /// 1×1 GIF.
@@ -47,14 +58,23 @@ class FakeWled {
       }
       return http.Response('{"success":true}', 200);
     }
+    gets.add(path);
+    if (path == '/edit' && r.url.queryParameters['func'] == 'delete') {
+      final p = r.url.queryParameters['path'] ?? '';
+      deleted.add(p);
+      files.removeWhere((f) => '/${f['name']}' == p);
+      return http.Response('deleted', 200);
+    }
     return switch (path) {
       '/json/info' => http.Response(infoEsp32V16, 200),
       '/json/eff' => http.Response(jsonEncode(effectsEsp32V16), 200),
       '/json/state' => http.Response(jsonEncode(state), 200),
       '/json/cfg' || '/cfg.json' => http.Response(jsonEncode(cfg), 200),
       '/presets.json' => http.Response(jsonEncode(presets), 200),
-      '/edit' => http.Response(filesV16, 200),
-      _ when path.endsWith('.gif') => http.Response.bytes(gif, 200),
+      '/edit' => http.Response(jsonEncode(files), 200),
+      _ when path.endsWith('.gif') => files.any((f) => '/${f['name']}' == path)
+          ? http.Response.bytes(gifs[path] ?? gif, 200)
+          : http.Response('Not found', 404),
       _ => http.Response('Not found', 404),
     };
   }

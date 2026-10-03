@@ -20,7 +20,7 @@ import 'welcome_step.dart';
 
 export 'search_step.dart' show SetupServices;
 
-/// First run (UX.md J1): welcome → find the matrix → it waves hello →
+/// First run (UX.md J1): welcome → find the device → it waves hello →
 /// (fix the orientation) → pick a first vibe. Shown once.
 class OnboardingFlow extends StatelessWidget {
   const OnboardingFlow({
@@ -50,7 +50,7 @@ class OnboardingFlow extends StatelessWidget {
   );
 }
 
-/// "Add a matrix": the same flow starting at the search, without the
+/// "Add a device": the same flow starting at the search, without the
 /// welcome or the first-vibe pick.
 class MatrixSetupPage extends StatelessWidget {
   const MatrixSetupPage({super.key, @visibleForTesting this.services = const SetupServices()});
@@ -160,7 +160,7 @@ class _SetupFlowState extends State<SetupFlow> {
         services: widget.services,
         onConnect: _connect,
         onBack: _back,
-        title: widget.start == SetupStep.search ? 'Add a matrix' : 'Looking for your matrix',
+        title: widget.start == SetupStep.search ? 'Add a device' : 'Looking for your device',
       ),
       SetupStep.hello => HelloStep(
         fixed: _fixed,
@@ -208,7 +208,7 @@ class _SetupFlowState extends State<SetupFlow> {
   }
 }
 
-/// AHA #1: the matrix waves; the phone mirrors it.
+/// AHA #1: the device waves; the phone mirrors it.
 class HelloStep extends StatelessWidget {
   const HelloStep({
     super.key,
@@ -325,7 +325,7 @@ class VibeStep extends StatelessWidget {
         const SizedBox(height: 8),
         Text('Pick a first vibe', style: LbType.title),
         const SizedBox(height: 8),
-        Text('It plays on your matrix straight away.', style: LbType.small),
+        Text('It plays on your device straight away.', style: LbType.small),
         const SizedBox(height: 24),
         for (final (label, item) in vibes)
           Padding(
@@ -363,7 +363,7 @@ class _VibeTile extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: const Color(0xFF050403),
-              borderRadius: BorderRadius.circular(Lb.rTile + 4),
+              borderRadius: BorderRadius.circular(Lb.rControl),
               border: Border.all(color: Lb.line),
             ),
             child: Padding(

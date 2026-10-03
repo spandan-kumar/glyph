@@ -387,8 +387,8 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
     if (!mounted) return;
     _toast(
       AppScope.of(context).devices.isConnected
-          ? 'Playing on your matrix'
-          : 'Playing here on your phone. Connect a matrix to see it big.',
+          ? 'Playing on your device'
+          : 'Playing here on your phone. Connect a device to see it big.',
     );
   }
 
@@ -414,9 +414,9 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
 
   Future<void> _upload() async {
     final caps = AppScope.of(context).devices.caps;
-    if (caps == null) return _toast('Connect a matrix to keep this on it.');
+    if (caps == null) return _toast('Connect a device to send this to it.');
     if (!caps.canPlayGifs) {
-      return _toast('This matrix can\'t keep GIFs. Use Play to show it from your phone.');
+      return _toast('This device can\'t store GIFs. Use Play to show it from your phone.');
     }
     setState(() => _uploading = true);
     try {
@@ -461,12 +461,15 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
           actions: [
             if (_src != null) ...[
               IconButton(
+                style: studioIconStyle,
                 tooltip: 'Open another',
                 icon: const Icon(Icons.folder_open_outlined),
                 onPressed: _loading ? null : () => _pick(anyFile: false),
               ),
               PopupMenuButton<String>(
                 tooltip: 'Share',
+                shape: studioMenuShape,
+                style: studioIconStyle,
                 icon: const Icon(Icons.ios_share),
                 onSelected: (v) => _share(gif: v == 'gif'),
                 itemBuilder: (_) => const [
@@ -611,6 +614,7 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
               ),
               const SizedBox(height: 10),
               SegmentedButton<FitMode>(
+                style: studioSegmentStyle,
                 showSelectedIcon: false,
                 segments: const [
                   ButtonSegment(value: FitMode.fill, label: Text('Fill')),
@@ -626,17 +630,20 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
                 spacing: 4,
                 children: [
                   IconButton(
+                    style: studioIconStyle,
                     tooltip: 'Rotate',
                     icon: const Icon(Icons.rotate_90_degrees_cw_outlined),
                     onPressed: () => _set(s.copyWith(quarterTurns: s.quarterTurns + 1)),
                   ),
                   IconButton(
+                    style: studioIconStyle,
                     tooltip: 'Flip horizontally',
                     isSelected: s.flipH,
                     icon: const Icon(Icons.flip),
                     onPressed: () => _set(s.copyWith(flipH: !s.flipH)),
                   ),
                   IconButton(
+                    style: studioIconStyle,
                     tooltip: 'Flip vertically',
                     isSelected: s.flipV,
                     icon: const RotatedBox(quarterTurns: 1, child: Icon(Icons.flip)),
@@ -728,6 +735,7 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
               ),
               if (s.background != BackgroundMode.off) ...[
                 SegmentedButton<BackgroundMode>(
+                  style: studioSegmentStyle,
                   showSelectedIcon: false,
                   segments: const [
                     ButtonSegment(value: BackgroundMode.dark, label: Text('Near-black')),
@@ -746,7 +754,7 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
                           height: 28,
                           decoration: BoxDecoration(
                             color: Color(0xFF000000 | s.bgColor),
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(Lb.rTile),
                             border: Border.all(color: Lb.line, width: 2),
                           ),
                         ),
@@ -810,6 +818,7 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
       children: [
         if (src.isAnimated)
           IconButton(
+            style: studioIconStyle,
             tooltip: _playing ? 'Pause' : 'Play',
             icon: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
             onPressed: () => setState(() => _playing = !_playing),
@@ -826,7 +835,8 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
           Text('$tw×$th', style: LbType.mono.copyWith(color: Lb.text))
         else
           PopupMenuButton<(int, int)>(
-            tooltip: 'Matrix size',
+            tooltip: 'Device size',
+            shape: studioMenuShape,
             initialValue: _manualSize,
             onSelected: _setSize,
             itemBuilder: (_) => [
@@ -860,11 +870,11 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
     final kb = '${(bytes / 1024).toStringAsFixed(1)} KB';
     if (caps == null) return _line('GIF ≈ $kb', Lb.text3, notes);
     if (!caps.canPlayGifs) {
-      return _line('GIF ≈ $kb · this matrix can only play it live', Lb.text3, notes);
+      return _line('GIF ≈ $kb · this device can only play it live', Lb.text3, notes);
     }
     final free = '${(caps.freeFsBytes / 1024).round()} KB free';
     return caps.fitsFile(bytes)
-        ? _line('GIF ≈ $kb · fits on your matrix ($free)', Lb.ok, notes)
+        ? _line('GIF ≈ $kb · fits on your device ($free)', Lb.ok, notes)
         : _line(
             'GIF ≈ $kb · too big ($free). Trim, skip frames or use fewer colours.',
             Lb.phosphor,
@@ -969,7 +979,7 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
         child: Row(
           children: [
             Tooltip(
-              message: 'Play on matrix',
+              message: 'Play on device',
               child: FilledButton(
                 onPressed: _play,
                 style: FilledButton.styleFrom(
@@ -996,7 +1006,7 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.push_pin_outlined, size: 18),
-                label: const FittedBox(child: Text('Keep on matrix')),
+                label: const FittedBox(child: Text('Send to device')),
               ),
             ),
           ],

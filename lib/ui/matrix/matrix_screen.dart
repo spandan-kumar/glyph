@@ -9,6 +9,7 @@ import '../../features/device/device_features.dart';
 import '../../features/device/device_manager.dart';
 import '../../features/device/widgets/common.dart';
 import '../../features/device/widgets/controls.dart';
+import '../../features/device/widgets/device_settings.dart';
 import '../../features/device/widgets/kept.dart';
 import '../../features/device/widgets/routines.dart';
 import '../../features/device/widgets/shows.dart';
@@ -25,13 +26,20 @@ import '../scope.dart';
 import '../widgets/led_matrix_view.dart';
 import 'your_matrices.dart';
 
-/// The Matrix hub (UX.md J4): the panel, its controls, and what lives on it —
-/// Kept, Shows, Routines, Storage — plus switching and setting up matrices.
+/// The Device hub (UX.md J4): the panel, its controls, and what lives on it —
+/// Saved, Shows, Routines, Storage — plus switching and setting up devices.
 class MatrixScreen extends StatefulWidget {
-  const MatrixScreen({super.key, @visibleForTesting this.services = const SetupServices()});
+  const MatrixScreen({
+    super.key,
+    @visibleForTesting this.services = const SetupServices(),
+    @visibleForTesting this.settingsView,
+  });
 
-  /// Discovery used by "Add a matrix" / "Connect your matrix".
+  /// Discovery used by "Add a device" / "Connect your device".
   final SetupServices services;
+
+  /// Stands in for the "Device settings" web view in tests.
+  final SettingsViewBuilder? settingsView;
 
   @override
   State<MatrixScreen> createState() => _MatrixScreenState();
@@ -60,7 +68,7 @@ class _MatrixScreenState extends State<MatrixScreen> {
     super.dispose();
   }
 
-  /// Plays something kept on the matrix (live streaming would override it).
+  /// Plays something saved on the device (live streaming would override it).
   Future<void> _play(int id) async {
     if (AppScope.of(context).playback.isStreaming) await GlyphActions.stopStreaming(context);
     await _manager!.apply(id);
@@ -102,7 +110,7 @@ class _MatrixScreenState extends State<MatrixScreen> {
                     child: HardwareControls(store: devices),
                   ),
                   PanelSection(
-                    label: 'Kept',
+                    label: 'Saved',
                     padding: const EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 0),
                     trailing: manager.isLoading && manager.isLoaded
                         ? const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 1.5))
@@ -126,9 +134,13 @@ class _MatrixScreenState extends State<MatrixScreen> {
                   ),
                 ],
                 PanelSection(
-                  label: 'Your matrices',
+                  label: 'Your devices',
                   padding: const EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 0),
-                  child: YourMatrices(store: devices, services: widget.services),
+                  child: YourMatrices(
+                    store: devices,
+                    services: widget.services,
+                    settingsView: widget.settingsView,
+                  ),
                 ),
               ],
             ),
@@ -158,6 +170,7 @@ class _Header extends StatelessWidget {
         children: [
           Row(
             children: [
+              const Expanded(child: MonoLabel('Device')),
               StatusDot(on: connected, size: 7),
               const SizedBox(width: 8),
               MonoLabel(connected ? 'Connected' : (store.isLoading ? 'Connecting…' : 'Not reachable')),
@@ -172,7 +185,7 @@ class _Header extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
-                  'Weak Wi-Fi here — live animations may stutter. Kept ones play fine.',
+                  'Weak Wi-Fi here — live animations may stutter. Saved ones play fine.',
                   style: LbType.small.copyWith(color: Lb.phosphor),
                 ),
               ),
@@ -190,7 +203,7 @@ String factsLine(WledInfo info) => [
   if (info.signal != null) 'Wi-Fi ${info.signal}%',
 ].join(' · ');
 
-/// The Stage: a mirror of what the matrix is showing right now.
+/// The Stage: a mirror of what the device is showing right now.
 class _NowShowing extends StatelessWidget {
   const _NowShowing({required this.store, required this.manager, required this.playback});
 
@@ -215,15 +228,13 @@ class _NowShowing extends StatelessWidget {
       title = 'Off';
       stage = Opacity(opacity: 0.5, child: Stage(frame: Frame(w, h), maxWidth: 300));
     } else {
-      kind = store.playlistRunning ? 'Playing a show' : (kept != null ? 'Kept on your matrix' : 'On its own');
+      kind = store.playlistRunning ? 'Playing a show' : (kept != null ? 'Saved on your device' : 'On its own');
       title = store.playlistRunning && store.playlistId != null
           ? manager.presetName(store.playlistId!)
           : kept?.name ?? (store.playlistRunning ? 'A show' : 'Its own light');
       final gif = kept?.gifName;
-      final hasFile =
-          gif != null && manager.files.keys.any((f) => f.toLowerCase() == '/${gif.toLowerCase()}');
-      stage = hasFile
-          ? _GifStage(manager: manager, gif: gif, aspect: w / h)
+      stage = gif != null && manager.hasFile(gif)
+          ? _GifStage(key: ValueKey(gif.toLowerCase()), manager: manager, gif: gif, aspect: w / h)
           : Stage(frame: _glowFrame(w, h, kept?.primaryColor), maxWidth: 300);
     }
     return Column(
@@ -254,7 +265,7 @@ class _NowShowing extends StatelessWidget {
     );
   }
 
-  /// A soft glow in the kept item's colour when we have no picture of it.
+  /// A soft glow in the saved item's colour when we have no picture of it.
   static Frame _glowFrame(int w, int h, int? color) {
     final f = Frame(w, h);
     final c = color == null || color == 0 ? 0xFFB547 : color;
@@ -272,7 +283,7 @@ class _NowShowing extends StatelessWidget {
 }
 
 class _GifStage extends StatelessWidget {
-  const _GifStage({required this.manager, required this.gif, required this.aspect});
+  const _GifStage({super.key, required this.manager, required this.gif, required this.aspect});
 
   final DeviceManager manager;
   final String gif;
@@ -287,13 +298,13 @@ class _GifStage extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: const Color(0xFF050403),
-            borderRadius: BorderRadius.circular(Lb.rControl + 4),
+            borderRadius: BorderRadius.circular(Lb.rControl),
             border: Border.all(color: Lb.line),
           ),
           child: Padding(
             padding: const EdgeInsets.all(4),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(Lb.rControl),
+              borderRadius: BorderRadius.circular(Lb.rTile),
               child: GifThumb(manager: manager, name: gif),
             ),
           ),
@@ -334,7 +345,7 @@ class _Unreachable extends StatelessWidget {
   );
 }
 
-/// No matrix yet: a dim panel waiting to be lit.
+/// No device yet: a dim panel waiting to be lit.
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onConnect});
 
@@ -352,7 +363,7 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 128),
     children: [
-      const MonoLabel('Matrix'),
+      const MonoLabel('Device'),
       const SizedBox(height: 32),
       Center(
         child: SizedBox(
@@ -361,7 +372,7 @@ class _EmptyState extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 36),
-      Text('Connect your matrix', textAlign: TextAlign.center, style: LbType.display.copyWith(fontSize: 34)),
+      Text('Connect your device', textAlign: TextAlign.center, style: LbType.display.copyWith(fontSize: 34)),
       const SizedBox(height: 12),
       Text(
         'Plug in your WLED panel and we\'ll find it on your Wi-Fi. It takes a few seconds.',
@@ -372,7 +383,7 @@ class _EmptyState extends StatelessWidget {
       FilledButton(
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
         onPressed: onConnect,
-        child: const Text('Connect your matrix'),
+        child: const Text('Connect your device'),
       ),
     ],
   );

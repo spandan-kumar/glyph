@@ -22,36 +22,41 @@ void main() {
       final pal = paletteById(g.defaultPalette);
       final result = bakeGif(
           generator: g, params: params, palette: pal, width: 16, height: 16);
-      expect(result.frameCount, 80);
-      expect(result.duration, const Duration(seconds: 4));
+      // Same seed + same timeline => identical frames to compare against.
+      final loop = renderLoop(
+          generator: g, params: params, palette: pal, width: 16, height: 16);
+      final frames = loop.frames;
+      final n = frames.length;
+      // About 4 s at 20 fps, trimmed or stretched to where it loops best.
+      expect(result.frameCount, n);
+      expect(n, inInclusiveRange(60, 100));
+      expect(result.duration, Duration(milliseconds: n * 50));
+      expect(loop.seconds, closeTo(n / 20, 1e-9));
       // ignore: avoid_print
-      print('$id: ${result.bytes.length} bytes');
-      // The old per-frame-palette encoder needed ~85 KB for this.
+      print('$id: ${result.bytes.length} bytes, $n frames');
+      // The old per-frame-palette encoder needed ~85 KB for 4 s of this.
       expect(result.bytes.length, lessThan(40 * 1024));
 
       final decoded = decodeTestGif(result.bytes);
       expect(decoded.loop, 0);
-      expect(decoded.frames.length, lessThanOrEqualTo(80));
-      expect(decoded.delays.fold(0, (a, b) => a + b), 400);
+      expect(decoded.frames.length, lessThanOrEqualTo(n));
+      expect(decoded.delays.fold(0, (a, b) => a + b), n * 5);
 
-      // Same seed + same timeline => identical frames to compare against.
-      final frames = renderFrames(
-          generator: g, params: params, palette: pal, width: 16, height: 16);
-      final shown = decoded.timeline(List.filled(80, 5));
+      final shown = decoded.timeline(List.filled(n, 5));
       if (_uniqueColours(frames) <= 255) {
-        for (var i = 0; i < 80; i++) {
+        for (var i = 0; i < n; i++) {
           expect(shown[i], frames[i].rgb, reason: 'frame $i');
         }
       } else {
         // Shared 255-colour palette: close, not exact.
         var se = 0;
-        for (var i = 0; i < 80; i++) {
+        for (var i = 0; i < n; i++) {
           for (var j = 0; j < frames[i].rgb.length; j++) {
             final e = shown[i][j] - frames[i].rgb[j];
             se += e * e;
           }
         }
-        expect(se / (80 * 16 * 16 * 3), lessThan(20), reason: 'PSNR > 35 dB');
+        expect(se / (n * 16 * 16 * 3), lessThan(20), reason: 'PSNR > 35 dB');
       }
 
       // An independent decoder agrees on the structure.
@@ -61,6 +66,19 @@ void main() {
       expect(other.frames.first.frameDuration, decoded.delays.first * 10);
     });
   }
+
+  test('seamless: false bakes exactly the requested seconds', () {
+    final g = generatorById('plasma');
+    final r = bakeGif(
+        generator: g,
+        params: Params.defaultsFor(g),
+        palette: paletteById(g.defaultPalette),
+        width: 16,
+        height: 16,
+        seamless: false);
+    expect(r.frameCount, 80);
+    expect(r.duration, const Duration(seconds: 4));
+  });
 
   test('plasma and fire take the exact (<= 255 colour) path', () {
     for (final id in ['plasma', 'fire']) {
@@ -84,7 +102,8 @@ void main() {
         width: 8,
         height: 32,
         seconds: 1,
-        fps: 10);
+        fps: 10,
+        seamless: false);
     expect(r.frameCount, 10);
     expect(r.duration, const Duration(seconds: 1));
     final d = decodeTestGif(r.bytes);

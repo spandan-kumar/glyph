@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../design/tokens.dart';
@@ -10,13 +12,36 @@ import 'tune_controller.dart';
 /// The Stage collapsed into a slim pinned bar: a live panel, the channel
 /// line and title, and ‹ › to keep surfing. Replaces the old bottom
 /// now-playing bar.
+///
+/// On Display the panel itself is the morphing Stage flying into the bar
+/// ([livePanel] false leaves its slot empty); on pushed pages the bar draws
+/// its own small panel.
 class MiniStage extends StatelessWidget {
-  const MiniStage({super.key, this.onTap, this.panelKey});
+  const MiniStage({super.key, this.onTap, this.panelKey, this.livePanel = true});
+
+  /// Height of the bar, below the status-bar inset.
+  static const height = 60.0;
+
+  /// The square slot the panel sits in.
+  static const panel = 44.0;
+
+  /// Where the panel sits, in the coordinates of whatever the bar's top-left
+  /// is laid out at, with the bar pushed down by [top] (the status bar). A
+  /// non-square frame is fitted inside the square slot.
+  static Rect panelRect({required double top, required double aspect}) {
+    final slot = Rect.fromLTWH(Lb.gutter, top + (height - panel) / 2, panel, panel);
+    final w = aspect >= 1 ? panel : panel * aspect;
+    final h = aspect >= 1 ? panel / aspect : panel;
+    return Rect.fromCenter(center: slot.center, width: max(1, w), height: max(1, h));
+  }
 
   final VoidCallback? onTap;
 
   /// Lets the screen fly tiles into the mini panel.
   final GlobalKey? panelKey;
+
+  /// Draw the small live panel (false when the Stage morphs into the slot).
+  final bool livePanel;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +55,7 @@ class MiniStage extends StatelessWidget {
           border: const Border(bottom: Lb.hairline),
         ),
         child: SizedBox(
-          height: 60,
+          height: height,
           child: Row(
             children: [
               Expanded(
@@ -44,15 +69,17 @@ class MiniStage extends StatelessWidget {
                       child: Row(children: [
                         SizedBox.square(
                           key: panelKey,
-                          dimension: 44,
-                          child: Center(
-                            child: LedMatrixView(
-                              frame: playback.frame,
-                              repaint: playback.frameTick,
-                              bezel: true,
-                              borderRadius: 3,
-                            ),
-                          ),
+                          dimension: panel,
+                          child: livePanel
+                              ? Center(
+                                  child: LedMatrixView(
+                                    frame: playback.frame,
+                                    repaint: playback.frameTick,
+                                    bezel: true,
+                                    borderRadius: Lb.rTile,
+                                  ),
+                                )
+                              : null,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -75,15 +102,18 @@ class MiniStage extends StatelessWidget {
                   ),
                 ),
               ),
-              IconButton(
-                tooltip: 'Previous',
-                onPressed: () => tune.surf(context, -1),
-                icon: const Icon(Icons.chevron_left_rounded, color: Lb.text2),
+              SquareKey(
+                icon: Icons.chevron_left_sharp,
+                label: 'Previous',
+                color: Lb.text2,
+                outlined: false,
+                onTap: () => tune.surf(context, -1),
               ),
-              IconButton(
-                tooltip: 'Next',
-                onPressed: () => tune.surf(context, 1),
-                icon: const Icon(Icons.chevron_right_rounded, color: Lb.text),
+              SquareKey(
+                icon: Icons.chevron_right_sharp,
+                label: 'Next',
+                outlined: false,
+                onTap: () => tune.surf(context, 1),
               ),
               const SizedBox(width: 8),
             ],

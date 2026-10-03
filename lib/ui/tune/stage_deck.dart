@@ -5,11 +5,11 @@ import 'package:flutter/services.dart';
 
 import '../../engine/clip.dart';
 import '../design/ambient.dart';
-import '../design/stage.dart';
+import '../design/parts.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 import '../scope.dart';
-import 'tiles.dart';
+import 'stage_morph.dart';
 import 'tune_controller.dart';
 
 enum KeepState { idle, beaming, kept, failed }
@@ -21,8 +21,10 @@ double stageWidthFor(Size screen, double aspect) {
   return min(360, min(byWidth, byHeight));
 }
 
-/// The top of Tune: the Stage, the channel caption and the transport.
-class StageDeck extends StatefulWidget {
+/// The top of Display: the Stage's home (the live panel itself floats above
+/// the page as a [MorphingStage] and sits here when the page is at the top),
+/// the device line, the channel caption and the transport.
+class StageDeck extends StatelessWidget {
   const StageDeck({
     super.key,
     required this.stageKey,
@@ -30,123 +32,88 @@ class StageDeck extends StatefulWidget {
     required this.onKeep,
     required this.keepState,
     required this.showHint,
-    required this.onSwiped,
+    this.onLayout,
   });
 
+  /// On the Stage's home slot, so the screen can measure it.
   final GlobalKey stageKey;
   final VoidCallback onTweak;
   final VoidCallback onKeep;
   final KeepState keepState;
   final bool showHint;
-  final VoidCallback onSwiped;
 
-  @override
-  State<StageDeck> createState() => _StageDeckState();
-}
-
-class _StageDeckState extends State<StageDeck> {
-  bool _heart = false;
-
-  void _doubleTap() {
-    final tune = TuneScope.read(context);
-    if (tune.playback.item == null) return;
-    final on = tune.toggleFavourite();
-    HapticFeedback.mediumImpact();
-    if (!on) return;
-    setState(() => _heart = true);
-    Future.delayed(const Duration(milliseconds: 750), () {
-      if (mounted) setState(() => _heart = false);
-    });
-  }
-
-  void _longPress() {
-    final p = AppScope.of(context).playback;
-    HapticFeedback.lightImpact();
-    p.isPlaying ? p.pause() : p.resume();
-  }
+  /// Called after the home slot changes size (e.g. a wider matrix).
+  final VoidCallback? onLayout;
 
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
     final playback = scope.playback, devices = scope.devices;
-    final tune = TuneScope.of(context);
     final screen = MediaQuery.sizeOf(context);
     return ListenableBuilder(
       listenable: Listenable.merge([playback, devices]),
       builder: (context, _) {
         final frame = playback.frame;
-        final width = stageWidthFor(screen, frame.width / frame.height);
+        final aspect = frame.width / frame.height;
+        final width = stageWidthFor(screen, aspect);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                Stage(
-                  key: widget.stageKey,
-                  frame: frame,
-                  repaint: playback.frameTick,
-                  deviceName: devices.isConnected
-                      ? '${devices.info!.name} · ${playback.isStreaming ? 'live' : devices.isPlayingKept(playback.item?.title ?? playback.generator?.name ?? '') ? 'kept' : 'ready'}'
-                      : null,
-                  connected: playback.isStreaming,
-                  maxWidth: width,
-                  onSwipe: (dir) {
-                    widget.onSwiped();
-                    tune.surf(context, dir);
-                  },
-                  onTap: widget.onTweak,
-                  onDoubleTap: _doubleTap,
-                  onLongPress: _longPress,
-                ),
-                if (tune.shuffling)
-                  Positioned.fill(child: IgnorePointer(child: Center(child: _Reel(width: width)))),
-                IgnorePointer(
-                  child: AnimatedScale(
-                    scale: _heart ? 1 : 0.3,
-                    duration: Lb.medium,
-                    curve: Curves.easeOutBack,
-                    child: AnimatedOpacity(
-                      opacity: _heart ? 1 : 0,
-                      duration: Lb.fast,
-                      child: const LedHeart(dot: 12),
-                    ),
-                  ),
-                ),
-                if (!playback.isPlaying && playback.generator != null)
-                  IgnorePointer(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Lb.ink.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(Lb.rControl),
-                        border: Border.all(color: Lb.line),
-                      ),
-                      child: Text('HELD · LONG-PRESS TO PLAY', style: LbType.label.copyWith(color: Lb.text2)),
-                    ),
-                  ),
-              ],
+            Center(
+              child: LayoutReporter(
+                onLayout: onLayout ?? () {},
+                child: SizedBox(key: stageKey, width: width, height: width / aspect),
+              ),
             ),
+            if (devices.isConnected) ...[
+              const SizedBox(height: 10),
+              _DeviceLine(
+                text: '${devices.info!.name} · ${devices.isOn == false ? 'off' : playback.isStreaming ? 'live' : devices.isPlayingKept(playback.item?.title ?? playback.generator?.name ?? '') ? 'saved' : 'ready'}',
+                lit: playback.isStreaming && devices.isOn != false,
+              ),
+            ],
             SizedBox(
               height: 22,
               child: AnimatedOpacity(
-                opacity: widget.showHint ? 1 : 0,
+                opacity: showHint ? 1 : 0,
                 duration: Lb.slow,
-                child: widget.showHint ? const _SwipeHint() : const SizedBox.shrink(),
+                child: showHint ? const _SwipeHint() : const SizedBox.shrink(),
               ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Lb.gutter),
-              child: _Caption(onTweak: widget.onTweak),
+              child: _Caption(onTweak: onTweak),
             ),
             const SizedBox(height: 14),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Lb.gutter),
-              child: _Transport(onTweak: widget.onTweak, onKeep: widget.onKeep, keepState: widget.keepState),
+              child: _Transport(onTweak: onTweak, onKeep: onKeep, keepState: keepState),
             ),
           ],
         );
       },
+    );
+  }
+}
+
+/// The device's name under the Stage with its status LED.
+class _DeviceLine extends StatelessWidget {
+  const _DeviceLine({required this.text, required this.lit});
+
+  final String text;
+  final bool lit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        StatusDot(on: lit),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(text.toUpperCase(), style: LbType.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+      ],
     );
   }
 }
@@ -179,7 +146,7 @@ class _SwipeHintState extends State<_SwipeHint> with SingleTickerProviderStateMi
           children: [
             Transform.translate(offset: Offset(-n.abs(), 0), child: Text('‹', style: LbType.mono)),
             const SizedBox(width: 8),
-            Text('SWIPE THE MATRIX', style: LbType.label.copyWith(color: Lb.text2)),
+            Text('SWIPE THE DISPLAY', style: LbType.label.copyWith(color: Lb.text2)),
             const SizedBox(width: 8),
             Transform.translate(offset: Offset(n.abs(), 0), child: Text('›', style: LbType.mono)),
           ],
@@ -295,15 +262,15 @@ class _Transport extends StatelessWidget {
     final accent = AmbientScope.of(context).accent;
     final item = scope.playback.item;
     final devices = scope.devices;
-    final canKeep = devices.isConnected && (devices.caps?.canPlayGifs ?? false) && scope.playback.generator != null;
+    final canSend = devices.isConnected && (devices.caps?.canPlayGifs ?? false) && scope.playback.generator != null;
     return ListenableBuilder(
       listenable: tune.library,
       builder: (context, _) {
         final fav = item != null && tune.library.isFavourite(item.id);
         return Row(
           children: [
-            _RoundButton(
-              icon: fav ? Icons.favorite : Icons.favorite_border,
+            SquareKey(
+              icon: fav ? Icons.favorite_sharp : Icons.favorite_border_sharp,
               color: fav ? Lb.danger : Lb.text,
               label: fav ? 'Unheart' : 'Heart',
               onTap: item == null
@@ -314,24 +281,18 @@ class _Transport extends StatelessWidget {
                     },
             ),
             const SizedBox(width: 10),
-            _RoundButton(
+            SquareKey(
               icon: Icons.casino_outlined,
               label: 'Surprise me',
               onTap: tune.shuffling ? null : () => tune.surprise(context, scope.catalog),
             ),
             const SizedBox(width: 10),
-            _RoundButton(icon: Icons.tune, label: 'Tweak', onTap: onTweak),
+            SquareKey(icon: Icons.tune_sharp, label: 'Tweak', onTap: onTweak),
             const Spacer(),
-            _PillButton(
-              icon: keepState == KeepState.kept ? Icons.check : Icons.north_rounded,
-              label: switch (keepState) {
-                KeepState.beaming => 'Keeping',
-                KeepState.kept => 'Kept',
-                _ => 'Keep',
-              },
-              accent: canKeep ? accent : null,
-              dim: !canKeep,
-              busy: keepState == KeepState.beaming,
+            _SendButton(
+              state: keepState,
+              accent: canSend ? accent : null,
+              dim: !canSend,
               onTap: keepState == KeepState.beaming ? null : onKeep,
             ),
           ],
@@ -341,13 +302,26 @@ class _Transport extends StatelessWidget {
   }
 }
 
-class _RoundButton extends StatelessWidget {
-  const _RoundButton({required this.icon, required this.label, this.onTap, this.color = Lb.text});
+/// A square hardware key: 44 px, hairline, 2 px corners.
+class SquareKey extends StatelessWidget {
+  const SquareKey({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.color = Lb.text,
+    this.outlined = true,
+    this.size = 44,
+  });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
   final Color color;
+
+  /// Draw the hairline frame (off for keys sitting in a bar).
+  final bool outlined;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -358,13 +332,15 @@ class _RoundButton extends StatelessWidget {
         label: label,
         child: Material(
           color: Colors.transparent,
-          shape: const CircleBorder(side: Lb.hairline),
+          shape: RoundedRectangleBorder(
+            borderRadius: const BorderRadius.all(Radius.circular(Lb.rControl)),
+            side: outlined ? Lb.hairline : BorderSide.none,
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
-            child: SizedBox(
-              width: 44,
-              height: 44,
+            child: SizedBox.square(
+              dimension: size,
               child: Icon(icon, size: 20, color: onTap == null ? Lb.text3 : color),
             ),
           ),
@@ -374,31 +350,33 @@ class _RoundButton extends StatelessWidget {
   }
 }
 
-class _PillButton extends StatelessWidget {
-  const _PillButton({
-    required this.icon,
-    required this.label,
-    this.onTap,
-    this.accent,
-    this.dim = false,
-    this.busy = false,
-  });
+/// SEND → SENDING → ✓ SENT: a rectangular key lit in the room colour when
+/// the device can take it.
+class _SendButton extends StatelessWidget {
+  const _SendButton({required this.state, this.onTap, this.accent, this.dim = false});
 
-  final IconData icon;
-  final String label;
+  final KeepState state;
   final VoidCallback? onTap;
   final Color? accent;
-  final bool dim, busy;
+  final bool dim;
 
   @override
   Widget build(BuildContext context) {
     final fg = dim ? Lb.text3 : Lb.text;
+    final label = switch (state) {
+      KeepState.beaming => 'Sending',
+      KeepState.kept => '✓ Sent',
+      _ => 'Send',
+    };
     return Semantics(
       button: true,
       label: label,
       child: Material(
         color: Colors.transparent,
-        shape: StadiumBorder(side: BorderSide(color: accent ?? Lb.line)),
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(Lb.rControl)),
+          side: BorderSide(color: accent ?? Lb.line),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
@@ -409,14 +387,13 @@ class _PillButton extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (busy)
-                    SizedBox.square(
-                      dimension: 14,
-                      child: CircularProgressIndicator(strokeWidth: 1.5, color: accent ?? Lb.text),
-                    )
-                  else
-                    Icon(icon, size: 16, color: accent ?? fg),
-                  const SizedBox(width: 8),
+                  if (state == KeepState.beaming) ...[
+                    _Chaser(color: accent ?? Lb.text),
+                    const SizedBox(width: 8),
+                  ] else if (state != KeepState.kept) ...[
+                    Icon(Icons.north_sharp, size: 16, color: accent ?? fg),
+                    const SizedBox(width: 8),
+                  ],
                   Text(label.toUpperCase(), style: LbType.label.copyWith(color: fg, fontSize: 11.5)),
                 ],
               ),
@@ -428,18 +405,18 @@ class _PillButton extends StatelessWidget {
   }
 }
 
-/// A slot-machine reel sweeping over the Stage while Surprise spins.
-class _Reel extends StatefulWidget {
-  const _Reel({required this.width});
+/// Three LEDs chasing upward while a look is being sent.
+class _Chaser extends StatefulWidget {
+  const _Chaser({required this.color});
 
-  final double width;
+  final Color color;
 
   @override
-  State<_Reel> createState() => _ReelState();
+  State<_Chaser> createState() => _ChaserState();
 }
 
-class _ReelState extends State<_Reel> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 240))..repeat();
+class _ChaserState extends State<_Chaser> with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat();
 
   @override
   void dispose() {
@@ -450,46 +427,30 @@ class _ReelState extends State<_Reel> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: widget.width,
-      child: AspectRatio(
-        aspectRatio: AppScope.of(context).playback.frame.width / AppScope.of(context).playback.frame.height,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(Lb.rControl + 4),
-          child: AnimatedBuilder(
-            animation: _c,
-            builder: (context, _) => CustomPaint(painter: _ReelPainter(_c.value)),
-          ),
-        ),
+      width: 6,
+      height: 16,
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, _) {
+          final lit = (_c.value * 3).floor();
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (var i = 2; i >= 0; i--)
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: i == lit ? widget.color : Lb.ledOff,
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
-}
-
-class _ReelPainter extends CustomPainter {
-  _ReelPainter(this.t);
-
-  final double t;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Two soft bands rolling downward, like a reel blurring past.
-    for (final o in [0.0, 0.5]) {
-      final y = ((t + o) % 1.0) * size.height * 1.4 - size.height * 0.2;
-      final rect = Rect.fromLTWH(0, y - size.height * 0.12, size.width, size.height * 0.24);
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Lb.ink.withValues(alpha: 0), Lb.ink.withValues(alpha: 0.55), Lb.ink.withValues(alpha: 0)],
-          ).createShader(rect),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_ReelPainter old) => old.t != t;
 }
 
 /// The title the caption and mini-stage show.

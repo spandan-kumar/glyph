@@ -127,7 +127,7 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
     final s = AppScope.of(context);
     final playback = s.playback, devices = s.devices;
     final ok = await BackgroundStreaming.start(
-      title: 'Glyph is streaming to ${devices.info?.name ?? 'your matrix'}',
+      title: 'Glyph is streaming to ${devices.info?.name ?? 'your device'}',
       text: '${_selected.name} · reacting to sound',
       microphone: _engine.access == MicAccess.granted,
       onStop: () {
@@ -214,9 +214,9 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
                       icon: const Icon(Icons.play_arrow_rounded),
                       label: Text(
                         live
-                            ? (playback.isStreaming ? 'Playing on matrix' : 'Playing (preview)')
+                            ? (playback.isStreaming ? 'Playing on device' : 'Playing (preview)')
                             : devices.isConnected
-                            ? 'Play on matrix'
+                            ? 'Play on device'
                             : 'Play',
                       ),
                     ),
@@ -225,7 +225,8 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
                     const SizedBox(width: 10),
                     IconButton.outlined(
                       tooltip: 'Stop',
-                      style: IconButton.styleFrom(side: Lb.hairline, minimumSize: const Size(48, 48)),
+                      style: IconButton.styleFrom(
+                          side: Lb.hairline, minimumSize: const Size(48, 48), shape: studioShape),
                       onPressed: _stop,
                       icon: const Icon(Icons.stop_rounded),
                     ),
@@ -236,7 +237,7 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'No matrix connected · showing it here on your phone',
+                    'No device connected · showing it here on your phone',
                     textAlign: TextAlign.center,
                     style: LbType.small.copyWith(color: Lb.text3),
                   ),
@@ -329,8 +330,8 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
                           BackgroundStreaming.isRunning
                               ? 'Running · stop it from the notification'
                               : devices.isConnected
-                              ? 'Keeps the matrix dancing with the screen off'
-                              : 'Connect a matrix to use this',
+                              ? 'Keeps the device dancing with the screen off'
+                              : 'Connect a device to use this',
                           style: LbType.small,
                         ),
                         value: BackgroundStreaming.isRunning || _wantBackground,
@@ -624,7 +625,7 @@ class _VisualTile extends StatelessWidget {
               duration: Lb.fast,
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(Lb.rControl + 2),
+                borderRadius: BorderRadius.circular(Lb.rControl),
                 border: Border.all(
                   color: selected ? readAccent(context) : Colors.transparent,
                   width: 1.5,
@@ -670,8 +671,8 @@ class _Swatch extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: SweepGradient(
+            borderRadius: BorderRadius.circular(Lb.rTile),
+            gradient: LinearGradient(
               colors: [for (final c in palette.swatch) Color(0xFF000000 | c)],
             ),
             border: Border.all(color: selected ? Lb.text : Lb.line, width: selected ? 2.5 : 1),

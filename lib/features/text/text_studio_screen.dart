@@ -22,13 +22,16 @@ import 'native_text.dart';
 import 'text_generators.dart';
 import 'text_settings.dart';
 
-/// Scrolling text, clock and countdown editor.
+/// The text tools: Write (scrolling text), Clock and Timer (countdown). Each
+/// opens straight into its own mode with only that mode's controls; a saved
+/// creation reopens in the mode it was made with.
 class TextStudioScreen extends StatefulWidget {
   const TextStudioScreen({super.key, this.initial, this.mode = 'text'});
 
   final Creation? initial;
 
-  /// 'text' | 'clock' | 'countdown'
+  /// 'text' | 'clock' | 'countdown'. Ignored when [initial] has its own
+  /// mode in its meta.
   final String mode;
 
   @override
@@ -51,7 +54,7 @@ const _previewSizes = [(16, 16), (32, 8), (8, 8), (32, 32)];
 
 class _TextStudioScreenState extends State<TextStudioScreen>
     with SingleTickerProviderStateMixin {
-  late String _mode;
+  late final String _mode;
   late TextSettings _s;
   late final TextEditingController _textCtl;
   late final TextEditingController _doneCtl;
@@ -75,11 +78,19 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     final meta = widget.initial?.meta;
     _mode = (meta?['mode'] as String?) ?? widget.mode;
     _s = meta != null ? TextSettings.fromJson(meta) : TextSettings();
-    if (_mode == 'clock' && meta == null) {
-      _s
-        ..font = 'bold'
-        ..colorMode = 'animated'
-        ..palette = 'ocean';
+    if (meta == null) {
+      switch (_mode) {
+        case 'clock':
+          _s
+            ..font = 'bold'
+            ..colorMode = 'animated'
+            ..palette = 'ocean';
+        case 'countdown':
+          _s
+            ..font = 'bold'
+            ..colorMode = 'animated'
+            ..palette = 'sunset';
+      }
     }
     _creationId = widget.initial?.id;
     _textCtl = TextEditingController(text: _s.text);
@@ -153,7 +164,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
 
   String get _title => switch (_mode) {
         'clock' => 'Clock',
-        'countdown' => _s.doneText.trim().isEmpty ? 'Countdown' : 'Countdown: ${_s.doneText.trim()}',
+        'countdown' => _s.doneText.trim().isEmpty ? 'Timer' : 'Timer: ${_s.doneText.trim()}',
         _ => _s.text.trim().isEmpty ? 'Text' : _s.text.trim(),
       };
 
@@ -164,7 +175,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     await GlyphActions.ensureStreaming(context);
     if (!mounted) return;
     if (!AppScope.of(context).devices.isConnected) {
-      _toast('Playing here on your phone. Connect a matrix to see it big.');
+      _toast('Playing here on your phone. Connect a device to see it big.');
     }
   }
 
@@ -208,7 +219,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     final devices = scope.devices;
     final caps = devices.caps, client = devices.client;
     if (caps == null || client == null) {
-      _toast('Connect a matrix to keep this on it.');
+      _toast('Connect a device to send this to it.');
       return;
     }
     if (_mode == 'text' && _s.text.trim().isEmpty) {
@@ -230,9 +241,9 @@ class _TextStudioScreenState extends State<TextStudioScreen>
             rows: caps.height,
             isEsp8266: caps.isEsp8266);
         await devices.refresh();
-        msg = 'Kept on your matrix. Unplug your phone — it keeps playing.';
+        msg = 'Sent to your device. Unplug your phone — it keeps playing.';
         if (_mode == 'clock' && _clockUnsynced(devices.info?.raw)) {
-          msg += ' Your matrix doesn\'t know the time yet: turn on internet time in its Time settings.';
+          msg += ' Your device doesn\'t know the time yet: turn on internet time in its Time settings.';
         }
       } else {
         final clip = _bake(caps.width, caps.height);
@@ -240,7 +251,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         msg = await GlyphActions.saveClipToDevice(context, clip, _title);
       }
     } catch (e) {
-      msg = 'Couldn\'t keep it: $e';
+      msg = 'Couldn\'t send it: $e';
     }
     if (!mounted) return;
     setState(() {
@@ -285,7 +296,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         return StudioScaffold(
           title: switch (_mode) {
             'clock' => 'Clock',
-            'countdown' => 'Countdown',
+            'countdown' => 'Timer',
             _ => 'Write',
           },
           body: ListView(
@@ -304,7 +315,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     const StatusDot(on: true),
                     const SizedBox(width: 8),
-                    MonoLabel('${devices.info?.name ?? 'Matrix'} · ${caps.width}×${caps.height}'),
+                    MonoLabel('${devices.info?.name ?? 'Device'} · ${caps.width}×${caps.height}'),
                   ]),
                 )
               else
@@ -320,17 +331,6 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                       ),
                   ],
                 ),
-              const SizedBox(height: 16),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'text', label: Text('Text'), icon: Icon(Icons.text_fields, size: 18)),
-                  ButtonSegment(value: 'clock', label: Text('Clock'), icon: Icon(Icons.schedule, size: 18)),
-                  ButtonSegment(value: 'countdown', label: Text('Timer'), icon: Icon(Icons.timer_outlined, size: 18)),
-                ],
-                selected: {_mode},
-                showSelectedIcon: false,
-                onSelectionChanged: (v) => _update(() => _mode = v.first),
-              ),
               const SizedBox(height: 18),
               ..._modeControls(w, h),
               _styleSection(),
@@ -355,7 +355,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                 _switch('Blinking colon', _s.blink, (v) => _s.blink = v),
                 _switch('Date when there\'s room', _s.date, (v) => _s.date = v),
                 _switch('Analog face', _s.analog, (v) => _s.analog = v,
-                    subtitle: analogFits(w, h) ? null : 'Needs a square matrix of 16×16 or more'),
+                    subtitle: analogFits(w, h) ? null : 'Needs a square device, 16×16 or bigger'),
               ]),
             ),
           ],
@@ -445,7 +445,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         label: 'Style',
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _chips([('tiny', 'Tiny'), ('classic', 'Classic'), ('bold', 'Bold')], _s.font, (v) => _s.font = v),
-          _switch('Large on tall matrices', _s.large, (v) => _s.large = v),
+          _switch('Large on tall devices', _s.large, (v) => _s.large = v),
           const SizedBox(height: 4),
           _chips([('solid', 'Solid'), ('gradient', 'Gradient'), ('rainbow', 'Rainbow'), ('animated', 'Animated')],
               _s.colorMode, (v) => _s.colorMode = v),
@@ -468,7 +468,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                         _Dot(
                           selected: _s.palette == p.id,
                           decoration: BoxDecoration(
-                              gradient: SweepGradient(colors: [for (final c in p.swatch) Color(0xFF000000 | c)])),
+                              gradient: LinearGradient(colors: [for (final c in p.swatch) Color(0xFF000000 | c)])),
                           onTap: () => _update(() => _s.palette = p.id),
                         ),
                     ],
@@ -523,21 +523,21 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     final connected = AppScope.of(context).devices.isConnected;
     final countdown = _mode == 'countdown';
     final note = switch (_mode) {
-      'clock' => 'A kept clock runs on the matrix itself, so it keeps time without your phone. '
-          'It uses the matrix\'s own font; 12/24-hour follows its time settings.',
-      'countdown' => 'Countdowns run from your phone, so use Play on matrix.',
+      'clock' => 'A clock sent to your device runs on the device itself, so it keeps time without your phone. '
+          'It uses the device\'s own font; 12/24-hour follows its time settings.',
+      'countdown' => 'Timers run from your phone, so use Play on device.',
       _ => _native
-          ? 'Kept as words on the matrix: live time like #HH:#MM works, '
-              'but it uses the matrix\'s own font and colours.'
-          : 'Kept as an animation: your exact look and background, but the words are fixed.',
+          ? 'Sent as words: live time like #HH:#MM works, '
+              'but it uses the device\'s own font and colours.'
+          : 'Sent as an animation: your exact look and background, but the words are fixed.',
     };
-    final ok = _result != null && (_result!.startsWith('Kept') || _result!.startsWith('Saved'));
+    final ok = _result != null && const ['Sent', 'Kept', 'Saved'].any(_result!.startsWith);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       const SizedBox(height: 4),
       FilledButton.icon(
         onPressed: _play,
         icon: const Icon(Icons.play_arrow_rounded),
-        label: const Text('Play on matrix'),
+        label: const Text('Play on device'),
       ),
       const SizedBox(height: 10),
       Row(children: [
@@ -557,17 +557,18 @@ class _TextStudioScreenState extends State<TextStudioScreen>
             icon: _busy
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.push_pin_outlined, size: 18),
-            label: FittedBox(child: Text(_busy ? 'Keeping…' : 'Keep on matrix')),
+            label: FittedBox(child: Text(_busy ? 'Sending…' : 'Send to device')),
           ),
         ),
       ]),
       const SizedBox(height: 16),
       if (_mode == 'text') ...[
-        const MonoLabel('Keep as'),
+        const MonoLabel('Send as'),
         const SizedBox(height: 8),
         SegmentedButton<bool>(
+          style: studioSegmentStyle,
           segments: const [
-            ButtonSegment(value: true, label: Text('Matrix font')),
+            ButtonSegment(value: true, label: Text('Device font')),
             ButtonSegment(value: false, label: Text('Exact look')),
           ],
           selected: {_native},
@@ -580,7 +581,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
       if (!connected)
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text('Connect a matrix to keep it there.', style: LbType.small.copyWith(color: Lb.text3)),
+          child: Text('Connect a device to send it there.', style: LbType.small.copyWith(color: Lb.text3)),
         ),
       if (_result != null)
         Padding(
@@ -611,7 +612,7 @@ class _Dot extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: decoration.copyWith(
-              shape: BoxShape.circle,
+              borderRadius: const BorderRadius.all(Radius.circular(Lb.rTile)),
               border: Border.all(color: selected ? Lb.text : Lb.line, width: selected ? 2.5 : 1),
             ),
           ),

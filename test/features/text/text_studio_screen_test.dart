@@ -66,7 +66,11 @@ void main() {
   testWidgets('text studio: type, style, play and save', (tester) async {
     final (playback, creations) = await pump(tester, const TextStudioScreen());
     expect(find.text('Write'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'Hello matrix');
+    // Write is its own tool: no switch across to Clock or Timer.
+    expect(find.byType(SegmentedButton<String>), findsNothing);
+    expect(find.text('Clock'), findsNothing);
+    expect(find.text('Timer'), findsNothing);
+    await tester.enterText(find.byType(TextField), 'Hello device');
     await tester.pump(const Duration(milliseconds: 200));
     await tapVisible(tester, find.text('Bold'));
     await tester.pump(const Duration(milliseconds: 100));
@@ -75,7 +79,7 @@ void main() {
     await tapVisible(tester, find.text('32×8'));
     await tester.pump(const Duration(milliseconds: 200));
 
-    await tapVisible(tester, find.text('Play on matrix'));
+    await tapVisible(tester, find.text('Play on device'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(playback.generator?.id, '_text');
 
@@ -94,48 +98,84 @@ void main() {
     final c = creations.items.single;
     expect(c.kind, 'text');
     expect(c.meta['mode'], 'text');
-    expect(c.meta['text'], 'Hello matrix');
+    expect(c.meta['text'], 'Hello device');
     expect(c.clip.width, 32);
     expect(c.clip.height, 8);
-    // No matrix: keeping is offered but can't be done yet.
-    expect(find.text('Keep on matrix'), findsOneWidget);
-    expect(find.text('Save to matrix'), findsNothing);
+    // No device: sending is offered but can't be done yet.
+    expect(find.text('Send to device'), findsOneWidget);
+    expect(find.text('Keep on matrix'), findsNothing);
     expect(tester.takeException(), isNull);
     playback.pause();
   });
 
-  testWidgets('clock and countdown modes build', (tester) async {
+  testWidgets('Clock opens with only clock controls', (tester) async {
     final (playback, _) = await pump(tester, const TextStudioScreen(mode: 'clock'));
+    expect(find.text('Clock'), findsOneWidget);
+    expect(find.byType(SegmentedButton<String>), findsNothing);
     expect(find.text('24-hour'), findsOneWidget);
+    expect(find.text('Type your message'), findsNothing);
+    expect(find.text('COUNT DOWN TO'), findsNothing);
     await tapVisible(tester, find.text('Analog face'));
     await tester.pump(const Duration(milliseconds: 200));
-    await tapVisible(tester, find.text('Timer'));
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text('Count down to'.toUpperCase()), findsOneWidget);
-    await tapVisible(tester, find.text('1 min'));
-    await tester.pump(const Duration(milliseconds: 500));
+    await tapVisible(tester, find.text('Play on device'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(playback.generator?.id, '_clock');
     expect(tester.takeException(), isNull);
     playback.pause();
   });
 
-  testWidgets('reopens a saved creation with its settings', (tester) async {
-    final meta = {
-      ...TextSettings(text: 'Reopened', font: 'tiny', durationSec: 60).toJson(),
-      'mode': 'countdown',
-    };
-    final creation = Creation(
-      id: 'abc',
-      title: 'Countdown',
-      kind: 'text',
-      clip: FrameClip.uniform([Frame(16, 16)]),
-      updatedAt: DateTime(2026),
-      meta: meta,
-    );
-    final (playback, _) = await pump(tester, TextStudioScreen(initial: creation, mode: 'countdown'));
-    expect(find.text('Countdown'), findsOneWidget);
-    await tapVisible(tester, find.text('Text'));
+  testWidgets('Timer opens with only countdown controls', (tester) async {
+    final (playback, _) = await pump(tester, const TextStudioScreen(mode: 'countdown'));
+    expect(find.text('Timer'), findsOneWidget);
+    expect(find.byType(SegmentedButton<String>), findsNothing);
+    expect(find.text('COUNT DOWN TO'), findsOneWidget);
+    expect(find.text('24-hour'), findsNothing);
+    expect(find.text('Type your message'), findsNothing);
+    await tapVisible(tester, find.text('1 min'));
     await tester.pump(const Duration(milliseconds: 200));
+    await tapVisible(tester, find.text('Play on device'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(playback.generator?.id, '_countdown');
+    expect(playback.generator?.name, 'Timer');
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  Creation saved(String mode, {String text = 'Reopened'}) => Creation(
+        id: 'abc-$mode',
+        title: mode,
+        kind: 'text',
+        clip: FrameClip.uniform([Frame(16, 16)]),
+        updatedAt: DateTime(2026),
+        meta: {
+          ...TextSettings(text: text, font: 'tiny', durationSec: 60, doneText: 'Lift off').toJson(),
+          'mode': mode,
+        },
+      );
+
+  testWidgets('reopens a saved timer in Timer, whatever mode was asked for', (tester) async {
+    final (playback, _) = await pump(tester, TextStudioScreen(initial: saved('countdown')));
+    expect(find.text('Timer'), findsOneWidget);
+    expect(find.text('COUNT DOWN TO'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Lift off'), findsOneWidget);
+    expect(find.byType(SegmentedButton<String>), findsNothing);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('reopens saved words in Write with their settings', (tester) async {
+    final (playback, _) = await pump(tester, TextStudioScreen(initial: saved('text'), mode: 'clock'));
+    expect(find.text('Write'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Reopened'), findsOneWidget);
+    expect(find.text('24-hour'), findsNothing);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('reopens a saved clock in Clock', (tester) async {
+    final (playback, _) = await pump(tester, TextStudioScreen(initial: saved('clock')));
+    expect(find.text('Clock'), findsOneWidget);
+    expect(find.text('24-hour'), findsOneWidget);
     expect(tester.takeException(), isNull);
     playback.pause();
   });

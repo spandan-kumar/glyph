@@ -8,11 +8,11 @@ import '../../ui/widgets/led_matrix_view.dart';
 import 'editor_model.dart';
 import 'templates.dart';
 
-/// "New drawing" picker: matrix size plus blank or example starts.
+/// "New drawing" picker: device size plus blank or example starts.
 class EditorStartView extends StatefulWidget {
   const EditorStartView({super.key, this.deviceSize, required this.onStart});
 
-  /// The connected matrix's size, offered first when known.
+  /// The connected device's size, offered first when known.
   final (int, int)? deviceSize;
   final ValueChanged<EditorModel> onStart;
 
@@ -82,7 +82,7 @@ class _EditorStartViewState extends State<EditorStartView> {
           if (dev != null)
             ChoiceChip(
               avatar: const Icon(Icons.grid_view, size: 16),
-              label: Text('My matrix · ${dev.$1}×${dev.$2}'),
+              label: Text('My device · ${dev.$1}×${dev.$2}'),
               selected: _size == dev,
               onSelected: (_) => setState(() => _size = dev),
             ),

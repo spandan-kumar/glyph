@@ -5,6 +5,12 @@ bar → sheet. That is Pipplee's shape and every streaming app's shape. Glyph is
 different because there is a **physical object** in the room. The UI should
 feel like a remote for a beautiful lamp, not a store.
 
+> **v1.2 naming:** the destinations are **Display** (was Tune), **Make** and
+> **Device** (was Matrix). User-facing copy says *device*, not *matrix*;
+> "Keep" is now **Send** (to device) and kept items are **Saved**. Geometry is
+> sharp: rectangles with 1–3 px radii; only LED dots and rotary knobs are
+> round.
+
 **North star:** *the matrix is the hero; the phone is its remote.* Every
 screen keeps the matrix visible, every action shows up on it instantly, and
 the app's own light comes from what the matrix is showing.
@@ -148,7 +154,9 @@ active controls = current ambient colour (falls back to phosphor).
   our bitmap fonts (`LedText`), e.g. section titles on Tune.
 
 ### Shape, depth, motion
-- Radii: 6 (controls), 10 (panels), 14 (sheets). LED tiles: 4 px bezel.
+- Radii: 2 (controls, panels), 3 (sheets), 1 (LED tiles). Everything reads
+  as crisp rectangles — the pixel grid is the motif. Only LED dots, status
+  dots and rotary knobs are round.
 - Depth via hairlines and slightly lighter surfaces, not drop shadows.
   The only "glow" in the app is LED bloom and the ambient backdrop.
 - Motion: 180–260 ms, `Curves.easeOutCubic` / emphasized; Stage transitions

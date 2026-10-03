@@ -39,7 +39,9 @@ class LedMatrixView extends StatelessWidget {
       panel = DecoratedBox(
         decoration: BoxDecoration(
           color: const Color(0xFF050403),
-          borderRadius: BorderRadius.circular(borderRadius + 4),
+          // Crisp hardware edge: the bezel only softens by a pixel more
+          // than the panel inside it.
+          borderRadius: BorderRadius.circular(borderRadius + 1),
           border: Border.all(color: Lb.line),
         ),
         child: Padding(padding: const EdgeInsets.all(4), child: panel),

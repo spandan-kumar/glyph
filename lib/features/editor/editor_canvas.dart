@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../engine/frame.dart';
 import '../../ui/design/tokens.dart';
+import '../../ui/make/studio_kit.dart';
 import 'editor_model.dart';
 
 /// Zoom/pan of the canvas: content is scaled about the viewport centre, then
@@ -229,7 +230,8 @@ class _EditorCanvasState extends State<EditorCanvas> {
             builder: (context, _) => _view.isZoomed
                 ? IconButton.outlined(
                     tooltip: 'Fit to screen',
-                    style: IconButton.styleFrom(backgroundColor: Lb.panel, side: Lb.hairline),
+                    style: IconButton.styleFrom(
+                        backgroundColor: Lb.panel, side: Lb.hairline, shape: studioShape),
                     onPressed: _view.reset,
                     icon: const Icon(Icons.fit_screen, size: 20),
                   )
@@ -264,7 +266,7 @@ class _CanvasPainter extends CustomPainter {
     g.apply(canvas);
 
     canvas.drawRRect(
-        RRect.fromRectAndRadius(Offset.zero & g.content, Radius.circular(cell * 0.3)),
+        RRect.fromRectAndRadius(Offset.zero & g.content, const Radius.circular(Lb.rTile)),
         Paint()..color = _panel);
 
     final p = preview.value;

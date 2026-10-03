@@ -106,6 +106,7 @@ ThemeData buildTheme() {
         foregroundColor: Lb.text,
         textStyle: LbType.bodyStrong,
         padding: const EdgeInsets.symmetric(horizontal: 10),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Lb.rControl))),
       ),
     ),
     chipTheme: ChipThemeData(
@@ -193,6 +194,33 @@ ThemeData buildTheme() {
         selectedBackgroundColor: Lb.text,
         selectedForegroundColor: Lb.ink,
         foregroundColor: Lb.text2,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Lb.rControl))),
+      ),
+    ),
+    // Shape only: forcing a colour here once hid icons on filled buttons.
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Lb.rControl))),
+      ),
+    ),
+    datePickerTheme: const DatePickerThemeData(
+      backgroundColor: Lb.panel,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Lb.rSheet))),
+      dayShape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Lb.rControl)))),
+    ),
+    timePickerTheme: const TimePickerThemeData(
+      backgroundColor: Lb.panel,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Lb.rSheet))),
+      hourMinuteShape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Lb.rControl))),
+      dayPeriodShape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Lb.rControl))),
+    ),
+    popupMenuTheme: const PopupMenuThemeData(
+      color: Lb.raised,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(Lb.rPanel)),
+        side: Lb.hairline,
       ),
     ),
     navigationBarTheme: const NavigationBarThemeData(

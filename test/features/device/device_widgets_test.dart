@@ -111,7 +111,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Kept: tiles play, menu offers rename', (tester) async {
+  testWidgets('Saved: tiles play, menu offers rename', (tester) async {
     final played = <int>[];
     await pump(tester, (s, m) => KeptSection(manager: m, store: s, onPlay: (id) async => played.add(id)));
     expect(find.text('Ocean Plasma'), findsOneWidget);
@@ -123,7 +123,7 @@ void main() {
     expect(played, [1]);
     await tester.longPress(find.text('Pipplee'));
     await settle(tester);
-    expect(find.text('Plays when your matrix powers on.'), findsOneWidget);
+    expect(find.text('Plays when your device powers on.'), findsOneWidget);
     await tester.tap(find.text('Rename'));
     await settle(tester);
     await tester.enterText(find.byType(TextField), 'Pip the dancer');
@@ -136,14 +136,20 @@ void main() {
   testWidgets('Storage: plain-words bar and the file page', (tester) async {
     await pump(tester, (s, m) => StorageSection(manager: m, store: s));
     expect(find.text('98 KB of 983 KB used'), findsOneWidget);
+    expect(find.textContaining('is used by old files that nothing plays anymore. Tap to free it up.'), findsOneWidget);
+    expect(find.textContaining('taken by'), findsNothing);
     await tester.tap(find.text('98 KB of 983 KB used'));
     await settle(tester, 600);
     expect(find.text('Storage'), findsOneWidget);
+    expect(find.textContaining('your device\'s own memory'), findsOneWidget);
     expect(find.text('duck.gif'), findsOneWidget);
-    expect(find.textContaining('Used by Ocean Plasma'), findsOneWidget);
+    expect(find.textContaining('Animation for Ocean Plasma'), findsOneWidget);
+    expect(find.textContaining('An old animation nothing plays anymore'), findsWidgets);
     await tester.drag(find.text('duck.gif'), const Offset(0, -600));
     await settle(tester);
-    expect(find.textContaining('Your matrix needs this'), findsWidgets);
+    // Every other file says what it is.
+    expect(find.textContaining('Your device\'s settings · Your device needs this'), findsOneWidget);
+    expect(find.textContaining('An extra tool for its web page'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -162,7 +168,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('nightlight')));
     await settle(tester, 600);
     expect(find.text('Night light'), findsWidgets);
-    expect(find.text('Switch your matrix on first.'), findsOneWidget);
+    expect(find.text('Switch your device on first.'), findsOneWidget);
     await tester.tap(find.text('Sunrise'));
     await settle(tester);
     await tester.tap(find.text('Start'));
@@ -170,6 +176,21 @@ void main() {
     final nl = wled.posts.last.$2['nl'] as Map;
     expect(nl['on'], true);
     expect(nl['mode'], 3);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Storage: free up deletes only the files nothing plays', (tester) async {
+    await pump(tester, (s, m) => StorageSection(manager: m, store: s));
+    await tester.tap(find.text('98 KB of 983 KB used'));
+    await settle(tester, 600);
+    final button = find.textContaining('Free up');
+    expect(button, findsOneWidget);
+    await tester.tap(button);
+    await settle(tester);
+    expect(find.textContaining('Everything you\'ve saved keeps playing'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Free up'));
+    await settle(tester, 1600);
+    expect(wled.deleted.toSet(), {'/duck.gif', '/goose.gif', '/mypaint.gif'});
     expect(tester.takeException(), isNull);
   });
 }

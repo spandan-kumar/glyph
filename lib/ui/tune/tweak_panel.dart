@@ -51,7 +51,7 @@ class TweakPanel extends StatelessWidget {
                     Container(
                       width: 36,
                       height: 4,
-                      decoration: BoxDecoration(color: Lb.line, borderRadius: BorderRadius.circular(2)),
+                      decoration: BoxDecoration(color: Lb.line, borderRadius: BorderRadius.circular(Lb.rTile)),
                     ),
                     const SizedBox(height: 6),
                     Row(children: [
@@ -65,6 +65,10 @@ class TweakPanel extends StatelessWidget {
                       ),
                       TextButton(
                         onPressed: onClose,
+                        style: TextButton.styleFrom(
+                          shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(Lb.rControl))),
+                        ),
                         child: Text('DONE', style: LbType.label.copyWith(color: Lb.text)),
                       ),
                     ]),
@@ -74,7 +78,7 @@ class TweakPanel extends StatelessWidget {
               if (g == null)
                 Padding(
                   padding: const EdgeInsets.all(Lb.gutter),
-                  child: Text('Tune in to something first.', style: LbType.body),
+                  child: Text('Pick a look first.', style: LbType.body),
                 )
               else ...[
                 PanelSection(
@@ -119,21 +123,25 @@ class TweakPanel extends StatelessWidget {
                           accent: accent,
                           onChanged: (v) => devices.setBrightness((v * 255).round()),
                         )
-                      : Text('Connect a matrix to dim or brighten it.', style: LbType.small),
+                      : Text('Connect a device to dim or brighten it.', style: LbType.small),
                 ),
                 if (devices.isConnected && !playback.isStreaming)
                   PanelSection(
-                    label: 'Matrix',
+                    label: 'Device',
                     child: Row(children: [
                       Expanded(
-                        child: Text('Show this on ${devices.info!.name}',
+                        child: Text('Show this on your device',
                             style: LbType.body, maxLines: 2, overflow: TextOverflow.ellipsis),
                       ),
-                      Switch(
-                        value: false,
-                        onChanged: (on) {
-                          if (on) GlyphActions.ensureStreaming(context);
-                        },
+                      OutlinedButton(
+                        onPressed: () => GlyphActions.ensureStreaming(context),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: accent),
+                          minimumSize: const Size(64, 40),
+                          shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(Lb.rControl))),
+                        ),
+                        child: Text('SHOW', style: LbType.label.copyWith(color: Lb.text)),
                       ),
                     ]),
                   ),
@@ -181,7 +189,7 @@ class _ParamKnob extends StatelessWidget {
 }
 
 /// AHA #4: palettes as little LED strips on a snapping reel. Whichever
-/// one sits in the middle is on the matrix.
+/// one sits in the middle is on the device.
 class PaletteStrip extends StatefulWidget {
   const PaletteStrip({super.key, required this.accent});
 
@@ -258,7 +266,7 @@ class _PaletteStripState extends State<PaletteStrip> {
                 height: 3,
                 decoration: BoxDecoration(
                   color: widget.accent,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(Lb.rTile),
                   boxShadow: [BoxShadow(color: widget.accent.withValues(alpha: 0.7), blurRadius: 6)],
                 ),
               ),
@@ -393,7 +401,7 @@ class _FaderPainter extends CustomPainter {
       final h = size.height * (0.45 + 0.55 * i / (segments - 1));
       final r = RRect.fromRectAndRadius(
         Rect.fromLTWH(i * (w + gap), size.height - h, w, h),
-        const Radius.circular(1.5),
+        const Radius.circular(Lb.rTile),
       );
       if (i < lit) {
         final k = 0.45 + 0.55 * (i + 1) / segments;

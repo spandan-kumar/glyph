@@ -301,21 +301,84 @@ class SpriteGenerator extends Generator {
   @override
   EffectInstance create(int width, int height, int seed) =>
       _SpriteInstance(sprite, width, height, Random(seed));
+
+  /// Seconds of effect time after which the sprite repeats exactly on a
+  /// [width]×[height] matrix: a common multiple of its frame sequence, its
+  /// motion and any colour-cycling inks, divided by the `speed` param. Null
+  /// when that is longer than [maxSeconds] even without the colour cycle.
+  /// Twinkling inks, the slow backdrop drift and shake's random jitter have
+  /// no practical period and are ignored.
+  double? loopSeconds(Params p, int width, int height, {double maxSeconds = 12}) {
+    final speed = p['speed'].clamp(0.05, 10).toDouble();
+    final motion = SpriteMotion.values[p['motion'].round().clamp(0, 6)];
+    // Periods as exact fractions of a second (numerator, denominator).
+    // A sequence that shows one frame throughout (scrolling text) has no
+    // period of its own.
+    final seq = {...sprite.seq}.length > 1 ? _Ratio(sprite.loopMs, 1000) : null;
+    final move = switch (motion) {
+      SpriteMotion.bounce => _Ratio(7, 10), // |sin(t·π/0.7)|
+      SpriteMotion.float => _Ratio(13, 5),
+      SpriteMotion.sway => _Ratio(11, 5),
+      SpriteMotion.pulse => _Ratio(11, 10),
+      SpriteMotion.scroll => () {
+          // travel px at max(4, 0.45·w) px/s, as in render().
+          final travel = width + _fit(sprite, width, height).$2 + 2;
+          return width * 0.45 > 4 ? _Ratio(20 * travel, 9 * width) : _Ratio(travel, 4);
+        }(),
+      SpriteMotion.still || SpriteMotion.shake => null,
+    };
+    final cycles = sprite._inks.any((i) => i.kind == 2); // pal.at(v + t/4)
+    for (final parts in [
+      [?seq, ?move, if (cycles) _Ratio(4, 1)],
+      [?seq, ?move],
+    ]) {
+      if (parts.isEmpty) continue;
+      final l = parts.reduce((a, b) => a.lcm(b));
+      final s = l.seconds / speed;
+      if (s.isFinite && s <= maxSeconds) return s;
+    }
+    return null;
+  }
+}
+
+/// A positive rational number of seconds, for exact loop lengths.
+class _Ratio {
+  _Ratio(int n, int d) : this._(n ~/ _gcd(n, d), d ~/ _gcd(n, d));
+  const _Ratio._(this.n, this.d);
+
+  final int n, d;
+
+  static int _gcd(int a, int b) => b == 0 ? a.abs() : _gcd(b, a % b);
+
+  /// Least common multiple: lcm(a/b, c/d) = lcm(a, c) / gcd(b, d).
+  _Ratio lcm(_Ratio o) {
+    final g = _gcd(n, o.n);
+    // Past ~2^40 the loop is far too long to bake anyway.
+    if (n ~/ g > (1 << 40) ~/ max(1, o.n)) return const _Ratio._(1 << 40, 1);
+    return _Ratio(n ~/ g * o.n, _gcd(d, o.d));
+  }
+
+  double get seconds => n / d;
+}
+
+/// Integer upscale (0 when shrinking) and drawn size of [s] on a w×h matrix.
+(int, int, int) _fit(Sprite s, int w, int h) {
+  // Wide banners (scrolling text) fit by height and scroll across.
+  final fit = s.isBanner ? h / s.height : min(w / s.width, h / s.height);
+  if (fit >= 1) {
+    final k = fit.floor();
+    return (k, s.width * k, s.height * k);
+  }
+  return (0, max(1, (s.width * fit).round()), max(1, (s.height * fit).round()));
 }
 
 class _SpriteInstance extends EffectInstance {
   _SpriteInstance(this.s, this.w, this.h, this._rnd)
       : _src = Uint32List(s.width * s.height) {
-    // Wide banners (scrolling text) fit by height and scroll across.
-    final fit = s.isBanner ? h / s.height : min(w / s.width, h / s.height);
-    if (fit >= 1) {
-      _scale = fit.floor();
-      dw = s.width * _scale;
-      dh = s.height * _scale;
-    } else {
-      dw = max(1, (s.width * fit).round());
-      dh = max(1, (s.height * fit).round());
-    }
+    final (k, fw, fh) = _fit(s, w, h);
+    _scale = k;
+    dw = fw;
+    dh = fh;
     _img = Uint32List(dw * dh);
   }
 

@@ -18,7 +18,7 @@ import 'core/game_generator.dart';
 import 'high_scores.dart';
 import 'widgets/controls.dart';
 
-/// Full-screen controller: live mirror of the matrix on top, controls below.
+/// Full-screen controller: live mirror of the device on top, controls below.
 class GamePage extends StatefulWidget {
   const GamePage({super.key, required this.def});
 
@@ -194,6 +194,8 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
           if (def.options.isNotEmpty)
             PopupMenuButton<String>(
               icon: const Icon(Icons.tune),
+              shape: studioMenuShape,
+              style: studioIconStyle,
               onSelected: _toggleOption,
               itemBuilder: (_) => [
                 for (final (key, label) in def.options)
@@ -202,6 +204,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
               ],
             ),
           IconButton(
+            style: studioIconStyle,
             tooltip: _paused ? 'Resume' : 'Pause',
             onPressed: _over ? null : () => _setPaused(!_paused),
             icon: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
@@ -232,8 +235,8 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
             ListenableBuilder(
               listenable: pb,
               builder: (context, _) => pb.isStreaming
-                  ? const LivePulse(label: 'On your matrix')
-                  : const MonoLabel('Preview · connect a matrix to play big'),
+                  ? const LivePulse(label: 'On your device')
+                  : const MonoLabel('Preview · connect a device to play big'),
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -274,7 +277,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
             child: Container(
               decoration: BoxDecoration(
                 color: Lb.panel,
-                borderRadius: BorderRadius.circular(Lb.rSheet),
+                borderRadius: BorderRadius.circular(Lb.rPanel),
                 border: Border.all(color: Lb.line),
               ),
               child: Center(child: DPad(onDown: _press, size: unit)),
@@ -322,7 +325,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
                 child: PadButton(
                   width: double.infinity,
                   height: double.infinity,
-                  radius: Lb.rSheet,
+                  radius: Lb.rPanel,
                   label: k.name,
                   onDown: () => _press(k),
                   child: Icon(icon, size: 48),
@@ -339,7 +342,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
           Widget hold(GameKey k, IconData icon) => PadButton(
                 width: unit * 1.2,
                 height: unit * 1.2,
-                radius: unit * 0.36,
+                radius: Lb.rControl,
                 label: k.name,
                 onDown: () => _press(k),
                 onUp: () => _release(k),
@@ -417,7 +420,7 @@ class _Panel extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Lb.panel,
-        borderRadius: BorderRadius.circular(Lb.rSheet),
+        borderRadius: BorderRadius.circular(Lb.rPanel),
         border: Border.all(color: highlight ? accent : Lb.line),
       ),
       child: SingleChildScrollView(

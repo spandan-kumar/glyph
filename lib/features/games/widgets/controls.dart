@@ -58,7 +58,8 @@ class _PadButtonState extends State<PadButton> {
   @override
   Widget build(BuildContext context) {
     final pressed = _pointers > 0;
-    final r = widget.radius ?? min(widget.width, widget.height) / 2;
+    // Crisp keys, like the pixels they drive.
+    final r = widget.radius ?? Lb.rControl;
     return Semantics(
       button: true,
       label: widget.label,
@@ -109,7 +110,7 @@ class DPad extends StatelessWidget {
   Widget _b(GameKey k, IconData icon) => PadButton(
         width: size,
         height: size,
-        radius: size * 0.3,
+        radius: Lb.rControl,
         label: k.name,
         onDown: () => onDown(k),
         onUp: onUp == null ? null : () => onUp!(k),
@@ -225,7 +226,7 @@ class TapPad extends StatelessWidget {
   Widget build(BuildContext context) => PadButton(
         width: double.infinity,
         height: double.infinity,
-        radius: Lb.rSheet,
+        radius: Lb.rPanel,
         color: Lb.panel,
         label: label,
         onDown: onTap,
@@ -244,7 +245,7 @@ class _Surface extends StatelessWidget {
         height: double.infinity,
         decoration: BoxDecoration(
           color: Lb.panel,
-          borderRadius: BorderRadius.circular(Lb.rSheet),
+          borderRadius: BorderRadius.circular(Lb.rPanel),
           border: Border.all(color: Lb.line),
         ),
         child: child,

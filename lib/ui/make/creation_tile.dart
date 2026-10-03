@@ -18,7 +18,7 @@ String creationKindLabel(Creation c) => switch (c.kind) {
       'drawing' => 'Drawing',
       'text' => switch (c.meta['mode']) {
           'clock' => 'Clock',
-          'countdown' => 'Countdown',
+          'countdown' => 'Timer',
           _ => 'Words',
         },
       'import' => 'GIF',
@@ -26,7 +26,7 @@ String creationKindLabel(Creation c) => switch (c.kind) {
     };
 
 /// A creation as a small LED panel playing itself. Tap plays it on the
-/// matrix; long-press opens its actions.
+/// device; long-press opens its actions.
 class CreationTile extends StatelessWidget {
   const CreationTile({super.key, required this.creation});
 
@@ -39,7 +39,7 @@ class CreationTile extends StatelessWidget {
       button: true,
       label: '${c.title}, ${creationKindLabel(c)}',
       child: InkWell(
-        borderRadius: BorderRadius.circular(Lb.rPanel),
+        borderRadius: BorderRadius.circular(Lb.rTile),
         onTap: () => GlyphActions.playClip(context, c.clip, c.title),
         onLongPress: () => showCreationActions(context, c),
         child: Column(
@@ -50,7 +50,7 @@ class CreationTile extends StatelessWidget {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: Lb.panel,
-                  borderRadius: BorderRadius.circular(Lb.rPanel),
+                  borderRadius: BorderRadius.circular(Lb.rTile),
                   border: Border.fromBorderSide(Lb.hairline),
                 ),
                 child: Padding(
@@ -88,7 +88,7 @@ class _ClipLoop extends StatelessWidget {
       );
 }
 
-/// Play, Edit, Keep on matrix, Share as GIF, Share Glyph file, Delete.
+/// Play, Edit, Send to device, Share as GIF, Share Glyph file, Delete.
 Future<void> showCreationActions(BuildContext context, Creation c) {
   final editable = c.kind == 'drawing' || c.kind == 'text';
   return showStudioActions(
@@ -108,7 +108,7 @@ Future<void> showCreationActions(BuildContext context, Creation c) {
       StudioAction(Icons.play_arrow_rounded, 'Play',
           () => GlyphActions.playClip(context, c.clip, c.title)),
       if (editable) StudioAction(Icons.edit_outlined, 'Edit', () => openCreation(context, c)),
-      StudioAction(Icons.push_pin_outlined, 'Keep on matrix', () => keepOnMatrix(context, c),
+      StudioAction(Icons.push_pin_outlined, 'Send to device', () => keepOnMatrix(context, c),
           subtitle: 'Plays without your phone'),
       StudioAction(Icons.gif_box_outlined, 'Share as GIF', () => shareCreationAsGif(context, c)),
       StudioAction(Icons.ios_share, 'Share Glyph file', () => shareCreationFile(context, c),
@@ -130,7 +130,7 @@ void openCreation(BuildContext context, Creation c) {
 
 Future<void> keepOnMatrix(BuildContext context, Creation c) async {
   if (AppScope.of(context).devices.caps == null) {
-    studioToast(context, 'Connect a matrix to keep this on it.',
+    studioToast(context, 'Connect a device to send this to it.',
         action: SnackBarAction(label: 'Connect', onPressed: () => goToMatrix(context)));
     return;
   }

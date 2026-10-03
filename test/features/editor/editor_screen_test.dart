@@ -69,7 +69,7 @@ void main() {
     final m = state(tester).model!;
     expect((m.width, m.height), (16, 16));
     // No matrix: the live mirror says so instead of pretending.
-    expect(find.text('NOT CONNECTED'), findsOneWidget);
+    expect(find.text('NO DEVICE CONNECTED'), findsOneWidget);
     expect(state(tester).mirroring, isFalse);
     final canvas = find.byType(EditorCanvas);
     final rect = tester.getRect(canvas);
@@ -172,13 +172,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(state(tester).mirroring, isTrue);
     expect(playback.generator?.id, '_editor_live');
-    expect(find.text('NOT CONNECTED'), findsNothing);
+    expect(find.text('NO DEVICE CONNECTED'), findsNothing);
 
     // Turning it off sticks.
-    await tester.tap(find.byTooltip('Stop showing on your matrix'));
+    await tester.tap(find.byTooltip('Stop showing on your device'));
     await tester.pump(const Duration(milliseconds: 200));
     expect(state(tester).mirroring, isFalse);
-    expect(find.text('SHOW ON MATRIX'), findsOneWidget);
+    expect(find.text('SHOW ON DEVICE'), findsOneWidget);
     expect(tester.takeException(), isNull);
     playback.pause();
   });

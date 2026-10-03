@@ -92,6 +92,10 @@ class ClipGenerator extends Generator {
   @override
   EffectInstance create(int width, int height, int seed) =>
       _ClipInstance(clip.fitTo(width, height));
+
+  /// Seconds of effect time for one pass through the clip at [p]'s speed.
+  double loopSeconds(Params p) =>
+      _ClipInstance._cumulative(clip.delaysMs).last / 1000 / p['speed'];
 }
 
 class _ClipInstance extends EffectInstance {

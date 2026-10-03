@@ -136,7 +136,7 @@ class ChunkyButton extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           color: Lb.raised,
-          borderRadius: BorderRadius.circular(Lb.rPanel + 4),
+          borderRadius: BorderRadius.circular(Lb.rControl),
           border: Border.all(color: lit ? litColor.withValues(alpha: 0.5) : Lb.line),
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -194,9 +194,10 @@ class _NightlightSheetState extends State<NightlightSheet> {
           children: [
             const SheetTitle(
               'Night light',
-              subtitle: 'Your matrix fades out by itself, even if your phone is off.',
+              subtitle: 'Your device fades out by itself, even if your phone is off.',
             ),
             SegmentedButton<int>(
+              style: squareSegments,
               showSelectedIcon: false,
               segments: const [
                 ButtonSegment(value: 1, label: Text('Fade out')),
@@ -227,7 +228,7 @@ class _NightlightSheetState extends State<NightlightSheet> {
                         ? 'A slow sunrise over $m min.'
                         : 'A slow sunset over $m min.'
                   : lightOff
-                  ? 'Switch your matrix on first.'
+                  ? 'Switch your device on first.'
                   : _mode == 0
                   ? 'Switches off after $m min.'
                   : 'Dims to dark over $m min.',

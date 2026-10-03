@@ -8,6 +8,7 @@ import 'package:glyph/app/playback.dart';
 import 'package:glyph/engine/clip.dart';
 import 'package:glyph/engine/frame.dart';
 import 'package:glyph/features/editor/editor_screen.dart';
+import 'package:glyph/features/text/text_studio_screen.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/make/creation_tile.dart';
 import 'package:glyph/ui/make/make_screen.dart';
@@ -59,7 +60,7 @@ void main() {
     final (playback, _) = await pumpMake(tester);
     expect(tester.takeException(), isNull);
     expect(find.text('Make'), findsOneWidget);
-    for (final verb in ['Draw', 'Write', 'Clock', 'Bring a GIF', 'Music', 'Play']) {
+    for (final verb in ['Draw', 'Write', 'Clock', 'Timer', 'Bring a GIF', 'Music', 'Play']) {
       expect(find.text(verb), findsOneWidget, reason: verb);
     }
     expect(find.text('MADE BY YOU'), findsOneWidget);
@@ -82,6 +83,75 @@ void main() {
     playback.pause();
   });
 
+  testWidgets('the grid fits seven tools at 360 px with no overflow', (tester) async {
+    final (playback, _) = await pumpMake(tester);
+    // The tool's own panel (the nearest Material around its name).
+    Rect tile(String verb) =>
+        tester.getRect(find.ancestor(of: find.text(verb), matching: find.byType(Material)).first);
+    // Every tool sits inside the 20 px gutters.
+    for (final verb in ['Draw', 'Write', 'Clock', 'Timer', 'Bring a GIF', 'Music', 'Play']) {
+      final r = tile(verb);
+      expect(r.left, greaterThanOrEqualTo(20 - 0.01), reason: verb);
+      expect(r.right, lessThanOrEqualTo(340 + 0.01), reason: verb);
+    }
+    // Draw leads; the text tools follow it in order; Play closes the studio.
+    final draw = tile('Draw');
+    final write = tile('Write');
+    final timer = tile('Timer');
+    final play = tile('Play');
+    expect(draw.width, greaterThan(write.width * 1.5));
+    expect(write.left, greaterThan(draw.right));
+    expect(timer.top, greaterThan(draw.bottom));
+    expect(play.top, greaterThan(timer.bottom));
+    expect(play.width, closeTo(320, 0.01));
+    await tester.pump(const Duration(seconds: 2));
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('Timer opens the text studio in countdown mode, with no mode switch', (tester) async {
+    final (playback, _) = await pumpMake(tester);
+    await tester.tap(find.text('Timer'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    final studio = tester.widget<TextStudioScreen>(find.byType(TextStudioScreen));
+    expect(studio.mode, 'countdown');
+    expect(find.text('Timer'), findsWidgets);
+    expect(find.text('COUNT DOWN TO'), findsOneWidget);
+    expect(find.byType(SegmentedButton<String>), findsNothing);
+    // Its own tool: no way across to Write or Clock from here.
+    expect(find.descendant(of: find.byType(TextStudioScreen), matching: find.text('Clock')),
+        findsNothing);
+    expect(find.descendant(of: find.byType(TextStudioScreen), matching: find.text('Text')),
+        findsNothing);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('Write and Clock open their own modes', (tester) async {
+    final (playback, _) = await pumpMake(tester);
+    await tester.tap(find.text('Write'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(tester.widget<TextStudioScreen>(find.byType(TextStudioScreen)).mode, 'text');
+    expect(find.byType(SegmentedButton<String>), findsNothing);
+    final inStudio = find.byType(TextStudioScreen);
+    expect(find.descendant(of: inStudio, matching: find.text('Clock')), findsNothing);
+    expect(find.descendant(of: inStudio, matching: find.text('Timer')), findsNothing);
+    await tester.pageBack();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await tester.tap(find.text('Clock'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(tester.widget<TextStudioScreen>(find.byType(TextStudioScreen)).mode, 'clock');
+    expect(find.text('24-hour'), findsOneWidget);
+    expect(find.byType(SegmentedButton<String>), findsNothing);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
   testWidgets('Made by you shows a saved creation; tap plays, long-press has actions',
       (tester) async {
     final (playback, _) = await pumpMake(tester, withCreation: true);
@@ -98,17 +168,17 @@ void main() {
     await tester.longPress(find.byType(CreationTile));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
-    for (final a in ['Play', 'Edit', 'Keep on matrix', 'Share as GIF', 'Share Glyph file', 'Delete']) {
+    for (final a in ['Play', 'Edit', 'Send to device', 'Share as GIF', 'Share Glyph file', 'Delete']) {
       expect(find.text(a), findsWidgets, reason: a);
     }
-    expect(find.text('Save to matrix'), findsNothing);
+    expect(find.text('Keep on matrix'), findsNothing);
     expect(tester.takeException(), isNull);
 
-    // Keeping without a matrix explains how to connect.
-    await tester.tap(find.text('Keep on matrix'));
+    // Sending without a device explains how to connect.
+    await tester.tap(find.text('Send to device'));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('Connect a matrix to keep this on it.'), findsOneWidget);
+    expect(find.text('Connect a device to send this to it.'), findsOneWidget);
     expect(tester.takeException(), isNull);
     playback.pause();
   });

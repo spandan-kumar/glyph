@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
+import 'package:glyph/features/device/widgets/device_settings.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/matrix/matrix_screen.dart';
 import 'package:glyph/ui/onboarding/onboarding_flow.dart';
@@ -31,7 +32,7 @@ void main() {
 
   const quiet = SetupServices(discover: _none, scan: _none);
 
-  Future<(DeviceStore, PlaybackController)> pump(WidgetTester tester) async {
+  Future<(DeviceStore, PlaybackController)> pump(WidgetTester tester, {SettingsViewBuilder? settingsView}) async {
     tester.view.physicalSize = const Size(360, 740) * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -49,7 +50,7 @@ void main() {
         creations: creations,
         child: MaterialApp(
           theme: buildTheme(),
-          home: const Scaffold(body: MatrixScreen(services: quiet)),
+          home: Scaffold(body: MatrixScreen(services: quiet, settingsView: settingsView)),
         ),
       ),
     );
@@ -63,16 +64,17 @@ void main() {
     await settle(tester, 200);
   }
 
-  testWidgets('connected: header, controls, Kept, Shows, Routines, Storage at 360x740', (tester) async {
+  testWidgets('connected: header, controls, Saved, Shows, Routines, Storage at 360x740', (tester) async {
     SharedPreferences.setMockInitialValues(twoMatrices);
     final (devices, playback) = await pump(tester);
 
     // Header in plain words.
+    expect(find.text('DEVICE'), findsOneWidget, reason: 'section label');
     expect(find.text('WLED'), findsOneWidget, reason: 'name from /json/info');
     expect(find.text('16×16 · WLED 16.0.1 · Wi-Fi 20%'), findsOneWidget);
     expect(find.textContaining('Weak Wi-Fi'), findsOneWidget);
-    // The Stage shows what's kept and playing (preset 102 plays pipplee.gif).
-    expect(find.text('KEPT ON YOUR MATRIX'), findsOneWidget);
+    // The Stage shows what's saved and playing (preset 102 plays pipplee.gif).
+    expect(find.text('SAVED ON YOUR DEVICE'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     // Power.
@@ -83,9 +85,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('power')));
     await settle(tester);
 
-    // Kept: tiles, not the "off" entry; tap plays.
+    // Saved: tiles, not the "off" entry; tap plays.
     await reveal(tester, find.text('Ocean Plasma'));
-    expect(find.text('KEPT'), findsOneWidget);
+    expect(find.text('SAVED'), findsOneWidget);
     expect(find.text('WLED Turn Off'), findsNothing);
     await tester.tap(find.text('Ocean Plasma'));
     await settle(tester, 800);
@@ -94,7 +96,10 @@ void main() {
     // Long-press menu → delete offers to free the GIF.
     await tester.longPress(find.text('Ocean Plasma'));
     await settle(tester);
-    expect(find.text('Rename'), findsWidgets);
+    expect(find.text('Saved on your device.'), findsOneWidget);
+    for (final a in ['Play now', 'Rename', 'Delete']) {
+      expect(find.text(a), findsWidgets, reason: a);
+    }
     await tester.tap(find.text('Delete').last);
     await settle(tester);
     expect(find.textContaining('Also free up'), findsOneWidget);
@@ -109,7 +114,7 @@ void main() {
 
     // Routines as sentences.
     await reveal(tester, find.text('Every hour at :15 → something removed'));
-    expect(find.text('These run on your matrix, even when your phone is off.'), findsOneWidget);
+    expect(find.text('These run on your device, even when your phone is off.'), findsOneWidget);
     expect(find.text('When it powers on → Pipplee'), findsOneWidget);
     expect(find.text('Mon, Wed, Fri at 3:07 → something removed'), findsOneWidget);
     expect(
@@ -119,11 +124,18 @@ void main() {
 
     // Storage in plain words.
     await reveal(tester, find.text('98 KB of 983 KB used'));
+    expect(
+      find.textContaining(RegExp(r'^\d+ B is used by old files that nothing plays anymore\. Tap to free it up\.$')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
 
-    // Your matrices: chips, mirror group, advanced.
+    // Your devices: chips, mirror group, settings, advanced.
     await reveal(tester, find.text('Shelf').last);
-    expect(find.text('Add a matrix'), findsOneWidget);
+    expect(find.text('YOUR DEVICES'), findsOneWidget);
+    expect(find.text('Add a device'), findsOneWidget);
+    expect(find.text('Device settings'), findsOneWidget);
+    expect(find.text('The full WLED setup, inside Glyph'), findsOneWidget);
     await reveal(tester, find.byType(Switch).last);
     await tester.tap(find.byType(Switch).last);
     await settle(tester);
@@ -131,19 +143,19 @@ void main() {
     await reveal(tester, find.text('Advanced'));
     await tester.tap(find.text('Advanced'));
     await settle(tester);
-    await reveal(tester, find.text('Forget this matrix'));
+    await reveal(tester, find.text('Forget this device'));
     expect(find.text('192.168.29.6'), findsWidgets);
     expect(find.text('Zig-zag rows'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     // No jargon in the primary UI.
-    for (final word in ['preset', 'Preset', 'playlist', 'Playlist', 'segment', 'DDP']) {
+    for (final word in ['preset', 'Preset', 'playlist', 'Playlist', 'segment', 'DDP', 'matrix', 'Kept', 'kept']) {
       expect(find.textContaining(word), findsNothing, reason: word);
     }
     playback.pause();
   });
 
-  testWidgets('rename and fix orientation from Your matrices', (tester) async {
+  testWidgets('rename and fix orientation from Your devices', (tester) async {
     SharedPreferences.setMockInitialValues(twoMatrices);
     final (_, playback) = await pump(tester);
     await reveal(tester, find.text('Rename'));
@@ -157,27 +169,28 @@ void main() {
     await reveal(tester, find.text('Fix orientation'));
     await tester.tap(find.text('Fix orientation'));
     await settle(tester, 600);
-    expect(find.text('Which way is the arrow pointing on your matrix?'), findsOneWidget);
+    expect(find.text('Which way is the arrow pointing on your device?'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.tap(find.byTooltip('Back'));
     await settle(tester, 600);
-    expect(find.text('Which way is the arrow pointing on your matrix?'), findsNothing);
+    expect(find.text('Which way is the arrow pointing on your device?'), findsNothing);
     playback.pause();
   });
 
-  testWidgets('no matrix: an inviting empty state that opens the search', (tester) async {
+  testWidgets('no device: an inviting empty state that opens the search', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final (_, playback) = await pump(tester);
-    expect(find.text('Connect your matrix'), findsNWidgets(2));
+    expect(find.text('DEVICE'), findsOneWidget);
+    expect(find.text('Connect your device'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
-    await tester.tap(find.widgetWithText(FilledButton, 'Connect your matrix'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Connect your device'));
     await settle(tester, 600);
-    expect(find.text('Add a matrix'), findsOneWidget);
+    expect(find.text('Add a device'), findsOneWidget);
     expect(find.text('Can\'t see it?'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.tap(find.byTooltip('Back'));
     await settle(tester, 600);
-    expect(find.text('Add a matrix'), findsNothing);
+    expect(find.text('Add a device'), findsNothing);
     playback.pause();
   });
 
@@ -189,7 +202,8 @@ void main() {
     expect(find.text('Matrix'), findsWidgets);
     expect(find.text('Can\'t reach it right now'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
-    await reveal(tester, find.text('Add a matrix'));
+    expect(find.text('Device settings'), findsNothing, reason: 'only offered when it answers');
+    await reveal(tester, find.text('Add a device'));
     expect(find.text('Shelf'), findsWidgets);
     expect(tester.takeException(), isNull);
 
@@ -199,6 +213,29 @@ void main() {
     await settle(tester, 800);
     expect(devices.isConnected, isTrue);
     expect(find.text('16×16 · WLED 16.0.1 · Wi-Fi 20%'), findsOneWidget);
+    playback.pause();
+  });
+
+  testWidgets('Device settings opens WLED\'s own pages and re-reads the device on close', (tester) async {
+    SharedPreferences.setMockInitialValues(twoMatrices);
+    final (_, playback) = await pump(
+      tester,
+      settingsView: (context, url) => Center(child: Text('web view: $url')),
+    );
+    await reveal(tester, find.text('Device settings'));
+    await tester.tap(find.text('Device settings'));
+    await settle(tester, 600);
+    expect(find.byType(DeviceSettingsPage), findsOneWidget);
+    expect(find.text('web view: http://192.168.29.6/settings'), findsOneWidget);
+    expect(find.byTooltip('Refresh'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    wled.gets.clear();
+    await tester.tap(find.byTooltip('Close'));
+    await settle(tester, 600);
+    expect(find.byType(DeviceSettingsPage), findsNothing);
+    expect(wled.gets, contains('/json/info'), reason: 'changes made in WLED show up');
+    expect(find.text('Device settings'), findsOneWidget);
     playback.pause();
   });
 }

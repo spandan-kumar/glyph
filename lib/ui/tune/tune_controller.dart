@@ -8,7 +8,17 @@ import '../../app/playback.dart';
 import '../../library/catalog.dart';
 import '../../library/user_library.dart';
 import '../actions.dart';
+import '../scope.dart';
 import 'channels.dart';
+
+/// Picking a look wakes a device that was switched off from Display's power
+/// key. The request goes out before streaming starts; a failure is left to
+/// the stream (or the next tap) to surface.
+void wakeDevice(BuildContext context) {
+  final d = AppScope.of(context).devices;
+  if (!d.isConnected || d.isOn != false) return;
+  unawaited(d.setPower(true).catchError((Object _) {}));
+}
 
 /// The remote's state: which channel you're surfing, which way the last
 /// change went (for the caption slide), and the Surprise shuffle.
@@ -62,6 +72,7 @@ class TuneController extends ChangeNotifier {
     _direction = i >= _index ? 1 : -1;
     _index = max(0, i);
     notifyListeners();
+    wakeDevice(context);
     return entry.play(context);
   }
 
@@ -76,6 +87,7 @@ class TuneController extends ChangeNotifier {
     if (_index < 0) _index += items.length;
     _direction = dir;
     notifyListeners();
+    wakeDevice(context);
     await items[_index].play(context);
   }
 
@@ -107,6 +119,7 @@ class TuneController extends ChangeNotifier {
       _index = 0;
       HapticFeedback.mediumImpact();
       notifyListeners();
+      wakeDevice(context);
       GlyphActions.play(context, picks.first);
     }
 

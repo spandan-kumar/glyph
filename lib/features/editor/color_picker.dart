@@ -83,7 +83,7 @@ class _HsvPickerState extends State<HsvPicker> {
                 height: 44,
                 decoration: BoxDecoration(
                   color: _hsv.toColor(),
-                  borderRadius: BorderRadius.circular(Lb.rPanel),
+                  borderRadius: BorderRadius.circular(Lb.rTile),
                   border: Border.all(color: Lb.line),
                 ),
               ),
@@ -129,7 +129,7 @@ class _Pad extends StatelessWidget {
           onPanDown: (d) => at(d.localPosition),
           onPanUpdate: (d) => at(d.localPosition),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(Lb.rPanel),
+            borderRadius: BorderRadius.circular(Lb.rTile),
             child: CustomPaint(painter: _PadPainter(hsv), size: Size.infinite),
           ),
         );
@@ -159,16 +159,14 @@ class _PadPainter extends CustomPainter {
             colors: [Color(0x00000000), Colors.black],
           ).createShader(r));
     final p = Offset(hsv.saturation * size.width, (1 - hsv.value) * size.height);
-    canvas.drawCircle(
-        p,
-        10,
+    canvas.drawRect(
+        Rect.fromCenter(center: p, width: 18, height: 18),
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3
           ..color = Colors.white);
-    canvas.drawCircle(
-        p,
-        11.5,
+    canvas.drawRect(
+        Rect.fromCenter(center: p, width: 22, height: 22),
         Paint()
           ..style = PaintingStyle.stroke
           ..color = Colors.black54);
@@ -204,19 +202,21 @@ class _HuePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final bar = RRect.fromRectAndRadius(
         Rect.fromLTWH(0, size.height * 0.2, size.width, size.height * 0.6),
-        Radius.circular(size.height));
+        const Radius.circular(Lb.rTile));
     canvas.drawRRect(
         bar,
         Paint()
           ..shader = LinearGradient(colors: [
             for (var h = 0; h <= 360; h += 60) HSVColor.fromAHSV(1, h % 360, 1, 1).toColor(),
           ]).createShader(bar.outerRect));
-    final c = Offset(hue / 360 * size.width, size.height / 2);
-    canvas.drawCircle(c, size.height / 2 - 2,
-        Paint()..color = HSVColor.fromAHSV(1, hue, 1, 1).toColor());
-    canvas.drawCircle(
-        c,
-        size.height / 2 - 2,
+    // A square slider handle, like the app's slider thumbs.
+    final thumb = Rect.fromCenter(
+        center: Offset(hue / 360 * size.width, size.height / 2),
+        width: size.height * 0.6,
+        height: size.height - 4);
+    canvas.drawRect(thumb, Paint()..color = HSVColor.fromAHSV(1, hue, 1, 1).toColor());
+    canvas.drawRect(
+        thumb,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3

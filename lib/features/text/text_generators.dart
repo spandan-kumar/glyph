@@ -390,7 +390,7 @@ class CountdownGenerator extends Generator {
   @override
   String get id => '_countdown';
   @override
-  String get name => 'Countdown';
+  String get name => 'Timer';
   @override
   String get defaultPalette => settings.palette;
 

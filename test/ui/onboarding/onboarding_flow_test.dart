@@ -57,12 +57,12 @@ void main() {
     return (devices, playback);
   }
 
-  testWidgets('welcome → just looking around finishes without a matrix', (tester) async {
+  testWidgets('welcome → just looking around finishes without a device', (tester) async {
     var done = 0;
     final (devices, playback) = await pump(tester, onDone: () => done++);
     await settle(tester, 1800); // the wordmark sweep
     expect(find.text('Your matrix, alive.'), findsOneWidget);
-    expect(find.text('Find my matrix'), findsOneWidget);
+    expect(find.text('Find my device'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.text('Just looking around'));
@@ -81,14 +81,14 @@ void main() {
     );
     final (devices, playback) = await pump(tester, onDone: () => done++, services: services);
 
-    await tester.tap(find.text('Find my matrix'));
+    await tester.tap(find.text('Find my device'));
     await settle(tester);
-    expect(find.text('Looking for your matrix'), findsOneWidget);
+    expect(find.text('Looking for your device'), findsOneWidget);
     expect(find.text('Desk matrix'), findsOneWidget);
     expect(find.text('192.168.29.6'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    // Connect → the matrix waves.
+    // Connect → the device waves.
     await tester.tap(find.text('Desk matrix'));
     await settle(tester, 800);
     expect(devices.isConnected, isTrue);
@@ -102,7 +102,7 @@ void main() {
     // Something looks off → arrow question → the arrow pointed right.
     await tester.tap(find.text('Something looks off'));
     await settle(tester);
-    expect(find.text('Which way is the arrow pointing on your matrix?'), findsOneWidget);
+    expect(find.text('Which way is the arrow pointing on your device?'), findsOneWidget);
     expect(playback.generator!.name, 'Arrow');
     await tester.tap(find.bySemanticsLabel('Right'));
     await settle(tester);
@@ -122,6 +122,7 @@ void main() {
     await tester.tap(find.text('It\'s waving'));
     await settle(tester);
     expect(find.text('Pick a first vibe'), findsOneWidget);
+    expect(find.text('It plays on your device straight away.'), findsOneWidget);
     expect(find.text('Calm'), findsOneWidget);
     expect(find.text('Party'), findsOneWidget);
     expect(find.text('Classic'), findsOneWidget);
@@ -150,7 +151,7 @@ void main() {
       },
     );
     final (devices, playback) = await pump(tester, onDone: () {}, services: services);
-    await tester.tap(find.text('Find my matrix'));
+    await tester.tap(find.text('Find my device'));
     await settle(tester);
 
     // After a few quiet seconds the help opens up by itself.
@@ -176,7 +177,7 @@ void main() {
     // Back goes to the search again.
     await tester.tap(find.byTooltip('Back'));
     await settle(tester);
-    expect(find.text('Looking for your matrix'), findsOneWidget);
+    expect(find.text('Looking for your device'), findsOneWidget);
     playback.pause();
   });
 }

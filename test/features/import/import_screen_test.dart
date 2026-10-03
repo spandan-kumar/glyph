@@ -77,7 +77,7 @@ void main() {
     expect(find.textContaining('GIF ≈'), findsOneWidget);
     expect(find.text('6 frames · 0.5 s'), findsOneWidget);
     expect(find.text('Bring a GIF'), findsOneWidget);
-    expect(find.text('Keep on matrix'), findsOneWidget);
+    expect(find.text('Send to device'), findsOneWidget);
 
     // Change fit mode and rotate; preview keeps rendering.
     await tester.ensureVisible(find.text('Fit'));
@@ -126,7 +126,7 @@ void main() {
     expect(tester.takeException(), isNull);
 
     // Play hands the clip to the shared player.
-    await tester.tap(find.byTooltip('Play on matrix'));
+    await tester.tap(find.byTooltip('Play on device'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(playback.generator?.name, 'gradient');
     expect(tester.takeException(), isNull);

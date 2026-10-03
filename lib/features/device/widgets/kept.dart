@@ -8,33 +8,33 @@ import '../../../wled/presets.dart';
 import '../device_manager.dart';
 import 'common.dart';
 
-/// What lives on the matrix: a grid of LED tiles. Tap plays it on the
-/// matrix; long-press to rename, delete or play it at power-on.
+/// What's saved on the device: a grid of LED tiles. Tap plays it on the
+/// device; long-press to rename, delete or play it at power-on.
 class KeptSection extends StatelessWidget {
   const KeptSection({super.key, required this.manager, required this.store, required this.onPlay});
 
   final DeviceManager manager;
   final DeviceStore store;
 
-  /// Plays a kept item (stops live streaming first).
+  /// Plays a saved item (stops live streaming first).
   final Future<void> Function(int id) onPlay;
 
   @override
   Widget build(BuildContext context) {
     final items = keptItems(manager);
     if (!manager.isLoaded && manager.isLoading) {
-      return const EmptyNote(text: 'Looking at what\'s kept on your matrix…');
+      return const EmptyNote(text: 'Looking at what\'s saved on your device…');
     }
     if (manager.error != null && items.isEmpty) {
       return EmptyNote(
-        text: 'Couldn\'t read what\'s kept on your matrix.',
+        text: 'Couldn\'t read what\'s saved on your device.',
         action: OutlinedButton(onPressed: manager.load, child: const Text('Try again')),
       );
     }
     if (items.isEmpty) {
       return const EmptyNote(
-        text: 'Nothing kept yet. Find something you love and tap Keep — '
-            'it will play here even without your phone.',
+        text: 'Nothing saved yet. Find something you love and tap Send to device — '
+            'it plays here even without your phone.',
       );
     }
     final accent = accentOf(context);
@@ -49,13 +49,18 @@ class KeptSection extends StatelessWidget {
           children: [
             for (final p in items)
               SizedBox(
+                // Tiles follow their item when the grid shifts after a delete.
+                key: ValueKey(p.id),
                 width: tile,
                 child: KeptTile(
                   manager: manager,
                   preset: p,
                   accent: accent,
+                  missing: manager.isFileMissing(p),
                   active: store.presetId == p.id && store.isOn == true && !store.playlistRunning,
-                  onTap: () => guarded(context, () => onPlay(p.id)),
+                  onTap: manager.isFileMissing(p)
+                      ? () => _menu(context, p)
+                      : () => guarded(context, () => onPlay(p.id)),
                   onLongPress: () => _menu(context, p),
                 ),
               ),
@@ -66,11 +71,22 @@ class KeptSection extends StatelessWidget {
   }
 
   Future<void> _menu(BuildContext context, WledPreset p) async {
+    if (manager.isFileMissing(p)) {
+      final v = await showActions(
+        context,
+        title: p.name,
+        subtitle: 'Its animation file is gone from your device, so it can\'t play. '
+            'Send it again from Display, or delete it.',
+        actions: const [ActionItem('Delete', Icons.delete_outline_rounded, 'delete', danger: true)],
+      );
+      if (v == 'delete' && context.mounted) await deleteKept(context, manager, p);
+      return;
+    }
     final boot = manager.schedule?.bootPreset == p.id;
     final v = await showActions(
       context,
       title: p.name,
-      subtitle: boot ? 'Plays when your matrix powers on.' : 'Kept on your matrix.',
+      subtitle: boot ? 'Plays when your device powers on.' : 'Saved on your device.',
       actions: [
         const ActionItem('Play now', Icons.play_arrow_rounded, 'play'),
         const ActionItem('Rename', Icons.edit_outlined, 'rename'),
@@ -89,7 +105,7 @@ class KeptSection extends StatelessWidget {
         await guarded(
           context,
           () => manager.setBootPreset(p.id),
-          done: '“${p.name}” will play when your matrix powers on',
+          done: '“${p.name}” will play when your device powers on',
         );
       case 'delete':
         await deleteKept(context, manager, p);
@@ -103,7 +119,7 @@ class KeptSection extends StatelessWidget {
   }
 }
 
-/// Asks, then removes [p] from the matrix (and its GIF when nothing else
+/// Asks, then removes [p] from the device (and its GIF when nothing else
 /// uses it and the user agrees).
 Future<void> deleteKept(BuildContext context, DeviceManager manager, WledPreset p) async {
   final gif = p.gifName;
@@ -124,7 +140,7 @@ Future<void> deleteKept(BuildContext context, DeviceManager manager, WledPreset 
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('It will be removed from your matrix.', style: LbType.body.copyWith(color: Lb.text2)),
+            Text('It will be removed from your device.', style: LbType.body.copyWith(color: Lb.text2)),
             if (usedBy.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
@@ -162,13 +178,14 @@ Future<void> deleteKept(BuildContext context, DeviceManager manager, WledPreset 
   );
 }
 
-/// One kept item: an LED tile with its picture and name.
+/// One saved item: an LED tile with its picture and name.
 class KeptTile extends StatelessWidget {
   const KeptTile({
     super.key,
     required this.manager,
     required this.preset,
     this.active = false,
+    this.missing = false,
     this.accent = Lb.phosphor,
     this.onTap,
     this.onLongPress,
@@ -177,6 +194,9 @@ class KeptTile extends StatelessWidget {
   final DeviceManager manager;
   final WledPreset preset;
   final bool active;
+
+  /// Its animation file was deleted: a dark panel labelled "File missing".
+  final bool missing;
   final Color accent;
   final VoidCallback? onTap, onLongPress;
 
@@ -194,9 +214,17 @@ class KeptTile extends StatelessWidget {
           AspectRatio(
             aspectRatio: 1,
             child: LedBezel(
-              active: active,
+              active: active && !missing,
               accent: accent,
-              child: PresetThumb(manager: manager, preset: preset),
+              child: missing
+                  ? const Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        DotGlyph(color: Lb.text3, dim: true),
+                        Center(child: MonoLabel('File missing', color: Lb.text2)),
+                      ],
+                    )
+                  : PresetThumb(manager: manager, preset: preset),
             ),
           ),
           const SizedBox(height: 6),
@@ -208,7 +236,7 @@ class KeptTile extends StatelessWidget {
                   preset.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: LbType.small.copyWith(color: active ? Lb.text : Lb.text2),
+                  style: LbType.small.copyWith(color: missing ? Lb.text3 : (active ? Lb.text : Lb.text2)),
                 ),
               ),
             ],

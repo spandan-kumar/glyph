@@ -55,7 +55,7 @@ String describeRoutine(WledTimer t, String target) {
   return '$when${describeDates(t)} → $target';
 }
 
-/// Routines: kept items the matrix switches to on its own clock.
+/// Routines: saved items the device switches to on its own clock.
 class RoutinesSection extends StatelessWidget {
   const RoutinesSection({super.key, required this.manager});
 
@@ -68,7 +68,7 @@ class RoutinesSection extends StatelessWidget {
     if (s == null) {
       return EmptyNote(
         text: manager.scheduleError != null
-            ? 'Couldn\'t read your matrix\'s routines.'
+            ? 'Couldn\'t read your device\'s routines.'
             : 'Reading routines…',
         action: manager.scheduleError != null
             ? OutlinedButton(onPressed: manager.load, child: const Text('Try again'))
@@ -79,13 +79,13 @@ class RoutinesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Note(text: 'These run on your matrix, even when your phone is off.', lit: true, color: accent),
+        Note(text: 'These run on your device, even when your phone is off.', lit: true, color: accent),
         if (!s.ntpEnabled)
           const Note(
             color: Lb.phosphor,
             lit: true,
-            text: 'Your matrix doesn\'t know the time yet. Turn on internet time in its own '
-                'settings (Time & Macros) so routines start on time.',
+            text: 'Your device doesn\'t know the time yet. Turn on internet time in Device '
+                'settings → Time & Macros so routines start on time.',
           ),
         if (!s.isEditable)
           const Note(
@@ -97,8 +97,8 @@ class RoutinesSection extends StatelessWidget {
           const Note(
             color: Lb.phosphor,
             lit: true,
-            text: 'Sunrise and sunset need your matrix to know where it is — set its location in '
-                'its own settings (Time & Macros).',
+            text: 'Sunrise and sunset need your device to know where it is — set its location in '
+                'Device settings → Time & Macros.',
           ),
         RowGroup(
           children: [
@@ -171,7 +171,7 @@ class RoutinesSection extends StatelessWidget {
       ),
     );
     if (choice == null || choice == id || !context.mounted) return;
-    await guarded(context, () => manager.setBootPreset(choice), done: 'Saved to your matrix');
+    await guarded(context, () => manager.setBootPreset(choice), done: 'Saved to your device');
   }
 
   Future<void> _edit(BuildContext context, WledSchedule s, int? index) async {
@@ -199,7 +199,7 @@ class RoutinesSection extends StatelessWidget {
     await guarded(
       context,
       () => manager.saveTimers(list),
-      done: result.delete ? 'Routine removed' : 'Routine saved to your matrix',
+      done: result.delete ? 'Routine removed' : 'Routine saved to your device',
     );
   }
 }
@@ -237,6 +237,7 @@ class _TargetPicker extends StatelessWidget {
               ),
             for (final p in manager.presets)
               Row1(
+                key: ValueKey(p.id),
                 leading: SizedBox.square(
                   dimension: 36,
                   child: LedBezel(child: PresetThumb(manager: manager, preset: p)),
@@ -342,7 +343,7 @@ class _RoutineEditorState extends State<RoutineEditor> {
             const Note(
               color: Lb.phosphor,
               lit: true,
-              text: 'Your matrix needs its location for this (its own settings → Time & Macros).',
+              text: 'Your device needs its location for this (Device settings → Time & Macros).',
             ),
           const SizedBox(height: 16),
           const MonoLabel('Days'),
@@ -430,7 +431,7 @@ class _RoutineEditorState extends State<RoutineEditor> {
               Expanded(
                 child: FilledButton(
                   onPressed: err == null ? () => Navigator.pop(context, RoutineEdit.save(_t)) : null,
-                  child: const Text('Save to matrix'),
+                  child: const Text('Save to device'),
                 ),
               ),
             ],
@@ -498,6 +499,7 @@ class _DateRow extends StatelessWidget {
         SizedBox(width: 52, child: Text(label, style: LbType.body)),
         Expanded(
           child: DropdownButtonFormField<int>(
+            borderRadius: BorderRadius.circular(Lb.rControl),
             initialValue: day.clamp(1, 31),
             items: [for (var d = 1; d <= 31; d++) DropdownMenuItem(value: d, child: Text('$d'))],
             onChanged: (v) => v == null ? null : onChanged(month, v),
@@ -506,6 +508,7 @@ class _DateRow extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: DropdownButtonFormField<int>(
+            borderRadius: BorderRadius.circular(Lb.rControl),
             initialValue: month.clamp(1, 12),
             items: [
               for (var mo = 1; mo <= 12; mo++) DropdownMenuItem(value: mo, child: Text(_months[mo - 1])),

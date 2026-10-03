@@ -6,6 +6,7 @@ import '../../app/devices.dart';
 import '../../app/test_pattern.dart';
 import '../../features/device/device_features.dart';
 import '../../features/device/widgets/common.dart';
+import '../../features/device/widgets/device_settings.dart';
 import '../../wled/device.dart';
 import '../../wled/layout.dart';
 import '../actions.dart';
@@ -19,13 +20,21 @@ import '../scope.dart';
 String sizeLabel(WledInfo info) =>
     info.hasMatrix ? '${info.matrixWidth}×${info.matrixHeight}' : '${info.ledCount} lights';
 
-/// Switching between matrices, adding one, playing on several together,
-/// fixing orientation, renaming and the advanced details.
+/// Switching between devices, adding one, playing on several together,
+/// fixing orientation, renaming, WLED's own settings and the advanced details.
 class YourMatrices extends StatelessWidget {
-  const YourMatrices({super.key, required this.store, this.services = const SetupServices()});
+  const YourMatrices({
+    super.key,
+    required this.store,
+    this.services = const SetupServices(),
+    this.settingsView,
+  });
 
   final DeviceStore store;
   final SetupServices services;
+
+  /// Stands in for the settings web view in tests.
+  final SettingsViewBuilder? settingsView;
 
   Future<void> _switchTo(BuildContext context, SavedDevice d) async {
     if (d.host == store.selected?.host) return;
@@ -60,7 +69,7 @@ class YourMatrices extends StatelessWidget {
                   ),
                 ),
               _MatrixChip(
-                name: 'Add a matrix',
+                name: 'Add a device',
                 detail: 'Find another',
                 add: true,
                 onTap: () => MatrixSetupPage.open(context, services: services),
@@ -88,6 +97,14 @@ class YourMatrices extends StatelessWidget {
                   trailing: const Icon(Icons.chevron_right_rounded, color: Lb.text3),
                   onTap: () => _rename(context),
                 ),
+              if (store.isConnected)
+                Row1(
+                  leading: const Icon(Icons.settings_outlined, color: Lb.text2, size: 20),
+                  title: 'Device settings',
+                  subtitle: 'The full WLED setup, inside Glyph',
+                  trailing: const Icon(Icons.chevron_right_rounded, color: Lb.text3),
+                  onTap: () => DeviceSettingsPage.open(context, store, viewBuilder: settingsView),
+                ),
               _Advanced(store: store),
             ],
           ),
@@ -109,7 +126,7 @@ class YourMatrices extends StatelessWidget {
 
   Future<void> _rename(BuildContext context) async {
     final current = store.info?.name ?? store.selected?.name ?? '';
-    final name = await promptText(context, title: 'Name your matrix', initial: current, hint: 'Living room');
+    final name = await promptText(context, title: 'Name your device', initial: current, hint: 'Living room');
     if (name == null || name.isEmpty || name == current || !context.mounted) return;
     await guarded(context, () => store.renameOnDevice(name), done: 'Renamed to “$name”');
   }
@@ -176,7 +193,7 @@ class _MatrixChip extends StatelessWidget {
   );
 }
 
-/// Other saved matrices that mirror the live stream.
+/// Other saved devices that mirror the live stream.
 class _MirrorGroup extends StatelessWidget {
   const _MirrorGroup({required this.store, required this.others});
 
@@ -219,7 +236,7 @@ class _MirrorGroup extends StatelessWidget {
   }
 }
 
-/// Layout switches, firmware, address and forgetting the matrix.
+/// Layout switches, firmware, address and forgetting the device.
 class _Advanced extends StatefulWidget {
   const _Advanced({required this.store});
 
@@ -274,15 +291,15 @@ class _AdvancedState extends State<_Advanced> {
                             ? '${info.matrixWidth} × ${info.matrixHeight} · ${info.ledCount} lights'
                             : '${info.ledCount} lights in a line'),
                         if (info.signal != null) _kv('Wi-Fi', '${info.signal}% (${info.rssi} dBm)'),
-                        _kv('Keeping', caps?.canPlayGifs == true ? 'Works on this matrix' : 'Not on this matrix'),
+                        _kv('Saving', caps?.canPlayGifs == true ? 'Works on this device' : 'Not on this device'),
                         if (!info.versionAtLeast(16))
                           const Padding(
                             padding: EdgeInsets.only(top: 6),
                             child: Note(
                               color: Lb.phosphor,
                               lit: true,
-                              text: 'WLED 16 lets your matrix keep animations and run routines. Update '
-                                  'from its web page (Settings → Security & Updates) or at install.wled.me.',
+                              text: 'WLED 16 lets your device save animations and run routines. Update '
+                                  'in Device settings → Security & Updates, or at install.wled.me.',
                             ),
                           ),
                       ],
@@ -295,6 +312,7 @@ class _AdvancedState extends State<_Advanced> {
                       ),
                       const SizedBox(height: 10),
                       SegmentedButton<int>(
+                        style: squareSegments,
                         showSelectedIcon: false,
                         segments: const [
                           ButtonSegment(value: 0, label: Text('0°')),
@@ -323,7 +341,7 @@ class _AdvancedState extends State<_Advanced> {
                       TextButton(
                         style: TextButton.styleFrom(foregroundColor: Lb.danger),
                         onPressed: () => _forget(context, d),
-                        child: const Text('Forget this matrix'),
+                        child: const Text('Forget this device'),
                       ),
                     ],
                   ),
@@ -366,7 +384,7 @@ class _AdvancedState extends State<_Advanced> {
     final ok = await confirm(
       context,
       title: 'Forget ${d.name}?',
-      message: 'It\'s removed from Glyph only. Everything kept on the matrix stays.',
+      message: 'It\'s removed from Glyph only. Everything saved on the device stays.',
       action: 'Forget',
     );
     if (!ok || !context.mounted) return;

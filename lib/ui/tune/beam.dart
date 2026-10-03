@@ -53,7 +53,7 @@ class _GlyphPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..color = Lb.line;
     canvas.drawRRect(
-        RRect.fromRectAndRadius((Offset.zero & size).inflate(2), const Radius.circular(2.5)), line);
+        RRect.fromRectAndRadius((Offset.zero & size).inflate(2), const Radius.circular(Lb.rTile)), line);
     final f = g.frame;
     final lit = Paint();
     final glow = Paint()..maskFilter = MaskFilter.blur(BlurStyle.normal, d * 0.9);

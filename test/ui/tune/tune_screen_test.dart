@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -11,10 +12,15 @@ import 'package:glyph/main.dart';
 import 'package:glyph/ui/design/knob.dart';
 import 'package:glyph/ui/design/stage.dart';
 import 'package:glyph/ui/tune/channels.dart';
+import 'package:glyph/ui/tune/mini_stage.dart';
+import 'package:glyph/ui/tune/stage_deck.dart';
 import 'package:glyph/ui/tune/tiles.dart';
 import 'package:glyph/ui/tune/tune_screen.dart';
 import 'package:glyph/ui/tune/tweak_panel.dart';
+import 'package:glyph/wled/device.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../features/device/fake_wled.dart';
 
 /// Pumps [ms] of time as a run of frames, so animations that start on the
 /// next frame actually progress (never pumpAndSettle: previews tick forever).
@@ -29,7 +35,8 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  Future<PlaybackController> pumpApp(WidgetTester tester, {Size size = const Size(412, 915)}) async {
+  Future<PlaybackController> pumpApp(WidgetTester tester,
+      {Size size = const Size(412, 915), DeviceStore? devices}) async {
     tester.view.physicalSize = size * 2.625;
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
@@ -37,7 +44,7 @@ void main() {
     addTearDown(playback.dispose);
     await tester.pumpWidget(GlyphApp(
       catalog: catalog,
-      devices: DeviceStore(),
+      devices: devices ?? DeviceStore(),
       playback: playback,
       creations: CreationsStore(directory: () async => Directory.systemTemp.createTemp('glyph')),
     ));
@@ -46,6 +53,16 @@ void main() {
     await step(tester, 300);
     return playback;
   }
+
+  /// Scrolls Display by dragging on the rails (left edge, clear of the Stage).
+  Future<void> scrollPage(WidgetTester tester, double dy) async {
+    final view = tester.getRect(find.byType(TuneScreen));
+    await tester.dragFrom(Offset(view.left + 30, view.bottom - 160), Offset(0, dy));
+  }
+
+  ScrollPosition pagePosition(WidgetTester tester) => tester
+      .state<ScrollableState>(find.descendant(of: find.byType(TuneScreen), matching: find.byType(Scrollable)).first)
+      .position;
 
   Finder rail(String name) => find.byWidgetPredicate((w) => w is RailHeader && w.channel.name == name);
 
@@ -60,7 +77,7 @@ void main() {
     testWidgets('Stage, caption and rails render without overflow at $size', (tester) async {
       final playback = await pumpApp(tester, size: size);
       expect(tester.takeException(), isNull);
-      expect(find.text('Tune'), findsWidgets);
+      expect(find.text('Display'), findsWidgets);
       expect(find.byType(Stage), findsOneWidget);
       expect(find.byType(ChannelRail), findsWidgets);
       expect(rail('Right now'), findsOneWidget);
@@ -68,11 +85,11 @@ void main() {
       expect(playback.generator, isNotNull);
       expect(find.text(playingTitle(playback)!), findsWidgets);
       expect(find.textContaining('CH 01 · RIGHT NOW').hitTestable(), findsOneWidget);
-      expect(find.text('NO MATRIX · TAP TO CONNECT'), findsOneWidget);
-      expect(find.text('SWIPE THE MATRIX'), findsOneWidget);
+      expect(find.text('NO DEVICE · TAP TO CONNECT'), findsOneWidget);
+      expect(find.text('SWIPE THE DISPLAY'), findsOneWidget);
 
       // Scroll through the rails; the mini-stage takes over at the top.
-      await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -1400));
+      await scrollPage(tester, -1400);
       await step(tester, 400);
       expect(find.byTooltip('Next').hitTestable(), findsOneWidget, reason: 'mini-stage is pinned');
       final before = playingTitle(playback);
@@ -109,7 +126,7 @@ void main() {
     expect(second, isNot(first));
     expect(find.text(second!), findsWidgets);
     expect(find.textContaining('CH 02 · RIGHT NOW').hitTestable(), findsOneWidget);
-    expect(find.text('SWIPE THE MATRIX'), findsNothing, reason: 'hint hides after the first swipe');
+    expect(find.text('SWIPE THE DISPLAY'), findsNothing, reason: 'hint hides after the first swipe');
 
     await tester.drag(find.byType(Stage), const Offset(220, 0));
     await step(tester, 400);
@@ -125,7 +142,7 @@ void main() {
     expect(find.byType(TweakPanel), findsOneWidget);
     expect(find.byType(PaletteStrip), findsOneWidget);
     expect(find.byType(Knob), findsNWidgets(playback.generator!.params.length));
-    expect(find.text('Connect a matrix to dim or brighten it.'), findsOneWidget);
+    expect(find.text('Connect a device to dim or brighten it.'), findsOneWidget);
 
     // Swiping the strip changes the colours live.
     final palette = playback.palette.id;
@@ -190,7 +207,7 @@ void main() {
     expect(lib.isFavourite(now), !nowWas);
     if (lib.favourites.isNotEmpty) {
       for (var i = 0; i < 12 && rail('Your favourites').evaluate().isEmpty; i++) {
-        await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -300));
+        await scrollPage(tester, -300);
         await step(tester, 200);
       }
       expect(rail('Your favourites'), findsOneWidget);
@@ -216,18 +233,128 @@ void main() {
     playback.pause();
   });
 
-  testWidgets('Keep without a matrix explains instead of failing', (tester) async {
+  testWidgets('Send without a device explains instead of failing', (tester) async {
     final playback = await pumpApp(tester);
-    await tester.tap(find.text('KEEP'));
+    await tester.tap(find.text('SEND'));
     await step(tester, 300);
-    expect(find.text('Connect a matrix to keep this on it.'), findsOneWidget);
+    expect(find.text('Connect a device to send this to it.'), findsOneWidget);
     playback.pause();
   });
 
   testWidgets('swipe hint shows for the first two sessions only', (tester) async {
     SharedPreferences.setMockInitialValues({TuneScreen.swipeHintKey: 2});
     final playback = await pumpApp(tester);
-    expect(find.text('SWIPE THE MATRIX'), findsNothing);
+    expect(find.text('SWIPE THE DISPLAY'), findsNothing);
     playback.pause();
+  });
+
+  testWidgets('scrolling morphs the Stage into the mini thumbnail and back', (tester) async {
+    final playback = await pumpApp(tester, size: const Size(360, 740));
+    final pos = pagePosition(tester);
+    final full = tester.getRect(find.byType(Stage));
+    final f = playback.frame;
+    expect(full.width, closeTo(stageWidthFor(const Size(360, 740), f.width / f.height), 0.5));
+    final mini = MiniStage.panelRect(top: 0, aspect: f.width / f.height);
+    // The mini-stage's ‹ › wait until the Stage has arrived.
+    expect(find.byTooltip('Next').hitTestable(), findsNothing);
+
+    // Partway: smaller than at the top, bigger than the thumbnail, and on
+    // its way up and to the left.
+    pos.jumpTo(140);
+    await step(tester, 50);
+    final mid = tester.getRect(find.byType(Stage));
+    expect(mid.width, lessThan(full.width));
+    expect(mid.width, greaterThan(mini.width));
+    expect(mid.left, lessThan(full.left));
+    expect(find.byType(Stage), findsOneWidget, reason: 'one live panel, not two');
+
+    // Further along it keeps shrinking.
+    pos.jumpTo(260);
+    await step(tester, 50);
+    expect(tester.getRect(find.byType(Stage)).width, lessThan(mid.width));
+
+    // Collapsed: it IS the mini thumbnail.
+    pos.jumpTo(900);
+    await step(tester, 50);
+    final collapsed = tester.getRect(find.byType(Stage));
+    expect(collapsed.width, closeTo(mini.width, 0.5));
+    expect(collapsed.left, closeTo(mini.left, 0.5));
+    expect(collapsed.top, closeTo(mini.top, 0.5));
+    expect(find.byTooltip('Next').hitTestable(), findsOneWidget);
+
+    // Tapping the thumbnail goes back to the top, and the Stage grows back.
+    await tester.tap(find.byType(Stage));
+    await step(tester, 900);
+    expect(pos.pixels, 0);
+    expect(tester.getRect(find.byType(Stage)).width, closeTo(full.width, 0.5));
+    expect(find.byTooltip('Next').hitTestable(), findsNothing);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('a vertical drag on the Stage scrolls the page', (tester) async {
+    final playback = await pumpApp(tester, size: const Size(360, 740));
+    await tester.drag(find.byType(Stage), const Offset(0, -200));
+    await step(tester, 300);
+    expect(pagePosition(tester).pixels, greaterThan(100));
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('power key is dimmed with no device', (tester) async {
+    final playback = await pumpApp(tester, size: const Size(360, 740));
+    expect(find.byKey(PowerKey.keyId), findsOneWidget);
+    expect(find.byTooltip('Connect a device'), findsOneWidget);
+    await tester.tap(find.byKey(PowerKey.keyId));
+    await step(tester, 100);
+    expect(find.text('DEVICE · OFF'), findsNothing);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('power key switches the device; picking a look wakes it', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'devices.v1': jsonEncode([const SavedDevice(host: '192.168.29.6', name: 'Desk').toJson()]),
+      'devices.selected': '192.168.29.6',
+    });
+    final wled = FakeWled();
+    final devices = DeviceStore(clientFactory: wled.client);
+    await devices.load();
+    expect(devices.isConnected, isTrue);
+    final playback = await pumpApp(tester, size: const Size(360, 740), devices: devices);
+    expect(find.byTooltip('Turn off'), findsOneWidget);
+
+    await tester.tap(find.byKey(PowerKey.keyId));
+    await step(tester, 200);
+    expect(wled.posts.last.$2, {'on': false});
+    expect(devices.isOn, isFalse);
+    expect(find.text('DEVICE · OFF'), findsOneWidget);
+    expect(find.byTooltip('Turn on'), findsOneWidget);
+
+    await tester.tap(find.byKey(PowerKey.keyId));
+    await step(tester, 200);
+    expect(wled.posts.last.$2, {'on': true});
+    expect(find.text('DEVICE · OFF'), findsNothing);
+
+    // Off again, then surf: the device comes back on by itself.
+    await tester.tap(find.byKey(PowerKey.keyId));
+    await step(tester, 200);
+    expect(devices.isOn, isFalse);
+    final n = wled.posts.length;
+    await tester.drag(find.byType(Stage), const Offset(-220, 0));
+    await step(tester, 400);
+    expect(devices.isOn, isTrue);
+    expect(wled.posts.skip(n).map((p) => p.$2), anyElement(equals({'on': true})));
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  test('send errors read in our words', () {
+    expect(sendSuccessMessage, 'Sent to your device. It keeps playing without your phone.');
+    expect(friendlySendError("Couldn't keep it: timed out"),
+        'Couldn’t send this one — your device still shows it live. timed out');
+    expect(friendlySendError('Couldn’t send it: timed out'),
+        'Couldn’t send this one — your device still shows it live. timed out');
+    expect(friendlySendError('Not enough space on the controller.'), contains('Your device is full'));
   });
 }

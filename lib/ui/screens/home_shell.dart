@@ -54,7 +54,7 @@ class _HomeShellState extends State<HomeShell> {
   void _storageAlert(StorageLevel level, int percent) {
     if (!mounted) return;
     final msg = level == StorageLevel.nearlyFull
-        ? 'Your device is $percent% full. Clear old animations in Device → Storage to keep sending new ones.'
+        ? 'Your device is $percent% full. Free up space in Device → Storage to keep sending new ones.'
         : 'Your device is half full. You can free up space anytime in the Device tab.';
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()

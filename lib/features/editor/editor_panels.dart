@@ -102,7 +102,7 @@ class _EraserPainter extends CustomPainter {
       ..rotate(-0.785);
     final body = RRect.fromRectAndRadius(
         Rect.fromCenter(center: Offset.zero, width: s * 0.82, height: s * 0.42),
-        Radius.circular(s * 0.08));
+        const Radius.circular(1));
     final stroke = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
@@ -149,7 +149,7 @@ class ColorStrip extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
                 decoration: BoxDecoration(
                   color: Color(0xFF000000 | current),
-                  borderRadius: BorderRadius.circular(Lb.rPanel),
+                  borderRadius: BorderRadius.circular(Lb.rControl),
                   border: Border.all(color: Lb.text, width: 1.5),
                 ),
                 child: Icon(Icons.palette_outlined,
@@ -188,7 +188,7 @@ class _Swatch extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
           decoration: BoxDecoration(
             color: Color(0xFF000000 | color),
-            shape: BoxShape.circle,
+            borderRadius: BorderRadius.circular(Lb.rTile),
             border: Border.all(
               color: selected ? Lb.text : Lb.line,
               width: selected ? 2.5 : 1,
@@ -274,6 +274,7 @@ class _FrameTimelineState extends State<FrameTimeline> {
           const Spacer(),
           IconButton(
             tooltip: 'Onion skin',
+            style: studioIconStyle,
             isSelected: m.onion,
             visualDensity: VisualDensity.compact,
             onPressed: () => m.onion = !m.onion,
@@ -282,13 +283,13 @@ class _FrameTimelineState extends State<FrameTimeline> {
           ),
           TextButton(
             onPressed: widget.onFps,
-            style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            style: TextButton.styleFrom(visualDensity: VisualDensity.compact, shape: studioShape),
             child: Text('${m.fps} fps', style: LbType.mono.copyWith(color: Lb.text)),
           ),
           IconButton.filled(
             tooltip: widget.playing ? 'Pause' : 'Play',
             visualDensity: VisualDensity.compact,
-            style: IconButton.styleFrom(backgroundColor: Lb.text, foregroundColor: Lb.ink),
+            style: IconButton.styleFrom(backgroundColor: Lb.text, foregroundColor: Lb.ink, shape: studioShape),
             onPressed: widget.onPlay,
             icon: Icon(widget.playing ? Icons.pause : Icons.play_arrow),
           ),
@@ -320,7 +321,7 @@ class _FrameTimelineState extends State<FrameTimeline> {
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                           color: Lb.ink,
-                          borderRadius: BorderRadius.circular(Lb.rControl),
+                          borderRadius: BorderRadius.circular(Lb.rTile),
                           border: Border.all(
                             color: selected ? accent : Lb.line,
                             width: selected ? 1.5 : 1,
@@ -335,12 +336,13 @@ class _FrameTimelineState extends State<FrameTimeline> {
             ),
             IconButton(
               tooltip: 'Duplicate frame',
+              style: studioIconStyle,
               onPressed: m.duplicateFrame,
               icon: const Icon(Icons.content_copy, size: 20),
             ),
             IconButton.outlined(
               tooltip: 'Add frame',
-              style: IconButton.styleFrom(side: Lb.hairline),
+              style: IconButton.styleFrom(side: Lb.hairline, shape: studioShape),
               onPressed: m.addFrame,
               icon: const Icon(Icons.add),
             ),

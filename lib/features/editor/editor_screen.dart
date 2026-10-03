@@ -192,7 +192,7 @@ class EditorScreenState extends State<EditorScreen> {
     _scope.playback.pause();
   }
 
-  /// Not connected: go to the Matrix tab (saving first if needed).
+  /// Not connected: go to the Device tab (saving first if needed).
   Future<void> _connect() async {
     if ((_model?.isDirty ?? false) && !await _confirmLeave(pop: false)) return;
     if (mounted) goToMatrix(context);
@@ -251,7 +251,7 @@ class EditorScreenState extends State<EditorScreen> {
   Future<void> _keepOnMatrix() async {
     final caps = _scope.devices.caps;
     if (caps == null) {
-      studioToast(context, 'Connect a matrix to keep this on it.',
+      studioToast(context, 'Connect a device to send this to it.',
           action: SnackBarAction(label: 'Connect', onPressed: _connect));
       return;
     }
@@ -394,16 +394,21 @@ class EditorScreenState extends State<EditorScreen> {
           ),
           actions: [
             IconButton(
+                style: studioIconStyle,
                 tooltip: 'Undo', onPressed: m.canUndo ? m.undo : null, icon: const Icon(Icons.undo)),
             IconButton(
+                style: studioIconStyle,
                 tooltip: 'Redo', onPressed: m.canRedo ? m.redo : null, icon: const Icon(Icons.redo)),
             IconButton(
+              style: studioIconStyle,
               tooltip: 'Save',
               onPressed: _save,
               icon: Icon(m.isDirty || _id == null ? Icons.save_outlined : Icons.check_circle_outline),
             ),
             PopupMenuButton<String>(
               tooltip: 'More',
+              shape: studioMenuShape,
+              style: studioIconStyle,
               onSelected: (v) {
                 switch (v) {
                   case 'matrix':
@@ -421,7 +426,7 @@ class EditorScreenState extends State<EditorScreen> {
                   value: 'matrix',
                   enabled: !_saving,
                   child: const ListTile(
-                      leading: Icon(Icons.push_pin_outlined), title: Text('Keep on matrix')),
+                      leading: Icon(Icons.push_pin_outlined), title: Text('Send to device')),
                 ),
                 const PopupMenuItem(
                     value: 'rename',
@@ -519,6 +524,7 @@ class _CanvasHeader extends StatelessWidget {
         Text('${model.width}×${model.height}', style: LbType.mono),
         IconButton(
           tooltip: 'Mirror left/right',
+          style: studioIconStyle,
           isSelected: model.mirrorX,
           visualDensity: VisualDensity.compact,
           onPressed: () => model.mirrorX = !model.mirrorX,
@@ -527,6 +533,7 @@ class _CanvasHeader extends StatelessWidget {
         ),
         IconButton(
           tooltip: 'Mirror top/bottom',
+          style: studioIconStyle,
           isSelected: model.mirrorY,
           visualDensity: VisualDensity.compact,
           onPressed: () => model.mirrorY = !model.mirrorY,
@@ -535,6 +542,7 @@ class _CanvasHeader extends StatelessWidget {
         ),
         IconButton(
           tooltip: led ? 'Square pixels' : 'LED dots',
+          style: studioIconStyle,
           visualDensity: VisualDensity.compact,
           onPressed: onLed,
           icon: Icon(led ? Icons.grid_on : Icons.blur_on, color: Lb.text2),
@@ -544,7 +552,7 @@ class _CanvasHeader extends StatelessWidget {
   }
 }
 
-/// "On your matrix" while the drawing streams live; otherwise a quiet way
+/// "On your device" while the drawing streams live; otherwise a quiet way
 /// to turn it on, or to go and connect one.
 class _LiveIndicator extends StatelessWidget {
   const _LiveIndicator({
@@ -563,22 +571,22 @@ class _LiveIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final (String tip, VoidCallback tap, Widget child) = !connected
         ? (
-            'Connect a matrix',
+            'Connect a device',
             onConnect,
-            const _Quiet(dot: false, label: 'Not connected'),
+            const _Quiet(dot: false, label: 'No device connected'),
           )
         : mirroring
             ? (
-                'Stop showing on your matrix',
+                'Stop showing on your device',
                 onStop,
                 streaming
-                    ? const LivePulse(label: 'On your matrix')
+                    ? const LivePulse(label: 'On your device')
                     : const _Quiet(dot: true, label: 'Connecting…'),
               )
             : (
-                'Show this drawing on your matrix as you draw',
+                'Show this drawing on your device as you draw',
                 onStart,
-                const _Quiet(dot: false, label: 'Show on matrix'),
+                const _Quiet(dot: false, label: 'Show on device'),
               );
     return Tooltip(
       message: tip,
