@@ -143,11 +143,15 @@ abstract final class GlyphActions {
       // Keep the current look on the matrix while the file uploads (a slow
       // trickle of frames holds live mode); switch only once it's saved.
       s.playback.streamThrottled = true;
+      final fileName = keptFileName(title);
       final presetId = await client.saveGifToDevice(
-        fileName: keptFileName(title),
+        fileName: fileName,
         gif: bytes,
         presetName: title,
         caps: caps,
+        // Sending the same animation again replaces it rather than adding a
+        // duplicate entry.
+        presetId: await _existingPreset(client, title, fileName),
         beforeSwitch: () async {
           s.playback.streamThrottled = false;
           await s.playback.stopStreaming();
@@ -170,6 +174,20 @@ abstract final class GlyphActions {
       final why = e is WledException ? e.message : '$e';
       return context.mounted ? _report(context, 'Couldn\'t send it: $why') : null;
     }
+  }
+
+  /// The preset that already holds [title] (same name or same GIF file), so
+  /// a re-send overwrites it. Null when it's new or the list can't be read.
+  static Future<int?> _existingPreset(WledClient client, String title, String fileName) async {
+    try {
+      final presets = await client.presetList();
+      for (final p in presets) {
+        if (!p.isPlaylist && (p.gifName?.toLowerCase() == fileName.toLowerCase() || p.name == title)) return p.id;
+      }
+    } on WledException {
+      // Fall back to a new slot; a duplicate beats a failed send.
+    }
+    return null;
   }
 
   static String _report(BuildContext context, String msg) {
