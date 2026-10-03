@@ -83,8 +83,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     final featured = c.featured.isNotEmpty ? c.featured : c.items.take(12).toList();
     final season = seasonFor(widget.now ?? DateTime.now());
     final newest = c.items.fold(0, (m, i) => i.added > m ? i.added : m);
+    const classics = {'Classic Cartoons', 'Storybook', 'Monsters & Legends', 'Masterpieces'};
     _shelves = [
       ('Featured', Icons.auto_awesome, featured),
+      ('Famous Classics', Icons.theater_comedy_outlined,
+          varied(c.items.where((i) => classics.contains(i.category)), 30)),
       (season.title, Icons.celebration_outlined, seasonalItems(c, season)),
       ('Chill Vibes', Icons.spa_outlined, varied(c.inCategory('Chill'))),
       ('Party Mode', Icons.nightlife, varied(c.inCategory('Party'))),

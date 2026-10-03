@@ -16,7 +16,11 @@ import 'package:glyph/library/catalog.dart';
 /// Bump when adding a batch so "New" sorting surfaces it.
 const revision = 2;
 
+/// Revision for the public-domain classics packs (drives the "Just Added" shelf).
+const classicsRevision = 3;
+
 const categoryOrder = [
+  'Classic Cartoons', 'Storybook', 'Monsters & Legends', 'Masterpieces',
   'Chill', 'Party', 'Emoji', 'Love', 'Holidays', 'Nature', 'Animals', 'Water',
   'Weather', 'Space', 'Fire & Energy', 'Abstract', 'Hypnotic', 'Retro & Digital',
   'Gaming', 'Science & Sims', 'Food & Drink', 'Symbols',
@@ -761,6 +765,23 @@ void main() {
   var spriteItems = 0;
   for (final sg in spriteGenerators) {
     final s = sg.sprite;
+    if (s.source != null) {
+      // Public-domain classics: one item each, exactly as drawn, with their
+      // attribution notice. Recolours or motion swaps would just be noise.
+      final title = titles.contains(s.title.toLowerCase()) ? '${s.title} (Classic)' : s.title;
+      add(LibraryItem(
+        id: ids.contains(slug(title)) ? 'classic-${slug(title)}' : slug(title),
+        title: title,
+        category: s.category,
+        generatorId: sg.id,
+        paletteId: s.palette,
+        tags: tagsFor([...s.tags, 'classic', 'public domain', 'pixel art', 'sprite'], s.palette),
+        added: classicsRevision,
+        notice: s.notice,
+      ));
+      spriteItems++;
+      continue;
+    }
     final occasion = <String>[
       for (final MapEntry(:key, :value) in occasionTags.entries)
         if (s.tags.contains(key)) ...value,

@@ -73,6 +73,7 @@ class Sprite {
     required this.seq,
     required this.ms,
     required this.pack,
+    this.source,
   })  : _frames = frames, // ignore: prefer_initializing_formals
         _inks = inks; // ignore: prefer_initializing_formals
 
@@ -85,6 +86,12 @@ class Sprite {
   final List<_Ink> _inks;
   final List<int> seq;
   final List<int> ms;
+
+  /// Provenance for drawings based on public-domain works: work, year,
+  /// creator, basis, jurisdiction and a user-facing notice.
+  final Map<String, dynamic>? source;
+
+  String? get notice => source?['notice'] as String?;
 
   int get frameCount => _frames.length;
 
@@ -213,6 +220,7 @@ class Sprite {
       seq: seq,
       ms: ms,
       pack: packId,
+      source: (j['source'] as Map?)?.cast<String, dynamic>(),
     );
   }
 

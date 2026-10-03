@@ -81,6 +81,12 @@ class _NowPlayingSheetState extends State<_NowPlayingSheet> {
                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
               Text('${g.name} · ${playback.palette.name}',
                   style: const TextStyle(color: GlyphColors.textMuted)),
+              if (playback.item?.notice case final notice?)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(notice,
+                      style: const TextStyle(fontSize: 11, color: GlyphColors.textMuted)),
+                ),
               const SizedBox(height: 20),
               _Section(
                 title: 'Matrix',

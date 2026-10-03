@@ -77,7 +77,11 @@ void main() {
 
   testWidgets('sort menu and narrow screens', (tester) async {
     await pumpApp(tester, size: const Size(360, 740));
-    await tester.tap(find.text(catalog.categories.first).first);
+    // The chip, not a shelf card that happens to show the category name.
+    final chip = find.widgetWithText(ChoiceChip, catalog.categories.first);
+    await tester.ensureVisible(chip);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(chip);
     await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.byTooltip('Sort'));
     await tester.pump();

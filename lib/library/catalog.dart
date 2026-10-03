@@ -52,6 +52,7 @@ class LibraryItem {
     this.asset,
     this.featured,
     this.added = 0,
+    this.notice,
   });
 
   final String id;
@@ -72,6 +73,10 @@ class LibraryItem {
   /// Catalog revision the item arrived in; drives "New" sorting.
   final int added;
 
+  /// Attribution / non-affiliation text for items based on public-domain
+  /// works, shown with the item.
+  final String? notice;
+
   factory LibraryItem.fromJson(Map<String, dynamic> j) => LibraryItem(
         id: j['id'] as String,
         title: j['title'] as String,
@@ -89,6 +94,7 @@ class LibraryItem {
             : LibraryAsset.fromJson(j['asset'] as Map<String, dynamic>),
         featured: (j['featured'] as num?)?.toInt(),
         added: (j['added'] as num?)?.toInt() ?? 0,
+        notice: j['notice'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -103,6 +109,7 @@ class LibraryItem {
         if (asset != null) 'asset': asset!.toJson(),
         if (featured != null) 'featured': featured,
         if (added != 0) 'added': added,
+        if (notice != null) 'notice': notice,
       };
 
   bool get isPixelArt => generatorId.startsWith('sprite:');

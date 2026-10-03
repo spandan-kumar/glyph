@@ -141,7 +141,8 @@ void main() {
         expect(ids, contains(g.defaultPalette), reason: g.id);
         expect(g.sprite.title.trim(), isNotEmpty);
         expect(g.sprite.tags, isNotEmpty, reason: g.id);
-        expect(g.sprite.frameCount, inInclusiveRange(1, 24), reason: g.id);
+        // Story loops (classics) run longer than icon loops.
+        expect(g.sprite.frameCount, inInclusiveRange(1, 48), reason: g.id);
         sizes.add('${g.sprite.width}x${g.sprite.height}');
         expect(findGenerator(g.id), same(g));
       }
