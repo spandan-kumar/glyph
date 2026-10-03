@@ -116,10 +116,10 @@ Onboarding (first run only)
                Routines / Storage, switch matrix, layout fix, rename, group
 ```
 
-The Dock is a slim, sharp-cornered strip (56 px, 12 px side insets, blurred
-panel background). Each tab is a 5×5 LED-dot glyph plus its label in
-Bricolage; the active tab's glyph lights in the room colour and a 2 px lit
-bar slides along the top edge to it.
+The Dock is a small floating island: a centred, sharp-cornered panel with
+a blurred background and shadow. Tab names are drawn in Glyph's LED pixel
+font; the active tab sits on a raised block with a lit underline in the
+room colour that slides between tabs.
 
 ## 4. Visual language
 

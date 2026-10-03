@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'tokens.dart';
-import 'type.dart';
+import '../../features/text/fonts.dart';
+import 'led_text.dart';
 
 /// A 5×5 LED-dot icon: '#' is lit, '.' is an unlit dot.
 class DockGlyph {
@@ -28,60 +29,79 @@ class DockItem {
   final DockGlyph glyph;
 }
 
-/// The navigation strip: a slim, square-cornered instrument panel inset by
-/// the gutters. Each tab is an LED-dot glyph plus its name; the active tab's
-/// glyph lights in the room colour and a lit segment slides along the top
-/// hairline to it.
+/// The navigation island: a small, sharp-cornered panel floating above the
+/// content. Tab names are drawn in Glyph's own pixel font, like the LED
+/// section headers on Display; the active tab sits on a raised block that
+/// slides between tabs, its name lit in the room colour.
 class Dock extends StatelessWidget {
   const Dock({super.key, required this.items, required this.index, required this.onSelect, this.accent = Lb.phosphor});
 
-  static const height = 56.0;
+  static const height = 40.0;
+  static const _dot = 2.2;
+  static const _padX = 14.0;
 
   final List<DockItem> items;
   final int index;
   final ValueChanged<int> onSelect;
   final Color accent;
 
+  static double _tabWidth(DockItem i) => tinyFont.measure(i.label.toUpperCase()) * _dot + 2 * _padX;
+
   @override
   Widget build(BuildContext context) {
-    final n = items.length;
-    // A scrim under the strip so rails scrolling beneath fade out instead of
-    // showing through the system gesture area.
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          stops: const [0, 0.55],
-          colors: [Lb.ink.withValues(alpha: 0), Lb.ink.withValues(alpha: 0.92)],
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(Lb.rPanel),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Lb.panel.withValues(alpha: 0.86),
-                  borderRadius: BorderRadius.circular(Lb.rPanel),
-                  border: Border.all(color: Lb.line),
-                ),
-                child: SizedBox(
-                  height: Dock.height,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: Material(
-                          type: MaterialType.transparency,
-                          child: Row(
+    final widths = [for (final i in items) _tabWidth(i)];
+    final left = widths.take(index).fold(0.0, (a, b) => a + b);
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Center(
+          heightFactor: 1,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(Lb.rPanel),
+              boxShadow: const [BoxShadow(color: Color(0xB3000000), blurRadius: 22, offset: Offset(0, 8))],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(Lb.rPanel),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Lb.panel.withValues(alpha: 0.82),
+                    borderRadius: BorderRadius.circular(Lb.rPanel),
+                    border: Border.all(color: Lb.line),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(3),
+                    child: SizedBox(
+                      height: height - 6,
+                      width: widths.fold<double>(0, (a, b) => a + b),
+                      child: Stack(
+                        children: [
+                          // The raised block under the active tab.
+                          AnimatedPositioned(
+                            key: const ValueKey('dock-indicator'),
+                            duration: Lb.medium,
+                            curve: Lb.ease,
+                            left: left,
+                            top: 0,
+                            bottom: 0,
+                            width: widths[index],
+                            child: AnimatedContainer(
+                              duration: Lb.medium,
+                              decoration: BoxDecoration(
+                                color: Lb.raised,
+                                borderRadius: BorderRadius.circular(Lb.rControl),
+                                border: Border(bottom: BorderSide(color: accent, width: 2)),
+                              ),
+                            ),
+                          ),
+                          Row(
                             children: [
-                              for (var i = 0; i < n; i++) ...[
-                                if (i > 0) const _Tick(),
-                                Expanded(
+                              for (var i = 0; i < items.length; i++)
+                                SizedBox(
+                                  width: widths[i],
                                   child: _DockTab(
                                     item: items[i],
                                     active: i == index,
@@ -92,40 +112,11 @@ class Dock extends StatelessWidget {
                                     },
                                   ),
                                 ),
-                              ],
                             ],
                           ),
-                        ),
+                        ],
                       ),
-                      // The lit segment on the top hairline.
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: 2,
-                        child: IgnorePointer(
-                          child: AnimatedAlign(
-                            key: const ValueKey('dock-indicator'),
-                            alignment: Alignment(n == 1 ? 0 : -1 + 2 * index / (n - 1), 0),
-                            duration: Lb.medium,
-                            curve: Lb.ease,
-                            child: FractionallySizedBox(
-                              widthFactor: 1 / n,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 22),
-                                child: AnimatedContainer(
-                                  duration: Lb.medium,
-                                  decoration: BoxDecoration(
-                                    color: accent,
-                                    boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.55), blurRadius: 8)],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -137,14 +128,6 @@ class Dock extends StatelessWidget {
   }
 }
 
-/// A short hairline between tabs, like the rule between panel sections.
-class _Tick extends StatelessWidget {
-  const _Tick();
-
-  @override
-  Widget build(BuildContext context) => const SizedBox(width: 1, height: 16, child: ColoredBox(color: Lb.line));
-}
-
 class _DockTab extends StatelessWidget {
   const _DockTab({required this.item, required this.active, required this.accent, required this.onTap});
 
@@ -153,8 +136,6 @@ class _DockTab extends StatelessWidget {
   final Color accent;
   final VoidCallback onTap;
 
-  static final _labelStyle = LbType.heading.copyWith(fontSize: 14, letterSpacing: 0.1, height: 1);
-
   @override
   Widget build(BuildContext context) {
     return Semantics(
@@ -162,33 +143,16 @@ class _DockTab extends StatelessWidget {
       button: true,
       label: item.label,
       excludeSemantics: true,
-      child: InkWell(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        splashFactory: NoSplash.splashFactory,
-        highlightColor: Lb.raised.withValues(alpha: 0.6),
         child: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TweenAnimationBuilder<Color?>(
-                tween: ColorTween(end: active ? accent : Lb.text3),
-                duration: Lb.medium,
-                curve: Lb.ease,
-                builder: (context, color, _) => CustomPaint(
-                  size: const Size.square(DockGlyphPainter.extent),
-                  painter: DockGlyphPainter(item.glyph, color ?? Lb.text3, glow: active),
-                ),
-              ),
-              const SizedBox(width: 9),
-              Flexible(
-                child: AnimatedDefaultTextStyle(
-                  duration: Lb.medium,
-                  curve: Lb.ease,
-                  style: _labelStyle.copyWith(color: active ? Lb.text : Lb.text3),
-                  child: Text(item.label, maxLines: 1, overflow: TextOverflow.fade, softWrap: false),
-                ),
-              ),
-            ],
+          child: TweenAnimationBuilder<Color?>(
+            tween: ColorTween(end: active ? accent : Lb.text3),
+            duration: Lb.medium,
+            curve: Lb.ease,
+            builder: (context, color, _) =>
+                LedText(item.label.toUpperCase(), dot: Dock._dot, color: color ?? Lb.text3),
           ),
         ),
       ),
