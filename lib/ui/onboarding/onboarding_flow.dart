@@ -94,12 +94,22 @@ class SetupFlow extends StatefulWidget {
 class _SetupFlowState extends State<SetupFlow> {
   late SetupStep _step = widget.start;
   int _dir = 1;
+
+  /// Input is ignored while steps cross-fade, so a tap that ends one step
+  /// can't land on a button of the next (e.g. "It's waving" → a vibe tile).
+  bool _settling = false;
   bool _fixed = false;
 
-  void _go(SetupStep s, {int dir = 1}) => setState(() {
-    _dir = dir;
-    _step = s;
-  });
+  void _go(SetupStep s, {int dir = 1}) {
+    setState(() {
+      _dir = dir;
+      _step = s;
+      _settling = true;
+    });
+    Future<void>.delayed(Lb.medium + const Duration(milliseconds: 120), () {
+      if (mounted) setState(() => _settling = false);
+    });
+  }
 
   void _back() {
     switch (_step) {
@@ -191,7 +201,7 @@ class _SetupFlowState extends State<SetupFlow> {
               );
             },
             child: KeyedSubtree(key: ValueKey(_step), child: step),
-          ),
+          ).ignoringPointer(_settling),
         ),
       ),
     );
@@ -377,4 +387,8 @@ class _VibeTile extends StatelessWidget {
       ],
     ),
   );
+}
+
+extension on Widget {
+  Widget ignoringPointer(bool ignoring) => IgnorePointer(ignoring: ignoring, child: this);
 }

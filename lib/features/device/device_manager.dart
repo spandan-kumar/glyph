@@ -20,6 +20,7 @@ class DeviceManager extends ChangeNotifier {
   static const saveSettle = Duration(milliseconds: 700);
 
   String? _host;
+  int _seenKept = 0;
   List<WledPreset> _presets = const [];
   Map<String, int> _files = const {};
   WledSchedule? _schedule;
@@ -53,7 +54,15 @@ class DeviceManager extends ChangeNotifier {
   /// call from build: the load starts in a microtask.
   void syncHost() {
     final h = store.isConnected ? store.selected?.host : null;
-    if (h == _host) return;
+    if (h == _host) {
+      // Something new was kept elsewhere in the app (e.g. Tune's Keep).
+      if (h != null && store.keptRevision != _seenKept) {
+        _seenKept = store.keptRevision;
+        scheduleMicrotask(reloadPresets);
+      }
+      return;
+    }
+    _seenKept = store.keptRevision;
     _host = h;
     _presets = const [];
     _files = const {};

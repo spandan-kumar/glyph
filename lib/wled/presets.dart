@@ -93,7 +93,7 @@ class WledPreset {
       }
       final body = value.cast<String, dynamic>();
       final n = body['n'];
-      out.add(WledPreset(id: id, name: n is String && n.isNotEmpty ? n : 'Preset $id', body: body));
+      out.add(WledPreset(id: id, name: n is String && n.isNotEmpty ? displayName(n) : 'Preset $id', body: body));
     }
     out.sort((a, b) => a.id.compareTo(b.id));
     return out;
@@ -227,4 +227,15 @@ class WledPlaylist {
     'r': shuffle,
     'end': endPreset,
   };
+}
+
+/// Presets saved by other apps are often named after their file
+/// ("pipplee.gif", "my_cat-2.gif"); show those as words ("Pipplee",
+/// "My cat 2"). Names people typed are left alone.
+String displayName(String raw) {
+  final m = RegExp(r'^(.+)\.(gif|png|jpe?g|webp|bmp)$', caseSensitive: false).firstMatch(raw.trim());
+  if (m == null) return raw;
+  final words = m.group(1)!.replaceAll(RegExp(r'[_\-]+'), ' ').trim();
+  if (words.isEmpty) return raw;
+  return words[0].toUpperCase() + words.substring(1);
 }

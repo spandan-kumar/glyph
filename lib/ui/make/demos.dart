@@ -63,49 +63,108 @@ FrameClip _drawDemo() {
   return FrameClip(width: 16, height: 16, frames: frames, delaysMs: delays);
 }
 
-/// A little pixel alien walking in place over drifting stars — the kind of
-/// sprite people bring in as a GIF.
+/// Snap, an original little instant camera whose lens is its eye: it looks
+/// about, blinks, pops its flash and a picture slides out and develops —
+/// the kind of thing people bring in as a GIF. Lit on dark for LED panels.
 final FrameClip gifDemoClip = _gifDemo();
 
-const _alienA = [
-  '..X.....X..',
-  '...X...X...',
-  '..XXXXXXX..',
-  '.XX.XXX.XX.',
-  'XXXXXXXXXXX',
-  'X.XXXXXXX.X',
-  'X.X.....X.X',
-  '...XX.XX...',
-];
-const _alienB = [
-  '..X.....X..',
-  'X..X...X..X',
-  'X.XXXXXXX.X',
-  'XXX.XXX.XXX',
-  'XXXXXXXXXXX',
-  '.XXXXXXXXX.',
-  '..X.....X..',
-  '.X.......X.',
+const _snapInk = {
+  'B': 0xFF8A5C, // body
+  'b': 0xC4523A, // grip band
+  'R': 0xE4E4EE, // lens ring / eyelid
+  'L': 0x3A78FF, // lens
+  'k': 0x0A1430, // pupil
+  'H': 0xFFFFFF, // glint
+  'S': 0xFF3B6B, // shutter button
+  'F': 0xFFD54A, // flash
+  'W': 0xFFFFFF, // flash burst
+  'd': 0x262632, // slot / undeveloped photo
+  'P': 0xF2F2F2, // photo border
+  's': 0x5EC8FF, // photo sky
+  'u': 0xFFD54A, // photo sun
+  'm': 0x4CD07A, // photo hill
+};
+
+// 14x9, drawn at (1, 1). Lens interior: rows 3-6.
+const _snapBody = [
+  '..SS......FF..',
+  '.BBBBBBBBBBBB.',
+  'BBBBBRRRRBBBBB',
+  'BBBBRLLLLRBBBB',
+  'bbbRLLLLLLRbbb',
+  'bbbRLLLLLLRbbb',
+  'BBBBRLLLLRBBBB',
+  'BBBBBRRRRBBBBB',
+  '.BBBBddddBBBB.',
 ];
 
-FrameClip _gifDemo() {
-  const stars = [(2, 1, 0x6B6BFF), (9, 2, 0xFFFFFF), (14, 0, 0xFFB547), (5, 14, 0xFFFFFF), (12, 13, 0x6BFFD0), (0, 12, 0xFF6AD5)];
-  final frames = <Frame>[];
-  for (var i = 0; i < 16; i++) {
-    final f = Frame(16, 16);
-    for (final (x, y, c) in stars) {
-      f.set((x - i) % 16, y, scaleColor(c, i.isEven ? 0.55 : 0.35));
-    }
-    final sprite = (i ~/ 2).isEven ? _alienA : _alienB;
-    final oy = 4 + ((i ~/ 4).isEven ? 0 : 1);
-    for (var y = 0; y < sprite.length; y++) {
-      for (var x = 0; x < sprite[y].length; x++) {
-        if (sprite[y][x] == 'X') f.set(2 + x, oy + y, 0x7CFF6B);
-      }
-    }
-    frames.add(f);
+// 8x6 photo, slides out of the slot under the camera at (4, 10).
+const _snapPhoto = [
+  'PPPPPPPP',
+  'PsssssuP',
+  'PsmmsssP',
+  'PmmmmssP',
+  'PmmmmmmP',
+  'PPPPPPPP',
+];
+
+/// [look]: pupil column offset (-1 left, 0 centre, 1 right); [shown]: photo
+/// rows out of the slot; [develop]: 0 blank .. 1 full colour.
+Frame _snap({int look = 0, bool blink = false, bool flash = false, int shown = 0, double develop = 0}) {
+  final f = Frame(16, 16);
+  void dot(int x, int y, int c) {
+    if (x >= 0 && y >= 0 && x < 16 && y < 16) f.set(x, y, c);
   }
-  return FrameClip.uniform(frames, fps: 8);
+
+  for (var y = 0; y < _snapBody.length; y++) {
+    for (var x = 0; x < _snapBody[y].length; x++) {
+      var ch = _snapBody[y][x];
+      if (ch == '.') continue;
+      if (ch == 'L' && blink) ch = y == 5 ? 'b' : 'R';
+      if (ch == 'F' && flash) ch = 'W';
+      dot(1 + x, 1 + y, _snapInk[ch]!);
+    }
+  }
+  if (!blink) {
+    // A 2x2 pupil with a glint, sliding to look around.
+    final px = 1 + 6 + look, py = 1 + 4;
+    for (final (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)]) {
+      dot(px + dx, py + dy, _snapInk['k']!);
+    }
+    dot(px + 1, py, _snapInk['H']!);
+  }
+  if (flash) {
+    for (final (x, y) in [(10, 0), (14, 0), (9, 1), (15, 1)]) {
+      dot(x, y, 0xFFF3B0);
+    }
+  }
+  for (var r = 0; r < shown && r < _snapPhoto.length; r++) {
+    final row = _snapPhoto[_snapPhoto.length - shown + r];
+    for (var x = 0; x < row.length; x++) {
+      final ch = row[x];
+      final c = ch == 'P'
+          ? _snapInk['P']!
+          : develop <= 0
+              ? _snapInk['d']!
+              : scaleColor(_snapInk[ch]!, 0.25 + 0.75 * develop);
+      dot(4 + x, 10 + r, c);
+    }
+  }
+  return f;
+}
+
+FrameClip _gifDemo() {
+  final frames = <Frame>[
+    _snap(look: 1),
+    _snap(blink: true),
+    _snap(look: -1),
+    _snap(flash: true),
+    _snap(shown: 3),
+    _snap(shown: 6, develop: 0.35),
+    _snap(shown: 6, develop: 1),
+    _snap(shown: 6, develop: 1, blink: true),
+  ];
+  return FrameClip(width: 16, height: 16, frames: frames, delaysMs: const [700, 140, 500, 160, 180, 260, 900, 140]);
 }
 
 /// "HELLO" scrolling in rainbow letters.

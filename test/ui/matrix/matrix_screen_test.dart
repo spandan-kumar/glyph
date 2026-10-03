@@ -110,7 +110,7 @@ void main() {
     // Routines as sentences.
     await reveal(tester, find.text('Every hour at :15 → something removed'));
     expect(find.text('These run on your matrix, even when your phone is off.'), findsOneWidget);
-    expect(find.text('When it powers on → pipplee.gif'), findsOneWidget);
+    expect(find.text('When it powers on → Pipplee'), findsOneWidget);
     expect(find.text('Mon, Wed, Fri at 3:07 → something removed'), findsOneWidget);
     expect(
       find.text('Every day 30 min before sunset, 2 Nov – 20 Feb → glyph_test_list'),

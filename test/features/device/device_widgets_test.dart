@@ -115,20 +115,21 @@ void main() {
     final played = <int>[];
     await pump(tester, (s, m) => KeptSection(manager: m, store: s, onPlay: (id) async => played.add(id)));
     expect(find.text('Ocean Plasma'), findsOneWidget);
-    expect(find.text('pipplee.gif'), findsOneWidget);
+    // File-style names read as words.
+    expect(find.text('Pipplee'), findsOneWidget);
     expect(find.text('WLED Turn Off'), findsNothing);
     await tester.tap(find.text('Ocean Plasma'));
     await settle(tester);
     expect(played, [1]);
-    await tester.longPress(find.text('pipplee.gif'));
+    await tester.longPress(find.text('Pipplee'));
     await settle(tester);
     expect(find.text('Plays when your matrix powers on.'), findsOneWidget);
     await tester.tap(find.text('Rename'));
     await settle(tester);
-    await tester.enterText(find.byType(TextField), 'Pipplee');
+    await tester.enterText(find.byType(TextField), 'Pip the dancer');
     await tester.tap(find.text('Save'));
     await settle(tester, 1200);
-    expect(wled.posts.any((p) => p.$2['n'] == 'Pipplee'), isTrue);
+    expect(wled.posts.any((p) => p.$2['n'] == 'Pip the dancer'), isTrue);
     expect(tester.takeException(), isNull);
   });
 

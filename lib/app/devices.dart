@@ -67,6 +67,28 @@ class DeviceStore extends ChangeNotifier {
   /// Active preset id, or null when none (WLED reports -1).
   int? get presetId => _presetId;
 
+  /// Bumped whenever the app keeps something new on the matrix, so views
+  /// that list kept items know to reload.
+  int get keptRevision => _keptRevision;
+  int _keptRevision = 0;
+
+  /// Title of what the app last kept, while the matrix is still playing it.
+  String? get keptTitle => _presetId != null && _presetId == _keptPresetId ? _keptTitle : null;
+  String? _keptTitle;
+  int? _keptPresetId;
+
+  /// Records that [presetId] (titled [title]) was just kept and is now
+  /// playing. WLED doesn't mark a freshly saved preset as current, so its
+  /// state alone can't tell us.
+  void noteKept(int presetId, String title) {
+    _presetId = _keptPresetId = presetId;
+    _keptTitle = title;
+    _on = true;
+    _keptRevision++;
+    _stateGen++;
+    notifyListeners();
+  }
+
   /// Preset id of the running device playlist, if known.
   int? get playlistId => _playlistId;
 
@@ -188,8 +210,17 @@ class DeviceStore extends ChangeNotifier {
       final info = await c.info();
       _caps = await c.capabilities();
       _info = info;
-      if (info.mac.isNotEmpty && _selected != null && _selected!.mac != info.mac) {
-        final updated = _selected!.copyWith(mac: info.mac);
+      // The name stored on the matrix is the one people set and recognise;
+      // keep the saved entry in step with it (and the MAC, for re-finding).
+      // The factory default "WLED" is less useful than the network name.
+      final raw = info.name.trim();
+      final name = raw.toUpperCase() == 'WLED' ? '' : raw;
+      if (_selected != null &&
+          ((info.mac.isNotEmpty && _selected!.mac != info.mac) || (name.isNotEmpty && _selected!.name != name))) {
+        final updated = _selected!.copyWith(
+          mac: info.mac.isNotEmpty ? info.mac : null,
+          name: name.isNotEmpty ? name : null,
+        );
         _saved = [for (final x in _saved) x.host == updated.host ? updated : x];
         _selected = updated;
         unawaited(_persist());
@@ -228,6 +259,8 @@ class DeviceStore extends ChangeNotifier {
   void _clearState() {
     _on = null;
     _bri = _presetId = _playlistId = null;
+    _keptPresetId = null;
+    _keptTitle = null;
     _playlistRunning = false;
     _nightlight = false;
   }
@@ -236,7 +269,11 @@ class DeviceStore extends ChangeNotifier {
     if (s['on'] is bool) _on = s['on'] as bool;
     if (s['bri'] is num && _briTimer == null) _bri = (s['bri'] as num).toInt();
     final ps = s['ps'], pl = s['pl'];
-    _presetId = ps is num && ps > 0 ? ps.toInt() : null;
+    // WLED reports no current preset after a fresh save (ps = -1), so keep
+    // our record of what we kept until the matrix reports something else.
+    _presetId = ps is num && ps > 0
+        ? ps.toInt()
+        : (_presetId != null && _presetId == _keptPresetId ? _presetId : null);
     _playlistId = pl is num && pl > 0 ? pl.toInt() : null;
     _playlistRunning = pl is num && pl >= 0;
     final nl = s['nl'];

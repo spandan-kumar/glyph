@@ -1,11 +1,16 @@
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../engine/clip.dart';
+import '../../../engine/frame.dart';
+import '../../../features/import/decode.dart';
 import '../../../ui/design/ambient.dart';
 import '../../../ui/design/parts.dart';
 import '../../../ui/design/tokens.dart';
 import '../../../ui/design/type.dart';
+import '../../../ui/widgets/live_preview.dart';
 import '../../../wled/presets.dart';
 import '../device_manager.dart';
 
@@ -357,8 +362,9 @@ class LedBezel extends StatelessWidget {
   );
 }
 
-/// A GIF stored on the matrix, fetched once and shown with crisp pixels.
-/// Without [size] it fills its parent.
+/// A GIF stored on the matrix, fetched once and played back as LED dots so
+/// it looks like every other panel in the app. Without [size] it fills its
+/// parent.
 class GifThumb extends StatelessWidget {
   const GifThumb({super.key, required this.manager, required this.name, this.size});
 
@@ -366,21 +372,43 @@ class GifThumb extends StatelessWidget {
   final String name;
   final double? size;
 
+  static final _clips = <String, Future<FrameClip?>>{};
+
+  Future<FrameClip?> _clip() => _clips.putIfAbsent('${manager.store.selected?.host}/$name', () async {
+        try {
+          final src = await compute(decodeSourceMessage, await manager.gif(name));
+          return FrameClip(
+            width: src.width,
+            height: src.height,
+            delaysMs: src.delaysMs,
+            frames: [for (final f in src.frames) Frame(src.width, src.height)..rgb.setAll(0, f)],
+          );
+        } catch (_) {
+          return null;
+        }
+      });
+
   @override
   Widget build(BuildContext context) => SizedBox(
     width: size,
     height: size,
-    child: FutureBuilder<Uint8List>(
-      future: manager.gif(name),
+    child: FutureBuilder<FrameClip?>(
+      future: _clip(),
       builder: (context, snap) {
-        final bytes = snap.data;
-        if (bytes == null) return DotGlyph(color: Lb.text3, dim: !snap.hasError);
-        return Image.memory(
-          bytes,
+        final clip = snap.data;
+        if (clip == null) {
+          return DotGlyph(color: Lb.text3, dim: snap.connectionState != ConnectionState.done);
+        }
+        return FittedBox(
           fit: BoxFit.cover,
-          filterQuality: FilterQuality.none,
-          gaplessPlayback: true,
-          errorBuilder: (_, _, _) => const DotGlyph(color: Lb.text3),
+          child: SizedBox.square(
+            dimension: 96,
+            child: LivePreview.generator(
+              generator: ClipGenerator(clip, title: name),
+              previewKey: 'kept:$name',
+              size: clip.width,
+            ),
+          ),
         );
       },
     ),

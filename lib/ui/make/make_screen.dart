@@ -68,9 +68,9 @@ class _MakeScreenState extends State<MakeScreen> {
                       big: true,
                       label: 'Draw',
                       line: connected ? null : 'Pixel by pixel',
-                      lineWidget: connected ? const LivePulse(label: 'Live on your matrix') : null,
+                      lineWidget: connected ? const LivePulse(label: 'Draws live on your matrix') : null,
                       generator: _draw,
-                      onTap: () => _open(const EditorScreen()),
+                      onTap: () => _open(const EditorScreen(blank: true)),
                     ),
                     write: _StudioTile(
                       label: 'Write',

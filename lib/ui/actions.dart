@@ -119,13 +119,14 @@ abstract final class GlyphActions {
       }
       if (!context.mounted) return null;
       await stopStreaming(context);
-      await client.saveGifToDevice(
+      final presetId = await client.saveGifToDevice(
         fileName: '${_slug(title)}.gif',
         gif: bytes,
         presetName: title,
         caps: caps,
       );
       await d.refresh();
+      d.noteKept(presetId, title);
       final kb = (bytes.length / 1024).toStringAsFixed(1);
       return context.mounted
           ? _report(context, 'Kept on your matrix ($kb KB). Unplug your phone — it keeps playing.')

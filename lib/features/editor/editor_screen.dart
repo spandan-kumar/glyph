@@ -19,10 +19,15 @@ import 'live_mirror.dart';
 import 'start_view.dart';
 
 class EditorScreen extends StatefulWidget {
-  const EditorScreen({super.key, this.initial});
+  const EditorScreen({super.key, this.initial, this.blank = false});
 
   /// A saved creation of kind 'drawing' to keep editing.
   final Creation? initial;
+
+  /// Skip the size/template picker and open a blank canvas at the matrix's
+  /// size, so the first stroke lands on the matrix right away. Sizes and
+  /// examples stay one tap away under "New drawing".
+  final bool blank;
 
   @override
   State<EditorScreen> createState() => EditorScreenState();
@@ -68,6 +73,11 @@ class EditorScreenState extends State<EditorScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _scope = AppScope.of(context);
+    if (widget.blank && widget.initial == null && _model == null && !_listening) {
+      final caps = _scope.devices.caps;
+      final fits = caps != null && caps.is2D && caps.width <= 128 && caps.height <= 128;
+      _model = EditorModel(width: fits ? caps.width : 16, height: fits ? caps.height : 16);
+    }
     if (!_listening) {
       _listening = true;
       _scope.devices.addListener(_onDevices);

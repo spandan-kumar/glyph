@@ -8,12 +8,12 @@ Glyph does the rendering on your phone and either **streams** frames to the
 matrix live or **saves** them onto it, so it works with any WLED controller
 regardless of how much memory it has.
 
-> Status: 1.0.0, Android. iOS builds from the same code but hasn't been tested
+> Status: 1.1.0, Android. iOS builds from the same code but hasn't been tested
 > yet.
 
 ## Install
 
-Download [`release/glyph-1.0.0-arm64-v8a.apk`](release/glyph-1.0.0-arm64-v8a.apk)
+Download [`release/glyph-1.1.0-arm64-v8a.apk`](release/glyph-1.1.0-arm64-v8a.apk)
 on an Android phone (7.0+, 64-bit ARM — almost every phone from the last few
 years) and open it. You'll need to allow installs from your browser or file
 manager. The SHA-256 checksum is next to it.

@@ -88,6 +88,7 @@ ThemeData buildTheme() {
         disabledForegroundColor: Lb.text3,
         textStyle: LbType.bodyStrong,
         minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 18),
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Lb.rPanel))),
       ),
     ),
@@ -101,14 +102,20 @@ ThemeData buildTheme() {
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: Lb.text, textStyle: LbType.bodyStrong),
+      style: TextButton.styleFrom(
+        foregroundColor: Lb.text,
+        textStyle: LbType.bodyStrong,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+      ),
     ),
     chipTheme: ChipThemeData(
-      backgroundColor: Colors.transparent,
-      selectedColor: Lb.raised,
+      color: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? Lb.text : Colors.transparent),
       side: Lb.hairline,
       shape: const StadiumBorder(),
-      labelStyle: LbType.small.copyWith(color: Lb.text),
+      labelStyle: LbType.small.copyWith(
+        color: WidgetStateColor.resolveWith((s) => s.contains(WidgetState.selected) ? Lb.ink : Lb.text),
+      ),
       showCheckmark: false,
     ),
     sliderTheme: SliderThemeData(
@@ -153,6 +160,8 @@ ThemeData buildTheme() {
     ),
     dialogTheme: const DialogThemeData(
       backgroundColor: Lb.panel,
+      insetPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      actionsPadding: EdgeInsets.fromLTRB(16, 0, 16, 16),
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(Lb.rSheet)),

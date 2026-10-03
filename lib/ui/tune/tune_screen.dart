@@ -177,11 +177,13 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     HapticFeedback.selectionClick();
     if (_scroll.hasClients && _scroll.offset > 0) _scroll.jumpTo(0);
     setState(() => _tweakOpen = true);
+    HomeShell.dockHidden.value = true;
     _tweak.forward();
   }
 
   Future<void> _closeTweak() async {
     if (!_tweakOpen) return;
+    HomeShell.dockHidden.value = false;
     await _tweak.reverse();
     if (mounted) setState(() => _tweakOpen = false);
   }
@@ -595,6 +597,8 @@ class _Header extends StatelessWidget {
     if (d.isConnected) {
       final name = d.info!.name;
       if (p.isStreaming) return ('$name · live', connect);
+      final title = p.item?.title ?? p.generator?.name;
+      if (title != null && d.keptTitle == title) return ('$name · kept · playing on its own', connect);
       return ('$name · tap to show this', () => GlyphActions.ensureStreaming(context));
     }
     if (d.selected != null) {

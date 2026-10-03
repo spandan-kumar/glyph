@@ -1235,7 +1235,7 @@
       "tags": ["wanderer", "sea of fog", "friedrich", "romanticism", "painting", "mountains", "fog", "hiker"],
       "palette": "arctic",
       "motion": "still",
-      "colors": {"s": "#B8C4CC", "S": "#D8E0E4", "W": "#F2F4F4", "w": "#9AA6B0", "m": "#6A7484", "M": "#4A5464", "R": "#2A2420", "r": "#3E3630", "K": "#141C18", "k": "#24302A", "H": "#7A5A3A", "F": "#C8A888"},
+      "colors": {"s": "#B8C4CC", "S": "#D8E0E4", "W": "#F2F4F4", "w": "#9AA6B0", "m": "#6A7484", "M": "#4A5464", "R": "#4A3E34", "r": "#62544A", "K": "#2C4236", "k": "#44584C", "H": "#9A7448", "F": "#C8A888"},
       "ms": 240,
       "frames": [
         [

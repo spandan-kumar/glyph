@@ -75,7 +75,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(EditorScreen), findsOneWidget);
-    expect(find.text('New drawing'), findsOneWidget);
+    // Straight to a blank canvas; the size/template picker is skipped.
+    expect(find.text('New drawing'), findsNothing);
+    expect(find.text('Untitled'), findsOneWidget);
     expect(tester.takeException(), isNull);
     playback.pause();
   });

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design/ambient.dart';
 import '../design/dock.dart';
+import '../design/tokens.dart';
 import '../make/make_screen.dart';
 import '../matrix/matrix_screen.dart';
 import '../tune/tune_screen.dart';
@@ -15,6 +16,9 @@ class HomeShell extends StatefulWidget {
   /// Lets any screen jump to another destination (e.g. "Connect a matrix").
   static void go(BuildContext context, int tab) =>
       context.findAncestorStateOfType<_HomeShellState>()?._select(tab);
+
+  /// Panels that need the full height (e.g. Tune's Tweak) hide the dock.
+  static final dockHidden = ValueNotifier<bool>(false);
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -34,27 +38,43 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final ambient = AmbientScope.of(context);
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBody: true,
-      body: AmbientBackdrop(
-        child: IndexedStack(
-          index: _tab,
-          children: [
-            for (var i = 0; i < 3; i++)
-              // Hidden destinations stop their tickers.
-              TickerMode(
-                enabled: i == _tab,
-                child: const [TuneScreen(), MakeScreen(), MatrixScreen()][i],
-              ),
-          ],
+    return PopScope(
+      // Back from Make or Matrix returns to Tune; only Tune leaves the app.
+      canPop: _tab == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _tab != 0) _select(0);
+      },
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        extendBody: true,
+        body: AmbientBackdrop(
+          child: IndexedStack(
+            index: _tab,
+            children: [
+              for (var i = 0; i < 3; i++)
+                // Hidden destinations stop their tickers.
+                TickerMode(
+                  enabled: i == _tab,
+                  child: const [TuneScreen(), MakeScreen(), MatrixScreen()][i],
+                ),
+            ],
+          ),
         ),
-      ),
-      bottomNavigationBar: Dock(
-        items: _items,
-        index: _tab,
-        onSelect: _select,
-        accent: ambient.accent,
+        bottomNavigationBar: ValueListenableBuilder<bool>(
+          valueListenable: HomeShell.dockHidden,
+          builder: (context, hidden, dock) => AnimatedSlide(
+            offset: Offset(0, hidden ? 1.5 : 0),
+            duration: Lb.medium,
+            curve: Lb.ease,
+            child: IgnorePointer(ignoring: hidden, child: dock),
+          ),
+          child: Dock(
+            items: _items,
+            index: _tab,
+            onSelect: _select,
+            accent: ambient.accent,
+          ),
+        ),
       ),
     );
   }

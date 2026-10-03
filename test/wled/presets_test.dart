@@ -14,7 +14,7 @@ void main() {
 
     test('parses the real presets.json, skipping id 0', () {
       expect(presets.map((p) => p.id), [1, 101, 102]);
-      expect(presets.map((p) => p.name), ['Ocean Plasma', 'WLED Turn Off', 'pipplee.gif']);
+      expect(presets.map((p) => p.name), ['Ocean Plasma', 'WLED Turn Off', 'Pipplee']);
     });
 
     test('kinds, GIFs, effects and the off preset', () {
