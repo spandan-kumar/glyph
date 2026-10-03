@@ -6,6 +6,8 @@ import 'app/playback.dart';
 import 'features/device/device_features.dart';
 import 'library/bundled_catalog.dart';
 import 'library/catalog.dart';
+import 'ui/design/ambient.dart';
+import 'ui/onboarding/onboarding_flow.dart';
 import 'ui/scope.dart';
 import 'ui/screens/home_shell.dart';
 import 'ui/theme.dart';
@@ -21,17 +23,24 @@ Future<void> main() async {
   DeviceFeatures.attach(devices: devices, playback: playback);
   devices.load();
   creations.load();
+  final onboarded = await OnboardingFlow.isDone();
   runApp(GlyphApp(
-      catalog: catalog, devices: devices, playback: playback, creations: creations));
+    catalog: catalog,
+    devices: devices,
+    playback: playback,
+    creations: creations,
+    showOnboarding: !onboarded,
+  ));
 }
 
-class GlyphApp extends StatelessWidget {
+class GlyphApp extends StatefulWidget {
   const GlyphApp({
     super.key,
     required this.catalog,
     required this.devices,
     required this.playback,
     required this.creations,
+    this.showOnboarding = false,
   });
 
   final Catalog catalog;
@@ -39,18 +48,40 @@ class GlyphApp extends StatelessWidget {
   final PlaybackController playback;
   final CreationsStore creations;
 
+  /// First run: show the setup flow before the app.
+  final bool showOnboarding;
+
+  @override
+  State<GlyphApp> createState() => _GlyphAppState();
+}
+
+class _GlyphAppState extends State<GlyphApp> {
+  late final _ambient = AmbientController(widget.playback);
+  late bool _onboarding = widget.showOnboarding;
+
+  @override
+  void dispose() {
+    _ambient.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppScope(
-      playback: playback,
-      devices: devices,
-      catalog: catalog,
-      creations: creations,
-      child: MaterialApp(
-        title: 'Glyph',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(),
-        home: const HomeShell(),
+      playback: widget.playback,
+      devices: widget.devices,
+      catalog: widget.catalog,
+      creations: widget.creations,
+      child: AmbientScope(
+        controller: _ambient,
+        child: MaterialApp(
+          title: 'Glyph',
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(),
+          home: _onboarding
+              ? OnboardingFlow(onDone: () => setState(() => _onboarding = false))
+              : const HomeShell(),
+        ),
       ),
     );
   }
