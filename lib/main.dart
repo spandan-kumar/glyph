@@ -7,6 +7,8 @@ import 'features/device/device_features.dart';
 import 'library/bundled_catalog.dart';
 import 'library/catalog.dart';
 import 'ui/design/ambient.dart';
+import 'ui/design/tokens.dart';
+import 'ui/intro_splash.dart';
 import 'ui/onboarding/onboarding_flow.dart';
 import 'ui/scope.dart';
 import 'ui/screens/home_shell.dart';
@@ -30,6 +32,7 @@ Future<void> main() async {
     playback: playback,
     creations: creations,
     showOnboarding: !onboarded,
+    showSplash: true,
   ));
 }
 
@@ -41,6 +44,7 @@ class GlyphApp extends StatefulWidget {
     required this.playback,
     required this.creations,
     this.showOnboarding = false,
+    this.showSplash = false,
   });
 
   final Catalog catalog;
@@ -51,6 +55,9 @@ class GlyphApp extends StatefulWidget {
   /// First run: show the setup flow before the app.
   final bool showOnboarding;
 
+  /// Play the Glyph intro before anything else (off in tests).
+  final bool showSplash;
+
   @override
   State<GlyphApp> createState() => _GlyphAppState();
 }
@@ -58,6 +65,7 @@ class GlyphApp extends StatefulWidget {
 class _GlyphAppState extends State<GlyphApp> {
   late final _ambient = AmbientController(widget.playback);
   late bool _onboarding = widget.showOnboarding;
+  late bool _splash = widget.showSplash;
 
   @override
   void dispose() {
@@ -78,9 +86,19 @@ class _GlyphAppState extends State<GlyphApp> {
           title: 'Glyph',
           debugShowCheckedModeBanner: false,
           theme: buildTheme(),
-          home: _onboarding
-              ? OnboardingFlow(onDone: () => setState(() => _onboarding = false))
-              : const HomeShell(),
+          home: AnimatedSwitcher(
+            duration: Lb.slow,
+            child: _splash
+                ? IntroSplash(
+                    key: const ValueKey('splash'),
+                    // The whole show on first run; a quick flourish after.
+                    full: widget.showOnboarding,
+                    onDone: () => setState(() => _splash = false),
+                  )
+                : _onboarding
+                    ? OnboardingFlow(onDone: () => setState(() => _onboarding = false))
+                    : const HomeShell(),
+          ),
         ),
       ),
     );
