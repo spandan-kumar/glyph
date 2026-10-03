@@ -6,6 +6,7 @@ import '../engine/generator.dart';
 import '../engine/clip.dart';
 import '../engine/frame.dart';
 import '../app/background.dart';
+import '../app/devices.dart';
 import '../engine/gif_baker.dart';
 import '../engine/gif_encoder.dart';
 import '../engine/palette.dart';
@@ -130,7 +131,7 @@ abstract final class GlyphActions {
       // trickle of frames holds live mode); switch only once it's saved.
       s.playback.streamThrottled = true;
       final presetId = await client.saveGifToDevice(
-        fileName: '${_slug(title)}.gif',
+        fileName: keptFileName(title),
         gif: bytes,
         presetName: title,
         caps: caps,
@@ -161,15 +162,6 @@ abstract final class GlyphActions {
   static String _report(BuildContext context, String msg) {
     _toast(context, msg);
     return msg;
-  }
-
-  static String _slug(String s) {
-    final slug = s
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
-        .replaceAll(RegExp(r'^-+|-+$'), '');
-    // LittleFS paths on WLED are short; keep names well under the limit.
-    return slug.length > 24 ? slug.substring(0, 24) : slug;
   }
 
   static void _toast(BuildContext context, String msg) {

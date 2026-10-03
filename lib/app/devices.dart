@@ -74,6 +74,16 @@ class DeviceStore extends ChangeNotifier {
 
   /// Title of what the app last kept, while the matrix is still playing it.
   String? get keptTitle => _presetId != null && _presetId == _keptPresetId ? _keptTitle : null;
+
+  /// The GIF the matrix is playing on its own (segment 0 on the Image
+  /// effect), from its reported state; null when it shows anything else.
+  String? get playingGif => _playingGif;
+  String? _playingGif;
+
+  /// Whether the matrix is playing [title] on its own as something Glyph
+  /// kept. Survives app restarts because it's read from the matrix's state.
+  bool isPlayingKept(String title) =>
+      keptTitle == title || (_playingGif != null && _playingGif == keptFileName(title));
   String? _keptTitle;
   int? _keptPresetId;
 
@@ -261,6 +271,7 @@ class DeviceStore extends ChangeNotifier {
     _bri = _presetId = _playlistId = null;
     _keptPresetId = null;
     _keptTitle = null;
+    _playingGif = null;
     _playlistRunning = false;
     _nightlight = false;
   }
@@ -278,6 +289,10 @@ class DeviceStore extends ChangeNotifier {
     _playlistRunning = pl is num && pl >= 0;
     final nl = s['nl'];
     _nightlight = nl is Map && nl['on'] == true;
+    final segs = s['seg'];
+    final seg0 = segs is List && segs.isNotEmpty && segs.first is Map ? segs.first as Map : null;
+    final fx = seg0?['fx'], n = seg0?['n'];
+    _playingGif = fx is num && fx == _caps?.imageEffectId && n is String && n.isNotEmpty ? n : null;
   }
 
   Future<void> setPower(bool on) async {
@@ -416,4 +431,12 @@ class DeviceStore extends ChangeNotifier {
     }
     super.dispose();
   }
+}
+
+/// File name Glyph uses when it keeps [title] on a matrix ("Spooky Swirl"
+/// → "spooky-swirl.gif"). LittleFS paths on WLED are short, so it's capped.
+String keptFileName(String title) {
+  var slug = title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
+  if (slug.length > 24) slug = slug.substring(0, 24);
+  return '$slug.gif';
 }

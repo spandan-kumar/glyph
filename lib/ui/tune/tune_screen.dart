@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../app/devices.dart';
 import '../../library/user_library.dart';
 import '../actions.dart';
 import '../design/ambient.dart';
@@ -98,9 +99,11 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     }
     _scope?.playback.removeListener(_onPlayback);
     _scope?.creations.removeListener(_rebuildChannels);
+    _scope?.devices.removeListener(_mirrorMatrix);
     _scope = scope;
     scope.playback.addListener(_onPlayback);
     scope.creations.addListener(_rebuildChannels);
+    scope.devices.addListener(_mirrorMatrix);
     _base = CatalogChannels(scope.catalog, widget.now ?? DateTime.now());
     _tune?.dispose();
     _tune = TuneController(_base!.nowChannel, playback: scope.playback, library: _library)
@@ -122,11 +125,30 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
         _autoId = first.item.id;
         p.playItem(first.item);
       }
+      _mirrorMatrix();
       return;
     }
     for (final c in _channels) {
       final i = c.indexOfPlaying(p);
       if (i >= 0) return tune.adopt(c, index: i);
+    }
+  }
+
+  /// The phone mirrors the matrix: if it's playing something Glyph kept and
+  /// the user hasn't picked anything yet, show that instead of the
+  /// automatic pick (so opening the app doesn't contradict the room).
+  void _mirrorMatrix() {
+    final scope = _scope;
+    if (!mounted || scope == null) return;
+    final p = scope.playback, gif = scope.devices.playingGif;
+    if (gif == null || p.isStreaming || p.item?.id != _autoId) return;
+    final match = scope.catalog.items.where((i) => keptFileName(i.title) == gif).firstOrNull;
+    if (match == null || match.id == p.item?.id) return;
+    _autoId = match.id;
+    p.playItem(match);
+    for (final c in _channels) {
+      final k = c.indexOfPlaying(p);
+      if (k >= 0) return tune.adopt(c, index: k);
     }
   }
 
@@ -307,6 +329,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
   void dispose() {
     _scope?.playback.removeListener(_onPlayback);
     _scope?.creations.removeListener(_rebuildChannels);
+    _scope?.devices.removeListener(_mirrorMatrix);
     _library.removeListener(_rebuildChannels);
     _scroll.dispose();
     _mini.dispose();
@@ -599,7 +622,7 @@ class _Header extends StatelessWidget {
       final name = d.info!.name;
       if (p.isStreaming) return ('$name · live', connect);
       final title = p.item?.title ?? p.generator?.name;
-      if (title != null && d.keptTitle == title) return ('$name · kept · playing on its own', connect);
+      if (title != null && d.isPlayingKept(title)) return ('$name · kept · playing on its own', connect);
       return ('$name · tap to show this', () => GlyphActions.ensureStreaming(context));
     }
     if (d.selected != null) {

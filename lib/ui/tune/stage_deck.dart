@@ -87,7 +87,7 @@ class _StageDeckState extends State<StageDeck> {
                   frame: frame,
                   repaint: playback.frameTick,
                   deviceName: devices.isConnected
-                      ? '${devices.info!.name} · ${playback.isStreaming ? 'live' : devices.keptTitle != null && devices.keptTitle == (playback.item?.title ?? playback.generator?.name) ? 'kept' : 'ready'}'
+                      ? '${devices.info!.name} · ${playback.isStreaming ? 'live' : devices.isPlayingKept(playback.item?.title ?? playback.generator?.name ?? '') ? 'kept' : 'ready'}'
                       : null,
                   connected: playback.isStreaming,
                   maxWidth: width,
