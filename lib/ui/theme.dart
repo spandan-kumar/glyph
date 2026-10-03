@@ -112,7 +112,7 @@ ThemeData buildTheme() {
       color: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected) ? Lb.text : Colors.transparent),
       side: Lb.hairline,
-      shape: const StadiumBorder(),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Lb.rControl))),
       labelStyle: LbType.small.copyWith(
         color: WidgetStateColor.resolveWith((s) => s.contains(WidgetState.selected) ? Lb.ink : Lb.text),
       ),
@@ -124,7 +124,7 @@ ThemeData buildTheme() {
       inactiveTrackColor: Lb.line,
       thumbColor: Lb.text,
       overlayColor: Lb.text.withValues(alpha: 0.08),
-      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+      thumbShape: const _SquareThumb(),
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Lb.ink : Lb.text2),
@@ -200,4 +200,32 @@ ThemeData buildTheme() {
       indicatorColor: Lb.raised,
     ),
   );
+}
+
+/// A small square slider thumb, matching the pixel geometry of the app.
+class _SquareThumb extends SliderComponentShape {
+  const _SquareThumb();
+
+  static const _side = 12.0;
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => const Size.square(_side);
+
+  @override
+  void paint(PaintingContext context, Offset center,
+      {required Animation<double> activationAnimation,
+      required Animation<double> enableAnimation,
+      required bool isDiscrete,
+      required TextPainter labelPainter,
+      required RenderBox parentBox,
+      required SliderThemeData sliderTheme,
+      required TextDirection textDirection,
+      required double value,
+      required double textScaleFactor,
+      required Size sizeWithOverflow}) {
+    context.canvas.drawRect(
+      Rect.fromCenter(center: center, width: _side, height: _side),
+      Paint()..color = sliderTheme.thumbColor ?? Lb.text,
+    );
+  }
 }

@@ -17,10 +17,13 @@ abstract final class Lb {
   static const danger = Color(0xFFFF6A5C);
   static const ok = Color(0xFF7BE0A0);
 
-  static const rControl = 6.0;
-  static const rPanel = 10.0;
-  static const rSheet = 14.0;
-  static const rTile = 4.0;
+  // Matrix-like geometry: crisp rectangles, not pills. A 2 px radius just
+  // softens the pixel edge; LED dots and rotary knobs stay round because
+  // they are round in real hardware.
+  static const rControl = 2.0;
+  static const rPanel = 2.0;
+  static const rSheet = 3.0;
+  static const rTile = 1.0;
 
   static const gutter = 20.0;
 

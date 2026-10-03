@@ -39,27 +39,27 @@ void main() {
 
   testWidgets('every destination builds without overflow on a narrow phone', (tester) async {
     final playback = await pumpApp(tester, size: const Size(360, 740));
-    for (final tab in ['Make', 'Matrix', 'Tune']) {
+    for (final tab in ['Make', 'Device', 'Display']) {
       await tester.tap(find.text(tab).last);
       await tester.pump(const Duration(milliseconds: 400));
       expect(tester.takeException(), isNull, reason: tab);
     }
     // No matrix yet: the hub invites a connection.
-    await tester.tap(find.text('Matrix').last);
+    await tester.tap(find.text('Device').last);
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.textContaining('Connect'), findsWidgets);
     playback.pause();
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('first run can be skipped straight into Tune', (tester) async {
+  testWidgets('first run can be skipped straight into Display', (tester) async {
     final playback = await pumpApp(tester, onboarding: true);
     expect(find.text('Find my matrix'), findsOneWidget);
     await tester.tap(find.text('Just looking around'));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 200));
     }
-    expect(find.text('Tune'), findsWidgets);
+    expect(find.text('Display'), findsWidgets);
     expect(tester.takeException(), isNull);
     playback.pause();
     await tester.pumpWidget(const SizedBox());

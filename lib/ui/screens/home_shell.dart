@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../app/storage_alerts.dart';
 import '../design/ambient.dart';
 import '../design/dock.dart';
 import '../design/tokens.dart';
 import '../make/make_screen.dart';
 import '../matrix/matrix_screen.dart';
+import '../scope.dart';
 import '../tune/tune_screen.dart';
 
 /// The app: one room lit by the matrix, three places, a floating dock.
@@ -17,7 +19,7 @@ class HomeShell extends StatefulWidget {
   static void go(BuildContext context, int tab) =>
       context.findAncestorStateOfType<_HomeShellState>()?._select(tab);
 
-  /// Panels that need the full height (e.g. Tune's Tweak) hide the dock.
+  /// Panels that need the full height (e.g. Display's Tweak) hide the dock.
   static final dockHidden = ValueNotifier<bool>(false);
 
   @override
@@ -28,18 +30,46 @@ class _HomeShellState extends State<HomeShell> {
   late int _tab = widget.initialTab;
 
   static const _items = [
-    DockItem(Icons.radio_outlined, 'Tune'),
+    DockItem(Icons.grid_view_sharp, 'Display'),
     DockItem(Icons.draw_outlined, 'Make'),
-    DockItem(Icons.grid_on_outlined, 'Matrix'),
+    DockItem(Icons.developer_board_outlined, 'Device'),
   ];
 
   void _select(int i) => setState(() => _tab = i);
+
+  StorageAlerts? _storage;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _storage ??= StorageAlerts(AppScope.of(context).devices, onAlert: _storageAlert);
+  }
+
+  @override
+  void dispose() {
+    _storage?.dispose();
+    super.dispose();
+  }
+
+  void _storageAlert(StorageLevel level, int percent) {
+    if (!mounted) return;
+    final msg = level == StorageLevel.nearlyFull
+        ? 'Your device is $percent% full. Clear old animations in Device → Storage to keep sending new ones.'
+        : 'Your device is half full. You can free up space anytime in the Device tab.';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(msg),
+        duration: Duration(seconds: level == StorageLevel.nearlyFull ? 8 : 5),
+        action: SnackBarAction(label: 'Open', onPressed: () => _select(2)),
+      ));
+  }
 
   @override
   Widget build(BuildContext context) {
     final ambient = AmbientScope.of(context);
     return PopScope(
-      // Back from Make or Matrix returns to Tune; only Tune leaves the app.
+      // Back from Make or Device returns to Display; only Display leaves the app.
       canPop: _tab == 0,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _tab != 0) _select(0);

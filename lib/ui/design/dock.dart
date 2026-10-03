@@ -37,7 +37,7 @@ class Dock extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: Lb.panel.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(Lb.rPanel),
               border: Border.all(color: Lb.line),
               boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 24, offset: Offset(0, 8))],
             ),
@@ -80,9 +80,8 @@ class _DockButton extends StatelessWidget {
       selected: active,
       button: true,
       label: item.label,
-      child: InkResponse(
+      child: InkWell(
         onTap: onTap,
-        radius: 36,
         child: SizedBox(
           width: 84,
           height: 52,
