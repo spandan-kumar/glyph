@@ -18,7 +18,7 @@ class ShowsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shows = manager.playlists;
+    final shows = [for (final p in manager.playlists) if (!manager.isSystem(p)) p];
     final canCreate = keptItems(manager).isNotEmpty;
     final accent = accentOf(context);
     return Column(

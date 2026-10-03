@@ -124,6 +124,20 @@ class PlaybackController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Stops the render loop and forgets what was playing, leaving nothing on
+  /// the phone. Streaming is separate (see [stopStreaming]).
+  void stop() {
+    _timer?.cancel();
+    _timer = null;
+    _clock.stop();
+    _generator = null;
+    _instance = null;
+    _item = null;
+    _frame.fill(0);
+    frameTick.value++;
+    notifyListeners();
+  }
+
   void resume() {
     if (_instance == null || _timer != null) return;
     _clock.start();

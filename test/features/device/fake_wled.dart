@@ -27,11 +27,28 @@ class FakeWled {
   /// Per-file GIF contents ("/duck.gif" → bytes); others get [gif].
   final gifs = <String, List<int>>{};
 
+  /// Power-on preset (cfg def.ps).
+  int get bootPreset => ((cfg['def'] as Map?)?['ps'] as num?)?.toInt() ?? 0;
+
+  /// The one file of a multipart upload: its name and bytes.
+  static (String, List<int>) _multipart(http.Request r) {
+    final boundary = RegExp(r'boundary=(.+)$').firstMatch(r.headers['content-type'] ?? '')!.group(1)!;
+    final text = latin1.decode(r.bodyBytes);
+    final part = text.split('--$boundary')[1];
+    final name = RegExp(r'filename="([^"]*)"').firstMatch(part)!.group(1)!;
+    final start = part.indexOf('\r\n\r\n') + 4;
+    final data = part.substring(start, part.length - 2); // drop the closing CRLF
+    return (name.startsWith('/') ? name : '/$name', latin1.encode(data));
+  }
+
   late Map<String, dynamic> presets;
   late Map<String, dynamic> state;
   late Map<String, dynamic> cfg;
   final posts = <(String path, Map<String, dynamic> body)>[];
   final gets = <String>[];
+
+  /// Paths uploaded through POST /upload, in order.
+  final uploads = <String>[];
 
   /// Files removed through /edit?func=delete.
   final deleted = <String>[];
@@ -45,8 +62,24 @@ class FakeWled {
   Future<http.Response> _handle(http.Request r) async {
     if (offline) throw http.ClientException('offline');
     final path = r.url.path;
+    if (r.method == 'POST' && path == '/upload') {
+      final (name, bytes) = _multipart(r);
+      uploads.add(name);
+      files.removeWhere((f) => '/${f['name']}' == name);
+      files.add({'name': name.substring(1), 'type': 'file', 'size': bytes.length});
+      if (name == '/presets.json') {
+        presets = (jsonDecode(utf8.decode(bytes)) as Map).cast<String, dynamic>();
+      } else {
+        gifs[name] = bytes;
+      }
+      return http.Response('File Uploaded!', 200);
+    }
     if (r.method == 'POST') {
       final body = jsonDecode(r.body) as Map<String, dynamic>;
+      // Power-on preset changes (cfg.cpp: def.ps).
+      if (path == '/json/cfg' && body['def'] is Map) {
+        cfg['def'] = {...(cfg['def'] as Map? ?? const {}), ...(body['def'] as Map)};
+      }
       posts.add((path, body));
       if (path == '/json/state') {
         for (final k in ['on', 'bri']) {

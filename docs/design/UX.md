@@ -116,9 +116,10 @@ Onboarding (first run only)
                Routines / Storage, switch matrix, layout fix, rename, group
 ```
 
-The Dock is a floating pill (not a Material NavigationBar), centred, ~56 px
-tall, with three labelled glyphs. The active item is indicated by a small
-lit LED dot under it, not a filled indicator.
+The Dock is a slim, sharp-cornered strip (56 px, 12 px side insets, blurred
+panel background). Each tab is a 5×5 LED-dot glyph plus its label in
+Bricolage; the active tab's glyph lights in the room colour and a 2 px lit
+bar slides along the top edge to it.
 
 ## 4. Visual language
 

@@ -220,6 +220,7 @@ class DeviceStore extends ChangeNotifier {
       final info = await c.info();
       _caps = await c.capabilities();
       _info = info;
+      await _readLedColor(_selected?.host, c);
       // The name stored on the matrix is the one people set and recognise;
       // keep the saved entry in step with it (and the MAC, for re-finding).
       // The factory default "WLED" is less useful than the network name.
@@ -244,6 +245,18 @@ class DeviceStore extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  /// Remembers how [host] gamma-corrects colours, so streams to it are
+  /// corrected to match (DdpTarget.resolvedColor). Best effort: an
+  /// unreadable config keeps the last known one, or WLED's defaults.
+  Future<LedColorConfig?> _readLedColor(String? host, WledClient c) async {
+    if (host == null) return null;
+    try {
+      final color = await c.ledColorConfig();
+      if (color != null) knownLedColor[host.toLowerCase()] = color;
+    } catch (_) {}
+    return knownLedColor[host.toLowerCase()];
   }
 
   /// Re-reads power, brightness and the active preset.
@@ -397,13 +410,17 @@ class DeviceStore extends ChangeNotifier {
     final hosts = mirrorHosts.where((h) => _saved.any((d) => d.host == h)).toList();
     final missing = hosts.where((h) => !_peerInfo.containsKey(h));
     if (missing.isNotEmpty) await probeSaved(hosts: missing);
+    final reachable = hosts.where(_peerInfo.containsKey).toList();
+    // Each mirror is gamma-corrected per its own config.
+    final colors = await Future.wait([for (final h in reachable) _readLedColor(h, _peer(h))]);
     return [
-      for (final h in hosts)
+      for (final (i, h) in reachable.indexed)
         if (_peerInfo[h] case final info?)
           DdpTarget(h,
               layout: _saved.firstWhere((d) => d.host == h).layout,
               width: info.hasMatrix ? info.matrixWidth : info.ledCount,
-              height: info.hasMatrix ? info.matrixHeight : 1),
+              height: info.hasMatrix ? info.matrixHeight : 1,
+              color: colors[i]),
     ];
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../engine/generator.dart';
+import '../features/device/boot_intro.dart';
 
 import '../engine/clip.dart';
 import '../engine/frame.dart';
@@ -143,7 +144,8 @@ abstract final class GlyphActions {
       // Keep the current look on the matrix while the file uploads (a slow
       // trickle of frames holds live mode); switch only once it's saved.
       s.playback.streamThrottled = true;
-      final fileName = keptFileName(title);
+      var fileName = keptFileName(title);
+      if (fileName == BootIntro.fileName) fileName = 'my-$fileName';
       final presetId = await client.saveGifToDevice(
         fileName: fileName,
         gif: bytes,
@@ -182,6 +184,8 @@ abstract final class GlyphActions {
     try {
       final presets = await client.presetList();
       for (final p in presets) {
+        // Never overwrite the protected boot intro.
+        if (p.name == BootIntro.presetName || p.gifName == BootIntro.fileName) continue;
         if (!p.isPlaylist && (p.gifName?.toLowerCase() == fileName.toLowerCase() || p.name == title)) return p.id;
       }
     } on WledException {
@@ -218,4 +222,4 @@ Uint8List _bake((String, Map<String, double>, String, int, int, double, double, 
 
 Uint8List _encodeLoop(LoopFrames loop) => bakeLoop(loop).bytes;
 
-Uint8List _encodeClip((List<Frame>, List<int>) a) => encodeGif(a.$1, a.$2);
+Uint8List _encodeClip((List<Frame>, List<int>) a) => encodeGif(a.$1, a.$2, forLeds: true);

@@ -82,7 +82,7 @@ class KeptSection extends StatelessWidget {
       if (v == 'delete' && context.mounted) await deleteKept(context, manager, p);
       return;
     }
-    final boot = manager.schedule?.bootPreset == p.id;
+    final boot = manager.schedule != null && manager.powerOnLook == p.id;
     final v = await showActions(
       context,
       title: p.name,
@@ -128,7 +128,7 @@ Future<void> deleteKept(BuildContext context, DeviceManager manager, WledPreset 
   final usedBy = [
     ...manager.playlistsUsing(p.id).map((x) => 'the show “${x.name}”'),
     if (manager.timersUsing(p.id).isNotEmpty) 'a routine',
-    if (manager.schedule?.bootPreset == p.id) 'power-on',
+    if (manager.schedule != null && manager.powerOnLook == p.id) 'power-on',
   ];
   var withFile = gif != null && gifSize != null && !sharedGif;
   final ok = await showDialog<bool>(

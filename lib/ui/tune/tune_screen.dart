@@ -173,6 +173,14 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
   /// Anything played from anywhere lands in "Lately" — except the
   /// automatic first pick and the Surprise reel.
   void _onPlayback() {
+    // A Make tool stopped its content: show what the device plays again
+    // (or the automatic pick) instead of a blank stage.
+    if (_scope?.playback.generator == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _scope?.playback.generator == null) _autoTune();
+      });
+      return;
+    }
     final id = _scope?.playback.item?.id;
     if (id == null || id == _lastMarked || tune.shuffling) return;
     _lastMarked = id;

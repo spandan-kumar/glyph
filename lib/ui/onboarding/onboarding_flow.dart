@@ -15,12 +15,11 @@ import '../scope.dart';
 import '../widgets/live_preview.dart';
 import 'orientation_fix.dart';
 import 'search_step.dart';
-import 'setup_clips.dart';
 import 'welcome_step.dart';
 
 export 'search_step.dart' show SetupServices;
 
-/// First run (UX.md J1): welcome → find the device → it waves hello →
+/// First run (UX.md J1): welcome → find the device → it plays the Glyph intro →
 /// (fix the orientation) → pick a first vibe. Shown once.
 class OnboardingFlow extends StatelessWidget {
   const OnboardingFlow({
@@ -96,7 +95,7 @@ class _SetupFlowState extends State<SetupFlow> {
   int _dir = 1;
 
   /// Input is ignored while steps cross-fade, so a tap that ends one step
-  /// can't land on a button of the next (e.g. "It's waving" → a vibe tile).
+  /// can't land on a button of the next (e.g. "Looks right" → a vibe tile).
   bool _settling = false;
   bool _fixed = false;
 
@@ -131,7 +130,7 @@ class _SetupFlowState extends State<SetupFlow> {
   }
 
   void _hello({int dir = 1}) {
-    playSetupClip(context, helloClip, 'Hello');
+    playIntro(context);
     _go(SetupStep.hello, dir: dir);
   }
 
@@ -208,7 +207,7 @@ class _SetupFlowState extends State<SetupFlow> {
   }
 }
 
-/// AHA #1: the device waves; the phone mirrors it.
+/// AHA #1: the device plays the Glyph intro; the phone mirrors it.
 class HelloStep extends StatelessWidget {
   const HelloStep({
     super.key,
@@ -254,12 +253,12 @@ class HelloStep extends StatelessWidget {
         ],
         Text('Look up.', textAlign: TextAlign.center, style: LbType.display),
         const SizedBox(height: 8),
-        Text('That\'s you saying hi.', textAlign: TextAlign.center, style: LbType.title.copyWith(color: Lb.text2)),
+        Text('That\'s your device saying hi.', textAlign: TextAlign.center, style: LbType.title.copyWith(color: Lb.text2)),
         const SizedBox(height: 36),
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
           onPressed: onWaving,
-          child: const Text('It\'s waving'),
+          child: const Text('Looks right'),
         ),
         const SizedBox(height: 10),
         OutlinedButton(

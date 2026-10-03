@@ -9,7 +9,6 @@ import 'package:flutter/scheduler.dart';
 import '../../app/creations.dart';
 import '../../engine/clip.dart';
 import '../../engine/frame.dart';
-import '../../ui/actions.dart';
 import '../../ui/scope.dart';
 import '../../engine/generator.dart';
 import '../../ui/design/tokens.dart';
@@ -17,6 +16,7 @@ import '../../ui/design/type.dart';
 import '../../ui/make/demos.dart';
 import '../../ui/make/led_loop.dart';
 import '../../ui/make/studio_kit.dart';
+import '../../ui/make/tool_session.dart';
 import '../../ui/widgets/led_matrix_view.dart';
 import 'crop_editor.dart';
 import 'decode.dart';
@@ -47,7 +47,8 @@ const _sizes = [(8, 8), (16, 16), (32, 8), (32, 16), (32, 32), (64, 32), (64, 64
 const _colorSteps = [0, 128, 64, 32, 16, 8, 4, 2];
 const _speeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0];
 
-class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderStateMixin {
+class _ImportScreenState extends State<ImportScreen>
+    with SingleTickerProviderStateMixin, ToolSession<ImportScreen> {
   DecodedSource? _src;
   String _name = 'Import';
   String? _fileName;
@@ -383,7 +384,7 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
   Future<void> _play() async {
     final clip = await _finalClip();
     if (clip == null || !mounted) return;
-    await GlyphActions.playClip(context, clip, _name);
+    await playClipInTool(clip, _name);
     if (!mounted) return;
     _toast(
       AppScope.of(context).devices.isConnected
@@ -421,7 +422,7 @@ class _ImportScreenState extends State<ImportScreen> with SingleTickerProviderSt
     setState(() => _uploading = true);
     try {
       final clip = await _finalClip();
-      if (clip != null && mounted) await GlyphActions.saveClipToDevice(context, clip, _name);
+      if (clip != null && mounted) await sendClipFromTool(clip, _name);
     } finally {
       if (mounted) setState(() => _uploading = false);
     }

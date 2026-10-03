@@ -1,3 +1,4 @@
+import '../engine/led_gamma.dart';
 import 'layout.dart';
 
 /// Parsed /json/info. Every field is optional on some firmware: ESP8266 and
@@ -159,6 +160,75 @@ class DeviceCapabilities {
     );
   }
 }
+
+/// How a WLED gamma-corrects colours, from its config (/json/cfg).
+///
+/// WLED applies its colour gamma table to every pixel in
+/// WS2812FX::show (wled00/FX_fcn.cpp), including the Image effect's GIF
+/// output, *except* realtime pixels (DDP, E1.31, UDP) while
+/// `if.live."no-gc"` (arlsDisableGammaCorrection, default true in wled.h)
+/// is set and no realtime override is active:
+///
+///     useGammaCorrection = gammaCorrectCol &&
+///         !(realtimeMode && arlsDisableGammaCorrection && !realtimeOverride)
+///
+/// So by default a DDP stream reaches the LEDs linear and Glyph must apply
+/// the gamma itself; GIFs played on the device must not be pre-corrected.
+class LedColorConfig {
+  const LedColorConfig({
+    this.gamma = defaultLedGamma,
+    this.gammaOnLive = false,
+    this.balance = ws2812WhiteBalance,
+  });
+
+  /// Unknown config (e.g. PIN-locked): WLED's defaults, gamma 2.2 on colours
+  /// and none on realtime data.
+  static const unknown = LedColorConfig();
+
+  /// Colour gamma WLED applies to its own effects; 1 when switched off.
+  final double gamma;
+
+  /// Whether WLED also gamma-corrects incoming realtime (DDP) pixels.
+  final bool gammaOnLive;
+
+  /// LED-space white balance for the strip (WS2812 green cut by default).
+  final LedWhiteBalance balance;
+
+  /// cfg.cpp deserializeConfig: colour gamma is on when `light.gc.col` != 1,
+  /// with the table built from `light.gc.val`; a value outside 0.1–3 turns
+  /// it off. `if.live."no-gc"` defaults to true.
+  factory LedColorConfig.fromConfig(Map<String, dynamic> cfg) {
+    final gc = _map(_map(cfg['light'])['gc']);
+    final val = gc['val'] is num ? (gc['val'] as num).toDouble() : defaultLedGamma;
+    final col = gc['col'] is num ? (gc['col'] as num).toDouble() : val;
+    final on = col != 1 && val >= 0.1 && val <= 3;
+    final noGc = _map(_map(cfg['if'])['live'])['no-gc'] != false;
+    return LedColorConfig(gamma: on ? val : 1, gammaOnLive: on && !noGc);
+  }
+
+  /// Correction for frames streamed to this device: white balance and black
+  /// floor always, the gamma only when WLED won't apply it to realtime data.
+  LedCorrection streamCorrection() =>
+      LedCorrection(gamma: gamma, applyGamma: !gammaOnLive, balance: balance);
+
+  @override
+  bool operator ==(Object other) =>
+      other is LedColorConfig &&
+      other.gamma == gamma &&
+      other.gammaOnLive == gammaOnLive &&
+      other.balance == balance;
+
+  @override
+  int get hashCode => Object.hash(gamma, gammaOnLive, balance);
+
+  @override
+  String toString() => 'LedColorConfig(gamma: $gamma, gammaOnLive: $gammaOnLive)';
+}
+
+/// Last [LedColorConfig] read from each device, by lower-case host. Filled
+/// by the device store on refresh; stream targets without an explicit
+/// config look themselves up here.
+final knownLedColor = <String, LedColorConfig>{};
 
 /// A device the user has added, persisted by the app.
 class SavedDevice {

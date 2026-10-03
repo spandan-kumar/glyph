@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
-import 'package:glyph/engine/clip.dart';
+import 'package:glyph/engine/generators/intro.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/onboarding/onboarding_flow.dart';
 import 'package:glyph/ui/scope.dart';
@@ -88,15 +88,15 @@ void main() {
     expect(find.text('192.168.29.6'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    // Connect → the device waves.
+    // Connect → the device plays the Glyph intro.
     await tester.tap(find.text('Desk matrix'));
     await settle(tester, 800);
     expect(devices.isConnected, isTrue);
     expect(devices.selected!.host, '192.168.29.6');
     expect(find.text('Look up.'), findsOneWidget);
-    expect(find.text('That\'s you saying hi.'), findsOneWidget);
-    expect(playback.generator, isA<ClipGenerator>());
-    expect(playback.generator!.name, 'Hello');
+    expect(find.text('That\'s your device saying hi.'), findsOneWidget);
+    expect(playback.generator, isA<GlyphIntro>());
+    expect(playback.generator!.name, 'Glyph intro');
     expect(tester.takeException(), isNull);
 
     // Something looks off → arrow question → the arrow pointed right.
@@ -116,10 +116,10 @@ void main() {
     expect(devices.selected!.layout, const MatrixLayout(rotation: 3, flipX: true));
     expect(find.text('Look up.'), findsOneWidget);
     expect(find.text('TURNED THE RIGHT WAY'), findsOneWidget);
-    expect(playback.generator!.name, 'Hello');
+    expect(playback.generator!.name, 'Glyph intro');
 
-    // It's waving → first vibe.
-    await tester.tap(find.text('It\'s waving'));
+    // Looks right → first vibe.
+    await tester.tap(find.text('Looks right'));
     await settle(tester);
     expect(find.text('Pick a first vibe'), findsOneWidget);
     expect(find.text('It plays on your device straight away.'), findsOneWidget);

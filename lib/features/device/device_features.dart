@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../../app/devices.dart';
 import '../../app/playback.dart';
+import 'boot_intro.dart';
 import 'home_widget_bridge.dart';
 
 /// App-wide wiring for matrix management. Call once from main() after the
@@ -9,7 +10,9 @@ import 'home_widget_bridge.dart';
 ///
 /// * keeps the home-screen widget pointed at the selected matrix;
 /// * keeps PlaybackController.mirrors in step with the mirror group, so every
-///   startStreaming() also feeds the mirrored matrices.
+///   startStreaming() also feeds the mirrored matrices;
+/// * installs the Glyph intro as the boot screen of each device it connects
+///   to (see [BootIntro]), quietly in the background.
 abstract final class DeviceFeatures {
   static final _attached = Expando<_MirrorSync>();
 
@@ -19,6 +22,9 @@ abstract final class DeviceFeatures {
     final sync = _attached[devices] = _MirrorSync(devices, playback);
     devices.addListener(sync.update);
     sync.update();
+    final intro = _BootIntroSync(devices);
+    devices.addListener(intro.update);
+    intro.update();
   }
 
   /// Recomputes the mirror targets now (e.g. right after toggling one).
@@ -57,5 +63,38 @@ class _MirrorSync {
     } catch (_) {
       // Mirrors are best effort; the primary keeps streaming.
     }
+  }
+}
+
+/// Runs [BootIntro.ensure] once per device and size each session, when the
+/// store is connected. A failure is retried a minute later at the earliest.
+class _BootIntroSync {
+  _BootIntroSync(this.devices);
+
+  final DeviceStore devices;
+  final _done = <String>{};
+  final _failedAt = <String, DateTime>{};
+  bool _busy = false;
+
+  void update() {
+    if (!BootIntro.autoInstall || _busy || !devices.isConnected) return;
+    final host = devices.selected?.host, caps = devices.caps, client = devices.client;
+    if (host == null || caps == null || client == null || !caps.canPlayGifs) return;
+    final key = '$host ${caps.width}x${caps.height}';
+    if (_done.contains(key)) return;
+    final failed = _failedAt[key];
+    if (failed != null && DateTime.now().difference(failed) < const Duration(minutes: 1)) return;
+    _busy = true;
+    unawaited(() async {
+      try {
+        if (await BootIntro.ensure(client, caps)) BootIntro.revision.value++;
+        _done.add(key);
+        _failedAt.remove(key);
+      } catch (_) {
+        _failedAt[key] = DateTime.now();
+      } finally {
+        _busy = false;
+      }
+    }());
   }
 }

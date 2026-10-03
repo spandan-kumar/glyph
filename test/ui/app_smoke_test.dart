@@ -7,6 +7,7 @@ import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/main.dart';
+import 'package:glyph/ui/design/dock.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -60,6 +61,37 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
     }
     expect(find.text('Display'), findsWidgets);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the dock is a typographic strip: LED glyphs, a sliding lit segment', (tester) async {
+    final playback = await pumpApp(tester);
+    final dock = find.byType(Dock);
+    expect(dock, findsOneWidget);
+    // No stock Material icons: each tab is a painted LED glyph and its name.
+    expect(find.descendant(of: dock, matching: find.byType(Icon)), findsNothing);
+    for (final label in ['Display', 'Make', 'Device']) {
+      expect(find.descendant(of: dock, matching: find.text(label)), findsOneWidget);
+    }
+    final rect = tester.getRect(dock);
+    final screen = tester.getSize(find.byType(MaterialApp));
+    expect(rect.width, screen.width, reason: 'spans the width; the strip itself is inset by gutters');
+
+    final indicator = find.byKey(const ValueKey('dock-indicator'));
+    Rect segment() => tester.getRect(find.descendant(of: indicator, matching: find.byType(AnimatedContainer)));
+    final atDisplay = segment().center.dx;
+    expect(atDisplay, lessThan(screen.width / 3));
+
+    await tester.tap(find.descendant(of: dock, matching: find.text('Device')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    final midway = segment().center.dx;
+    await tester.pump(const Duration(milliseconds: 400));
+    final atDevice = segment().center.dx;
+    expect(midway, inExclusiveRange(atDisplay, atDevice), reason: 'the segment slides');
+    expect(atDevice, greaterThan(screen.width * 2 / 3));
     expect(tester.takeException(), isNull);
     playback.pause();
     await tester.pumpWidget(const SizedBox());

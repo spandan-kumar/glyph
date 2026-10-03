@@ -74,6 +74,19 @@ class WledClient {
     }
   }
 
+  /// Colour gamma settings from /json/cfg (`light.gc`, `if.live."no-gc"`),
+  /// which decide whether streamed frames need gamma applied by the app.
+  /// Null when the config cannot be read.
+  Future<LedColorConfig?> ledColorConfig() async {
+    try {
+      final cfg = await config();
+      if (cfg['light'] is! Map && cfg['if'] is! Map) return null;
+      return LedColorConfig.fromConfig(cfg);
+    } on WledException {
+      return null;
+    }
+  }
+
   Future<void> setState(Map<String, dynamic> s) async {
     final res = await _send(() => _http.post(_uri('/json/state'),
         headers: const {'Content-Type': 'application/json'},

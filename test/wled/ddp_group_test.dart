@@ -5,9 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/playback.dart';
 import 'package:glyph/engine/frame.dart';
 import 'package:glyph/engine/generator.dart';
+import 'package:glyph/engine/led_gamma.dart';
 import 'package:glyph/engine/palette.dart';
 import 'package:glyph/wled/ddp.dart';
 import 'package:glyph/wled/ddp_group.dart';
+import 'package:glyph/wled/device.dart';
 import 'package:glyph/wled/layout.dart';
 
 /// Collects DDP frames (joined payloads up to each push packet).
@@ -93,16 +95,20 @@ void main() {
 
   test('group sends each target its own size and layout; dedupes hosts', () async {
     final a = await _Receiver.bind(), b = await _Receiver.bind(), c = await _Receiver.bind();
+    // Gamma 1, no white balance: geometry only (colour correction is
+    // covered in led_color_test.dart); the blue 7s clear the black floor.
+    const raw = LedColorConfig(gamma: 1, balance: neutralWhiteBalance);
     final group = DdpGroupSender([
-      DdpTarget('127.0.0.1', port: a.port),
+      DdpTarget('127.0.0.1', port: a.port, color: raw),
       DdpTarget(
         '127.0.0.1',
         port: b.port,
         width: 32,
         height: 32,
         layout: const MatrixLayout(flipX: true),
+        color: raw,
       ),
-      DdpTarget('127.0.0.1', port: c.port, width: 8, height: 8),
+      DdpTarget('127.0.0.1', port: c.port, width: 8, height: 8, color: raw),
       // Same host and port as the primary: dropped.
       DdpTarget('127.0.0.1', port: a.port, width: 4, height: 4),
     ]);

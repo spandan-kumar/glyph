@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../engine/clip.dart';
+import '../../engine/generators/intro.dart';
 import '../../features/device/widgets/device_settings.dart';
 import '../../features/text/fonts.dart';
 import '../../wled/layout.dart';
@@ -22,6 +23,14 @@ void playSetupClip(BuildContext context, FrameClip Function(int w, int h) build,
   final caps = AppScope.of(context).devices.caps;
   final clip = build(caps?.width ?? fallbackSize, caps?.height ?? fallbackSize);
   unawaited(GlyphActions.playClip(context, clip, title));
+}
+
+/// Plays the Glyph intro (the boot screen Glyph installs on every device)
+/// on the phone and, when connected, on the device. It plays once and then
+/// holds the logo.
+void playIntro(BuildContext context) {
+  AppScope.of(context).playback.playGenerator(GlyphIntro());
+  unawaited(GlyphActions.ensureStreaming(context));
 }
 
 /// Saves [layout] for the selected device and restarts the live stream so
@@ -318,9 +327,9 @@ class OrientationFixPage extends StatelessWidget {
       child: OrientationFix(
         onBack: () => Navigator.pop(context),
         onDone: () {
-          playSetupClip(context, helloClip, 'Hello');
+          playIntro(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saved. It should be waving the right way up now.')),
+            const SnackBar(content: Text('Saved. The Glyph logo should be the right way up now.')),
           );
           Navigator.pop(context);
         },

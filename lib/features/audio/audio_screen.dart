@@ -15,6 +15,7 @@ import '../../ui/design/parts.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
 import '../../ui/make/studio_kit.dart';
+import '../../ui/make/tool_session.dart';
 import '../../ui/widgets/led_matrix_view.dart';
 import 'audio_engine.dart';
 import 'visualizers.dart';
@@ -34,7 +35,8 @@ class AudioScreen extends StatefulWidget {
   State<AudioScreen> createState() => _AudioScreenState();
 }
 
-class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
+class _AudioScreenState extends State<AudioScreen>
+    with WidgetsBindingObserver, ToolSession<AudioScreen> {
   late final AudioEngine _engine = widget.engine ?? AudioEngine.shared;
   late final List<AudioVisualizer> _visuals = audioVisualizers(_engine);
   late AudioVisualizer _selected = _visuals.first;
@@ -98,6 +100,7 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
     });
     if (wasPlaying) {
       playback.playGenerator(v);
+      toolOwns(v);
       playback.setPalette(_palette);
     }
   }
@@ -111,6 +114,7 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
   Future<void> _play() async {
     final s = AppScope.of(context);
     s.playback.playGenerator(_selected);
+    toolPlays(_selected);
     s.playback.setPalette(_palette);
     _MicFollower.bind(_engine, s.playback);
     await GlyphActions.ensureStreaming(context);

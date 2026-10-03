@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/engine/frame.dart';
 import 'package:glyph/engine/generator.dart';
 import 'package:glyph/engine/gif_baker.dart';
+import 'package:glyph/engine/led_gamma.dart';
 import 'package:glyph/engine/palette.dart';
 import 'package:glyph/engine/registry.dart';
 import 'package:image/image.dart' as img;
@@ -25,7 +26,8 @@ void main() {
       // Same seed + same timeline => identical frames to compare against.
       final loop = renderLoop(
           generator: g, params: params, palette: pal, width: 16, height: 16);
-      final frames = loop.frames;
+      // The GIF carries the LED black floor (white balance, black floor).
+      final frames = ledFramesForDevice(loop.frames);
       final n = frames.length;
       // About 4 s at 20 fps, trimmed or stretched to where it loops best.
       expect(result.frameCount, n);
@@ -126,12 +128,14 @@ void main() {
     final d = decodeTestGif(r.bytes);
     expect(d.frames.length, 2);
     expect(d.delays, [20, 20]);
-    expect(d.frames[0], a.rgb);
-    expect(d.frames[1], b.rgb);
+    // Stored as WLED should play them (white balance, black floor).
+    final led = ledFramesForDevice([a, b]);
+    expect(d.frames[0], led[0].rgb);
+    expect(d.frames[1], led[1].rgb);
   });
 
   test('fps that does not divide 100 keeps the total duration', () {
-    final frames = [for (var i = 0; i < 30; i++) Frame(2, 2)..set(0, 0, i * 8)];
+    final frames = [for (var i = 0; i < 30; i++) Frame(2, 2)..set(0, 0, 0x400000 | i * 8)];
     final r = bakeFrames(frames, fps: 30);
     expect(r.duration, const Duration(seconds: 1));
     final d = decodeTestGif(r.bytes);

@@ -215,6 +215,10 @@ class _HeartPainter extends CustomPainter {
 class RailHeader extends StatelessWidget {
   const RailHeader({super.key, required this.channel, this.onSeeAll});
 
+  /// Every header row is this tall, so titles, counts and SEE ALL share one
+  /// centre line on every rail.
+  static const rowHeight = 36.0;
+
   final Channel channel;
   final VoidCallback? onSeeAll;
 
@@ -224,37 +228,52 @@ class RailHeader extends StatelessWidget {
     final tuned = id == channel.id || id == '${channel.id}/all';
     final accent = AmbientScope.of(context).accent;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(Lb.gutter, 26, 8, 0),
+      // The right inset plus SEE ALL's own 12 px tap padding lands its text
+      // exactly on the gutter, on every rail.
+      padding: const EdgeInsets.fromLTRB(Lb.gutter, 26, Lb.gutter - 12, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Semantics(
-                    header: true,
-                    label: channel.name,
-                    child: LedText(channel.name.toUpperCase(), dot: 3, color: tuned ? accent : Lb.text),
+          SizedBox(
+            height: RailHeader.rowHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Title and count take whatever is left; SEE ALL keeps a fixed
+                // trailing slot, so its position never depends on the title.
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Semantics(
+                            header: true,
+                            label: channel.name,
+                            child: LedText(channel.name.toUpperCase(), dot: 3, color: tuned ? accent : Lb.text),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text('${channel.all.length}', style: LbType.label),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text('${channel.all.length}', style: LbType.label),
-              const Spacer(),
-              if (onSeeAll != null)
-                InkWell(
-                  onTap: onSeeAll,
-                  borderRadius: BorderRadius.circular(Lb.rControl),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    child: Text('SEE ALL', style: LbType.label.copyWith(color: Lb.text2)),
+                if (onSeeAll != null)
+                  InkWell(
+                    key: const ValueKey('see-all'),
+                    onTap: onSeeAll,
+                    borderRadius: BorderRadius.circular(Lb.rControl),
+                    child: Container(
+                      height: RailHeader.rowHeight,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('SEE ALL', style: LbType.label.copyWith(color: Lb.text2, height: 1)),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
           if (channel.note != null)
             Padding(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/devices.dart';
 import '../../app/playback.dart';
 import '../../engine/frame.dart';
+import '../../features/device/boot_intro.dart';
 import '../../features/device/device_features.dart';
 import '../../features/device/device_manager.dart';
 import '../../features/device/widgets/common.dart';
@@ -228,8 +229,17 @@ class _NowShowing extends StatelessWidget {
       title = 'Off';
       stage = Opacity(opacity: 0.5, child: Stage(frame: Frame(w, h), maxWidth: 300));
     } else {
-      kind = store.playlistRunning ? 'Playing a show' : (kept != null ? 'Saved on your device' : 'On its own');
-      title = store.playlistRunning && store.playlistId != null
+      final intro = manager.bootIntro;
+      final startingUp = (store.playlistRunning && store.playlistId != null && intro.isSystem(store.playlistId!)) ||
+          (!store.playlistRunning && kept != null && kept.id == intro.intro?.id);
+      kind = startingUp
+          ? 'Starting up'
+          : store.playlistRunning
+          ? 'Playing a show'
+          : (kept != null ? 'Saved on your device' : 'On its own');
+      title = startingUp
+          ? BootIntro.presetName
+          : store.playlistRunning && store.playlistId != null
           ? manager.presetName(store.playlistId!)
           : kept?.name ?? (store.playlistRunning ? 'A show' : 'Its own light');
       final gif = kept?.gifName;

@@ -9,7 +9,7 @@ import '../matrix/matrix_screen.dart';
 import '../scope.dart';
 import '../tune/tune_screen.dart';
 
-/// The app: one room lit by the matrix, three places, a floating dock.
+/// The app: one room lit by the matrix, three places, a dock strip.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key, this.initialTab = 0});
 
@@ -30,9 +30,9 @@ class _HomeShellState extends State<HomeShell> {
   late int _tab = widget.initialTab;
 
   static const _items = [
-    DockItem(Icons.grid_view_sharp, 'Display'),
-    DockItem(Icons.draw_outlined, 'Make'),
-    DockItem(Icons.developer_board_outlined, 'Device'),
+    DockItem('Display', DockGlyph.display),
+    DockItem('Make', DockGlyph.make),
+    DockItem('Device', DockGlyph.device),
   ];
 
   void _select(int i) => setState(() => _tab = i);

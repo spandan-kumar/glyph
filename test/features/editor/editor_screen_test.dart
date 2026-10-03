@@ -12,12 +12,15 @@ import 'package:glyph/features/editor/color_picker.dart';
 import 'package:glyph/features/editor/editor_canvas.dart';
 import 'package:glyph/features/editor/editor_screen.dart';
 import 'package:glyph/library/catalog.dart';
+import 'package:glyph/ui/actions.dart';
+import 'package:glyph/ui/make/tool_session.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:glyph/wled/device.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../ui/make/ambient_host.dart';
+import '../../ui/make/tool_host.dart';
 import '../device/fake_wled.dart';
 
 int lit(Frame f) => [
@@ -181,5 +184,90 @@ void main() {
     expect(find.text('SHOW ON DEVICE'), findsOneWidget);
     expect(tester.takeException(), isNull);
     playback.pause();
+  });
+
+  group('leaving Draw', () {
+    Future<(DeviceStore, FakeWled)> connected() async {
+      SharedPreferences.setMockInitialValues({
+        'devices.v1': jsonEncode([const SavedDevice(host: '192.168.29.6', name: 'Matrix').toJson()]),
+        'devices.selected': '192.168.29.6',
+      });
+      final fake = FakeWled();
+      final devices = DeviceStore(clientFactory: fake.client);
+      await devices.load();
+      return (devices, fake);
+    }
+
+    bool exitedLive(FakeWled fake) =>
+        fake.posts.any((p) => p.$1 == '/json/state' && p.$2['live'] == false);
+
+    testWidgets('stops the drawing it was showing', (tester) async {
+      final (devices, fake) = await connected();
+      final playback = await pumpEditor(
+          tester, ToolHost(tool: () => const EditorScreen(blank: true)),
+          devices: devices);
+      await openTool(tester);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(playback.generator?.id, '_editor_live');
+      expect(playback.isPlaying, isTrue);
+
+      fake.posts.clear();
+      await leaveTool(tester);
+      expect(find.byType(EditorScreen), findsNothing);
+      expect(playback.generator, isNull);
+      expect(playback.isPlaying, isFalse);
+      expect(playback.isStreaming, isFalse);
+      expect(exitedLive(fake), isTrue, reason: 'the matrix goes back to its own look');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('keeps a drawing that was sent to the device', (tester) async {
+      ToolSession.clipSender = (context, clip, title) async =>
+          'Sent to your device (1.0 KB). It keeps playing without your phone.';
+      addTearDown(() => ToolSession.clipSender = GlyphActions.saveClipToDevice);
+      final (devices, fake) = await connected();
+      final playback = await pumpEditor(
+          tester, ToolHost(tool: () => const EditorScreen(blank: true)),
+          devices: devices);
+      await openTool(tester);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(playback.generator?.id, '_editor_live');
+
+      await tester.tap(find.byTooltip('More'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('Send to device'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.enterText(find.byType(TextField), 'Hi');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(state(tester).sentFromTool, isTrue);
+
+      fake.posts.clear();
+      await leaveTool(tester);
+      expect(find.byType(EditorScreen), findsNothing);
+      expect(playback.generator?.name, 'Hi', reason: 'the sent drawing stays');
+      expect(exitedLive(fake), isFalse);
+      expect(tester.takeException(), isNull);
+      playback.pause();
+    });
+
+    testWidgets('without drawing anything live, what played before keeps playing',
+        (tester) async {
+      final playback = await pumpEditor(
+          tester, ToolHost(tool: () => const EditorScreen(blank: true)));
+      final item = catalog.items.first;
+      playback.playItem(item);
+      await openTool(tester);
+      expect(find.byType(EditorScreen), findsOneWidget);
+      await leaveTool(tester);
+      expect(playback.item, same(item));
+      expect(playback.generator?.id, item.generatorId);
+      expect(playback.isPlaying, isTrue);
+      expect(tester.takeException(), isNull);
+      playback.pause();
+    });
   });
 }

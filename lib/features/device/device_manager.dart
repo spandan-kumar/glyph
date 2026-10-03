@@ -6,6 +6,7 @@ import '../../app/devices.dart';
 import '../../engine/clip.dart';
 import '../../engine/frame.dart';
 import '../import/decode.dart';
+import 'boot_intro.dart';
 import '../../wled/presets.dart';
 import '../../wled/schedule.dart';
 import '../../wled/wled_client.dart';
@@ -14,7 +15,32 @@ import '../../wled/wled_client.dart';
 /// schedule. Requests run one after another because WLED's web server (and
 /// the weak Wi‑Fi it often sits on) copes badly with bursts.
 class DeviceManager extends ChangeNotifier {
-  DeviceManager(this.store);
+  DeviceManager(this.store) {
+    BootIntro.revision.addListener(_introChanged);
+  }
+
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    BootIntro.revision.removeListener(_introChanged);
+    super.dispose();
+  }
+
+  /// Requests can finish after the screen that owned this has gone.
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  /// The intro was (re)installed or its end changed: read the device again.
+  void _introChanged() {
+    if (_host != null && store.isConnected) {
+      _forgetAllPictures();
+      scheduleMicrotask(load);
+    }
+  }
 
   final DeviceStore store;
 
@@ -47,6 +73,19 @@ class DeviceManager extends ChangeNotifier {
       if (!p.isPlaylist) p,
   ];
   Map<String, int> get files => _files;
+
+  /// The Glyph intro's presets on this device (see [BootIntro]).
+  BootIntroLayout get bootIntro => BootIntroLayout.of(_presets, _schedule?.bootPreset ?? 0);
+
+  /// System items (the intro and its Power-on playlist) the app hides and
+  /// never deletes.
+  bool isSystem(WledPreset p) => bootIntro.isSystem(p.id);
+
+  bool isSystemFile(String path) => _key(path) == '/${BootIntro.fileName}';
+
+  /// What plays at power-on (after the intro when it's installed); 0 for
+  /// nothing / the Glyph logo.
+  int get powerOnLook => bootIntro.powerOnLook;
 
   /// Whether [file] ("duck.gif" or "/duck.gif") is on the device.
   bool hasFile(String file) {
@@ -271,8 +310,12 @@ class DeviceManager extends ChangeNotifier {
   Future<void> deletePreset(int id, {bool withFile = false}) async {
     final c = _client;
     if (c == null) return;
+    if (bootIntro.isSystem(id)) throw WledException('Your device needs this to start up');
     final gif = preset(id)?.gifName;
+    final wasPowerOnLook = bootIntro.installed && powerOnLook == id;
     await c.deletePreset(id);
+    // Don't leave the intro handing over to a preset that's gone.
+    if (wasPowerOnLook) await BootIntro.setPowerOnLook(c, 0);
     if (withFile && gif != null && presetsUsingFile(gif).every((p) => p.id == id)) {
       await c.deleteFile('/$gif');
       _forget(gif);
@@ -282,6 +325,7 @@ class DeviceManager extends ChangeNotifier {
   }
 
   Future<void> deleteFile(String path) async {
+    if (isSystemFile(path)) throw WledException('Your device needs this to start up');
     await _client?.deleteFile(path);
     _forget(path);
     await reloadPresets(settle: false);
@@ -312,7 +356,13 @@ class DeviceManager extends ChangeNotifier {
   Future<void> setBootPreset(int id) async {
     final c = _client;
     if (c == null) return;
-    await c.setBootPreset(id);
+    if (bootIntro.installed) {
+      // The intro stays first; the choice becomes what follows it.
+      await BootIntro.setPowerOnLook(c, id);
+      await reloadPresets(settle: false);
+    } else {
+      await c.setBootPreset(id);
+    }
     await _reloadSchedule(c);
   }
 

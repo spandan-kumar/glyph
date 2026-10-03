@@ -17,6 +17,7 @@ import '../../ui/design/parts.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
 import '../../ui/make/studio_kit.dart';
+import '../../ui/make/tool_session.dart';
 import '../../ui/widgets/led_matrix_view.dart';
 import 'native_text.dart';
 import 'text_generators.dart';
@@ -53,7 +54,7 @@ const _swatches = [0x3DDCFF, 0xFF2244, 0xFFB547, 0x4BE3A0, 0x8B7CFF, 0xFFFFFF, 0
 const _previewSizes = [(16, 16), (32, 8), (8, 8), (32, 32)];
 
 class _TextStudioScreenState extends State<TextStudioScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, ToolSession<TextStudioScreen> {
   late final String _mode;
   late TextSettings _s;
   late final TextEditingController _textCtl;
@@ -140,6 +141,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         if (!mounted || playback.generator != _pushed) return;
         _pushed = _makeGenerator();
         playback.playGenerator(_pushed!);
+        toolOwns(_pushed!);
       });
     }
   }
@@ -172,6 +174,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     final playback = AppScope.of(context).playback;
     _pushed = _makeGenerator();
     playback.playGenerator(_pushed!);
+    toolPlays(_pushed!);
     await GlyphActions.ensureStreaming(context);
     if (!mounted) return;
     if (!AppScope.of(context).devices.isConnected) {
@@ -248,11 +251,12 @@ class _TextStudioScreenState extends State<TextStudioScreen>
       } else {
         final clip = _bake(caps.width, caps.height);
         if (!mounted) return;
-        msg = await GlyphActions.saveClipToDevice(context, clip, _title);
+        msg = await sendClipFromTool(clip, _title);
       }
     } catch (e) {
       msg = 'Couldn\'t send it: $e';
     }
+    noteSent(msg);
     if (!mounted) return;
     setState(() {
       _busy = false;

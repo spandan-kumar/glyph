@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
+import 'package:glyph/features/device/boot_intro.dart';
 import 'package:glyph/features/device/widgets/device_settings.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/matrix/matrix_screen.dart';
@@ -28,7 +29,12 @@ void main() {
     'devices.selected': '192.168.29.6',
   };
 
-  setUp(() => wled = FakeWled());
+  setUp(() {
+    wled = FakeWled();
+    // The intro install has its own tests (boot_intro_test.dart).
+    BootIntro.autoInstall = false;
+  });
+  tearDown(BootIntro.resetForTest);
 
   const quiet = SetupServices(discover: _none, scan: _none);
 

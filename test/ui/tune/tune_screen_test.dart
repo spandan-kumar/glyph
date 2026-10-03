@@ -10,6 +10,7 @@ import 'package:glyph/library/catalog.dart';
 import 'package:glyph/library/user_library.dart';
 import 'package:glyph/main.dart';
 import 'package:glyph/ui/design/knob.dart';
+import 'package:glyph/ui/design/tokens.dart';
 import 'package:glyph/ui/design/stage.dart';
 import 'package:glyph/ui/tune/channels.dart';
 import 'package:glyph/ui/tune/mini_stage.dart';
@@ -357,4 +358,39 @@ void main() {
         'Couldn’t send this one — your device still shows it live. timed out');
     expect(friendlySendError('Not enough space on the controller.'), contains('Your device is full'));
   });
+
+  for (final size in const [Size(360, 740), Size(412, 915)]) {
+    testWidgets('every SEE ALL sits on the same right gutter and centre line at $size', (tester) async {
+      final playback = await pumpApp(tester, size: size);
+      final width = tester.getSize(find.byType(TuneScreen)).width;
+      final rights = <double>{};
+      final centres = <double>{};
+      final sizes = <Size>{};
+      final seen = <String>{};
+      for (var pass = 0; pass < 8; pass++) {
+        for (final header in tester.widgetList<RailHeader>(find.byType(RailHeader))) {
+          final headerFinder = find.byWidget(header);
+          final seeAll = find.descendant(of: headerFinder, matching: find.text('SEE ALL'));
+          if (seeAll.evaluate().isEmpty) continue;
+          seen.add(header.channel.id);
+          final row = find.descendant(of: headerFinder, matching: find.byType(Row)).first;
+          rights.add(tester.getTopRight(seeAll).dx);
+          centres.add(tester.getCenter(seeAll).dy - tester.getCenter(row).dy);
+          sizes.add(tester.getSize(seeAll));
+          // Centred on the row band, which is the same height on every rail.
+          expect(tester.getSize(row).height, RailHeader.rowHeight);
+        }
+        await scrollPage(tester, -300);
+        await step(tester, 200);
+      }
+      expect(seen.length, greaterThan(2), reason: 'several rails checked');
+      expect(rights, hasLength(1), reason: 'right edges: $rights');
+      expect(rights.single, moreOrLessEquals(width - Lb.gutter));
+      expect(centres, hasLength(1), reason: 'centre offsets: $centres');
+      expect(centres.single.abs(), lessThan(0.5));
+      expect(sizes, hasLength(1));
+      expect(tester.takeException(), isNull);
+      playback.pause();
+    });
+  }
 }

@@ -12,6 +12,7 @@ import '../../ui/design/parts.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
 import '../../ui/make/studio_kit.dart';
+import '../../ui/make/tool_session.dart';
 import '../../ui/widgets/led_matrix_view.dart';
 import 'core/game.dart';
 import 'core/game_generator.dart';
@@ -28,7 +29,7 @@ class GamePage extends StatefulWidget {
   State<GamePage> createState() => _GamePageState();
 }
 
-class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
+class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSession<GamePage> {
   PlaybackController? _playback;
   late GameGenerator _gen;
   int _best = 0;
@@ -63,6 +64,8 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
       pb.playGenerator(_gen);
       _gen.newGame(pb.frame.width, pb.frame.height);
     }
+    // Leaving ends the game and stops it on the device (see ToolSession).
+    toolPlays(_gen);
     _gen
       ..liveFrame = (() => pb.frame)
       ..onEvent = _onEvent;

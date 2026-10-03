@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,9 +13,12 @@ import 'package:glyph/features/text/text_studio_screen.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
+import 'package:glyph/wled/device.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../ui/make/ambient_host.dart';
+import '../../ui/make/tool_host.dart';
+import '../device/fake_wled.dart';
 
 /// The studio is a long scroll; bring a control into view before tapping it.
 Future<void> tapVisible(WidgetTester tester, Finder f) async {
@@ -40,7 +44,8 @@ void main() {
     catalog = Catalog.parse(File('assets/catalog/starter.json').readAsStringSync());
   });
 
-  Future<(PlaybackController, CreationsStore)> pump(WidgetTester tester, Widget screen) async {
+  Future<(PlaybackController, CreationsStore)> pump(WidgetTester tester, Widget screen,
+      {DeviceStore? devices}) async {
     const size = Size(360, 740);
     tester.view.physicalSize = size * 2.625;
     tester.view.devicePixelRatio = 2.625;
@@ -51,7 +56,7 @@ void main() {
     final creations = CreationsStore(directory: () async => dir);
     await tester.pumpWidget(AppScope(
       playback: playback,
-      devices: DeviceStore(),
+      devices: devices ?? DeviceStore(),
       catalog: catalog,
       creations: creations,
       child: AmbientHost(
@@ -178,5 +183,77 @@ void main() {
     expect(find.text('24-hour'), findsOneWidget);
     expect(tester.takeException(), isNull);
     playback.pause();
+  });
+
+  group('leaving Write', () {
+    bool exitedLive(FakeWled fake) =>
+        fake.posts.any((p) => p.$1 == '/json/state' && p.$2['live'] == false);
+
+    testWidgets('stops the words it was playing', (tester) async {
+      final (playback, _) =
+          await pump(tester, ToolHost(tool: () => const TextStudioScreen()));
+      await openTool(tester);
+      await tester.enterText(find.byType(TextField), 'Hello');
+      await tester.pump(const Duration(milliseconds: 200));
+      await tapVisible(tester, find.text('Play on device'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(playback.generator?.id, '_text');
+      expect(playback.isPlaying, isTrue);
+
+      await leaveTool(tester);
+      expect(find.byType(TextStudioScreen), findsNothing);
+      expect(playback.generator, isNull);
+      expect(playback.isPlaying, isFalse);
+      expect(playback.isStreaming, isFalse);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('keeps words that were sent to the device', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'devices.v1': jsonEncode([const SavedDevice(host: '192.168.29.6', name: 'Matrix').toJson()]),
+        'devices.selected': '192.168.29.6',
+      });
+      final fake = FakeWled();
+      final devices = DeviceStore(clientFactory: fake.client);
+      await devices.load();
+      final (playback, _) = await pump(
+          tester, ToolHost(tool: () => const TextStudioScreen()),
+          devices: devices);
+      await openTool(tester);
+      await tester.enterText(find.byType(TextField), 'Hello');
+      await tester.pump(const Duration(milliseconds: 200));
+      await tapVisible(tester, find.text('Play on device'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(playback.generator?.id, '_text');
+
+      await tapVisible(tester, find.text('Send to device'));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.textContaining('Sent to your device'), findsWidgets);
+
+      fake.posts.clear();
+      await leaveTool(tester);
+      expect(find.byType(TextStudioScreen), findsNothing);
+      expect(playback.generator?.id, '_text', reason: 'the sent words stay');
+      expect(exitedLive(fake), isFalse);
+      expect(tester.takeException(), isNull);
+      playback.pause();
+    });
+
+    testWidgets('without playing anything, what played before keeps playing', (tester) async {
+      final (playback, _) =
+          await pump(tester, ToolHost(tool: () => const TextStudioScreen()));
+      final item = catalog.items.first;
+      playback.playItem(item);
+      await openTool(tester);
+      await tester.enterText(find.byType(TextField), 'Not played');
+      await tester.pump(const Duration(milliseconds: 300));
+      await leaveTool(tester);
+      expect(playback.item, same(item));
+      expect(playback.isPlaying, isTrue);
+      expect(tester.takeException(), isNull);
+      playback.pause();
+    });
   });
 }

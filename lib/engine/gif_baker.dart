@@ -190,6 +190,8 @@ LoopFrames renderLoop({
 }
 
 /// Encodes [loop] as an infinitely looping GIF lasting [LoopFrames.seconds].
+/// Like every bake here it is made for the matrix: colours are stored as
+/// WLED's Image effect should play them (encodeGif forLeds).
 BakeResult bakeLoop(LoopFrames loop) {
   final frames = loop.frames;
   if (frames.isEmpty) throw ArgumentError('No frames to bake');
@@ -203,7 +205,7 @@ BakeResult bakeLoop(LoopFrames loop) {
     total += delays[i];
   }
   return BakeResult(
-    encodeGif(frames, delays),
+    encodeGif(frames, delays, forLeds: true),
     frames.length,
     Duration(milliseconds: total * 10),
   );
@@ -285,7 +287,8 @@ List<Frame> renderFrames({
   return frames;
 }
 
-/// Encodes [frames] (all the same size) as an infinitely looping GIF.
+/// Encodes [frames] (all the same size) as an infinitely looping GIF for
+/// the matrix (encodeGif forLeds: white balance and black floor).
 ///
 /// With up to 255 distinct colours across the whole animation (effects that
 /// only draw palette colours) the GIF is pixel-identical to the input; beyond
@@ -306,7 +309,7 @@ BakeResult bakeFrames(List<Frame> frames, {int fps = 20}) {
     total += delays[i];
   }
   return BakeResult(
-    encodeGif(frames, delays),
+    encodeGif(frames, delays, forLeds: true),
     frames.length,
     Duration(milliseconds: total * 10),
   );

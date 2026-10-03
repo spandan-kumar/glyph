@@ -34,10 +34,18 @@ String keptName(DeviceManager m, int id) {
 }
 
 /// Things worth showing as "Saved": animations, GIFs and saved looks. Shows,
-/// raw web commands and the plain "off" entry are left out.
+/// raw web commands, the plain "off" entry and the Glyph intro (a system
+/// item) are left out.
 List<WledPreset> keptItems(DeviceManager m) => [
   for (final p in m.presets)
-    if (p.kind == PresetKind.state && !p.turnsOff) p,
+    if (p.kind == PresetKind.state && !p.turnsOff && !m.isSystem(p)) p,
+];
+
+/// Everything the user can pick to play (routines, power-on): all presets
+/// but the system ones.
+List<WledPreset> pickable(DeviceManager m) => [
+  for (final p in m.presets)
+    if (!m.isSystem(p)) p,
 ];
 
 /// A quiet centred note for empty sections.

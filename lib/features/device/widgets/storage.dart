@@ -73,7 +73,7 @@ class StorageSection extends StatelessWidget {
 /// Animation files that nothing saved on the device plays anymore.
 List<MapEntry<String, int>> _unusedGifs(DeviceManager m) => [
   for (final e in m.files.entries)
-    if (e.key.toLowerCase().endsWith('.gif') && m.presetsUsingFile(e.key).isEmpty) e,
+    if (e.key.toLowerCase().endsWith('.gif') && m.presetsUsingFile(e.key).isEmpty && !m.isSystemFile(e.key)) e,
 ];
 
 int _unusedGifBytes(DeviceManager m) => _unusedGifs(m).fold<int>(0, (s, e) => s + e.value);
@@ -111,7 +111,12 @@ class StoragePage extends StatelessWidget {
       listenable: Listenable.merge([manager, store]),
       builder: (context, _) {
         final info = store.info;
-        final entries = manager.files.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+        // The Glyph intro is part of the device's start-up: counted in the
+        // bar, not listed (and never offered for deletion).
+        final entries = [
+          for (final e in manager.files.entries)
+            if (!manager.isSystemFile(e.key)) e,
+        ]..sort((a, b) => b.value.compareTo(a.value));
         final gifs = [for (final e in entries) if (e.key.toLowerCase().endsWith('.gif')) e];
         final others = [for (final e in entries) if (!e.key.toLowerCase().endsWith('.gif')) e];
         final used = info?.fsUsedKb, total = info?.fsTotalKb;

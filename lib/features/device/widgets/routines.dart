@@ -75,7 +75,7 @@ class RoutinesSection extends StatelessWidget {
             : null,
       );
     }
-    final canAdd = s.isEditable && s.timers.length < WledSchedule.maxTimers && manager.presets.isNotEmpty;
+    final canAdd = s.isEditable && s.timers.length < WledSchedule.maxTimers && pickable(manager).isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -104,8 +104,7 @@ class RoutinesSection extends StatelessWidget {
           children: [
             Row1(
               leading: const Icon(Icons.power_outlined, color: Lb.text2, size: 20),
-              title: 'When it powers on → '
-                  '${s.bootPreset == 0 ? 'its usual light' : keptName(manager, s.bootPreset)}',
+              title: 'When it powers on → ${_powerOn(manager)}',
               trailing: const Icon(Icons.chevron_right_rounded, color: Lb.text3),
               onTap: () => _pickBoot(context, s),
             ),
@@ -151,6 +150,13 @@ class RoutinesSection extends StatelessWidget {
     );
   }
 
+  /// "Glyph intro, then Sunrise", "its usual light", "Sunrise".
+  static String _powerOn(DeviceManager m) {
+    final look = m.powerOnLook;
+    if (m.bootIntro.installed) return look == 0 ? 'Glyph intro' : 'Glyph intro, then ${keptName(m, look)}';
+    return look == 0 ? 'its usual light' : keptName(m, look);
+  }
+
   static IconData _icon(TimerTrigger t) => switch (t) {
     TimerTrigger.sunrise => Icons.wb_sunny_outlined,
     TimerTrigger.sunset => Icons.wb_twilight_rounded,
@@ -159,7 +165,7 @@ class RoutinesSection extends StatelessWidget {
   };
 
   Future<void> _pickBoot(BuildContext context, WledSchedule s) async {
-    final id = s.bootPreset;
+    final id = manager.powerOnLook;
     final choice = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -168,6 +174,7 @@ class RoutinesSection extends StatelessWidget {
         title: 'When it powers on',
         selected: id,
         allowNone: true,
+        noneLabel: manager.bootIntro.installed ? 'Just the Glyph logo' : 'Its usual light',
       ),
     );
     if (choice == null || choice == id || !context.mounted) return;
@@ -176,7 +183,7 @@ class RoutinesSection extends StatelessWidget {
 
   Future<void> _edit(BuildContext context, WledSchedule s, int? index) async {
     final kept = keptItems(manager);
-    final first = kept.isNotEmpty ? kept.first.id : manager.presets.first.id;
+    final first = kept.isNotEmpty ? kept.first.id : pickable(manager).first.id;
     final result = await showModalBottomSheet<RoutineEdit>(
       context: context,
       isScrollControlled: true,
@@ -211,12 +218,14 @@ class _TargetPicker extends StatelessWidget {
     required this.title,
     required this.selected,
     this.allowNone = false,
+    this.noneLabel = 'Its usual light',
   });
 
   final DeviceManager manager;
   final String title;
   final int selected;
   final bool allowNone;
+  final String noneLabel;
 
   @override
   Widget build(BuildContext context) => DraggableScrollableSheet(
@@ -231,11 +240,11 @@ class _TargetPicker extends StatelessWidget {
           children: [
             if (allowNone)
               Row1(
-                title: 'Its usual light',
+                title: noneLabel,
                 trailing: selected == 0 ? const Icon(Icons.check_rounded) : null,
                 onTap: () => Navigator.pop(ctx, 0),
               ),
-            for (final p in manager.presets)
+            for (final p in pickable(manager))
               Row1(
                 key: ValueKey(p.id),
                 leading: SizedBox.square(

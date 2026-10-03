@@ -1,12 +1,18 @@
 import 'dart:typed_data';
 
 import '../engine/frame.dart';
+import '../engine/led_gamma.dart';
 import 'ddp.dart';
+import 'device.dart';
 import 'layout.dart';
 
 /// One matrix in a streaming group. [width]/[height] null means "same as the
 /// rendered frame" (the primary device); otherwise frames are scaled to that
 /// size with nearest-neighbour sampling before [layout] applies.
+///
+/// [color] is how that WLED gamma-corrects colours; frames are corrected to
+/// match (see [LedColorConfig.streamCorrection]). Null looks the host up in
+/// [knownLedColor] when the group opens, else assumes WLED's defaults.
 class DdpTarget {
   const DdpTarget(
     this.host, {
@@ -14,20 +20,27 @@ class DdpTarget {
     this.width,
     this.height,
     this.port = ddpPort,
+    this.color,
   });
 
   final String host;
   final MatrixLayout layout;
   final int? width, height;
   final int port;
+  final LedColorConfig? color;
 
-  DdpTarget copyWith({MatrixLayout? layout, int? width, int? height}) => DdpTarget(
+  DdpTarget copyWith({MatrixLayout? layout, int? width, int? height, LedColorConfig? color}) => DdpTarget(
     host,
     layout: layout ?? this.layout,
     width: width ?? this.width,
     height: height ?? this.height,
     port: port,
+    color: color ?? this.color,
   );
+
+  /// [color], else the last config read from [host], else WLED's defaults.
+  LedColorConfig get resolvedColor =>
+      color ?? knownLedColor[host.toLowerCase()] ?? LedColorConfig.unknown;
 
   @override
   bool operator ==(Object other) =>
@@ -36,10 +49,11 @@ class DdpTarget {
       other.layout == layout &&
       other.width == width &&
       other.height == height &&
-      other.port == port;
+      other.port == port &&
+      other.color == color;
 
   @override
-  int get hashCode => Object.hash(host, layout, width, height, port);
+  int get hashCode => Object.hash(host, layout, width, height, port, color);
 
   @override
   String toString() => 'DdpTarget($host${width != null ? ' ${width}x$height' : ''})';
@@ -55,6 +69,7 @@ class DdpGroupSender {
   final List<DdpTarget> targets;
   final _senders = <DdpTarget, DdpSender>{};
   final _scalers = <DdpTarget, _Scaler>{};
+  final _corrections = <DdpTarget, LedCorrection>{};
   final failedHosts = <String>[];
 
   bool get isOpen => _senders.isNotEmpty;
@@ -75,6 +90,7 @@ class DdpGroupSender {
       try {
         await s.open();
         _senders[t] = s;
+        _corrections[t] = t.resolvedColor.streamCorrection();
       } catch (_) {
         if (i == 0) {
           close();
@@ -89,15 +105,21 @@ class DdpGroupSender {
     for (final MapEntry(key: t, value: s) in _senders.entries) {
       final w = t.width ?? f.width, h = t.height ?? f.height;
       final out = w == f.width && h == f.height ? f : (_scalers[t] ??= _Scaler()).scale(f, w, h);
-      s.send(t.layout.apply(out));
+      final bytes = t.layout.apply(out);
+      final c = _corrections[t];
+      s.send(c == null ? bytes : c.apply(bytes));
     }
   }
+
+  /// Correction in use for [target] while open (for tests and diagnostics).
+  LedCorrection? correctionFor(DdpTarget target) => _corrections[target];
 
   void close() {
     for (final s in _senders.values) {
       s.close();
     }
     _senders.clear();
+    _corrections.clear();
   }
 
   static List<DdpTarget> _dedupe(List<DdpTarget> targets) {

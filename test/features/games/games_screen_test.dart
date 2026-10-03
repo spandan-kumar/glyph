@@ -11,11 +11,13 @@ import 'package:glyph/features/games/core/game_generator.dart';
 import 'package:glyph/features/games/game_page.dart';
 import 'package:glyph/features/games/games_screen.dart';
 import 'package:glyph/library/catalog.dart';
+import 'package:glyph/ui/make/tool_session.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../ui/make/ambient_host.dart';
+import '../../ui/make/tool_host.dart';
 
 void main() {
   late Catalog catalog;
@@ -93,6 +95,42 @@ void main() {
     }
     expect(find.byType(GamePage), findsNothing);
     expect(gen.view!.game.paused, isTrue, reason: 'leaving pauses the game');
+    expect(playback.generator, isNull, reason: 'and ends it');
+    expect(playback.isPlaying, isFalse);
+    expect(playback.isStreaming, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a game that was sent to the device keeps playing after leaving', (tester) async {
+    final playback = await pump(tester, const GamesScreen());
+    await tester.tap(find.text('Snake'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 400));
+    final gen = playback.generator as GameGenerator;
+    // Sending happens elsewhere for games; the page only hears the result.
+    final page = tester.state(find.byType(GamePage)) as ToolSession;
+    page.noteSent('Sent to your device (2.0 KB). It keeps playing without your phone.');
+
+    await tester.pageBack();
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(find.byType(GamePage), findsNothing);
+    expect(playback.generator, same(gen));
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('browsing games without playing leaves what was playing', (tester) async {
+    final playback = await pump(tester, ToolHost(tool: () => const GamesScreen()));
+    final item = catalog.items.first;
+    playback.playItem(item);
+    await openTool(tester);
+    expect(find.byType(GamesScreen), findsOneWidget);
+    await leaveTool(tester);
+    expect(find.byType(GamesScreen), findsNothing);
+    expect(playback.item, same(item));
+    expect(playback.isPlaying, isTrue);
     expect(tester.takeException(), isNull);
     playback.pause();
   });

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'frame.dart';
+import 'led_gamma.dart';
 
 // A small GIF89a encoder tuned for LED animations, where flash on the ESP is
 // tight. Compared with a generic encoder it writes one global colour table
@@ -16,8 +17,19 @@ import 'frame.dart';
 /// Frames identical to the previous one are folded into its delay, so the
 /// file can hold fewer frames than [frames]. [delta] = false writes every
 /// frame in full, for players that don't keep the previous frame.
-Uint8List encodeGif(List<Frame> frames, List<int> delays, {bool delta = true}) {
+///
+/// [forLeds] stores the frames as WLED should play them (see [ledFramesForDevice]):
+/// WLED's Image effect output goes through WLED's own colour gamma
+/// (FX_fcn.cpp WS2812FX::show applies gamma32 to every pixel unless a
+/// realtime stream asked it not to), so no gamma is applied here, only the
+/// WS2812 white balance (green x0.8 in LED space) and the black floor: a
+/// pixel whose brightest channel would reach the LEDs below [ledOffLevel]
+/// becomes black instead of a dim glow. Set it for every GIF sent to a
+/// matrix; leave it off for GIFs meant for screens (sharing).
+Uint8List encodeGif(List<Frame> frames, List<int> delays,
+    {bool delta = true, bool forLeds = false}) {
   if (frames.isEmpty) throw ArgumentError('No frames to encode');
+  if (forLeds) frames = ledFramesForDevice(frames);
   if (delays.length != frames.length) {
     throw ArgumentError('Expected ${frames.length} delays, got ${delays.length}');
   }

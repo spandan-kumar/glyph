@@ -10,6 +10,7 @@ import '../../ui/design/parts.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
 import '../../ui/make/studio_kit.dart';
+import '../../ui/make/tool_session.dart';
 import '../../ui/scope.dart';
 import 'color_picker.dart';
 import 'editor_canvas.dart';
@@ -33,7 +34,7 @@ class EditorScreen extends StatefulWidget {
   State<EditorScreen> createState() => EditorScreenState();
 }
 
-class EditorScreenState extends State<EditorScreen> {
+class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScreen> {
   EditorModel? _model;
   String? _id, _title;
   bool _led = true;
@@ -89,18 +90,18 @@ class EditorScreenState extends State<EditorScreen> {
   void dispose() {
     if (_listening) _scope.devices.removeListener(_onDevices);
     _player?.cancel();
-    _handOffPlayback();
+    _keepSentDrawing();
     _preview.dispose();
     _model?.dispose();
     super.dispose();
   }
 
-  /// The live generator reads this screen's state, so once we're gone the
-  /// player gets a plain clip of the drawing instead (it keeps showing on the
-  /// matrix if the mirror was on).
-  void _handOffPlayback() {
+  /// Leaving stops an unsent drawing (see [ToolSession]). A sent one stays
+  /// on the phone as what the matrix now plays, but the live generator reads
+  /// this screen's state, so it becomes a plain clip of the drawing.
+  void _keepSentDrawing() {
     final pb = _scope.playback, live = _live, m = _model;
-    if (live == null || m == null || pb.generator != live) return;
+    if (!sentFromTool || live == null || m == null || pb.generator != live) return;
     final clip = m.toClip(), title = _title ?? 'Drawing', wasPlaying = pb.isPlaying;
     // Deferred: notifying listeners while the tree is being torn down throws.
     scheduleMicrotask(() {
@@ -179,6 +180,7 @@ class EditorScreenState extends State<EditorScreen> {
       title: _title ?? 'Drawing',
     );
     _scope.playback.playGenerator(live);
+    toolPlays(live);
     setState(() => _mirror = true);
     await GlyphActions.ensureStreaming(context);
   }
@@ -201,25 +203,10 @@ class EditorScreenState extends State<EditorScreen> {
   // Saving --------------------------------------------------------------------
 
   Future<String?> _askTitle({String? initial}) async {
-    final c = TextEditingController(text: initial ?? '');
     final t = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(initial == null ? 'Name your drawing' : 'Rename', style: LbType.title),
-        content: TextField(
-          controller: c,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(hintText: 'My drawing'),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('Save')),
-        ],
-      ),
+      builder: (_) => _TitleDialog(initial: initial),
     );
-    c.dispose();
     if (t == null) return null;
     final trimmed = t.trim();
     return trimmed.isEmpty ? 'My drawing' : trimmed;
@@ -262,7 +249,7 @@ class EditorScreenState extends State<EditorScreen> {
       _saving = true;
     });
     final wasMirroring = _mirroring;
-    await GlyphActions.saveClipToDevice(context, _model!.toClip(), title);
+    await sendClipFromTool(_model!.toClip(), title);
     if (!mounted) return;
     // Uploading ends the stream and the matrix now plays the kept drawing.
     if (wasMirroring && !_scope.playback.isStreaming) {
@@ -617,4 +604,41 @@ class _Quiet extends StatelessWidget {
               maxLines: 1, overflow: TextOverflow.ellipsis, style: LbType.label),
         ),
       ]);
+}
+
+/// Names a drawing. Owns its text field's controller, so the controller
+/// outlives the dialog's closing animation.
+class _TitleDialog extends StatefulWidget {
+  const _TitleDialog({this.initial});
+
+  final String? initial;
+
+  @override
+  State<_TitleDialog> createState() => _TitleDialogState();
+}
+
+class _TitleDialogState extends State<_TitleDialog> {
+  late final _c = TextEditingController(text: widget.initial ?? '');
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text(widget.initial == null ? 'Name your drawing' : 'Rename', style: LbType.title),
+        content: TextField(
+          controller: _c,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(hintText: 'My drawing'),
+          onSubmitted: (v) => Navigator.pop(context, v),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, _c.text), child: const Text('Save')),
+        ],
+      );
 }
