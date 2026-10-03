@@ -69,28 +69,67 @@ void main() {
     expect(body, contains('filename="/glyph_test.gif"'));
   });
 
-  test('saveGifToDevice: release, upload, play, save preset', () async {
+  test('saveGifToDevice: release, upload, then switch (leave live, play, save)', () async {
     final caps = DeviceCapabilities.detect(
         WledInfo.fromJson(jsonDecode(infoEsp32V16)), effectsEsp32V16);
+    var switched = false;
     final id = await client().saveGifToDevice(
         fileName: 'glyph_test.gif',
         gif: Uint8List(2048),
         presetName: 'Glyph test',
-        caps: caps);
+        caps: caps,
+        beforeSwitch: () async => switched = true);
     expect(id, 2);
+    expect(switched, isTrue);
     final posts = [
       for (final r in requests)
         if (r.url.path == '/json/state' && r.method == 'POST') jsonDecode(r.body)
     ];
-    expect(posts[0], {'live': false});
-    expect(posts[1], {
+    expect(posts[0], {
       'tt': 0,
       'seg': {'id': 0, 'fx': 0}
     });
+    expect(posts[1], {'live': false});
     expect(posts[2]['seg'], containsPair('n', 'glyph_test.gif'));
     expect(posts[2]['seg'], containsPair('fx', 53));
     expect(posts[3], {'psave': 2, 'n': 'Glyph test', 'ib': true, 'sb': true});
     expect(requests.where((r) => r.url.path == '/upload'), hasLength(1));
+    // The matrix only leaves live mode after the file is safely uploaded.
+    final upload = requests.indexWhere((r) => r.url.path == '/upload');
+    final leave = requests.indexWhere((r) => r.method == 'POST' && r.body == '{"live":false}');
+    expect(upload, lessThan(leave));
+  });
+
+  test('saveGifToDevice: a failed upload retries and leaves the matrix untouched', () async {
+    final caps = DeviceCapabilities.detect(
+        WledInfo.fromJson(jsonDecode(infoEsp32V16)), effectsEsp32V16);
+    final retries = <int>[];
+    var switched = false;
+    final flaky = WledClient('192.168.29.6', client: MockClient((r) async {
+      requests.add(r);
+      return switch (r.url.path) {
+        '/json/state' when r.method == 'GET' => http.Response(jsonEncode(stateJson), 200),
+        '/json/state' => http.Response('{"success":true}', 200),
+        '/upload' => http.Response('busy', 500),
+        '/edit' => http.Response('[]', 200),
+        _ => http.Response('{}', 200),
+      };
+    }));
+    await expectLater(
+      flaky.saveGifToDevice(
+          fileName: 'glyph_test.gif',
+          gif: Uint8List(2048),
+          presetName: 'Glyph test',
+          caps: caps,
+          beforeSwitch: () async => switched = true,
+          onRetry: retries.add),
+      throwsA(isA<WledException>()),
+    );
+    expect(requests.where((r) => r.url.path == '/upload'), hasLength(3));
+    expect(retries, [2, 3]);
+    expect(switched, isFalse);
+    expect(requests.any((r) => r.method == 'POST' && r.body.contains('"live"')), isFalse);
+    expect(requests.any((r) => r.method == 'POST' && r.body.contains('psave')), isFalse);
   });
 
   test('saveGifToDevice refuses devices without GIF support or space', () async {

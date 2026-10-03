@@ -139,9 +139,18 @@ class PlaybackController extends ChangeNotifier {
     _t += dt;
     _instance?.render(_frame, _t, dt, _params, _palette);
     final g = _group;
-    if (g != null && g.isOpen) g.send(_frame);
+    if (g != null && g.isOpen && _ticks++ % _sendEvery == 0) g.send(_frame);
     frameTick.value++;
   }
+
+  int _ticks = 0;
+  int _sendEvery = 1;
+
+  /// While true, frames go to the matrix at ~2.5 fps instead of 40: enough
+  /// to stay in live mode (WLED's realtime timeout is 2.5 s) and keep showing
+  /// the current look, while leaving the Wi-Fi to a file upload.
+  bool get streamThrottled => _sendEvery > 1;
+  set streamThrottled(bool on) => _sendEvery = on ? 16 : 1;
 
   /// Streams to [host] plus the current [mirrors].
   Future<void> startStreaming(String host, MatrixLayout layout) =>
@@ -175,6 +184,7 @@ class PlaybackController extends ChangeNotifier {
   Future<void> stopStreaming({bool notify = true}) async {
     _group?.close();
     _group = null;
+    _sendEvery = 1;
     if (notify) notifyListeners();
   }
 

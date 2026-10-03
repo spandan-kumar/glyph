@@ -11,6 +11,7 @@ import '../engine/gif_encoder.dart';
 import '../engine/palette.dart';
 import '../engine/registry.dart';
 import '../library/catalog.dart';
+import '../wled/wled_client.dart';
 import 'scope.dart';
 
 /// User-level operations that touch both playback and the device.
@@ -64,6 +65,9 @@ abstract final class GlyphActions {
     if (caps == null || g == null) return null;
     final title = s.playback.item?.title ?? g.name;
     final w = caps.width, h = caps.height;
+    // On weak Wi-Fi a shorter, lighter loop uploads far more reliably.
+    final weak = (s.devices.info?.signal ?? 100) < 40;
+    final seconds = weak ? 3.0 : 4.0, fps = weak ? 15 : 20;
 
     if (g is ClipGenerator) {
       return saveClipToDevice(context, g.clip, title);
@@ -78,6 +82,8 @@ abstract final class GlyphActions {
         w,
         h,
         s.playback.timeScale,
+        seconds,
+        fps,
       ));
     } else {
       final frames = renderFrames(
@@ -87,8 +93,10 @@ abstract final class GlyphActions {
         width: w,
         height: h,
         timeScale: s.playback.timeScale,
+        seconds: seconds,
+        fps: fps,
       );
-      bytes = compute(_encodeFrames, (frames, 20));
+      bytes = compute(_encodeFrames, (frames, fps));
     }
     return _upload(context, title, bytes);
   }
@@ -118,12 +126,23 @@ abstract final class GlyphActions {
         return context.mounted ? _report(context, 'Not enough space on the controller.') : null;
       }
       if (!context.mounted) return null;
-      await stopStreaming(context);
+      // Keep the current look on the matrix while the file uploads (a slow
+      // trickle of frames holds live mode); switch only once it's saved.
+      s.playback.streamThrottled = true;
       final presetId = await client.saveGifToDevice(
         fileName: '${_slug(title)}.gif',
         gif: bytes,
         presetName: title,
         caps: caps,
+        beforeSwitch: () async {
+          s.playback.streamThrottled = false;
+          await s.playback.stopStreaming();
+          await BackgroundStreaming.stop();
+          await d.exitLiveMirrors();
+        },
+        onRetry: (a) {
+          if (context.mounted) _toast(context, 'Weak Wi-Fi — trying again ($a of 3)…');
+        },
       );
       await d.refresh();
       d.noteKept(presetId, title);
@@ -132,7 +151,10 @@ abstract final class GlyphActions {
           ? _report(context, 'Kept on your matrix ($kb KB). Unplug your phone — it keeps playing.')
           : null;
     } catch (e) {
-      return context.mounted ? _report(context, 'Couldn\'t keep it on your matrix: $e') : null;
+      // Nothing changed on the matrix: carry on streaming at full rate.
+      s.playback.streamThrottled = false;
+      final why = e is WledException ? e.message : '$e';
+      return context.mounted ? _report(context, 'Couldn\'t keep it: $why') : null;
     }
   }
 
@@ -157,8 +179,8 @@ abstract final class GlyphActions {
   }
 }
 
-Uint8List _bake((String, Map<String, double>, String, int, int, double) a) {
-  final (genId, params, paletteId, w, h, speed) = a;
+Uint8List _bake((String, Map<String, double>, String, int, int, double, double, int) a) {
+  final (genId, params, paletteId, w, h, speed, seconds, fps) = a;
   return bakeGif(
     generator: generatorById(genId),
     params: Params(params),
@@ -166,6 +188,8 @@ Uint8List _bake((String, Map<String, double>, String, int, int, double) a) {
     width: w,
     height: h,
     timeScale: speed,
+    seconds: seconds,
+    fps: fps,
   ).bytes;
 }
 

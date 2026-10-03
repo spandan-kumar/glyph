@@ -234,7 +234,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
       _toast('Kept on your matrix. Unplug your phone — it keeps playing.');
     } else {
       _charge.value = 0;
-      _toast(_friendly(msg));
+      _toast(_friendly(msg), action: SnackBarAction(label: 'Try again', onPressed: _keepIt));
     }
     await _flash.forward(from: 0);
     if (!mounted) return;
@@ -246,7 +246,8 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     if (msg == null) return 'Couldn’t keep this one. Try again?';
     if (msg.contains('space')) return 'Your matrix is full. Make room in Matrix → Kept.';
     if (msg.contains('GIF')) return 'This matrix can only show looks live from your phone.';
-    return 'Couldn’t keep this one. ${msg.replaceFirst('Save failed: ', '')}';
+    final why = msg.replaceFirst(RegExp(r"^Couldn['’]t keep it: "), '');
+    return 'Couldn’t keep this one — your matrix still shows it live. $why';
   }
 
   Offset _local(Offset global) {

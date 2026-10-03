@@ -26,7 +26,7 @@ class WledClient {
         _base = Uri.parse('http://${_authority(host)}');
 
   static const timeout = Duration(seconds: 4);
-  static const uploadTimeout = Duration(seconds: 20);
+  static const uploadTimeout = Duration(seconds: 40);
 
   /// Longest GIF file name (without the leading slash) accepted by
   /// [gifSegmentName]: ESP8266 builds cap segment names at 32 chars
@@ -227,6 +227,8 @@ class WledClient {
     required String presetName,
     required DeviceCapabilities caps,
     int? presetId,
+    Future<void> Function()? beforeSwitch,
+    void Function(int attempt)? onRetry,
   }) async {
     final fx = caps.imageEffectId;
     if (!caps.canPlayGifs || fx == null) {
@@ -247,11 +249,55 @@ class WledClient {
           'GIF is ${(gif.length / 1024).ceil()} KB but the device has only '
           '${freeKb < 0 ? 0 : freeKb} KB free');
     }
-    await exitLive();
+    // Upload first, without touching what the matrix shows, so a failed
+    // upload leaves it exactly as it was. Only once the file is verified do
+    // we switch over (leave live mode, play the GIF, save the preset).
     await _releaseFile(name);
-    await uploadFile('/$name', gif);
+    await uploadFileReliably('/$name', gif, onRetry: onRetry);
+    await beforeSwitch?.call();
+    await exitLive();
     await playGif(name, imageEffectId: fx);
     return saveCurrentAsPreset(presetName, id: presetId);
+  }
+
+  /// Uploads [bytes] to [path] and checks the stored size, retrying up to
+  /// [attempts] times. Weak Wi-Fi often drops an ESP32 off the network for
+  /// tens of seconds mid-upload, so between attempts we wait (up to ~30 s)
+  /// for it to answer again.
+  Future<void> uploadFileReliably(String path, Uint8List bytes,
+      {int attempts = 3, void Function(int attempt)? onRetry}) async {
+    final p = _slash(path);
+    WledException? last;
+    for (var a = 1; a <= attempts; a++) {
+      if (a > 1) {
+        onRetry?.call(a);
+        await _waitUntilReachable(const Duration(seconds: 30));
+      }
+      try {
+        await uploadFile(p, bytes);
+        final stored = (await files())[p];
+        // Older firmware lists without sizes; trust the 200 then.
+        if (stored == null || stored == bytes.length || stored == 0) return;
+        last = WledException('Saved file is ${stored}B, expected ${bytes.length}B');
+      } on WledException catch (e) {
+        last = e;
+      }
+    }
+    throw WledException(
+        'Your matrix kept dropping off Wi-Fi while saving. Move it closer to the router and try again.',
+        last);
+  }
+
+  Future<void> _waitUntilReachable(Duration limit) async {
+    final until = DateTime.now().add(limit);
+    while (DateTime.now().isBefore(until)) {
+      try {
+        await _send(() => _http.get(_uri('/json/info')), const Duration(seconds: 3));
+        return;
+      } on WledException {
+        await Future<void>.delayed(const Duration(seconds: 2));
+      }
+    }
   }
 
   /// If segment 0 is showing [name], switch its effect to Solid so the GIF
