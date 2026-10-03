@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../ui/theme.dart';
+import '../../ui/design/parts.dart';
+import '../../ui/design/tokens.dart';
+import '../../ui/design/type.dart';
 import '../../ui/widgets/led_matrix_view.dart';
 import 'editor_model.dart';
 import 'templates.dart';
@@ -70,10 +72,10 @@ class _EditorStartViewState extends State<EditorStartView> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       children: [
-        const Text('New drawing', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 4),
-        const Text('Pick a size, then start blank or from an example.',
-            style: TextStyle(color: GlyphColors.textMuted)),
+        Text('New drawing', style: LbType.title),
+        const SizedBox(height: 6),
+        Text('Pick a size, then start blank or from an example.',
+            style: LbType.body.copyWith(color: Lb.text2)),
         const SizedBox(height: 20),
         const _Label('SIZE'),
         Wrap(spacing: 8, runSpacing: 8, children: [
@@ -110,13 +112,13 @@ class _EditorStartViewState extends State<EditorStartView> {
             _Tile(
               label: 'Blank',
               onTap: () => widget.onStart(EditorModel(width: w, height: h)),
-              child: const Icon(Icons.add, size: 32, color: GlyphColors.primary),
+              child: const Icon(Icons.add, size: 32, color: Lb.text2),
             ),
             for (final t in editorTemplates)
               _Tile(
                 label: t.name,
                 onTap: () => widget.onStart(EditorModel.fromClip(t.build(w, h), fps: t.fps)),
-                child: LedMatrixView(frame: t.build(w, h).frames.first, borderRadius: 8),
+                child: LedMatrixView(frame: t.build(w, h).frames.first, borderRadius: Lb.rTile),
               ),
           ],
         ),
@@ -131,15 +133,8 @@ class _Label extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(text,
-            style: const TextStyle(
-                fontSize: 12,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w600,
-                color: GlyphColors.textMuted)),
-      );
+  Widget build(BuildContext context) =>
+      Padding(padding: const EdgeInsets.only(bottom: 10), child: MonoLabel(text));
 }
 
 class _Tile extends StatelessWidget {
@@ -151,21 +146,20 @@ class _Tile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: GlyphColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: Lb.panel,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Lb.rPanel)),
+          side: Lb.hairline,
+        ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
           onTap: onTap,
-          child: Container(
+          child: Padding(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: GlyphColors.outline),
-            ),
             child: Column(children: [
               Expanded(child: Center(child: child)),
               const SizedBox(height: 8),
-              Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(label, style: LbType.bodyStrong),
             ]),
           ),
         ),

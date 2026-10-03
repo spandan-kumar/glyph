@@ -15,6 +15,8 @@ import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../ui/make/ambient_host.dart';
+
 void main() {
   late Catalog catalog;
 
@@ -34,7 +36,10 @@ void main() {
       devices: DeviceStore(),
       catalog: catalog,
       creations: CreationsStore(directory: () async => Directory.systemTemp.createTemp('glyph')),
-      child: MaterialApp(theme: buildTheme(), home: home),
+      child: AmbientHost(
+        playback: playback,
+        child: MaterialApp(theme: buildTheme(), home: home),
+      ),
     ));
     // Previews tick forever, so pump fixed durations instead of settling.
     await tester.pump(const Duration(milliseconds: 300));
@@ -43,6 +48,7 @@ void main() {
 
   testWidgets('grid shows every game; Snake opens and takes input', (tester) async {
     final playback = await pump(tester, const GamesScreen());
+    expect(find.text('Play'), findsOneWidget);
     for (final d in gameDefs.take(4)) {
       expect(find.text(d.name), findsOneWidget);
     }

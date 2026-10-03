@@ -14,6 +14,24 @@ import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../ui/make/ambient_host.dart';
+
+/// The studio is a long scroll; bring a control into view before tapping it.
+Future<void> tapVisible(WidgetTester tester, Finder f) async {
+  if (f.evaluate().isEmpty) {
+    // Not built yet (below) or recycled (above).
+    final list = find.byType(Scrollable).first;
+    try {
+      await tester.scrollUntilVisible(f, 200, scrollable: list, maxScrolls: 12);
+    } on StateError {
+      await tester.scrollUntilVisible(f, -200, scrollable: list, maxScrolls: 24);
+    }
+  }
+  await tester.ensureVisible(f);
+  await tester.pump(const Duration(milliseconds: 100));
+  await tester.tap(f);
+}
+
 void main() {
   late Catalog catalog;
 
@@ -36,7 +54,10 @@ void main() {
       devices: DeviceStore(),
       catalog: catalog,
       creations: creations,
-      child: MaterialApp(theme: buildTheme(), home: screen),
+      child: AmbientHost(
+        playback: playback,
+        child: MaterialApp(theme: buildTheme(), home: screen),
+      ),
     ));
     await tester.pump(const Duration(milliseconds: 200));
     return (playback, creations);
@@ -44,27 +65,30 @@ void main() {
 
   testWidgets('text studio: type, style, play and save', (tester) async {
     final (playback, creations) = await pump(tester, const TextStudioScreen());
-    expect(find.text('Scrolling text'), findsOneWidget);
+    expect(find.text('Write'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Hello matrix');
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(find.text('Bold'));
+    await tapVisible(tester, find.text('Bold'));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.text('Rainbow'));
+    await tapVisible(tester, find.text('Rainbow'));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.text('32×8'));
+    await tapVisible(tester, find.text('32×8'));
     await tester.pump(const Duration(milliseconds: 200));
 
-    await tester.scrollUntilVisible(find.text('Play on matrix'), 200,
-        scrollable: find.byType(Scrollable).first);
-    await tester.tap(find.text('Play on matrix'));
+    await tapVisible(tester, find.text('Play on matrix'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(playback.generator?.id, '_text');
 
     await tester.runAsync(() async {
-      await tester.tap(find.text('Save to My Creations'));
+      await tapVisible(tester, find.text('Save'));
       await tester.pump(const Duration(milliseconds: 100));
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
+    // Real file IO: wait for it rather than guessing how long it takes.
+    for (var i = 0; i < 40 && creations.items.isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
     await tester.pump(const Duration(milliseconds: 100));
     expect(creations.items, hasLength(1));
     final c = creations.items.single;
@@ -73,6 +97,9 @@ void main() {
     expect(c.meta['text'], 'Hello matrix');
     expect(c.clip.width, 32);
     expect(c.clip.height, 8);
+    // No matrix: keeping is offered but can't be done yet.
+    expect(find.text('Keep on matrix'), findsOneWidget);
+    expect(find.text('Save to matrix'), findsNothing);
     expect(tester.takeException(), isNull);
     playback.pause();
   });
@@ -80,12 +107,12 @@ void main() {
   testWidgets('clock and countdown modes build', (tester) async {
     final (playback, _) = await pump(tester, const TextStudioScreen(mode: 'clock'));
     expect(find.text('24-hour'), findsOneWidget);
-    await tester.tap(find.text('Analog face'));
+    await tapVisible(tester, find.text('Analog face'));
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(find.text('Timer'));
+    await tapVisible(tester, find.text('Timer'));
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('Count down to'.toUpperCase()), findsOneWidget);
-    await tester.tap(find.text('1 min'));
+    await tapVisible(tester, find.text('1 min'));
     await tester.pump(const Duration(milliseconds: 500));
     expect(tester.takeException(), isNull);
     playback.pause();
@@ -106,7 +133,7 @@ void main() {
     );
     final (playback, _) = await pump(tester, TextStudioScreen(initial: creation, mode: 'countdown'));
     expect(find.text('Countdown'), findsOneWidget);
-    await tester.tap(find.text('Text'));
+    await tapVisible(tester, find.text('Text'));
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.widgetWithText(TextField, 'Reopened'), findsOneWidget);
     expect(tester.takeException(), isNull);

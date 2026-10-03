@@ -1,11 +1,379 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-import '../screens/devices_screen.dart';
+import '../../app/devices.dart';
+import '../../app/playback.dart';
+import '../../engine/frame.dart';
+import '../../features/device/device_features.dart';
+import '../../features/device/device_manager.dart';
+import '../../features/device/widgets/common.dart';
+import '../../features/device/widgets/controls.dart';
+import '../../features/device/widgets/kept.dart';
+import '../../features/device/widgets/routines.dart';
+import '../../features/device/widgets/shows.dart';
+import '../../features/device/widgets/storage.dart';
+import '../../wled/device.dart';
+import '../actions.dart';
+import '../design/parts.dart';
+import '../design/stage.dart';
+import '../design/tokens.dart';
+import '../design/type.dart';
+import '../onboarding/onboarding_flow.dart';
+import '../onboarding/setup_clips.dart';
+import '../scope.dart';
+import '../widgets/led_matrix_view.dart';
+import 'your_matrices.dart';
 
-// Placeholder: the Matrix agent replaces this with the device hub.
-class MatrixScreen extends StatelessWidget {
-  const MatrixScreen({super.key});
+/// The Matrix hub (UX.md J4): the panel, its controls, and what lives on it —
+/// Kept, Shows, Routines, Storage — plus switching and setting up matrices.
+class MatrixScreen extends StatefulWidget {
+  const MatrixScreen({super.key, @visibleForTesting this.services = const SetupServices()});
+
+  /// Discovery used by "Add a matrix" / "Connect your matrix".
+  final SetupServices services;
 
   @override
-  Widget build(BuildContext context) => const DevicesScreen();
+  State<MatrixScreen> createState() => _MatrixScreenState();
+}
+
+class _MatrixScreenState extends State<MatrixScreen> {
+  DeviceManager? _manager;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final scope = AppScope.of(context);
+    final store = scope.devices;
+    if (_manager?.store != store) {
+      _manager?.dispose();
+      _manager = DeviceManager(store);
+      // Idempotent; main() normally does this already.
+      DeviceFeatures.attach(devices: store, playback: scope.playback);
+      unawaited(store.probeSaved());
+    }
+  }
+
+  @override
+  void dispose() {
+    _manager?.dispose();
+    super.dispose();
+  }
+
+  /// Plays something kept on the matrix (live streaming would override it).
+  Future<void> _play(int id) async {
+    if (AppScope.of(context).playback.isStreaming) await GlyphActions.stopStreaming(context);
+    await _manager!.apply(id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    final devices = scope.devices;
+    final manager = _manager!;
+    return SafeArea(
+      bottom: false,
+      child: ListenableBuilder(
+        listenable: Listenable.merge([devices, manager, scope.playback]),
+        builder: (context, _) {
+          if (devices.selected == null) {
+            return _EmptyState(onConnect: () => MatrixSetupPage.open(context, services: widget.services));
+          }
+          final connected = devices.isConnected;
+          if (connected) manager.syncHost();
+          return RefreshIndicator(
+            onRefresh: () async {
+              await devices.refresh();
+              if (devices.isConnected) await manager.load();
+            },
+            child: ListView(
+              padding: const EdgeInsets.only(top: 12, bottom: 128),
+              children: [
+                _Header(store: devices),
+                if (!connected)
+                  _Unreachable(store: devices)
+                else ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(Lb.gutter, 24, Lb.gutter, 0),
+                    child: _NowShowing(store: devices, manager: manager, playback: scope.playback),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(Lb.gutter, 24, Lb.gutter, 0),
+                    child: HardwareControls(store: devices),
+                  ),
+                  PanelSection(
+                    label: 'Kept',
+                    padding: const EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 0),
+                    trailing: manager.isLoading && manager.isLoaded
+                        ? const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 1.5))
+                        : null,
+                    child: KeptSection(manager: manager, store: devices, onPlay: _play),
+                  ),
+                  PanelSection(
+                    label: 'Shows',
+                    padding: const EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 0),
+                    child: ShowsSection(manager: manager, store: devices, onPlay: _play),
+                  ),
+                  PanelSection(
+                    label: 'Routines',
+                    padding: const EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 0),
+                    child: RoutinesSection(manager: manager),
+                  ),
+                  PanelSection(
+                    label: 'Storage',
+                    padding: const EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 0),
+                    child: StorageSection(manager: manager, store: devices),
+                  ),
+                ],
+                PanelSection(
+                  label: 'Your matrices',
+                  padding: const EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 0),
+                  child: YourMatrices(store: devices, services: widget.services),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Name, status and a mono line of facts.
+class _Header extends StatelessWidget {
+  const _Header({required this.store});
+
+  final DeviceStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    final info = store.info;
+    final name = info?.name ?? store.selected!.name;
+    final connected = store.isConnected;
+    final weak = (info?.signal ?? 100) < 40;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Lb.gutter),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              StatusDot(on: connected, size: 7),
+              const SizedBox(width: 8),
+              MonoLabel(connected ? 'Connected' : (store.isLoading ? 'Connecting…' : 'Not reachable')),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: LbType.display),
+          if (info != null) ...[
+            const SizedBox(height: 10),
+            Text(factsLine(info), style: LbType.mono),
+            if (weak)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Weak Wi-Fi here — live animations may stutter. Kept ones play fine.',
+                  style: LbType.small.copyWith(color: Lb.phosphor),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "16×16 · WLED 16.0.1 · Wi-Fi 18%".
+String factsLine(WledInfo info) => [
+  sizeLabel(info),
+  'WLED ${info.version}',
+  if (info.signal != null) 'Wi-Fi ${info.signal}%',
+].join(' · ');
+
+/// The Stage: a mirror of what the matrix is showing right now.
+class _NowShowing extends StatelessWidget {
+  const _NowShowing({required this.store, required this.manager, required this.playback});
+
+  final DeviceStore store;
+  final DeviceManager manager;
+  final PlaybackController playback;
+
+  @override
+  Widget build(BuildContext context) {
+    final caps = store.caps;
+    final w = caps?.width ?? fallbackSize, h = caps?.height ?? fallbackSize;
+    final on = store.isOn != false;
+    final kept = store.presetId == null ? null : manager.preset(store.presetId!);
+    final String kind, title;
+    Widget stage;
+    if (playback.isStreaming) {
+      kind = 'Live from your phone';
+      title = playback.item?.title ?? playback.generator?.name ?? 'Live';
+      stage = Stage(frame: playback.frame, repaint: playback.frameTick, maxWidth: 300);
+    } else if (!on) {
+      kind = 'Resting';
+      title = 'Off';
+      stage = Opacity(opacity: 0.5, child: Stage(frame: Frame(w, h), maxWidth: 300));
+    } else {
+      kind = store.playlistRunning ? 'Playing a show' : (kept != null ? 'Kept on your matrix' : 'On its own');
+      title = store.playlistRunning && store.playlistId != null
+          ? manager.presetName(store.playlistId!)
+          : kept?.name ?? (store.playlistRunning ? 'A show' : 'Its own light');
+      final gif = kept?.gifName;
+      final hasFile =
+          gif != null && manager.files.keys.any((f) => f.toLowerCase() == '/${gif.toLowerCase()}');
+      stage = hasFile
+          ? _GifStage(manager: manager, gif: gif, aspect: w / h)
+          : Stage(frame: _glowFrame(w, h, kept?.primaryColor), maxWidth: 300);
+    }
+    return Column(
+      children: [
+        stage,
+        const SizedBox(height: 14),
+        MonoLabel(kind),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: LbType.title),
+            ),
+            if (store.playlistRunning && !playback.isStreaming)
+              IconButton(
+                tooltip: 'Next in the show',
+                icon: const Icon(Icons.skip_next_rounded, color: Lb.text2),
+                onPressed: () => guarded(context, () async {
+                  await store.client?.nextInPlaylist();
+                  await Future<void>.delayed(const Duration(milliseconds: 400));
+                  await store.refreshState();
+                }),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// A soft glow in the kept item's colour when we have no picture of it.
+  static Frame _glowFrame(int w, int h, int? color) {
+    final f = Frame(w, h);
+    final c = color == null || color == 0 ? 0xFFB547 : color;
+    final cx = (w - 1) / 2, cy = (h - 1) / 2;
+    final r2 = (w * w + h * h) / 10;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final d = ((x - cx) * (x - cx) + (y - cy) * (y - cy)) / r2;
+        final k = (1 - d).clamp(0.0, 1.0) * 0.55;
+        if (k > 0.04) f.set(x, y, scaleColorInt(c, k));
+      }
+    }
+    return f;
+  }
+}
+
+class _GifStage extends StatelessWidget {
+  const _GifStage({required this.manager, required this.gif, required this.aspect});
+
+  final DeviceManager manager;
+  final String gif;
+  final double aspect;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 300),
+      child: AspectRatio(
+        aspectRatio: aspect,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFF050403),
+            borderRadius: BorderRadius.circular(Lb.rControl + 4),
+            border: Border.all(color: Lb.line),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(Lb.rControl),
+              child: GifThumb(manager: manager, name: gif),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _Unreachable extends StatelessWidget {
+  const _Unreachable({required this.store});
+
+  final DeviceStore store;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(Lb.gutter, 24, Lb.gutter, 0),
+    child: LbPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            store.isLoading ? 'Saying hello…' : 'Can\'t reach it right now',
+            style: LbType.heading,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Check it\'s plugged in and on the same Wi-Fi as your phone.',
+            style: LbType.small,
+          ),
+          if (!store.isLoading) ...[
+            const SizedBox(height: 14),
+            FilledButton(onPressed: store.refresh, child: const Text('Try again')),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+/// No matrix yet: a dim panel waiting to be lit.
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.onConnect});
+
+  final VoidCallback onConnect;
+
+  static final _dim = () {
+    final f = helloClip(16, 16).frames.first.copy();
+    for (var i = 0; i < f.rgb.length; i++) {
+      f.rgb[i] = (f.rgb[i] * 0.16).round();
+    }
+    return f;
+  }();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 128),
+    children: [
+      const MonoLabel('Matrix'),
+      const SizedBox(height: 32),
+      Center(
+        child: SizedBox(
+          width: 220,
+          child: LedMatrixView(frame: _dim, bezel: true, borderRadius: Lb.rControl),
+        ),
+      ),
+      const SizedBox(height: 36),
+      Text('Connect your matrix', textAlign: TextAlign.center, style: LbType.display.copyWith(fontSize: 34)),
+      const SizedBox(height: 12),
+      Text(
+        'Plug in your WLED panel and we\'ll find it on your Wi-Fi. It takes a few seconds.',
+        textAlign: TextAlign.center,
+        style: LbType.body.copyWith(color: Lb.text2),
+      ),
+      const SizedBox(height: 28),
+      FilledButton(
+        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+        onPressed: onConnect,
+        child: const Text('Connect your matrix'),
+      ),
+    ],
+  );
 }

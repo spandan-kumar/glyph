@@ -6,8 +6,11 @@ import '../../app/creations.dart';
 import '../../engine/clip.dart';
 import '../../engine/frame.dart';
 import '../../ui/actions.dart';
+import '../../ui/design/parts.dart';
+import '../../ui/design/tokens.dart';
+import '../../ui/design/type.dart';
+import '../../ui/make/studio_kit.dart';
 import '../../ui/scope.dart';
-import '../../ui/theme.dart';
 import 'color_picker.dart';
 import 'editor_canvas.dart';
 import 'editor_model.dart';
@@ -30,9 +33,14 @@ class EditorScreenState extends State<EditorScreen> {
   String? _id, _title;
   bool _led = true;
   bool _mirror = false;
+
+  /// The person turned the live mirror off; don't switch it back on by
+  /// itself.
+  bool _mirrorOptOut = false;
   bool _saving = false;
   LiveMirrorGenerator? _live;
   late AppScope _scope;
+  bool _listening = false;
 
   /// Index of the frame being previewed, or null while editing.
   final _preview = ValueNotifier<int?>(null);
@@ -40,6 +48,10 @@ class EditorScreenState extends State<EditorScreen> {
 
   @visibleForTesting
   EditorModel? get model => _model;
+
+  /// Whether the drawing is currently being mirrored to the matrix.
+  @visibleForTesting
+  bool get mirroring => _mirroring;
 
   @override
   void initState() {
@@ -56,10 +68,16 @@ class EditorScreenState extends State<EditorScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _scope = AppScope.of(context);
+    if (!_listening) {
+      _listening = true;
+      _scope.devices.addListener(_onDevices);
+      _scheduleAutoMirror();
+    }
   }
 
   @override
   void dispose() {
+    if (_listening) _scope.devices.removeListener(_onDevices);
     _player?.cancel();
     _handOffPlayback();
     _preview.dispose();
@@ -92,6 +110,7 @@ class EditorScreenState extends State<EditorScreen> {
     });
     // Disposed after the swap so the live mirror never reads a dead model.
     WidgetsBinding.instance.addPostFrameCallback((_) => old?.dispose());
+    _scheduleAutoMirror();
   }
 
   // Preview -------------------------------------------------------------------
@@ -119,7 +138,7 @@ class EditorScreenState extends State<EditorScreen> {
     if (mounted) setState(() {});
   }
 
-  // Live mirror ---------------------------------------------------------------
+  // Live mirror (AHA #6 "Draw live") -----------------------------------------
 
   static final _blank = Frame(16, 16);
 
@@ -132,17 +151,18 @@ class EditorScreenState extends State<EditorScreen> {
 
   bool get _mirroring => _mirror && _live != null && _scope.playback.generator == _live;
 
-  Future<void> _toggleMirror() async {
-    if (_mirroring) {
-      setState(() => _mirror = false);
-      await GlyphActions.stopStreaming(context);
-      _scope.playback.pause();
-      return;
-    }
-    if (!_scope.devices.isConnected) {
-      _toast('Connect a matrix in the Matrix tab to mirror your drawing.');
-      return;
-    }
+  void _onDevices() => _scheduleAutoMirror();
+
+  /// With a matrix connected, the drawing shows on it from the first stroke.
+  void _scheduleAutoMirror() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _model == null || _mirrorOptOut || _mirroring) return;
+      if (_scope.devices.isConnected) _startMirror();
+    });
+  }
+
+  Future<void> _startMirror() async {
+    if (!_scope.devices.isConnected) return _connect();
     final live = _live ??= LiveMirrorGenerator(
       source: _liveFrame,
       revision: () => (_model?.pixels.value ?? 0) * 31 + (_preview.value ?? -1),
@@ -153,6 +173,21 @@ class EditorScreenState extends State<EditorScreen> {
     await GlyphActions.ensureStreaming(context);
   }
 
+  Future<void> _stopMirror() async {
+    setState(() {
+      _mirror = false;
+      _mirrorOptOut = true;
+    });
+    await GlyphActions.stopStreaming(context);
+    _scope.playback.pause();
+  }
+
+  /// Not connected: go to the Matrix tab (saving first if needed).
+  Future<void> _connect() async {
+    if ((_model?.isDirty ?? false) && !await _confirmLeave(pop: false)) return;
+    if (mounted) goToMatrix(context);
+  }
+
   // Saving --------------------------------------------------------------------
 
   Future<String?> _askTitle({String? initial}) async {
@@ -160,7 +195,7 @@ class EditorScreenState extends State<EditorScreen> {
     final t = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(initial == null ? 'Name your drawing' : 'Rename'),
+        title: Text(initial == null ? 'Name your drawing' : 'Rename', style: LbType.title),
         content: TextField(
           controller: c,
           autofocus: true,
@@ -191,7 +226,7 @@ class EditorScreenState extends State<EditorScreen> {
     m.markSaved();
     if (mounted) {
       setState(() {});
-      _toast('Saved to My Creations');
+      studioToast(context, 'Saved to Made by you');
     }
     return true;
   }
@@ -203,10 +238,11 @@ class EditorScreenState extends State<EditorScreen> {
     if (_id != null) await _save();
   }
 
-  Future<void> _saveToMatrix() async {
+  Future<void> _keepOnMatrix() async {
     final caps = _scope.devices.caps;
     if (caps == null) {
-      _toast('Connect a matrix in the Matrix tab first.');
+      studioToast(context, 'Connect a matrix to keep this on it.',
+          action: SnackBarAction(label: 'Connect', onPressed: _connect));
       return;
     }
     final title = _title ?? await _askTitle();
@@ -218,9 +254,10 @@ class EditorScreenState extends State<EditorScreen> {
     final wasMirroring = _mirroring;
     await GlyphActions.saveClipToDevice(context, _model!.toClip(), title);
     if (!mounted) return;
-    // Uploading ends the stream and the matrix now plays the saved preset.
+    // Uploading ends the stream and the matrix now plays the kept drawing.
     if (wasMirroring && !_scope.playback.isStreaming) {
       _mirror = false;
+      _mirrorOptOut = true;
       _scope.playback.pause();
     }
     setState(() => _saving = false);
@@ -231,7 +268,7 @@ class EditorScreenState extends State<EditorScreen> {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Start a new drawing?'),
+          title: Text('Start a new drawing?', style: LbType.title),
           content: const Text('Unsaved changes to this one will be lost.'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -251,11 +288,13 @@ class EditorScreenState extends State<EditorScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => old?.dispose());
   }
 
-  Future<void> _confirmLeave() async {
+  /// Offers to save unsaved changes. Returns whether it's fine to leave;
+  /// pops the screen when [pop].
+  Future<bool> _confirmLeave({bool pop = true}) async {
     final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Save your drawing?'),
+        title: Text('Save your drawing?', style: LbType.title),
         content: const Text('You have unsaved changes.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, 'discard'), child: const Text('Discard')),
@@ -264,10 +303,11 @@ class EditorScreenState extends State<EditorScreen> {
         ],
       ),
     );
-    if (!mounted || choice == null) return;
-    if (choice == 'save' && !await _save()) return;
+    if (!mounted || choice == null) return false;
+    if (choice == 'save' && !await _save()) return false;
     _model?.markSaved();
-    if (mounted) Navigator.of(context).pop();
+    if (pop && mounted) Navigator.of(context).pop();
+    return true;
   }
 
   Future<void> _pickFps() async {
@@ -280,8 +320,10 @@ class EditorScreenState extends State<EditorScreen> {
           child: ListenableBuilder(
             listenable: m,
             builder: (context, _) => Column(mainAxisSize: MainAxisSize.min, children: [
-              Text('${m.fps} frames per second',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              const MonoLabel('Speed'),
+              const SizedBox(height: 6),
+              Text('${m.fps} frames a second', style: LbType.title),
+              const SizedBox(height: 8),
               Slider(
                 value: m.fps.toDouble(),
                 min: EditorModel.minFps.toDouble(),
@@ -307,10 +349,6 @@ class EditorScreenState extends State<EditorScreen> {
     m.color = c;
   }
 
-  void _toast(String msg) => ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
-
   // Build ---------------------------------------------------------------------
 
   @override
@@ -318,8 +356,8 @@ class EditorScreenState extends State<EditorScreen> {
     final m = _model;
     if (m == null) {
       final caps = _scope.devices.caps;
-      return Scaffold(
-        appBar: AppBar(title: const Text('Pixel editor')),
+      return StudioScaffold(
+        title: 'Draw',
         body: SafeArea(
           top: false,
           child: EditorStartView(
@@ -338,61 +376,56 @@ class EditorScreenState extends State<EditorScreen> {
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) _confirmLeave();
         },
-        child: Scaffold(
-          appBar: AppBar(
-            titleSpacing: 0,
-            title: GestureDetector(
-              onTap: _rename,
-              child: Text(_title ?? 'Untitled',
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            ),
-            actions: [
-              IconButton(
-                  tooltip: 'Undo', onPressed: m.canUndo ? m.undo : null, icon: const Icon(Icons.undo)),
-              IconButton(
-                  tooltip: 'Redo', onPressed: m.canRedo ? m.redo : null, icon: const Icon(Icons.redo)),
-              IconButton(
-                tooltip: 'Save',
-                onPressed: _save,
-                icon: Icon(m.isDirty || _id == null ? Icons.save_outlined : Icons.check_circle_outline),
-              ),
-              PopupMenuButton<String>(
-                tooltip: 'More',
-                onSelected: (v) {
-                  switch (v) {
-                    case 'matrix':
-                      _saveToMatrix();
-                    case 'rename':
-                      _rename();
-                    case 'clear':
-                      m.clearFrame();
-                    case 'new':
-                      _newDrawing();
-                  }
-                },
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'matrix',
-                    enabled: !_saving,
-                    child: const ListTile(
-                        leading: Icon(Icons.download_for_offline_outlined),
-                        title: Text('Save to matrix')),
-                  ),
-                  const PopupMenuItem(
-                      value: 'rename',
-                      child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Rename'))),
-                  const PopupMenuItem(
-                      value: 'clear',
-                      child: ListTile(
-                          leading: Icon(Icons.layers_clear_outlined), title: Text('Clear frame'))),
-                  const PopupMenuItem(
-                      value: 'new',
-                      child: ListTile(leading: Icon(Icons.note_add_outlined), title: Text('New drawing'))),
-                ],
-              ),
-            ],
+        child: StudioScaffold(
+          titleSpacing: 0,
+          titleWidget: GestureDetector(
+            onTap: _rename,
+            child: Text(_title ?? 'Untitled', overflow: TextOverflow.ellipsis, style: LbType.heading),
           ),
+          actions: [
+            IconButton(
+                tooltip: 'Undo', onPressed: m.canUndo ? m.undo : null, icon: const Icon(Icons.undo)),
+            IconButton(
+                tooltip: 'Redo', onPressed: m.canRedo ? m.redo : null, icon: const Icon(Icons.redo)),
+            IconButton(
+              tooltip: 'Save',
+              onPressed: _save,
+              icon: Icon(m.isDirty || _id == null ? Icons.save_outlined : Icons.check_circle_outline),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'More',
+              onSelected: (v) {
+                switch (v) {
+                  case 'matrix':
+                    _keepOnMatrix();
+                  case 'rename':
+                    _rename();
+                  case 'clear':
+                    m.clearFrame();
+                  case 'new':
+                    _newDrawing();
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'matrix',
+                  enabled: !_saving,
+                  child: const ListTile(
+                      leading: Icon(Icons.push_pin_outlined), title: Text('Keep on matrix')),
+                ),
+                const PopupMenuItem(
+                    value: 'rename',
+                    child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Rename'))),
+                const PopupMenuItem(
+                    value: 'clear',
+                    child: ListTile(
+                        leading: Icon(Icons.layers_clear_outlined), title: Text('Clear frame'))),
+                const PopupMenuItem(
+                    value: 'new',
+                    child: ListTile(leading: Icon(Icons.note_add_outlined), title: Text('New drawing'))),
+              ],
+            ),
+          ],
           body: SafeArea(
             top: false,
             child: Column(children: [
@@ -401,12 +434,18 @@ class EditorScreenState extends State<EditorScreen> {
                 led: _led,
                 saving: _saving,
                 onLed: () => setState(() => _led = !_led),
-                mirror: ListenableBuilder(
+                live: ListenableBuilder(
                   listenable: Listenable.merge([_scope.playback, _scope.devices]),
-                  builder: (context, _) => _MirrorPill(
-                    on: _mirroring,
+                  builder: (context, _) => _LiveIndicator(
+                    connected: _scope.devices.isConnected,
+                    mirroring: _mirroring,
                     streaming: _scope.playback.isStreaming,
-                    onTap: _toggleMirror,
+                    onStart: () {
+                      _mirrorOptOut = false;
+                      _startMirror();
+                    },
+                    onStop: _stopMirror,
+                    onConnect: _connect,
                   ),
                 ),
               ),
@@ -447,93 +486,117 @@ class _CanvasHeader extends StatelessWidget {
     required this.led,
     required this.saving,
     required this.onLed,
-    required this.mirror,
+    required this.live,
   });
 
   final EditorModel model;
   final bool led, saving;
   final VoidCallback onLed;
-  final Widget mirror;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 4, 0),
-        child: Row(children: [
-          Flexible(child: mirror),
-          if (saving)
-            const Padding(
-              padding: EdgeInsets.only(left: 10),
-              child: SizedBox(
-                  width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-            ),
-          const Spacer(),
-          Text('${model.width}×${model.height}',
-              style: const TextStyle(fontSize: 12, color: GlyphColors.textMuted)),
-          IconButton(
-            tooltip: 'Mirror left/right',
-            isSelected: model.mirrorX,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => model.mirrorX = !model.mirrorX,
-            icon: const Icon(Icons.flip),
-            selectedIcon: const Icon(Icons.flip, color: GlyphColors.accent),
-          ),
-          IconButton(
-            tooltip: 'Mirror top/bottom',
-            isSelected: model.mirrorY,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => model.mirrorY = !model.mirrorY,
-            icon: const RotatedBox(quarterTurns: 1, child: Icon(Icons.flip)),
-            selectedIcon: const RotatedBox(
-                quarterTurns: 1, child: Icon(Icons.flip, color: GlyphColors.accent)),
-          ),
-          IconButton(
-            tooltip: led ? 'Square pixels' : 'LED dots',
-            visualDensity: VisualDensity.compact,
-            onPressed: onLed,
-            icon: Icon(led ? Icons.grid_on : Icons.blur_on),
-          ),
-        ]),
-      );
-}
-
-class _MirrorPill extends StatelessWidget {
-  const _MirrorPill({required this.on, required this.streaming, required this.onTap});
-
-  final bool on, streaming;
-  final VoidCallback onTap;
+  final Widget live;
 
   @override
   Widget build(BuildContext context) {
-    final live = on && streaming;
-    final color = live ? GlyphColors.danger : (on ? GlyphColors.warning : GlyphColors.textMuted);
-    return Tooltip(
-      message: on ? 'Stop mirroring' : 'Show this drawing on the matrix as you draw',
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: on ? color.withValues(alpha: 0.15) : null,
-            border: Border.all(color: on ? color : GlyphColors.outline),
+    final accent = readAccent(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 4, 0),
+      child: Row(children: [
+        Expanded(child: Align(alignment: Alignment.centerLeft, child: live)),
+        if (saving)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
           ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(on ? Icons.cast_connected : Icons.cast, size: 16, color: color),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                live ? 'LIVE' : (on ? 'Connecting…' : 'Live mirror'),
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: on ? color : GlyphColors.text),
-              ),
-            ),
-          ]),
+        Text('${model.width}×${model.height}', style: LbType.mono),
+        IconButton(
+          tooltip: 'Mirror left/right',
+          isSelected: model.mirrorX,
+          visualDensity: VisualDensity.compact,
+          onPressed: () => model.mirrorX = !model.mirrorX,
+          icon: const Icon(Icons.flip, color: Lb.text3),
+          selectedIcon: Icon(Icons.flip, color: accent),
+        ),
+        IconButton(
+          tooltip: 'Mirror top/bottom',
+          isSelected: model.mirrorY,
+          visualDensity: VisualDensity.compact,
+          onPressed: () => model.mirrorY = !model.mirrorY,
+          icon: const RotatedBox(quarterTurns: 1, child: Icon(Icons.flip, color: Lb.text3)),
+          selectedIcon: RotatedBox(quarterTurns: 1, child: Icon(Icons.flip, color: accent)),
+        ),
+        IconButton(
+          tooltip: led ? 'Square pixels' : 'LED dots',
+          visualDensity: VisualDensity.compact,
+          onPressed: onLed,
+          icon: Icon(led ? Icons.grid_on : Icons.blur_on, color: Lb.text2),
+        ),
+      ]),
+    );
+  }
+}
+
+/// "On your matrix" while the drawing streams live; otherwise a quiet way
+/// to turn it on, or to go and connect one.
+class _LiveIndicator extends StatelessWidget {
+  const _LiveIndicator({
+    required this.connected,
+    required this.mirroring,
+    required this.streaming,
+    required this.onStart,
+    required this.onStop,
+    required this.onConnect,
+  });
+
+  final bool connected, mirroring, streaming;
+  final VoidCallback onStart, onStop, onConnect;
+
+  @override
+  Widget build(BuildContext context) {
+    final (String tip, VoidCallback tap, Widget child) = !connected
+        ? (
+            'Connect a matrix',
+            onConnect,
+            const _Quiet(dot: false, label: 'Not connected'),
+          )
+        : mirroring
+            ? (
+                'Stop showing on your matrix',
+                onStop,
+                streaming
+                    ? const LivePulse(label: 'On your matrix')
+                    : const _Quiet(dot: true, label: 'Connecting…'),
+              )
+            : (
+                'Show this drawing on your matrix as you draw',
+                onStart,
+                const _Quiet(dot: false, label: 'Show on matrix'),
+              );
+    return Tooltip(
+      message: tip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Lb.rControl),
+        onTap: tap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          child: child,
         ),
       ),
     );
   }
+}
+
+class _Quiet extends StatelessWidget {
+  const _Quiet({required this.dot, required this.label});
+
+  final bool dot;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+        StatusDot(on: dot, color: readAccent(context)),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(label.toUpperCase(),
+              maxLines: 1, overflow: TextOverflow.ellipsis, style: LbType.label),
+        ),
+      ]);
 }

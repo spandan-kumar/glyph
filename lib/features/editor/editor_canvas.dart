@@ -5,7 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../engine/frame.dart';
-import '../../ui/theme.dart';
+import '../../ui/design/tokens.dart';
 import 'editor_model.dart';
 
 /// Zoom/pan of the canvas: content is scaled about the viewport centre, then
@@ -227,8 +227,9 @@ class _EditorCanvasState extends State<EditorCanvas> {
           child: ListenableBuilder(
             listenable: _view,
             builder: (context, _) => _view.isZoomed
-                ? IconButton.filledTonal(
+                ? IconButton.outlined(
                     tooltip: 'Fit to screen',
+                    style: IconButton.styleFrom(backgroundColor: Lb.panel, side: Lb.hairline),
                     onPressed: _view.reset,
                     icon: const Icon(Icons.fit_screen, size: 20),
                   )
@@ -249,8 +250,8 @@ class _CanvasPainter extends CustomPainter {
   final bool led;
   final CanvasView view;
 
-  static const _panel = Color(0xFF050507);
-  static const _off = Color(0xFF17171F);
+  static const _panel = Color(0xFF050403);
+  static const _off = Lb.ledOff;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -295,7 +296,7 @@ class _CanvasPainter extends CustomPainter {
 
     if (p == null && (model.mirrorX || model.mirrorY)) {
       final guide = Paint()
-        ..color = GlyphColors.accent.withValues(alpha: 0.55)
+        ..color = Lb.phosphor.withValues(alpha: 0.55)
         ..strokeWidth = 1.5 / view.scale;
       if (model.mirrorX) {
         canvas.drawLine(Offset(g.content.width / 2, 0),
@@ -345,7 +346,7 @@ class _ThumbPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF050507));
+    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF050403));
     final cw = size.width / frame.width, ch = size.height / frame.height;
     final paint = Paint();
     final px = frame.rgb;

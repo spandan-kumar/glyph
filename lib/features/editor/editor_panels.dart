@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../ui/theme.dart';
+import '../../ui/design/parts.dart';
+import '../../ui/design/tokens.dart';
+import '../../ui/design/type.dart';
+import '../../ui/make/studio_kit.dart';
 import 'editor_canvas.dart';
 import 'editor_model.dart';
 
@@ -54,18 +57,19 @@ class _ToggleIcon extends StatelessWidget {
           selected: selected,
           label: tooltip,
           child: InkWell(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Lb.rControl),
             onTap: onTap,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
+              duration: Lb.fast,
               height: 44,
               margin: const EdgeInsets.symmetric(horizontal: 2),
               decoration: BoxDecoration(
-                color: selected ? GlyphColors.primary.withValues(alpha: 0.22) : null,
-                borderRadius: BorderRadius.circular(12),
+                color: selected ? Lb.raised : null,
+                borderRadius: BorderRadius.circular(Lb.rControl),
+                border: Border.all(color: selected ? Lb.line : Colors.transparent),
               ),
               child: IconTheme(
-                data: IconThemeData(color: selected ? GlyphColors.text : GlyphColors.textMuted),
+                data: IconThemeData(color: selected ? Lb.text : Lb.text3),
                 child: Center(child: child),
               ),
             ),
@@ -80,7 +84,7 @@ class _EraserIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => CustomPaint(
         size: const Size.square(22),
-        painter: _EraserPainter(IconTheme.of(context).color ?? GlyphColors.text),
+        painter: _EraserPainter(IconTheme.of(context).color ?? Lb.text),
       );
 }
 
@@ -145,8 +149,8 @@ class ColorStrip extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
                 decoration: BoxDecoration(
                   color: Color(0xFF000000 | current),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white, width: 2),
+                  borderRadius: BorderRadius.circular(Lb.rPanel),
+                  border: Border.all(color: Lb.text, width: 1.5),
                 ),
                 child: Icon(Icons.palette_outlined,
                     size: 20,
@@ -156,7 +160,7 @@ class ColorStrip extends StatelessWidget {
           ),
           for (final c in model.recent) swatch(c),
           if (model.recent.isNotEmpty)
-            const VerticalDivider(width: 16, indent: 12, endIndent: 12, color: GlyphColors.outline),
+            const VerticalDivider(width: 16, indent: 12, endIndent: 12, color: Lb.line),
           for (final c in presetColors)
             if (!model.recent.contains(c)) swatch(c),
         ],
@@ -179,15 +183,15 @@ class _Swatch extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: 32,
-          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 3),
+          duration: Lb.fast,
+          width: 30,
+          margin: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
           decoration: BoxDecoration(
             color: Color(0xFF000000 | color),
             shape: BoxShape.circle,
             border: Border.all(
-              color: selected ? Colors.white : GlyphColors.outline,
-              width: selected ? 3 : 1,
+              color: selected ? Lb.text : Lb.line,
+              width: selected ? 2.5 : 1,
             ),
           ),
         ),
@@ -244,81 +248,47 @@ class _FrameTimelineState extends State<FrameTimeline> {
 
   void _frameMenu(BuildContext context) {
     final m = widget.model;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            leading: const Icon(Icons.content_copy),
-            title: const Text('Duplicate frame'),
-            onTap: () {
-              Navigator.pop(ctx);
-              m.duplicateFrame();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.add_box_outlined),
-            title: const Text('Insert blank frame after'),
-            onTap: () {
-              Navigator.pop(ctx);
-              m.addFrame();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.layers_clear_outlined),
-            title: const Text('Clear frame'),
-            onTap: () {
-              Navigator.pop(ctx);
-              m.clearFrame();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete_outline, color: GlyphColors.danger),
-            title: Text(m.frameCount > 1 ? 'Delete frame' : 'Delete frame (clears it)'),
-            onTap: () {
-              Navigator.pop(ctx);
-              m.deleteFrame();
-            },
-          ),
-        ]),
-      ),
-    );
+    showStudioActions(context, header: MonoLabel('Frame ${m.index + 1} of ${m.frameCount}'), actions: [
+      StudioAction(Icons.content_copy, 'Duplicate frame', m.duplicateFrame),
+      StudioAction(Icons.add_box_outlined, 'Insert blank frame after', m.addFrame),
+      StudioAction(Icons.layers_clear_outlined, 'Clear frame', m.clearFrame),
+      StudioAction(Icons.delete_outline, m.frameCount > 1 ? 'Delete frame' : 'Delete frame (clears it)',
+          m.deleteFrame,
+          danger: true),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
     final m = widget.model;
+    final accent = readAccent(context);
     return Container(
       decoration: const BoxDecoration(
-        color: GlyphColors.surface,
-        border: Border(top: BorderSide(color: GlyphColors.outline)),
+        color: Lb.panel,
+        border: Border(top: Lb.hairline),
       ),
       padding: const EdgeInsets.fromLTRB(12, 4, 8, 8),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Row(children: [
-          Text('FRAME ${m.index + 1} / ${m.frameCount}',
-              style: const TextStyle(
-                  fontSize: 12,
-                  letterSpacing: 1.1,
-                  fontWeight: FontWeight.w600,
-                  color: GlyphColors.textMuted)),
+          MonoLabel('Frame ${m.index + 1} / ${m.frameCount}'),
           const Spacer(),
           IconButton(
             tooltip: 'Onion skin',
             isSelected: m.onion,
             visualDensity: VisualDensity.compact,
             onPressed: () => m.onion = !m.onion,
-            icon: const Icon(Icons.layers_outlined),
-            selectedIcon: const Icon(Icons.layers, color: GlyphColors.accent),
+            icon: const Icon(Icons.layers_outlined, color: Lb.text3),
+            selectedIcon: Icon(Icons.layers, color: readAccent(context)),
           ),
           TextButton(
             onPressed: widget.onFps,
             style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-            child: Text('${m.fps} fps'),
+            child: Text('${m.fps} fps', style: LbType.mono.copyWith(color: Lb.text)),
           ),
           IconButton.filled(
             tooltip: widget.playing ? 'Pause' : 'Play',
             visualDensity: VisualDensity.compact,
+            style: IconButton.styleFrom(backgroundColor: Lb.text, foregroundColor: Lb.ink),
             onPressed: widget.onPlay,
             icon: Icon(widget.playing ? Icons.pause : Icons.play_arrow),
           ),
@@ -349,11 +319,11 @@ class _FrameTimelineState extends State<FrameTimeline> {
                         margin: const EdgeInsets.only(right: 6, top: 2, bottom: 2),
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
-                          color: GlyphColors.background,
-                          borderRadius: BorderRadius.circular(10),
+                          color: Lb.ink,
+                          borderRadius: BorderRadius.circular(Lb.rControl),
                           border: Border.all(
-                            color: selected ? GlyphColors.primary : GlyphColors.outline,
-                            width: selected ? 2 : 1,
+                            color: selected ? accent : Lb.line,
+                            width: selected ? 1.5 : 1,
                           ),
                         ),
                         child: Center(child: FrameThumb(frame: f, repaint: m.pixels)),
@@ -368,8 +338,9 @@ class _FrameTimelineState extends State<FrameTimeline> {
               onPressed: m.duplicateFrame,
               icon: const Icon(Icons.content_copy, size: 20),
             ),
-            IconButton.filledTonal(
+            IconButton.outlined(
               tooltip: 'Add frame',
+              style: IconButton.styleFrom(side: Lb.hairline),
               onPressed: m.addFrame,
               icon: const Icon(Icons.add),
             ),

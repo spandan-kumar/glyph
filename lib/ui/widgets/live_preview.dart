@@ -6,6 +6,7 @@ import '../../engine/generator.dart';
 import '../../engine/palette.dart';
 import '../../engine/registry.dart';
 import '../../library/catalog.dart';
+import '../design/tokens.dart';
 import 'led_matrix_view.dart';
 
 /// Caps how many previews render per vsync so a screen full of thumbnails
@@ -28,15 +29,53 @@ abstract final class PreviewBudget {
   }
 }
 
-/// A self-running thumbnail of a library item. Grids and shelves build
-/// lazily, so only on-screen previews exist; they also pause while a fast
-/// fling is in progress and whenever an ancestor [TickerMode] is off.
+/// A self-running LED thumbnail. Grids and rails build lazily, so only
+/// on-screen previews exist; they also pause while a fast fling is in
+/// progress and whenever an ancestor [TickerMode] is off. No bloom: tiles
+/// stay cheap, the Stage is the only thing that glows.
 class LivePreview extends StatefulWidget {
-  const LivePreview({super.key, required this.item, this.size = 16, this.borderRadius = 12});
+  /// A catalog look.
+  const LivePreview({
+    super.key,
+    required LibraryItem this.item,
+    this.size = 16,
+    this.borderRadius = Lb.rTile,
+    this.bezel = false,
+  })  : generator = null,
+        params = const {},
+        paletteId = null,
+        speed = 1,
+        previewKey = null;
 
-  final LibraryItem item;
+  /// Any generator (e.g. a [ClipGenerator] for something the user made).
+  /// [previewKey] identifies it across rebuilds.
+  const LivePreview.generator({
+    super.key,
+    required Generator this.generator,
+    required String this.previewKey,
+    this.params = const {},
+    this.paletteId,
+    this.speed = 1,
+    this.size = 16,
+    this.borderRadius = Lb.rTile,
+    this.bezel = false,
+  }) : item = null;
+
+  final LibraryItem? item;
+  final Generator? generator;
+  final Map<String, double> params;
+  final String? paletteId;
+  final double speed;
+  final String? previewKey;
+
+  /// Frame size in LEDs (square).
   final int size;
   final double borderRadius;
+
+  /// Draw the thin hardware bezel around the panel.
+  final bool bezel;
+
+  String get _id => item?.id ?? previewKey!;
 
   @override
   State<LivePreview> createState() => _LivePreviewState();
@@ -50,6 +89,7 @@ class _LivePreviewState extends State<LivePreview> with SingleTickerProviderStat
   late EffectInstance _instance;
   late Params _params;
   late Palette _palette;
+  late double _speed;
   late final Ticker _ticker;
   final _tick = ValueNotifier(0);
   Duration _last = Duration.zero;
@@ -63,20 +103,22 @@ class _LivePreviewState extends State<LivePreview> with SingleTickerProviderStat
   }
 
   void _setup() {
-    final g = generatorById(widget.item.generatorId);
+    final item = widget.item;
+    final g = item != null ? generatorById(item.generatorId) : widget.generator!;
     _frame = Frame(widget.size, widget.size);
-    _instance = g.create(widget.size, widget.size, widget.item.id.hashCode);
-    _params = Params.defaultsFor(g, widget.item.params);
-    _palette = paletteById(widget.item.paletteId);
+    _instance = g.create(widget.size, widget.size, widget._id.hashCode);
+    _params = Params.defaultsFor(g, item?.params ?? widget.params);
+    _palette = paletteById(item?.paletteId ?? widget.paletteId ?? g.defaultPalette);
+    _speed = item?.speed ?? widget.speed;
     _t = 0;
-    // One frame up front so the card never flashes black.
+    // One frame up front so the tile never flashes black.
     _instance.render(_frame, 0, 0, _params, _palette);
   }
 
   @override
   void didUpdateWidget(LivePreview old) {
     super.didUpdateWidget(old);
-    if (old.item.id != widget.item.id || old.size != widget.size) _setup();
+    if (old._id != widget._id || old.size != widget.size) _setup();
   }
 
   void _onTick(Duration elapsed) {
@@ -84,7 +126,7 @@ class _LivePreviewState extends State<LivePreview> with SingleTickerProviderStat
     if (since < _interval) return;
     if (Scrollable.recommendDeferredLoadingForContext(context)) return;
     if (!PreviewBudget.take(starving: since > _starving)) return;
-    final dt = (since.inMicroseconds / 1e6).clamp(0.0, 0.1) * (widget.item.speed ?? 1);
+    final dt = (since.inMicroseconds / 1e6).clamp(0.0, 0.1) * _speed;
     _last = elapsed;
     _t += dt;
     _instance.render(_frame, _t, dt, _params, _palette);
@@ -100,6 +142,11 @@ class _LivePreviewState extends State<LivePreview> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) => RepaintBoundary(
-        child: LedMatrixView(frame: _frame, repaint: _tick, borderRadius: widget.borderRadius),
+        child: LedMatrixView(
+          frame: _frame,
+          repaint: _tick,
+          borderRadius: widget.borderRadius,
+          bezel: widget.bezel,
+        ),
       );
 }

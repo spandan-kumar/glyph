@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../app/devices.dart';
 import '../../ui/scope.dart';
-import '../../ui/theme.dart';
+import '../../ui/design/tokens.dart';
+import '../../ui/design/type.dart';
+import '../../ui/make/studio_kit.dart';
 import 'catalog.dart';
 import 'core/game.dart';
 import 'game_page.dart';
@@ -50,14 +52,14 @@ class _GamesScreenState extends State<GamesScreen> {
   @override
   Widget build(BuildContext context) {
     final devices = AppScope.of(context).devices;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Games')),
+    return StudioScaffold(
+      title: 'Play',
       body: ListenableBuilder(
         listenable: devices,
         builder: (context, _) {
           final (w, h) = previewSize(devices);
           return GridView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            padding: const EdgeInsets.fromLTRB(Lb.gutter, 8, Lb.gutter, 24),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 220,
               mainAxisSpacing: 12,
@@ -97,17 +99,16 @@ class _GameCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: GlyphColors.surface,
-        borderRadius: BorderRadius.circular(18),
+        color: Lb.panel,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Lb.rPanel)),
+          side: Lb.hairline,
+        ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
           onTap: onTap,
-          child: Container(
+          child: Padding(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: GlyphColors.outline),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -120,19 +121,13 @@ class _GameCard extends StatelessWidget {
                 Row(children: [
                   Expanded(
                     child: Text(def.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: LbType.heading),
                   ),
                   if (best > 0)
-                    Text('$best',
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600, color: GlyphColors.warning)),
+                    Text('$best', style: LbType.mono.copyWith(color: readAccent(context))),
                 ]),
-                Text(def.blurb,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: GlyphColors.textMuted)),
+                const SizedBox(height: 2),
+                Text(def.blurb, maxLines: 1, overflow: TextOverflow.ellipsis, style: LbType.small),
               ],
             ),
           ),

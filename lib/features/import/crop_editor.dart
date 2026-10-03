@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../../ui/theme.dart';
+import '../../ui/design/tokens.dart';
 import 'processing.dart';
 
 /// Shows the oriented source with the area that reaches the matrix. In fill
@@ -129,7 +129,7 @@ class _CropPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final img = image;
     if (img == null) {
-      canvas.drawRect(imageRect, Paint()..color = GlyphColors.surface);
+      canvas.drawRect(imageRect, Paint()..color = Lb.panel);
     } else {
       canvas.drawImageRect(
         img,
@@ -164,7 +164,7 @@ class _CropPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
-          ..color = GlyphColors.accent);
+          ..color = Lb.phosphor);
   }
 
   @override

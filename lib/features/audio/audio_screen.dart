@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -9,7 +11,10 @@ import '../../engine/generator.dart';
 import '../../engine/palette.dart';
 import '../../ui/actions.dart';
 import '../../ui/scope.dart';
-import '../../ui/theme.dart';
+import '../../ui/design/parts.dart';
+import '../../ui/design/tokens.dart';
+import '../../ui/design/type.dart';
+import '../../ui/make/studio_kit.dart';
 import '../../ui/widgets/led_matrix_view.dart';
 import 'audio_engine.dart';
 import 'visualizers.dart';
@@ -162,15 +167,15 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
     final playback = scope.playback, devices = scope.devices;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Music visualiser')),
+    return StudioScaffold(
+      title: 'Music',
       body: ListenableBuilder(
         listenable: Listenable.merge([_engine, playback, devices, BackgroundStreaming.running]),
         builder: (context, _) {
           final live = _playingSelected(playback);
           final playing = _isOurs(playback) && playback.isPlaying;
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+            padding: const EdgeInsets.fromLTRB(Lb.gutter, 4, Lb.gutter, 32),
             children: [
               if (_engine.status
                   case AudioStatus.needsPermission || AudioStatus.blocked || AudioStatus.failed)
@@ -183,7 +188,8 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
                           frame: playback.frame,
                           repaint: playback.frameTick,
                           glow: true,
-                          borderRadius: 20,
+                          bezel: true,
+                          borderRadius: Lb.rControl,
                         )
                       : _VisualPreview(
                           key: ValueKey('big-${_selected.id}'),
@@ -192,13 +198,14 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
                           width: playback.frame.width,
                           height: playback.frame.height,
                           glow: true,
-                          borderRadius: 20,
+                          bezel: true,
+                          borderRadius: Lb.rControl,
                         ),
                 ),
               ),
-              const SizedBox(height: 12),
-              _InputMeter(engine: _engine),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              Center(child: _Listening(engine: _engine)),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
@@ -216,8 +223,9 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
                   ),
                   if (playing) ...[
                     const SizedBox(width: 10),
-                    IconButton.filledTonal(
+                    IconButton.outlined(
                       tooltip: 'Stop',
+                      style: IconButton.styleFrom(side: Lb.hairline, minimumSize: const Size(48, 48)),
                       onPressed: _stop,
                       icon: const Icon(Icons.stop_rounded),
                     ),
@@ -225,17 +233,18 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
                 ],
               ),
               if (!devices.isConnected)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'No matrix connected · previewing on the phone',
+                    'No matrix connected · showing it here on your phone',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: GlyphColors.textMuted),
+                    style: LbType.small.copyWith(color: Lb.text3),
                   ),
                 ),
-              const SizedBox(height: 16),
-              _Section(
-                title: 'Visualiser',
+              const SizedBox(height: 22),
+              StudioGroup(
+                label: 'Look',
+                padding: const EdgeInsets.all(12),
                 child: GridView.count(
                   crossAxisCount: 3,
                   shrinkWrap: true,
@@ -253,12 +262,14 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
                   ],
                 ),
               ),
-              _Section(
-                title: 'Colours',
+              StudioGroup(
+                label: 'Colours',
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: SizedBox(
-                  height: 48,
+                  height: 40,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     children: [
                       for (final p in palettes)
                         _Swatch(
@@ -270,50 +281,57 @@ class _AudioScreenState extends State<AudioScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-              _Section(
-                title: 'Sound',
-                child: Column(
-                  children: [
-                    _SliderRow(
+              StudioGroup(
+                label: 'Sound',
+                child: StudioKnobRow(
+                  knobs: [
+                    StudioKnob(
                       label: 'Sensitivity',
                       value: _engine.sensitivity,
+                      valueText: '${(_engine.sensitivity * 100).round()}%',
                       onChanged: (v) => _engine.sensitivity = v,
                     ),
-                    _SliderRow(
+                    StudioKnob(
                       label: 'Smoothing',
                       value: _engine.smoothing,
+                      valueText: '${(_engine.smoothing * 100).round()}%',
                       onChanged: (v) => _engine.smoothing = v,
                     ),
-                    _SliderRow(
+                    StudioKnob(
                       label: 'Range',
                       value: _engine.range,
+                      valueText: _engine.range < 0.34
+                          ? 'Bass'
+                          : _engine.range > 0.66
+                          ? 'Full'
+                          : 'Mid',
                       onChanged: (v) => _engine.range = v,
-                      ends: ('Bass', 'Full'),
                     ),
                   ],
                 ),
               ),
-              _Section(
-                title: 'While playing',
+              StudioGroup(
+                label: 'While playing',
+                padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
                 child: Column(
                   children: [
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Keep screen on'),
+                      title: Text('Keep screen on', style: LbType.body),
                       value: _keepAwake,
                       onChanged: _toggleAwake,
                     ),
                     if (BackgroundStreaming.supported)
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Keep running in background'),
+                        title: Text('Keep running in background', style: LbType.body),
                         subtitle: Text(
                           BackgroundStreaming.isRunning
                               ? 'Running · stop it from the notification'
                               : devices.isConnected
-                              ? 'Keeps the matrix reacting with the screen off'
+                              ? 'Keeps the matrix dancing with the screen off'
                               : 'Connect a matrix to use this',
-                          style: const TextStyle(fontSize: 12),
+                          style: LbType.small,
                         ),
                         value: BackgroundStreaming.isRunning || _wantBackground,
                         onChanged: devices.isConnected ? _toggleBackground : null,
@@ -411,116 +429,96 @@ class _PermissionCard extends StatelessWidget {
         engine.requestPermission,
       ),
     };
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: GlyphColors.surfaceHigh,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: GlyphColors.primary.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.mic_none_rounded, color: GlyphColors.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(body, style: const TextStyle(color: GlyphColors.textMuted, height: 1.35)),
-          const SizedBox(height: 12),
-          FilledButton(onPressed: onPressed, child: Text(action)),
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: LbPanel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.mic_none_rounded, color: readAccent(context)),
+                const SizedBox(width: 10),
+                Expanded(child: Text(title, style: LbType.heading)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(body, style: LbType.small),
+            const SizedBox(height: 14),
+            FilledButton(onPressed: onPressed, child: Text(action)),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _InputMeter extends StatelessWidget {
-  const _InputMeter({required this.engine});
+/// "Listening…" with a ring that fills with the input level and flashes on
+/// each beat.
+class _Listening extends StatelessWidget {
+  const _Listening({required this.engine});
 
   final AudioEngine engine;
 
   @override
   Widget build(BuildContext context) {
+    final accent = readAccent(context);
     return ValueListenableBuilder<AudioFeatures>(
       valueListenable: engine.features,
       builder: (context, f, _) {
         final on = engine.isListening;
-        final fill = on ? ((f.inputDb + 66) / 60).clamp(0.0, 1.0) : 0.0;
+        final level = on ? ((f.inputDb + 66) / 60).clamp(0.0, 1.0) : 0.0;
         final label = !on
             ? 'Mic off'
             : f.silent
             ? 'Quiet · play some music'
             : f.bpm > 0
-            ? '${f.bpm.round()} BPM'
-            : 'Listening';
+            ? 'Listening · ${f.bpm.round()} BPM'
+            : 'Listening…';
         return Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.mic_none_rounded, size: 18, color: GlyphColors.textMuted),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Stack(
-                  children: [
-                    Container(height: 8, color: GlyphColors.outline),
-                    FractionallySizedBox(
-                      widthFactor: fill,
-                      child: Container(
-                        height: 8,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              GlyphColors.success,
-                              fill > 0.85 ? GlyphColors.danger : GlyphColors.accent,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
             // Restarts on every beat, so it flashes in time.
             TweenAnimationBuilder<double>(
               key: ValueKey(f.beatCount),
               tween: Tween(begin: f.beatCount > 0 ? 1 : 0, end: 0),
               duration: const Duration(milliseconds: 260),
-              builder: (context, v, _) => Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color.lerp(GlyphColors.outline, GlyphColors.primary, v),
-                ),
+              builder: (context, beat, _) => CustomPaint(
+                size: const Size.square(22),
+                painter: _LevelRing(level, beat, on ? accent : Lb.text3),
               ),
             ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 128,
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: GlyphColors.textMuted),
-              ),
-            ),
+            const SizedBox(width: 10),
+            Text(label.toUpperCase(), style: LbType.label.copyWith(color: on ? Lb.text2 : Lb.text3)),
           ],
         );
       },
     );
   }
+}
+
+class _LevelRing extends CustomPainter {
+  _LevelRing(this.level, this.beat, this.color);
+
+  final double level, beat;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.width / 2 - 2;
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(c, r, stroke..color = Lb.line);
+    canvas.drawArc(Rect.fromCircle(center: c, radius: r), -pi / 2, 2 * pi * level, false,
+        stroke..color = color);
+    canvas.drawCircle(c, 2.5 + 2 * beat, Paint()..color = Color.lerp(Lb.line, color, 0.3 + 0.7 * beat)!);
+  }
+
+  @override
+  bool shouldRepaint(_LevelRing old) => old.level != level || old.beat != beat || old.color != color;
 }
 
 /// Runs a visualiser locally for the picker and the big preview.
@@ -532,13 +530,14 @@ class _VisualPreview extends StatefulWidget {
     this.width = 16,
     this.height = 16,
     this.glow = false,
-    this.borderRadius = 12,
+    this.bezel = false,
+    this.borderRadius = Lb.rTile,
   });
 
   final Generator generator;
   final Palette palette;
   final int width, height;
-  final bool glow;
+  final bool glow, bezel;
   final double borderRadius;
 
   @override
@@ -599,6 +598,7 @@ class _VisualPreviewState extends State<_VisualPreview> with SingleTickerProvide
     frame: _frame,
     repaint: _tick,
     glow: widget.glow,
+    bezel: widget.bezel,
     borderRadius: widget.borderRadius,
   );
 }
@@ -621,20 +621,19 @@ class _VisualTile extends StatelessWidget {
         children: [
           Expanded(
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
+              duration: Lb.fast,
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(Lb.rControl + 2),
                 border: Border.all(
-                  color: selected ? GlyphColors.primary : Colors.transparent,
-                  width: 2,
+                  color: selected ? readAccent(context) : Colors.transparent,
+                  width: 1.5,
                 ),
               ),
               child: Center(
                 child: _VisualPreview(
                   generator: visual,
                   palette: paletteById(visual.defaultPalette),
-                  borderRadius: 10,
                 ),
               ),
             ),
@@ -644,78 +643,9 @@ class _VisualTile extends StatelessWidget {
             visual.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              color: selected ? GlyphColors.text : GlyphColors.textMuted,
-            ),
+            style: LbType.small.copyWith(color: selected ? Lb.text : Lb.text2),
           ),
         ],
-      ),
-    ),
-  );
-}
-
-class _SliderRow extends StatelessWidget {
-  const _SliderRow({required this.label, required this.value, required this.onChanged, this.ends});
-
-  final String label;
-  final double value;
-  final ValueChanged<double> onChanged;
-  final (String, String)? ends;
-
-  @override
-  Widget build(BuildContext context) {
-    final e = ends;
-    return Row(
-      children: [
-        SizedBox(
-          width: 84,
-          child: Text(label, style: const TextStyle(color: GlyphColors.textMuted)),
-        ),
-        if (e != null)
-          Text(e.$1, style: const TextStyle(fontSize: 11, color: GlyphColors.textMuted)),
-        Expanded(
-          child: Slider(value: value, onChanged: onChanged),
-        ),
-        if (e != null)
-          Text(e.$2, style: const TextStyle(fontSize: 11, color: GlyphColors.textMuted)),
-      ],
-    );
-  }
-}
-
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 14),
-    // A Material (not a coloured box) so switch tiles keep their ink.
-    child: Material(
-      color: GlyphColors.surfaceHigh,
-      borderRadius: BorderRadius.circular(18),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 11,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w600,
-                color: GlyphColors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 8),
-            child,
-          ],
-        ),
       ),
     ),
   );
@@ -736,15 +666,15 @@ class _Swatch extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: 44,
-          height: 44,
+          duration: Lb.fast,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: SweepGradient(
               colors: [for (final c in palette.swatch) Color(0xFF000000 | c)],
             ),
-            border: Border.all(color: selected ? Colors.white : Colors.transparent, width: 3),
+            border: Border.all(color: selected ? Lb.text : Lb.line, width: selected ? 2.5 : 1),
           ),
         ),
       ),

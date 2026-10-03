@@ -1,4 +1,4 @@
-import '../../../library/catalog.dart';
+import '../../library/catalog.dart';
 
 /// A date-driven collection for the "seasonal" shelf.
 class Season {

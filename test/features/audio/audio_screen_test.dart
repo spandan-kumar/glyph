@@ -10,10 +10,12 @@ import 'package:glyph/features/audio/audio_engine.dart';
 import 'package:glyph/features/audio/audio_screen.dart';
 import 'package:glyph/features/audio/visualizers.dart';
 import 'package:glyph/library/catalog.dart';
+import 'package:glyph/ui/design/knob.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../ui/make/ambient_host.dart';
 import 'fakes.dart';
 
 void main() {
@@ -38,9 +40,12 @@ void main() {
         devices: DeviceStore(),
         catalog: catalog,
         creations: CreationsStore(directory: () async => Directory.systemTemp.createTemp('glyph')),
-        child: MaterialApp(
-          theme: buildTheme(),
-          home: AudioScreen(engine: engine),
+        child: AmbientHost(
+          playback: playback,
+          child: MaterialApp(
+            theme: buildTheme(),
+            home: AudioScreen(engine: engine),
+          ),
         ),
       ),
     );
@@ -65,7 +70,7 @@ void main() {
     final engine = AudioEngine(source: src, permission: FakeMicPermission(MicAccess.granted));
     final playback = await pumpScreen(tester, engine);
 
-    expect(find.text('Music visualiser'), findsOneWidget);
+    expect(find.text('Music'), findsOneWidget);
     expect(engine.status, AudioStatus.listening);
     expect(find.text('Let Glyph hear the music'), findsNothing);
     expect(find.text('Spectrum'), findsOneWidget);
@@ -90,16 +95,21 @@ void main() {
       100,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text('Bass fire'));
+    await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.text('Bass fire'));
     await tester.pump(const Duration(milliseconds: 200));
     expect(playback.generator!.id, 'audio_fire');
 
     await tester.scrollUntilVisible(
-      find.text('Sensitivity'),
+      find.text('SENSITIVITY'),
       100,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.drag(find.byType(Slider).first, const Offset(60, 0));
+    await tester.ensureVisible(find.byType(Knob).first);
+    await tester.pump(const Duration(milliseconds: 100));
+    // Knobs turn up when dragged upwards.
+    await tester.drag(find.byType(Knob).first, const Offset(0, -60));
     await tester.pump(const Duration(milliseconds: 200));
     expect(engine.sensitivity, greaterThan(0.5));
 
@@ -108,6 +118,8 @@ void main() {
       100,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text('Keep screen on'));
+    await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.text('Keep screen on'));
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('Keep running in background'), findsOneWidget);

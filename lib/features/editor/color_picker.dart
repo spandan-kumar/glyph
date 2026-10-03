@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../ui/theme.dart';
+import '../../ui/design/tokens.dart';
+import '../../ui/design/type.dart';
 
 /// Opens the HSV picker; [onChanged] fires live while dragging. Resolves to
 /// the final colour (0xRRGGBB) once the sheet closes.
@@ -82,8 +83,8 @@ class _HsvPickerState extends State<HsvPicker> {
                 height: 44,
                 decoration: BoxDecoration(
                   color: _hsv.toColor(),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: GlyphColors.outline),
+                  borderRadius: BorderRadius.circular(Lb.rPanel),
+                  border: Border.all(color: Lb.line),
                 ),
               ),
               const SizedBox(width: 12),
@@ -91,7 +92,7 @@ class _HsvPickerState extends State<HsvPicker> {
                 child: TextField(
                   controller: _hex,
                   decoration: const InputDecoration(prefixText: '#  ', isDense: true),
-                  style: const TextStyle(fontFamily: 'monospace', letterSpacing: 1.5),
+                  style: LbType.mono.copyWith(fontSize: 15, color: Lb.text, letterSpacing: 1.5),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp('[0-9a-fA-F]')),
                     LengthLimitingTextInputFormatter(6),
@@ -128,7 +129,7 @@ class _Pad extends StatelessWidget {
           onPanDown: (d) => at(d.localPosition),
           onPanUpdate: (d) => at(d.localPosition),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(Lb.rPanel),
             child: CustomPaint(painter: _PadPainter(hsv), size: Size.infinite),
           ),
         );

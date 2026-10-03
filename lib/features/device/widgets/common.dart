@@ -1,140 +1,223 @@
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../../../ui/theme.dart';
+import '../../../ui/design/ambient.dart';
+import '../../../ui/design/parts.dart';
+import '../../../ui/design/tokens.dart';
+import '../../../ui/design/type.dart';
 import '../../../wled/presets.dart';
 import '../device_manager.dart';
 
-class SectionLabel extends StatelessWidget {
-  const SectionLabel(this.text, {super.key, this.trailing});
-
-  final String text;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 16, bottom: 6),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            text.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 12,
-              letterSpacing: 1.2,
-              fontWeight: FontWeight.w600,
-              color: GlyphColors.textMuted,
-            ),
-          ),
-        ),
-        ?trailing,
-      ],
-    ),
-  );
+/// Friendly name for something saved on the matrix ("Turn off" for the
+/// switch-off entry, a gentle note when it has gone).
+String keptName(DeviceManager m, int id) {
+  final p = m.preset(id);
+  if (p == null) return 'something removed';
+  if (p.turnsOff) return 'Turn off';
+  return p.name;
 }
 
-class EmptyNote extends StatelessWidget {
-  const EmptyNote({super.key, required this.icon, required this.text, this.action});
+/// Things worth showing as "Kept": animations, GIFs and saved looks. Shows,
+/// raw web commands and the plain "off" entry are left out.
+List<WledPreset> keptItems(DeviceManager m) => [
+  for (final p in m.presets)
+    if (p.kind == PresetKind.state && !p.turnsOff) p,
+];
 
-  final IconData icon;
+/// A quiet centred note for empty sections.
+class EmptyNote extends StatelessWidget {
+  const EmptyNote({super.key, required this.text, this.action});
+
   final String text;
   final Widget? action;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(Lb.rPanel),
+      border: Border.all(color: Lb.line),
+    ),
     child: Column(
       children: [
-        Icon(icon, size: 40, color: GlyphColors.textMuted),
-        const SizedBox(height: 10),
-        Text(
-          text,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: GlyphColors.textMuted),
-        ),
+        Text(text, textAlign: TextAlign.center, style: LbType.small),
         if (action != null) ...[const SizedBox(height: 12), action!],
       ],
     ),
   );
 }
 
-/// A note in a tinted box, e.g. "runs without your phone".
-class InfoBanner extends StatelessWidget {
-  const InfoBanner({
-    super.key,
-    required this.text,
-    this.icon = Icons.info_outline,
-    this.color = GlyphColors.accent,
-  });
+/// A one-line hint with a small LED dot, e.g. "runs without your phone".
+class Note extends StatelessWidget {
+  const Note({super.key, required this.text, this.color = Lb.text3, this.lit = false});
 
   final String text;
-  final IconData icon;
   final Color color;
+  final bool lit;
 
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: color.withValues(alpha: 0.25)),
-    ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 10),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+        Padding(
+          padding: const EdgeInsets.only(top: 6, right: 10),
+          child: StatusDot(on: lit, color: color),
+        ),
+        Expanded(
+          child: Text(text, style: LbType.small.copyWith(color: lit ? Lb.text2 : Lb.text3)),
+        ),
       ],
     ),
   );
 }
 
-class Tile extends StatelessWidget {
-  const Tile({
+/// A hairline row: optional leading, title, subtitle, trailing.
+class Row1 extends StatelessWidget {
+  const Row1({
     super.key,
     required this.title,
     this.subtitle,
     this.leading,
     this.trailing,
     this.onTap,
-    this.highlight = false,
+    this.danger = false,
   });
 
   final String title;
   final String? subtitle;
   final Widget? leading, trailing;
   final VoidCallback? onTap;
-  final bool highlight;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          if (leading != null) ...[leading!, const SizedBox(width: 12)],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: LbType.bodyStrong.copyWith(color: danger ? Lb.danger : null),
+                ),
+                if (subtitle != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      subtitle!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: LbType.small,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+        ],
+      ),
+    ),
+  );
+}
+
+/// Rows stacked in one hairline panel, separated by hairlines.
+class RowGroup extends StatelessWidget {
+  const RowGroup({super.key, required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => LbPanel(
+    padding: EdgeInsets.zero,
+    child: Column(
+      children: [
+        for (final (i, c) in children.indexed) ...[if (i > 0) const Divider(height: 1), c],
+      ],
+    ),
+  );
+}
+
+/// Title block at the top of a sheet.
+class SheetTitle extends StatelessWidget {
+  const SheetTitle(this.title, {super.key, this.subtitle});
+
+  final String title;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Material(
-      color: highlight ? GlyphColors.primary.withValues(alpha: 0.14) : GlyphColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: highlight ? GlyphColors.primary.withValues(alpha: 0.6) : Colors.transparent,
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: ListTile(
-        contentPadding: const EdgeInsets.only(left: 12, right: 4),
-        leading: leading,
-        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: subtitle == null
-            ? null
-            : Text(
-                subtitle!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: GlyphColors.textMuted, fontSize: 13),
+    padding: const EdgeInsets.only(bottom: 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: LbType.title),
+        if (subtitle != null) ...[
+          const SizedBox(height: 6),
+          Text(subtitle!, style: LbType.small),
+        ],
+      ],
+    ),
+  );
+}
+
+/// A sheet of actions (long-press menus).
+class ActionItem {
+  const ActionItem(this.label, this.icon, this.value, {this.danger = false});
+  final String label;
+  final IconData icon;
+  final String value;
+  final bool danger;
+}
+
+Future<String?> showActions(
+  BuildContext context, {
+  required String title,
+  String? subtitle,
+  required List<ActionItem> actions,
+}) {
+  HapticFeedback.selectionClick();
+  return showModalBottomSheet<String>(
+    context: context,
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Lb.gutter, 0, Lb.gutter, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SheetTitle(title, subtitle: subtitle),
+            for (final a in actions)
+              InkWell(
+                borderRadius: BorderRadius.circular(Lb.rControl),
+                onTap: () => Navigator.pop(ctx, a.value),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+                  child: Row(
+                    children: [
+                      Icon(a.icon, size: 20, color: a.danger ? Lb.danger : Lb.text2),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          a.label,
+                          style: LbType.body.copyWith(color: a.danger ? Lb.danger : Lb.text),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-        trailing: trailing,
-        onTap: onTap,
+          ],
+        ),
       ),
     ),
   );
@@ -150,12 +233,14 @@ Future<bool> confirm(
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
+      title: Text(title, style: LbType.title),
+      content: Text(message, style: LbType.body.copyWith(color: Lb.text2)),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
         FilledButton(
-          style: danger ? FilledButton.styleFrom(backgroundColor: GlyphColors.danger) : null,
+          style: danger
+              ? FilledButton.styleFrom(backgroundColor: Lb.danger, foregroundColor: Lb.ink)
+              : null,
           onPressed: () => Navigator.pop(ctx, true),
           child: Text(action),
         ),
@@ -203,11 +288,12 @@ class _PromptDialogState extends State<_PromptDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.title),
+    title: Text(widget.title, style: LbType.title),
     content: TextField(
       controller: _controller,
       autofocus: true,
       maxLength: widget.maxLength,
+      style: LbType.body,
       decoration: InputDecoration(hintText: widget.hint),
       onSubmitted: (v) => Navigator.pop(context, v.trim()),
     ),
@@ -224,7 +310,7 @@ class _PromptDialogState extends State<_PromptDialog> {
 void toast(BuildContext context, String msg) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
+    ..showSnackBar(SnackBar(content: Text(msg)));
 }
 
 /// Runs [task], showing its error as a snackbar. Returns whether it worked.
@@ -234,57 +320,81 @@ Future<bool> guarded(BuildContext context, Future<void> Function() task, {String
     if (done != null && context.mounted) toast(context, done);
     return true;
   } catch (e) {
-    if (context.mounted) toast(context, '$e'.replaceFirst('WledException: ', ''));
+    if (context.mounted) toast(context, friendlyError(e));
     return false;
   }
 }
 
-/// Square thumbnail of a GIF stored on the matrix, fetched once and animated
-/// with crisp pixels.
+/// Error text without library prefixes or device jargon.
+String friendlyError(Object e) {
+  final s = '$e'.replaceFirst('WledException: ', '').replaceFirst('ClientException: ', '');
+  if (s.contains('preset slots')) return 'Your matrix is full. Remove something first.';
+  if (s.contains('SocketException') || s.contains('TimeoutException') || s.contains('offline')) {
+    return 'Couldn\'t reach your matrix. Is it on?';
+  }
+  return s;
+}
+
+/// An LED tile frame: a dark bezel with a hairline, lit border when active.
+class LedBezel extends StatelessWidget {
+  const LedBezel({super.key, required this.child, this.active = false, this.accent = Lb.phosphor});
+
+  final Widget child;
+  final bool active;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: Lb.fast,
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(
+      color: const Color(0xFF050403),
+      borderRadius: BorderRadius.circular(Lb.rTile + 4),
+      border: Border.all(color: active ? accent.withValues(alpha: 0.8) : Lb.line),
+      boxShadow: active ? [BoxShadow(color: accent.withValues(alpha: 0.25), blurRadius: 14)] : null,
+    ),
+    child: ClipRRect(borderRadius: BorderRadius.circular(Lb.rTile), child: child),
+  );
+}
+
+/// A GIF stored on the matrix, fetched once and shown with crisp pixels.
+/// Without [size] it fills its parent.
 class GifThumb extends StatelessWidget {
-  const GifThumb({super.key, required this.manager, required this.name, this.size = 44});
+  const GifThumb({super.key, required this.manager, required this.name, this.size});
 
   final DeviceManager manager;
   final String name;
-  final double size;
+  final double? size;
 
   @override
-  Widget build(BuildContext context) => _Frame(
-    size: size,
+  Widget build(BuildContext context) => SizedBox(
+    width: size,
+    height: size,
     child: FutureBuilder<Uint8List>(
       future: manager.gif(name),
       builder: (context, snap) {
         final bytes = snap.data;
-        if (bytes == null) {
-          return Icon(
-            snap.hasError ? Icons.broken_image_outlined : Icons.gif_box_outlined,
-            size: size * 0.5,
-            color: GlyphColors.textMuted,
-          );
-        }
+        if (bytes == null) return DotGlyph(color: Lb.text3, dim: !snap.hasError);
         return Image.memory(
           bytes,
-          width: size,
-          height: size,
           fit: BoxFit.cover,
           filterQuality: FilterQuality.none,
           gaplessPlayback: true,
-          errorBuilder: (_, _, _) =>
-              Icon(Icons.broken_image_outlined, size: size * 0.5, color: GlyphColors.textMuted),
+          errorBuilder: (_, _, _) => const DotGlyph(color: Lb.text3),
         );
       },
     ),
   );
 }
 
-/// Thumbnail for any preset: the GIF it plays, or an icon tinted with its
-/// colour.
+/// Thumbnail for anything kept on the matrix: its GIF when there is one,
+/// otherwise a soft LED glow in its colour. Without [size] it fills.
 class PresetThumb extends StatelessWidget {
-  const PresetThumb({super.key, required this.manager, required this.preset, this.size = 44});
+  const PresetThumb({super.key, required this.manager, required this.preset, this.size});
 
   final DeviceManager manager;
   final WledPreset preset;
-  final double size;
+  final double? size;
 
   @override
   Widget build(BuildContext context) {
@@ -293,38 +403,97 @@ class PresetThumb extends StatelessWidget {
       return GifThumb(manager: manager, name: gif, size: size);
     }
     final c = preset.primaryColor;
-    final tint = c != null && c != 0 ? Color(0xFF000000 | c) : GlyphColors.primary;
-    final icon = switch (preset.kind) {
-      PresetKind.playlist => Icons.queue_music_rounded,
-      PresetKind.api => Icons.code_rounded,
-      PresetKind.state when preset.turnsOff => Icons.power_settings_new_rounded,
-      PresetKind.state when gif != null => Icons.gif_box_outlined,
-      PresetKind.state => Icons.auto_awesome_rounded,
-    };
-    return _Frame(
-      size: size,
-      color: tint.withValues(alpha: 0.16),
-      child: Icon(icon, size: size * 0.5, color: tint),
+    final tint = c != null && c != 0 ? Color(0xFF000000 | c) : Lb.phosphor;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: DotGlyph(color: preset.turnsOff ? Lb.text3 : tint, seed: preset.id),
     );
   }
 }
 
-class _Frame extends StatelessWidget {
-  const _Frame({required this.size, required this.child, this.color = GlyphColors.surfaceHigh});
+/// An 8×8 field of LED dots glowing from the middle, used where there is no
+/// picture to show.
+class DotGlyph extends StatelessWidget {
+  const DotGlyph({super.key, required this.color, this.seed = 0, this.dim = false});
 
-  final double size;
-  final Widget child;
   final Color color;
+  final int seed;
+  final bool dim;
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(10),
-    child: Container(
-      width: size,
-      height: size,
-      color: color,
-      alignment: Alignment.center,
-      child: child,
-    ),
+  Widget build(BuildContext context) =>
+      CustomPaint(painter: _DotGlyphPainter(color, seed, dim), child: const SizedBox.expand());
+}
+
+class _DotGlyphPainter extends CustomPainter {
+  _DotGlyphPainter(this.color, this.seed, this.dim);
+
+  final Color color;
+  final int seed;
+  final bool dim;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF050403));
+    const n = 8;
+    final cell = size.shortestSide / n;
+    final p = Paint();
+    final ox = (seed * 37 % 5) - 2.0, oy = (seed * 53 % 5) - 2.0;
+    for (var y = 0; y < n; y++) {
+      for (var x = 0; x < n; x++) {
+        final dx = x - 3.5 - ox * 0.4, dy = y - 3.5 - oy * 0.4;
+        final d = (dx * dx + dy * dy) / 20;
+        final k = dim ? 0.0 : (1 - d).clamp(0.0, 1.0);
+        p.color = k < 0.08 ? Lb.ledOff : color.withValues(alpha: 0.25 + 0.75 * k);
+        canvas.drawCircle(Offset((x + 0.5) * cell, (y + 0.5) * cell), cell * 0.36, p);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DotGlyphPainter old) =>
+      old.color != color || old.seed != seed || old.dim != dim;
+}
+
+/// Storage as a row of LED dots, lit for what's used.
+class DotBar extends StatelessWidget {
+  const DotBar({super.key, required this.fraction, this.color = Lb.text, this.dots = 32});
+
+  final double fraction;
+  final Color color;
+  final int dots;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 10,
+    child: CustomPaint(painter: _DotBarPainter(fraction.clamp(0, 1), color, dots)),
   );
 }
+
+class _DotBarPainter extends CustomPainter {
+  _DotBarPainter(this.f, this.color, this.n);
+
+  final double f;
+  final Color color;
+  final int n;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final step = size.width / n;
+    final r = (step * 0.34).clamp(1.0, size.height / 2);
+    final lit = (f * n).ceil();
+    final on = Paint()..color = color, off = Paint()..color = Lb.ledOff;
+    for (var i = 0; i < n; i++) {
+      canvas.drawCircle(Offset((i + 0.5) * step, size.height / 2), r, i < lit ? on : off);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DotBarPainter old) => old.f != f || old.color != color || old.n != n;
+}
+
+/// An accent colour from the ambient light when one is available.
+/// Falls back to phosphor outside the app shell (tests, standalone pages).
+Color accentOf(BuildContext context) =>
+    context.dependOnInheritedWidgetOfExactType<AmbientScope>()?.notifier?.accent ?? Lb.phosphor;

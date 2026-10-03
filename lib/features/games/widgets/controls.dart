@@ -2,7 +2,9 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import '../../../ui/theme.dart';
+import '../../../ui/design/tokens.dart';
+import '../../../ui/design/type.dart';
+import '../../../ui/make/studio_kit.dart';
 import '../core/game.dart';
 
 // Raw pointer Listeners rather than gesture recognisers: input lands in the
@@ -18,7 +20,7 @@ class PadButton extends StatefulWidget {
     this.width = 72,
     this.height = 72,
     this.radius,
-    this.color = GlyphColors.surfaceHigh,
+    this.color = Lb.raised,
     this.label,
   });
 
@@ -70,16 +72,15 @@ class _PadButtonState extends State<PadButton> {
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
-            color: pressed ? Color.lerp(widget.color, Colors.white, 0.18) : widget.color,
+            color: pressed ? Color.lerp(widget.color, Lb.text, 0.1) : widget.color,
             borderRadius: BorderRadius.circular(r),
-            border: Border.all(
-                color: pressed ? GlyphColors.primary : GlyphColors.outline, width: 1.5),
+            border: Border.all(color: pressed ? readAccent(context) : Lb.line, width: 1.2),
           ),
           child: Center(
             child: IconTheme(
               data: IconThemeData(size: _iconSize),
               child: DefaultTextStyle.merge(
-                style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 1),
+                style: LbType.label.copyWith(fontSize: 14, color: Lb.text, letterSpacing: 2),
                 child: widget.child,
               ),
             ),
@@ -205,9 +206,9 @@ class DragPad extends StatelessWidget {
           child: _Surface(
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               Icon(vertical ? Icons.swap_vert_rounded : Icons.swap_horiz_rounded,
-                  size: 40, color: GlyphColors.textMuted),
+                  size: 40, color: Lb.text3),
               const SizedBox(height: 8),
-              Text(label, style: const TextStyle(color: GlyphColors.textMuted)),
+              Text(label.toUpperCase(), textAlign: TextAlign.center, style: LbType.label),
             ]),
           ),
         );
@@ -224,12 +225,11 @@ class TapPad extends StatelessWidget {
   Widget build(BuildContext context) => PadButton(
         width: double.infinity,
         height: double.infinity,
-        radius: 24,
-        color: GlyphColors.surface,
+        radius: Lb.rSheet,
+        color: Lb.panel,
         label: label,
         onDown: onTap,
-        child: Text(label,
-            style: const TextStyle(fontSize: 28, color: GlyphColors.textMuted, letterSpacing: 6)),
+        child: Text(label, style: LbType.label.copyWith(fontSize: 22, letterSpacing: 8)),
       );
 }
 
@@ -243,9 +243,9 @@ class _Surface extends StatelessWidget {
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
-          color: GlyphColors.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: GlyphColors.outline),
+          color: Lb.panel,
+          borderRadius: BorderRadius.circular(Lb.rSheet),
+          border: Border.all(color: Lb.line),
         ),
         child: child,
       );

@@ -119,7 +119,7 @@ abstract final class GlyphActions {
       }
       if (!context.mounted) return null;
       await stopStreaming(context);
-      final presetId = await client.saveGifToDevice(
+      await client.saveGifToDevice(
         fileName: '${_slug(title)}.gif',
         gif: bytes,
         presetName: title,
@@ -128,10 +128,10 @@ abstract final class GlyphActions {
       await d.refresh();
       final kb = (bytes.length / 1024).toStringAsFixed(1);
       return context.mounted
-          ? _report(context, 'Saved as preset $presetId ($kb KB). It now plays without your phone.')
+          ? _report(context, 'Kept on your matrix ($kb KB). Unplug your phone — it keeps playing.')
           : null;
     } catch (e) {
-      return context.mounted ? _report(context, 'Save failed: $e') : null;
+      return context.mounted ? _report(context, 'Couldn\'t keep it on your matrix: $e') : null;
     }
   }
 

@@ -103,9 +103,6 @@ ThemeData buildTheme() {
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(foregroundColor: Lb.text, textStyle: LbType.bodyStrong),
     ),
-    iconButtonTheme: IconButtonThemeData(
-      style: IconButton.styleFrom(foregroundColor: Lb.text),
-    ),
     chipTheme: ChipThemeData(
       backgroundColor: Colors.transparent,
       selectedColor: Lb.raised,

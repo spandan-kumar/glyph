@@ -6,7 +6,7 @@ import 'package:glyph/engine/generator.dart';
 import 'package:glyph/engine/palette.dart';
 import 'package:glyph/engine/registry.dart';
 import 'package:glyph/library/catalog.dart';
-import 'package:glyph/ui/widgets/discover/seasons.dart';
+import 'package:glyph/ui/tune/seasons.dart';
 
 void main() {
   final catalog = Catalog.parse(File('assets/catalog/catalog.json').readAsStringSync());

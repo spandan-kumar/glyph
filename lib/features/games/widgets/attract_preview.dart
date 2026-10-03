@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../../engine/frame.dart';
+import '../../../ui/design/tokens.dart';
 import '../../../ui/widgets/led_matrix_view.dart';
 import '../core/game.dart';
 
@@ -65,5 +66,5 @@ class _AttractPreviewState extends State<AttractPreview> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) =>
-      LedMatrixView(frame: _frame, repaint: _tick, borderRadius: 12);
+      LedMatrixView(frame: _frame, repaint: _tick, borderRadius: Lb.rTile);
 }

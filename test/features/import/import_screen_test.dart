@@ -15,6 +15,8 @@ import 'package:glyph/ui/theme.dart';
 import 'package:glyph/ui/widgets/led_matrix_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../ui/make/ambient_host.dart';
+
 DecodedSource _gradientClip() {
   const w = 48, h = 32;
   final frames = <Uint8List>[];
@@ -57,9 +59,12 @@ void main() {
       devices: DeviceStore(),
       catalog: catalog,
       creations: creations,
-      child: MaterialApp(
-        theme: buildTheme(),
-        home: ImportScreen(initialSource: _gradientClip(), initialName: 'gradient'),
+      child: AmbientHost(
+        playback: playback,
+        child: MaterialApp(
+          theme: buildTheme(),
+          home: ImportScreen(initialSource: _gradientClip(), initialName: 'gradient'),
+        ),
       ),
     ));
     await tester.pump(const Duration(milliseconds: 50));
@@ -71,6 +76,8 @@ void main() {
     expect(find.text('16×16'), findsOneWidget);
     expect(find.textContaining('GIF ≈'), findsOneWidget);
     expect(find.text('6 frames · 0.5 s'), findsOneWidget);
+    expect(find.text('Bring a GIF'), findsOneWidget);
+    expect(find.text('Keep on matrix'), findsOneWidget);
 
     // Change fit mode and rotate; preview keeps rendering.
     await tester.ensureVisible(find.text('Fit'));
@@ -107,7 +114,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // Scroll through the rest of the editor.
-    await tester.drag(find.byType(ListView), const Offset(0, -1500));
+    // From the gutter, so the drag scrolls rather than turning a knob.
+    await tester.dragFrom(
+        tester.getTopLeft(find.byType(ListView)) + const Offset(8, 200), const Offset(0, -1500));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('TIMING'), findsOneWidget);
     await tester.ensureVisible(find.byType(Slider).last);
@@ -127,7 +136,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     // The store writes a real file; let real IO finish between pumps.
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < 40 && creations.items.isEmpty; i++) {
       await tester.pump(const Duration(milliseconds: 100));
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     }

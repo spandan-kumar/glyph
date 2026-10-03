@@ -13,7 +13,10 @@ import '../../engine/palette.dart';
 import '../../engine/registry.dart';
 import '../../ui/actions.dart';
 import '../../ui/scope.dart';
-import '../../ui/theme.dart';
+import '../../ui/design/parts.dart';
+import '../../ui/design/tokens.dart';
+import '../../ui/design/type.dart';
+import '../../ui/make/studio_kit.dart';
 import '../../ui/widgets/led_matrix_view.dart';
 import 'native_text.dart';
 import 'text_generators.dart';
@@ -161,7 +164,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     await GlyphActions.ensureStreaming(context);
     if (!mounted) return;
     if (!AppScope.of(context).devices.isConnected) {
-      _toast('Playing in Glyph. Connect a matrix in the Matrix tab to stream it.');
+      _toast('Playing here on your phone. Connect a matrix to see it big.');
     }
   }
 
@@ -197,7 +200,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
           meta: {..._s.toJson(), 'mode': _mode},
         );
     _creationId = c.id;
-    _toast('Saved to My Creations');
+    _toast('Saved to Made by you');
   }
 
   Future<void> _saveToMatrix() async {
@@ -205,7 +208,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     final devices = scope.devices;
     final caps = devices.caps, client = devices.client;
     if (caps == null || client == null) {
-      _toast('Connect a matrix in the Matrix tab first.');
+      _toast('Connect a matrix to keep this on it.');
       return;
     }
     if (_mode == 'text' && _s.text.trim().isEmpty) {
@@ -220,16 +223,16 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     try {
       if (_mode == 'clock' || (_native && caps.is2D)) {
         await GlyphActions.stopStreaming(context);
-        final id = await saveNativeText(client,
+        await saveNativeText(client,
             s: _s,
             mode: _mode,
             presetName: _title,
             rows: caps.height,
             isEsp8266: caps.isEsp8266);
         await devices.refresh();
-        msg = 'Saved as preset $id. It runs on the matrix without your phone.';
+        msg = 'Kept on your matrix. Unplug your phone — it keeps playing.';
         if (_mode == 'clock' && _clockUnsynced(devices.info?.raw)) {
-          msg += ' The controller has no time yet: turn on NTP in its Time settings.';
+          msg += ' Your matrix doesn\'t know the time yet: turn on internet time in its Time settings.';
         }
       } else {
         final clip = _bake(caps.width, caps.height);
@@ -237,7 +240,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         msg = await GlyphActions.saveClipToDevice(context, clip, _title);
       }
     } catch (e) {
-      msg = 'Save failed: $e';
+      msg = 'Couldn\'t keep it: $e';
     }
     if (!mounted) return;
     setState(() {
@@ -279,26 +282,30 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         final (w, h) = _size;
         if (_frame.width != w || _frame.height != h) _rebuild(push: false);
         final caps = devices.caps;
-        return Scaffold(
-          appBar: AppBar(title: Text(switch (_mode) {
+        return StudioScaffold(
+          title: switch (_mode) {
             'clock' => 'Clock',
             'countdown' => 'Countdown',
-            _ => 'Scrolling text',
-          })),
+            _ => 'Write',
+          },
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+            padding: const EdgeInsets.fromLTRB(Lb.gutter, 4, Lb.gutter, 32),
             children: [
               Center(
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: 360, maxHeight: w >= h * 2 ? 140 : 260),
-                  child: LedMatrixView(frame: _frame, repaint: _tick, glow: true, borderRadius: 20),
+                  constraints: BoxConstraints(maxWidth: 360, maxHeight: w >= h * 2 ? 140 : 240),
+                  child: LedMatrixView(
+                      frame: _frame, repaint: _tick, glow: true, bezel: true, borderRadius: Lb.rControl),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               if (caps != null && caps.is2D)
                 Center(
-                  child: Text('${devices.info?.name ?? 'Matrix'} · ${caps.width}×${caps.height}',
-                      style: const TextStyle(color: GlyphColors.textMuted, fontSize: 12)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const StatusDot(on: true),
+                    const SizedBox(width: 8),
+                    MonoLabel('${devices.info?.name ?? 'Matrix'} · ${caps.width}×${caps.height}'),
+                  ]),
                 )
               else
                 Wrap(
@@ -313,7 +320,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                       ),
                   ],
                 ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'text', label: Text('Text'), icon: Icon(Icons.text_fields, size: 18)),
@@ -324,7 +331,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                 showSelectedIcon: false,
                 onSelectionChanged: (v) => _update(() => _mode = v.first),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
               ..._modeControls(w, h),
               _styleSection(),
               if (_mode == 'text') _motionSection(),
@@ -339,18 +346,22 @@ class _TextStudioScreenState extends State<TextStudioScreen>
 
   List<Widget> _modeControls(int w, int h) => switch (_mode) {
         'clock' => [
-            _Section(title: 'Clock', child: Column(children: [
-              _switch('24-hour', _s.hour24, (v) => _s.hour24 = v),
-              _switch('Seconds', _s.seconds, (v) => _s.seconds = v),
-              _switch('Blinking colon', _s.blink, (v) => _s.blink = v),
-              _switch('Date when there\'s room', _s.date, (v) => _s.date = v),
-              _switch('Analog face', _s.analog, (v) => _s.analog = v,
-                  subtitle: analogFits(w, h) ? null : 'Needs a square matrix of 16×16 or more'),
-            ])),
+            StudioGroup(
+              label: 'Clock',
+              padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+              child: Column(children: [
+                _switch('24-hour', _s.hour24, (v) => _s.hour24 = v),
+                _switch('Seconds', _s.seconds, (v) => _s.seconds = v),
+                _switch('Blinking colon', _s.blink, (v) => _s.blink = v),
+                _switch('Date when there\'s room', _s.date, (v) => _s.date = v),
+                _switch('Analog face', _s.analog, (v) => _s.analog = v,
+                    subtitle: analogFits(w, h) ? null : 'Needs a square matrix of 16×16 or more'),
+              ]),
+            ),
           ],
         'countdown' => [
-            _Section(
-              title: 'Count down to',
+            StudioGroup(
+              label: 'Count down to',
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Wrap(spacing: 6, runSpacing: 6, children: [
                   for (final (label, secs) in const [('1 min', 60), ('5 min', 300), ('10 min', 600), ('25 min', 1500), ('1 hour', 3600)])
@@ -372,7 +383,8 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                 const SizedBox(height: 12),
                 TextField(
                   controller: _doneCtl,
-                  decoration: const InputDecoration(hintText: 'Message at zero', prefixIcon: Icon(Icons.celebration_outlined)),
+                  decoration: const InputDecoration(
+                      hintText: 'Message at zero', prefixIcon: Icon(Icons.celebration_outlined)),
                   onChanged: (v) => _update(() => _s.doneText = v),
                 ),
               ]),
@@ -382,6 +394,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
             TextField(
               controller: _textCtl,
               maxLength: 120,
+              style: LbType.title,
               decoration: const InputDecoration(hintText: 'Type your message', counterText: ''),
               onChanged: (v) => _update(() => _s.text = v),
             ),
@@ -406,15 +419,15 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
           ],
       };
 
   Widget _switch(String label, bool value, void Function(bool) set, {String? subtitle}) => SwitchListTile(
         contentPadding: EdgeInsets.zero,
         dense: true,
-        title: Text(label),
-        subtitle: subtitle == null ? null : Text(subtitle, style: const TextStyle(fontSize: 12)),
+        title: Text(label, style: LbType.body),
+        subtitle: subtitle == null ? null : Text(subtitle, style: LbType.small),
         value: value,
         onChanged: (v) => _update(() => set(v)),
       );
@@ -428,16 +441,17 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         ],
       );
 
-  Widget _styleSection() => _Section(
-        title: 'Style',
+  Widget _styleSection() => StudioGroup(
+        label: 'Style',
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _chips([('tiny', 'Tiny'), ('classic', 'Classic'), ('bold', 'Bold')], _s.font, (v) => _s.font = v),
           _switch('Large on tall matrices', _s.large, (v) => _s.large = v),
+          const SizedBox(height: 4),
           _chips([('solid', 'Solid'), ('gradient', 'Gradient'), ('rainbow', 'Rainbow'), ('animated', 'Animated')],
               _s.colorMode, (v) => _s.colorMode = v),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           SizedBox(
-            height: 40,
+            height: 36,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: _s.colorMode == 'solid'
@@ -460,31 +474,36 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                     ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           _chips([('none', 'Plain'), ('outline', 'Outline'), ('shadow', 'Shadow')], _s.effect, (v) => _s.effect = v),
         ]),
       );
 
-  Widget _motionSection() => _Section(
-        title: 'Motion',
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _chips([('left', '← Left'), ('right', 'Right →'), ('up', '↑ Up'), ('static', 'Still')], _s.direction,
-              (v) => _s.direction = v),
-          Row(children: [
-            const Icon(Icons.speed, size: 20, color: GlyphColors.textMuted),
-            Expanded(
-              child: Slider(value: _s.speed, onChanged: (v) => _update(() => _s.speed = v)),
-            ),
-          ]),
+  Widget _motionSection() => StudioGroup(
+        label: 'Motion',
+        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          Expanded(
+            child: _chips([('left', '← Left'), ('right', 'Right →'), ('up', '↑ Up'), ('static', 'Still')],
+                _s.direction, (v) => _s.direction = v),
+          ),
+          const SizedBox(width: 12),
+          StudioKnob(
+            label: 'Speed',
+            value: _s.speed,
+            size: 56,
+            onChanged: (v) => _update(() => _s.speed = v),
+          ),
         ]),
       );
 
-  Widget _backgroundSection() => _Section(
-        title: 'Background',
+  Widget _backgroundSection() => StudioGroup(
+        label: 'Background',
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: SizedBox(
           height: 40,
           child: ListView(
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
               for (final (id, name) in [('', 'None'), for (final g in generators) (g.id, g.name)])
                 Padding(
@@ -504,14 +523,15 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     final connected = AppScope.of(context).devices.isConnected;
     final countdown = _mode == 'countdown';
     final note = switch (_mode) {
-      'clock' => 'Saved clocks use WLED\'s own Scrolling Text, so they keep the time without your phone. '
-          'Fonts are WLED\'s; 12/24h follows the controller\'s Time settings.',
-      'countdown' => 'WLED can\'t count down to a date on its own, so countdowns run from Glyph: '
-          'use Play on matrix.',
+      'clock' => 'A kept clock runs on the matrix itself, so it keeps time without your phone. '
+          'It uses the matrix\'s own font; 12/24-hour follows its time settings.',
+      'countdown' => 'Countdowns run from your phone, so use Play on matrix.',
       _ => _native
-          ? 'On-device text runs in WLED: live tokens like #HH:#MM work, but fonts and colours are WLED\'s.'
-          : 'GIF keeps your exact look and background, but the text is fixed.',
+          ? 'Kept as words on the matrix: live time like #HH:#MM works, '
+              'but it uses the matrix\'s own font and colours.'
+          : 'Kept as an animation: your exact look and background, but the words are fixed.',
     };
+    final ok = _result != null && (_result!.startsWith('Kept') || _result!.startsWith('Saved'));
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       const SizedBox(height: 4),
       FilledButton.icon(
@@ -519,18 +539,36 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         icon: const Icon(Icons.play_arrow_rounded),
         label: const Text('Play on matrix'),
       ),
-      const SizedBox(height: 8),
-      OutlinedButton.icon(
-        onPressed: _saveCreation,
-        icon: const Icon(Icons.bookmark_add_outlined),
-        label: const Text('Save to My Creations'),
-      ),
-      const SizedBox(height: 14),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _saveCreation,
+            icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+            label: const Text('Save'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: connected && !countdown && !_busy && (is2D || (_mode == 'text' && !_native))
+                ? _saveToMatrix
+                : null,
+            icon: _busy
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.push_pin_outlined, size: 18),
+            label: FittedBox(child: Text(_busy ? 'Keeping…' : 'Keep on matrix')),
+          ),
+        ),
+      ]),
+      const SizedBox(height: 16),
       if (_mode == 'text') ...[
+        const MonoLabel('Keep as'),
+        const SizedBox(height: 8),
         SegmentedButton<bool>(
           segments: const [
-            ButtonSegment(value: true, label: Text('On-device text')),
-            ButtonSegment(value: false, label: Text('Exact look (GIF)')),
+            ButtonSegment(value: true, label: Text('Matrix font')),
+            ButtonSegment(value: false, label: Text('Exact look')),
           ],
           selected: {_native},
           showSelectedIcon: false,
@@ -538,56 +576,22 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         ),
         const SizedBox(height: 8),
       ],
-      OutlinedButton.icon(
-        onPressed: connected && !countdown && !_busy && (is2D || (_mode == 'text' && !_native))
-            ? _saveToMatrix
-            : null,
-        icon: _busy
-            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-            : const Icon(Icons.download_for_offline_outlined),
-        label: Text(_busy ? 'Saving…' : 'Save to matrix'),
-      ),
-      const SizedBox(height: 6),
-      Text(note, style: const TextStyle(fontSize: 12, color: GlyphColors.textMuted)),
+      Text(note, style: LbType.small),
+      if (!connected)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text('Connect a matrix to keep it there.', style: LbType.small.copyWith(color: Lb.text3)),
+        ),
       if (_result != null)
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text(_result!,
-              style: TextStyle(
-                  fontSize: 12, color: _result!.startsWith('Saved') ? GlyphColors.success : GlyphColors.warning)),
+          child: Text(_result!, style: LbType.small.copyWith(color: ok ? Lb.ok : Lb.phosphor)),
         ),
     ]);
   }
 
   static String _fmtDate(DateTime d) =>
       '${d.day}/${d.month} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-}
-
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        // Material, not a decorated box, so switch tiles can paint ink.
-        child: Material(
-          color: GlyphColors.surfaceHigh,
-          borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title.toUpperCase(),
-                  style: const TextStyle(
-                      fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: GlyphColors.textMuted)),
-              const SizedBox(height: 8),
-              child,
-            ]),
-          ),
-        ),
-      );
 }
 
 class _Dot extends StatelessWidget {
@@ -602,12 +606,13 @@ class _Dot extends StatelessWidget {
         padding: const EdgeInsets.only(right: 8),
         child: GestureDetector(
           onTap: onTap,
-          child: Container(
-            width: 36,
-            height: 36,
+          child: AnimatedContainer(
+            duration: Lb.fast,
+            width: 34,
+            height: 34,
             decoration: decoration.copyWith(
               shape: BoxShape.circle,
-              border: Border.all(color: selected ? Colors.white : Colors.transparent, width: 3),
+              border: Border.all(color: selected ? Lb.text : Lb.line, width: selected ? 2.5 : 1),
             ),
           ),
         ),

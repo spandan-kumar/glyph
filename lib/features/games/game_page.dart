@@ -8,7 +8,10 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../app/playback.dart';
 import '../../ui/actions.dart';
 import '../../ui/scope.dart';
-import '../../ui/theme.dart';
+import '../../ui/design/parts.dart';
+import '../../ui/design/tokens.dart';
+import '../../ui/design/type.dart';
+import '../../ui/make/studio_kit.dart';
 import '../../ui/widgets/led_matrix_view.dart';
 import 'core/game.dart';
 import 'core/game_generator.dart';
@@ -185,10 +188,9 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
     final pb = _playback!;
     final def = widget.def;
     final size = MediaQuery.sizeOf(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(def.name),
-        actions: [
+    return StudioScaffold(
+      title: def.name,
+      actions: [
           if (def.options.isNotEmpty)
             PopupMenuButton<String>(
               icon: const Icon(Icons.tune),
@@ -204,12 +206,11 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
             onPressed: _over ? null : () => _setPaused(!_paused),
             icon: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
           ),
-        ],
-      ),
+      ],
       body: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(Lb.gutter, 0, Lb.gutter, 16),
           child: Column(children: [
             _Hud(score: _score, best: max(_best, _newBest ? _score : 0), status: _status),
             const SizedBox(height: 8),
@@ -219,19 +220,20 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
                 listenable: pb,
                 builder: (context, _) => Center(
                   child: LedMatrixView(
-                      frame: pb.frame, repaint: pb.frameTick, glow: true, borderRadius: 20),
+                      frame: pb.frame,
+                      repaint: pb.frameTick,
+                      glow: true,
+                      bezel: true,
+                      borderRadius: Lb.rControl),
                 ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             ListenableBuilder(
               listenable: pb,
-              builder: (context, _) => Text(
-                pb.isStreaming ? 'Live on your matrix' : 'Preview · connect a matrix to play big',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: pb.isStreaming ? GlyphColors.accent : GlyphColors.textMuted),
-              ),
+              builder: (context, _) => pb.isStreaming
+                  ? const LivePulse(label: 'On your matrix')
+                  : const MonoLabel('Preview · connect a matrix to play big'),
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -271,9 +273,9 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
             onSwipe: _press,
             child: Container(
               decoration: BoxDecoration(
-                color: GlyphColors.surface,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: GlyphColors.outline),
+                color: Lb.panel,
+                borderRadius: BorderRadius.circular(Lb.rSheet),
+                border: Border.all(color: Lb.line),
               ),
               child: Center(child: DPad(onDown: _press, size: unit)),
             ),
@@ -290,7 +292,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
                 width: unit * 1.1,
                 height: unit * 1.1,
                 label: 'drop',
-                color: GlyphColors.surface,
+                color: Lb.panel,
                 onDown: () => _press(GameKey.b),
                 child: const Icon(Icons.vertical_align_bottom_rounded),
               ),
@@ -299,7 +301,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
                 width: unit * 1.3,
                 height: unit * 1.3,
                 label: 'rotate',
-                color: GlyphColors.primary.withValues(alpha: 0.35),
+                color: Lb.raised,
                 onDown: () => _press(GameKey.a),
                 child: const Icon(Icons.rotate_right_rounded),
               ),
@@ -320,7 +322,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
                 child: PadButton(
                   width: double.infinity,
                   height: double.infinity,
-                  radius: 24,
+                  radius: Lb.rSheet,
                   label: k.name,
                   onDown: () => _press(k),
                   child: Icon(icon, size: 48),
@@ -352,7 +354,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
               width: unit * 1.6,
               height: unit * 1.6,
               label: 'fire',
-              color: GlyphColors.danger.withValues(alpha: 0.35),
+              color: Color.lerp(Lb.raised, Lb.danger, 0.22)!,
               onDown: () => _press(GameKey.a),
               child: const Text('FIRE'),
             ),
@@ -368,32 +370,26 @@ class _Hud extends StatelessWidget {
   final int score, best;
   final String? status;
 
+  static const _figures = [FontFeature.tabularFigures()];
+
   @override
   Widget build(BuildContext context) {
-    const label = TextStyle(
-        fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: GlyphColors.textMuted);
     return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('SCORE', style: label),
-        Text('$score',
-            style: const TextStyle(
-                fontSize: 30, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()])),
+        const MonoLabel('Score'),
+        Text('$score', style: LbType.display.copyWith(fontSize: 34, fontFeatures: _figures)),
       ]),
       const SizedBox(width: 16),
       Expanded(
         child: Padding(
           padding: const EdgeInsets.only(bottom: 6),
-          child: Text(status ?? '',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: GlyphColors.textMuted)),
+          child: Text(status ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: LbType.small),
         ),
       ),
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        const Text('BEST', style: label),
+        const MonoLabel('Best'),
         Text('$best',
-            style: const TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w700, color: GlyphColors.warning)),
+            style: LbType.title.copyWith(color: readAccent(context), fontFeatures: _figures)),
       ]),
     ]);
   }
@@ -414,33 +410,36 @@ class _Panel extends StatelessWidget {
   final bool highlight;
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: GlyphColors.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: highlight ? GlyphColors.warning : GlyphColors.outline),
-        ),
-        child: SingleChildScrollView(
-          child: Column(children: [
-            Text(title, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            for (final l in lines)
-              Text(l,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: l == 'New best!' ? GlyphColors.warning : GlyphColors.textMuted,
-                      fontWeight: l == 'New best!' ? FontWeight.w700 : FontWeight.w400)),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(onPressed: primary.$2, child: Text(primary.$1)),
-            ),
-            const SizedBox(height: 8),
-            TextButton(onPressed: secondary.$2, child: Text(secondary.$1)),
-          ]),
-        ),
-      );
+  Widget build(BuildContext context) {
+    final accent = readAccent(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Lb.panel,
+        borderRadius: BorderRadius.circular(Lb.rSheet),
+        border: Border.all(color: highlight ? accent : Lb.line),
+      ),
+      child: SingleChildScrollView(
+        child: Column(children: [
+          Text(title, style: LbType.title),
+          const SizedBox(height: 6),
+          for (final l in lines)
+            Text(l,
+                textAlign: TextAlign.center,
+                style: l == 'New best!'
+                    ? LbType.bodyStrong.copyWith(color: accent)
+                    : LbType.body.copyWith(color: Lb.text2)),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(onPressed: primary.$2, child: Text(primary.$1)),
+          ),
+          const SizedBox(height: 8),
+          TextButton(onPressed: secondary.$2, child: Text(secondary.$1)),
+        ]),
+      ),
+    );
+  }
 }

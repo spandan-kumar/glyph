@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -13,7 +14,11 @@ import 'package:glyph/features/editor/editor_screen.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
+import 'package:glyph/wled/device.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../ui/make/ambient_host.dart';
+import '../device/fake_wled.dart';
 
 int lit(Frame f) => [
       for (var y = 0; y < f.height; y++)
@@ -29,7 +34,8 @@ void main() {
     catalog = Catalog.parse(File('assets/catalog/starter.json').readAsStringSync());
   });
 
-  Future<PlaybackController> pumpEditor(WidgetTester tester, Widget screen) async {
+  Future<PlaybackController> pumpEditor(WidgetTester tester, Widget screen,
+      {DeviceStore? devices}) async {
     tester.view.physicalSize = const Size(360, 740) * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -37,10 +43,13 @@ void main() {
     addTearDown(playback.dispose);
     await tester.pumpWidget(AppScope(
       playback: playback,
-      devices: DeviceStore(),
+      devices: devices ?? DeviceStore(),
       catalog: catalog,
       creations: CreationsStore(directory: () async => Directory.systemTemp.createTemp('glyph')),
-      child: MaterialApp(theme: buildTheme(), home: screen),
+      child: AmbientHost(
+        playback: playback,
+        child: MaterialApp(theme: buildTheme(), home: screen),
+      ),
     ));
     await tester.pump(const Duration(milliseconds: 100));
     return playback;
@@ -59,6 +68,9 @@ void main() {
 
     final m = state(tester).model!;
     expect((m.width, m.height), (16, 16));
+    // No matrix: the live mirror says so instead of pretending.
+    expect(find.text('NOT CONNECTED'), findsOneWidget);
+    expect(state(tester).mirroring, isFalse);
     final canvas = find.byType(EditorCanvas);
     final rect = tester.getRect(canvas);
     await tester.dragFrom(rect.center - const Offset(120, 0), const Offset(240, 0));
@@ -142,6 +154,31 @@ void main() {
     expect(m.fps, 5);
     expect(m.frames[1].get(2, 2), 0x00FF00);
     expect(find.text('5 fps'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('with a matrix connected, drawing goes live by default', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'devices.v1': jsonEncode([const SavedDevice(host: '192.168.29.6', name: 'Matrix').toJson()]),
+      'devices.selected': '192.168.29.6',
+    });
+    final devices = DeviceStore(clientFactory: FakeWled().client);
+    await devices.load();
+    expect(devices.isConnected, isTrue);
+    final playback = await pumpEditor(tester, const EditorScreen(), devices: devices);
+    await tester.tap(find.text('Blank'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(state(tester).mirroring, isTrue);
+    expect(playback.generator?.id, '_editor_live');
+    expect(find.text('NOT CONNECTED'), findsNothing);
+
+    // Turning it off sticks.
+    await tester.tap(find.byTooltip('Stop showing on your matrix'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(state(tester).mirroring, isFalse);
+    expect(find.text('SHOW ON MATRIX'), findsOneWidget);
     expect(tester.takeException(), isNull);
     playback.pause();
   });
