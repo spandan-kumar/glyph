@@ -26,8 +26,15 @@ import 'led_gamma.dart';
 /// pixel whose brightest channel would reach the LEDs below [ledOffLevel]
 /// becomes black instead of a dim glow. Set it for every GIF sent to a
 /// matrix; leave it off for GIFs meant for screens (sharing).
+/// Longest single frame delay (centiseconds) in GIFs meant for a device.
+const deviceMaxFrameCs = 100;
+
 Uint8List encodeGif(List<Frame> frames, List<int> delays,
     {bool delta = true, bool forLeds = false}) {
+  // WLED's GIF player carries a frame's wait over to the next file it opens
+  // (image_loader.cpp never resets currentFrameDelay), so a long frame on
+  // the device blanks whatever plays next. Cap device frames at 1 s.
+  final maxCs = forLeds ? deviceMaxFrameCs : 0xFFFF;
   if (frames.isEmpty) throw ArgumentError('No frames to encode');
   if (forLeds) frames = ledFramesForDevice(frames);
   if (delays.length != frames.length) {
@@ -73,7 +80,7 @@ Uint8List encodeGif(List<Frame> frames, List<int> delays,
   var delayAt = -1;
   for (var f = 0; f < frames.length; f++) {
     final base = f * npx;
-    final delay = delays[f].clamp(0, 0xFFFF);
+    final delay = delays[f].clamp(0, maxCs);
     final diff = delta && f > 0;
     var x0 = 0, y0 = 0, x1 = w - 1, y1 = h - 1;
     if (diff) {
@@ -98,12 +105,12 @@ Uint8List encodeGif(List<Frame> frames, List<int> delays,
       }
       if (x1 < 0) {
         final merged = (out[delayAt] | (out[delayAt + 1] << 8)) + delay;
-        if (merged <= 0xFFFF) {
+        if (merged <= maxCs) {
           out[delayAt] = merged & 0xFF;
           out[delayAt + 1] = merged >> 8;
           continue;
         }
-        x0 = y0 = x1 = y1 = 0; // delay overflow: a 1x1 transparent frame
+        x0 = y0 = x1 = y1 = 0; // delay cap reached: a 1x1 transparent frame
       }
     }
     final cw = x1 - x0 + 1, ch = y1 - y0 + 1;

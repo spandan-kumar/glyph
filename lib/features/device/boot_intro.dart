@@ -43,10 +43,12 @@ abstract final class BootIntro {
   static int get durationDs => (seconds * 10).round();
   static const fps = 20;
 
-  /// The last frame (the finished logo) is held for 10 minutes; WLED's
-  /// Image effect waits each frame's own GIF delay (image_loader.cpp
-  /// renderImageToSegment), so the logo rests rather than replaying.
-  static const holdCs = 60000;
+  /// The last frame (the finished logo). Kept short on purpose: WLED's GIF
+  /// player carries a frame's wait over to the next file (image_loader.cpp
+  /// never resets currentFrameDelay), so a long hold here blanked whatever
+  /// played after the intro for up to 10+ minutes. The playlist moves on
+  /// before the intro would loop.
+  static const holdCs = 100;
 
   /// Install on connect. Widget tests that don't exercise it turn it off.
   static bool autoInstall = true;
@@ -112,7 +114,17 @@ abstract final class BootIntro {
     var changed = false;
 
     final files = await c.files();
-    if (files['/$fileName'] != gif.length) {
+    // Same size isn't enough: a fix to frame timing keeps the size. The
+    // file is tiny, so compare its bytes when the sizes match.
+    var stale = files['/$fileName'] != gif.length;
+    if (!stale) {
+      try {
+        stale = !listEquals(await c.fileBytes('/$fileName'), gif);
+      } catch (_) {
+        stale = true;
+      }
+    }
+    if (stale) {
       await c.uploadFileReliably('/$fileName', gif);
       changed = true;
     }
