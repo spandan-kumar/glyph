@@ -44,23 +44,7 @@ main colours, motion, occasion. If the user doesn't care, proceed with
 sensible defaults and say what you chose. If it fulfils an issue, read it
 (`gh issue view N`) and note the number for the PR.
 
-## 3. Licensing gate (hard rule)
-
-Glyph is MIT and every pixel must be safe to share. Allowed:
-
-- **Original** designs (generic cat, rocket, paper boat, a pumpkin).
-- **Public-domain** works whose copyright has expired (old paintings, 19th
-  century novels, folklore, 1928 US films). These need a `source` block
-  (reference.md → Source) and a PR paragraph explaining why the work is
-  public domain. Follow the public-domain version, never a later redesign.
-
-Refuse, and offer an original alternative, for: trademarked or copyrighted
-characters (game, film, TV, anime, brand mascots), logos, fan art of them
-"however small", and anything traced or copied from someone else's sprite
-sheet or icon set. "It's only 16 pixels" does not change this. If unsure
-whether something is public domain, treat it as not.
-
-## 4. Choose pack, category and id
+## 3. Choose pack, category and id
 
 - Prefer an existing pack: animals, faces (Emoji), food, gaming, holidays,
   legends, love, masterpieces, mini (8×8), nature, storybook, symbols,
@@ -77,7 +61,7 @@ grep -o '"title":"Paper Boat[^"]*"' assets/catalog/catalog.json   # should print
 
 The validator re-checks both.
 
-## 5. Design for LEDs
+## 4. Design for LEDs
 
 - **Grid**: 16×16 unless asked otherwise; 8×8 minis and N×8 scrolling
   banners also work. Fill most of the grid with one big, simple silhouette.
@@ -100,7 +84,7 @@ The validator re-checks both.
   `scroll` (banners). Motion moves the whole drawing; for full-width scenes
   (water, ground) animate in the frames and keep `still`.
 
-## 6. Write the JSON
+## 5. Write the JSON
 
 Add an entry to the pack's `sprites` list (end of the list is fine). Reuse the
 pack's `colors` letters where they fit, or add sprite-level `colors`. Keep
@@ -156,7 +140,7 @@ Frames 1–3 reuse frame 0 and repaint only the water (`_` clears a pixel in a
 patch, `.` keeps it), so the waves roll under a steady boat while the
 sparkles twinkle. Use full row lists when most pixels change.
 
-## 7. Validate and look at it
+## 6. Validate and look at it
 
 ```bash
 python3 skills/glyph-animation/scripts/validate_sprite.py \
@@ -175,7 +159,7 @@ python3 skills/glyph-animation/scripts/validate_sprite.py \
 - Finally run `python3 skills/glyph-animation/scripts/validate_sprite.py --all`
   (whole library, must report 0 errors).
 
-## 8. Rebuild generated files (if Flutter is available)
+## 7. Rebuild generated files (if Flutter is available)
 
 ```bash
 flutter --version     # Flutter 3.47+; on the maintainer's machine: export PATH="$HOME/development/flutter/bin:$PATH"
@@ -192,7 +176,7 @@ hand.** If Flutter isn't installed, skip this step, commit only the pack JSON,
 and say so in the PR: the maintainer regenerates them, and CI's stale-data
 test fails until then (expected).
 
-## 9. Commit, push, open the pull request
+## 8. Commit, push, open the pull request
 
 ```bash
 git add assets/catalog/sprites/<pack>.json lib/engine/generators/sprite_data.g.dart assets/catalog/catalog.json
