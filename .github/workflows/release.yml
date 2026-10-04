@@ -83,7 +83,7 @@ jobs:
             : > dist/body.md
           fi
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         id: release
         with:
           name: Glyph ${{ steps.version.outputs.version }}
