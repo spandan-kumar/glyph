@@ -125,8 +125,9 @@ Repo & community:
 - [ ] `CONTRIBUTING.md` with a 5-minute "add your sprite" guide; issue forms
       (bug, animation request, display request); PR template; 10–15
       `good first issue`s (sprites, festival packs, translations, fonts).
-- [ ] Discussions on; public Project board; Glyph Discord with the GitHub
-      webhook.
+- [x] Discussions on. Glyph Discord: https://discord.gg/9EeCFZAFvk
+- [ ] Public Project board; Discord webhooks (#announcements for releases,
+      #github-feed for issues/PRs).
 - [ ] In-app feedback links: Send feedback, Suggest an animation, Share your
       setup, What's new.
 - [ ] CI (analyze + test on PRs) and tag → signed release with sha256.

@@ -73,11 +73,11 @@ void main() {
       'Request support for your display',
       'Share your setup',
       'Roadmap',
+      'Chat on Discord',
       'What\'s new',
     ]) {
       expect(find.text(row), findsOneWidget, reason: row);
     }
-    expect(find.text('Chat on Discord'), findsNothing, reason: 'hidden while no invite is set');
     await reveal(tester, find.textContaining('Free & open source'));
     expect(find.text('Glyph 1.3.0 · Free & open source · MIT'), findsOneWidget);
 

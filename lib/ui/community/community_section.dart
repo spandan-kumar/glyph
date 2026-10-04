@@ -24,7 +24,6 @@ class CommunitySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final discord = Community.discordInvite;
     return PanelSection(
       label: 'Community',
       padding: padding,
@@ -68,13 +67,13 @@ class CommunitySection extends StatelessWidget {
                 trailing: _out,
                 onTap: () => openCommunityLink(context, Community.roadmap),
               ),
-              if (discord != null)
-                Row1(
-                  leading: _icon(Icons.forum_sharp),
-                  title: 'Chat on Discord',
-                  trailing: _out,
-                  onTap: () => openCommunityLink(context, Uri.parse(discord)),
-                ),
+              Row1(
+                leading: _icon(Icons.forum_sharp),
+                title: 'Chat on Discord',
+                subtitle: 'Help, ideas and beta builds',
+                trailing: _out,
+                onTap: () => openCommunityLink(context, Community.discord),
+              ),
               Row1(
                 leading: _icon(Icons.new_releases_sharp),
                 title: 'What\'s new',

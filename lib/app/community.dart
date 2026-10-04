@@ -10,8 +10,8 @@ import 'devices.dart';
 abstract final class Community {
   static const repo = 'https://github.com/spandan-kumar/glyph';
 
-  /// Set to an invite link to show the Discord row; hidden while null.
-  static const String? discordInvite = null;
+  /// The Glyph Discord (a permanent invite).
+  static final discord = Uri.parse('https://discord.gg/9EeCFZAFvk');
 
   static final showAndTell = Uri.parse('$repo/discussions/categories/show-and-tell');
   static final roadmap = Uri.parse('$repo/blob/main/docs/ROADMAP.md');
