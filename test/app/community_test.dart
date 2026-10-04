@@ -67,7 +67,7 @@ void main() {
     expect(anim, {'template': 'animation_request.yml', 'labels': 'animation-request,community', 'panel': '16×16'});
     expect(Community.displayRequest().queryParameters, {'template': 'display_request.yml'});
     expect('${Community.showAndTell}', 'https://github.com/spandan-kumar/glyph/discussions/categories/show-and-tell');
-    expect('${Community.roadmap}', 'https://github.com/spandan-kumar/glyph/blob/main/docs/ROADMAP.md');
+    expect('${Community.roadmap}', 'https://github.com/users/spandan-kumar/projects/4');
   });
 
   test('a huge last error is cut so the URL stays under the limit', () {

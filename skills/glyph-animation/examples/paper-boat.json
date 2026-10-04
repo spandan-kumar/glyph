@@ -1,0 +1,48 @@
+{
+  "pack": "example",
+  "category": "Nature",
+  "sprites": [
+    {
+      "id": "paper-boat",
+      "title": "Paper Boat",
+      "tags": ["boat", "paper", "origami", "sea", "ocean", "waves", "sail", "summer", "calm", "blue"],
+      "palette": "ocean",
+      "category": "Water",
+      "motion": "still",
+      "ms": 260,
+      "colors": {
+        "W": "#FFFFFF", "u": "#AFC3DA", "Y": "#FFE9B0", "y": "#D9B26A",
+        "c": "p:0.8", "O": "p:0.6", "o": "p:0.45", "t": "t:#FFFFFF"
+      },
+      "frames": [
+        [
+          "................",
+          "..t.............",
+          ".......Wu.......",
+          "......WWuu....t.",
+          ".....WWWuuu.....",
+          "....WWWWuuuu....",
+          "...WWWWWuuuuu...",
+          ".YYYYYYYYYYYYYY.",
+          "..YYYYYYYYYYYY..",
+          "...yyyyyyyyyy...",
+          "cc....cccc....cc",
+          "OccOOOOcOccOOOOc",
+          "OOOOOOOOOOOOOOOO",
+          "OOooOOOOOOooOOOO",
+          "OOOOOOooOOOOOOoo",
+          "ooOOOOOOooOOOOOO"
+        ],
+        {"base": 0, "patch": [{"at": [0, 10], "rows": [
+          "____cccc____cccc", "cOOOOcOccOOOOcOc", "OOOOOOOOOOOOOOOO",
+          "ooOOOOOOooOOOOOO", "OOOOooOOOOOOooOO", "OOOOOOooOOOOOOoo"]}]},
+        {"base": 0, "patch": [{"at": [0, 10], "rows": [
+          "__cccc____cccc__", "OOOcOccOOOOcOccO", "OOOOOOOOOOOOOOOO",
+          "OOOOOOooOOOOOOoo", "OOooOOOOOOooOOOO", "OOOOooOOOOOOooOO"]}]},
+        {"base": 0, "patch": [{"at": [0, 10], "rows": [
+          "cccc____cccc____", "OcOccOOOOcOccOOO", "OOOOOOOOOOOOOOOO",
+          "OOOOooOOOOOOooOO", "ooOOOOOOooOOOOOO", "OOooOOOOOOooOOOO"]}]}
+      ]
+    }
+  ]
+}

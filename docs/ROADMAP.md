@@ -126,7 +126,8 @@ Repo & community:
       (bug, animation request, display request); PR template; 10–15
       `good first issue`s (sprites, festival packs, translations, fonts).
 - [x] Discussions on. Glyph Discord: https://discord.gg/9EeCFZAFvk
-- [ ] Public Project board; Discord webhooks (#announcements for releases,
+- [x] Public roadmap board: https://github.com/users/spandan-kumar/projects/4
+- [ ] Discord webhooks (#announcements for releases,
       #github-feed for issues/PRs).
 - [ ] In-app feedback links: Send feedback, Suggest an animation, Share your
       setup, What's new.

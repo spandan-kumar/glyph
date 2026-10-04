@@ -14,7 +14,8 @@ abstract final class Community {
   static final discord = Uri.parse('https://discord.gg/9EeCFZAFvk');
 
   static final showAndTell = Uri.parse('$repo/discussions/categories/show-and-tell');
-  static final roadmap = Uri.parse('$repo/blob/main/docs/ROADMAP.md');
+  /// The public board (Ideas → Planned → Building → Shipped).
+  static final roadmap = Uri.parse('https://github.com/users/spandan-kumar/projects/4');
 
   /// GitHub (and some browsers) choke on very long prefilled URLs.
   static const maxUrlLength = 6000;

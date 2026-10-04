@@ -51,6 +51,7 @@ assets/       catalog JSON, sprite packs, fonts (OFL), brand
 tool/         builders, previews, smoke tests
 test/         mirrors lib/
 docs/         UX spec, plan, roadmap, README media
+skills/       portable agent skills (glyph-animation: draw a sprite and open a PR)
 fastlane/     store listing metadata and per-versionCode changelogs
 .github/      CI, release and announce workflows, issue forms
 ```
@@ -115,3 +116,9 @@ files. Don't flash test streams on someone's display without saying so.
 Glyph is MIT-licensed (`LICENSE`). `CONTRIBUTING.md` is the guide for
 contributors (sprite format, licensing rules for art, PR checklist); keep it
 in sync when the sprite format or commands change.
+
+For any task that adds or changes a pixel-art animation (sprite), follow the
+`glyph-animation` skill in `skills/glyph-animation/SKILL.md`; validate with
+`python3 skills/glyph-animation/scripts/validate_sprite.py --all`. Keep the
+skill's `reference.md` and validator in sync with `sprite.dart`,
+`palette.dart` and `build_catalog.dart`.

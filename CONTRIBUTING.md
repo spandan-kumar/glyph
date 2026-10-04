@@ -5,6 +5,7 @@ reports a bug or fixes one. You don't need to know Flutter to contribute art:
 sprites are plain text files.
 
 - [Add an animation in 5 minutes](#add-an-animation-in-5-minutes)
+- [Let your AI agent draw it](#let-your-ai-agent-draw-it)
 - [Licensing: original or public domain only](#licensing-original-or-public-domain-only)
 - [Code contributions](#code-contributions)
 - [Reporting bugs and ideas](#reporting-bugs-and-ideas)
@@ -158,6 +159,29 @@ id, a frame that renders blank).
 Then open a pull request with the JSON change, the two regenerated files and
 a screenshot or clip. Credit yourself in the PR description; animation PRs
 are listed under **New animations** in the release notes.
+
+## Let your AI agent draw it
+
+The [`glyph-animation`](skills/glyph-animation/SKILL.md) agent skill walks
+Claude Code, Codex, Cursor or any other coding agent through the whole flow:
+fork, draw the sprite, check the licensing, validate and preview it, and open
+the pull request. In Claude Code:
+
+```
+/plugin marketplace add spandan-kumar/glyph
+/plugin install glyph-animation@glyph
+```
+
+then ask for the animation you want. Other agents: point them at
+`skills/glyph-animation/SKILL.md` (see [skills/README.md](skills/README.md)).
+The skill's validator also works on its own, with just Python 3:
+
+```bash
+python3 skills/glyph-animation/scripts/validate_sprite.py --pack assets/catalog/sprites/animals.json --only fish --preview build/fish.png
+```
+
+You're still the author: look at the preview, and make sure the drawing is
+original or public domain before you send it.
 
 ## Licensing: original or public domain only
 

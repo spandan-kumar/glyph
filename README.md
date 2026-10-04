@@ -148,10 +148,13 @@ an animation or send a pull request. Glyph is released under the
 - **Bugs, animation and display requests** — use **Send feedback** in the
   app, or the [issue forms](https://github.com/spandan-kumar/glyph/issues/new/choose);
   👍 the requests you want most
-- **What's next** — the [roadmap](docs/ROADMAP.md)
+- **What's next** — the [roadmap board](https://github.com/users/spandan-kumar/projects/4) (plan: [docs/ROADMAP.md](docs/ROADMAP.md))
 - **Contribute** — draw a sprite in a few minutes, see
   [CONTRIBUTING.md](CONTRIBUTING.md); everyone follows the
   [Code of Conduct](CODE_OF_CONDUCT.md)
+- **Let your AI agent draw one** — the
+  [glyph-animation skill](skills/README.md) helps Claude Code, Codex, Cursor
+  and other agents draw a sprite and open the pull request
 
 ## Content and credits
 
