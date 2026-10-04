@@ -124,11 +124,12 @@ Repo & community:
       `pixel-art`, `ddp`, `flutter`, `esp32`, `home-automation`.
 - [ ] `CONTRIBUTING.md` with a 5-minute "add your sprite" guide; issue forms
       (bug, animation request, display request); PR template; 10–15
-      `good first issue`s (sprites, festival packs, translations, fonts).
+      `good first issue`s (sprites, festival packs, translations, fonts) —
+      13 open: #7–#19.
 - [x] Discussions on. Glyph Discord: https://discord.gg/9EeCFZAFvk
 - [x] Public roadmap board: https://github.com/users/spandan-kumar/projects/4
-- [ ] Discord webhooks (#announcements for releases,
-      #github-feed for issues/PRs).
+- [x] Discord webhooks (#announcements for releases, #github-feed for
+      issues, PRs, stars).
 - [ ] In-app feedback links: Send feedback, Suggest an animation, Share your
       setup, What's new.
 - [ ] CI (analyze + test on PRs) and tag → signed release with sha256.
