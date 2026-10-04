@@ -11,11 +11,18 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/spandan-kumar/glyph/releases/latest"><img src="https://img.shields.io/github/v/release/spandan-kumar/glyph?label=release" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
+  <a href="https://github.com/spandan-kumar/glyph/actions/workflows/ci.yml"><img src="https://github.com/spandan-kumar/glyph/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph"><img src="https://img.shields.io/badge/Obtainium-get%20updates-5b3fd1" alt="Get it on Obtainium"></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/spandan-kumar/glyph/releases/latest"><b>Download the latest APK</b></a>
   ·
   <a href="docs/design/UX.md">Design</a>
   ·
-  <a href="AGENTS.md">Contributing</a>
+  <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
 <p align="center">
@@ -73,8 +80,10 @@ with whatever is on your matrix.
 ## Install
 
 Download the APK from the [latest release](https://github.com/spandan-kumar/glyph/releases/latest)
-on an Android phone (7.0+, 64-bit ARM) and open it. It's debug-signed, so
-it's for sideloading — not yet on the Play Store.
+on an Android phone (7.0+, 64-bit ARM) and open it. It's for sideloading —
+not yet on the Play Store. To get updates automatically, add it to
+[Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph).
+Each release lists the APK's SHA-256 next to it.
 
 ## What you need
 
@@ -90,6 +99,11 @@ it's for sideloading — not yet on the Play Store.
 | ESP8266 | ✅ | — no GIF player in WLED |
 
 Glyph checks each controller when it connects and only offers what works.
+
+**Works with** any WLED 2D matrix: WS2812B/SK6812 panels and HUB75 panels
+(via WLED's ESP32_HUB75 builds), at whatever size you set in WLED's
+**2D Configuration** — 8×8, 16×16, 32×8, 32×32, 64×32 and beyond. ESP8266
+controllers stream live but can't hold sent animations.
 
 ## How it works
 
@@ -120,7 +134,22 @@ flutter build apk --release --split-per-abi --target-platform android-arm64
 ```
 
 See [AGENTS.md](AGENTS.md) for the project layout, conventions, tools and how
-to test against a real device.
+to test against a real device, and [CONTRIBUTING.md](CONTRIBUTING.md) to add
+an animation or send a pull request. Glyph is released under the
+[MIT License](LICENSE).
+
+## Community
+
+- **Questions and help** — [Discussions](https://github.com/spandan-kumar/glyph/discussions)
+- **Show your setup** — photos and clips of your matrix in
+  [Show and tell](https://github.com/spandan-kumar/glyph/discussions/categories/show-and-tell)
+- **Bugs, animation and display requests** — use **Send feedback** in the
+  app, or the [issue forms](https://github.com/spandan-kumar/glyph/issues/new/choose);
+  👍 the requests you want most
+- **What's next** — the [roadmap](docs/ROADMAP.md)
+- **Contribute** — draw a sprite in a few minutes, see
+  [CONTRIBUTING.md](CONTRIBUTING.md); everyone follows the
+  [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## Content and credits
 
@@ -128,5 +157,7 @@ All effects and pixel art are original to this project; Famous Classics are
 drawn from public-domain originals and carry their source notes. No code was
 copied from WLED or other GPL/EUPL projects. Fonts: Bricolage Grotesque and
 DM Mono (SIL OFL).
+
+The code and original artwork are released under the [MIT License](LICENSE).
 
 Glyph is not affiliated with the WLED project.

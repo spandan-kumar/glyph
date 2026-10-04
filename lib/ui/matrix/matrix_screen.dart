@@ -17,6 +17,7 @@ import '../../features/device/widgets/shows.dart';
 import '../../features/device/widgets/storage.dart';
 import '../../wled/device.dart';
 import '../actions.dart';
+import '../community/community_section.dart';
 import '../design/parts.dart';
 import '../design/stage.dart';
 import '../design/tokens.dart';
@@ -143,6 +144,7 @@ class _MatrixScreenState extends State<MatrixScreen> {
                     settingsView: widget.settingsView,
                   ),
                 ),
+                const CommunitySection(padding: EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 0)),
               ],
             ),
           );
@@ -396,6 +398,7 @@ class _EmptyState extends StatelessWidget {
         onPressed: onConnect,
         child: const Text('Connect your device'),
       ),
+      const CommunitySection(padding: EdgeInsets.only(top: 48)),
     ],
   );
 }

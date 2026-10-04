@@ -1,0 +1,13 @@
+changelog:
+  exclude:
+    labels: [ignore-for-release]
+    authors: [dependabot, "dependabot[bot]"]
+  categories:
+    - title: New animations
+      labels: [animation-request, art]
+    - title: Community requests
+      labels: [community, feedback, display-request]
+    - title: Fixes
+      labels: [bug]
+    - title: Other
+      labels: ['*']

@@ -1,0 +1,33 @@
+name: Support for my display
+description: Ask Glyph to support a display or firmware it doesn't handle yet.
+labels: [display-request]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search the [existing display requests](https://github.com/spandan-kumar/glyph/issues?q=is%3Aissue+label%3Adisplay-request) first. If yours is there, give it a 👍 instead of opening a new one: the count decides what gets built next.
+  - type: input
+    id: display
+    attributes:
+      label: Display
+      description: Make, model and size
+      placeholder: "Ulanzi TC001 with AWTRIX"
+    validations:
+      required: true
+  - type: dropdown
+    id: firmware
+    attributes:
+      label: Firmware
+      options:
+        - WLED
+        - AWTRIX 3
+        - AWTRIX NG
+        - Divoom stock
+        - Tronbyt
+        - ESPHome
+        - Other
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything useful, such as links to its API, how you use it today, or whether you can help test.

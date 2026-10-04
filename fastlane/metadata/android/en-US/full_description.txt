@@ -1,0 +1,33 @@
+Glyph brings your WLED LED matrix to life. Swipe through more than a thousand animations like TV channels, draw your own pixel art, show the time, put your music on the wall and play games, all from your phone.
+
+Your matrix lives at the top of the screen as a glowing live panel. Swipe it to flip through animations, roll the dice for a surprise, and tap Send to put an animation on the device so it keeps playing with your phone off.
+
+DISPLAY
+• 1,163 animations in 22 categories: 62 procedural effects (plasma, fire, aurora, reaction–diffusion, falling sand…), 313 original pixel-art sprites, and Famous Classics: public-domain characters and paintings such as the 1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night.
+• Tweak colours and motion with a palette reel and rotary knobs.
+• Seamless loops on the device and accurate colours: device gamma, true blacks and stable hues at low brightness.
+
+MAKE
+• Draw: frames, onion skin, mirror drawing, fill, shapes and undo. Your strokes appear on the matrix as you draw.
+• Write, Clock and Timer with hand-made pixel fonts. Clocks keep the real time on the device with your phone off.
+• Bring a GIF: any GIF, WebP or photo, cropped and tuned for LEDs.
+• Music: nine visualisers driven by the microphone, with beat detection. Audio never leaves the phone.
+• Now Playing: the cover of whatever your phone is playing (Spotify, YouTube Music, any player) with a progress bar, live on the matrix.
+• Play: Snake, Blocks, Brick Breaker, Pong, Flap, Racer and Invaders, with your phone as the controller.
+
+DEVICE
+• Power, brightness and night light.
+• Saved animations, Shows and Routines that run without your phone.
+• The Glyph intro plays every time your device powers on.
+• Storage alerts, multiple devices, a home-screen widget, and the full WLED settings inside the app.
+
+PRIVATE, FREE AND OPEN SOURCE
+• No account, no cloud, no ads, no tracking. Glyph talks straight to the devices on your Wi-Fi; your drawings and audio stay on your phone.
+• Free and open source under the MIT license.
+
+WHAT YOU NEED
+• A WLED controller driving an LED matrix, set up under Settings → 2D Configuration. Any panel size works, including HUB75 panels on WLED's HUB75 builds.
+• Your phone on the same Wi-Fi.
+• Live streaming works on every WLED controller; sending animations to the device needs an ESP32 on WLED 16 or newer.
+
+Glyph is not affiliated with the WLED project.

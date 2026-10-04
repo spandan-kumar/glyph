@@ -12,7 +12,7 @@ it with WLED's Image effect and a saved preset.
 
 - Package: `glyph` · App id: `dev.spandankumar.glyph` · Dart 3.13, Flutter 3.47
 - Product/UX spec: `docs/design/UX.md` (design language "Lightbox")
-- Roadmap: `docs/PLAN.md`
+- Roadmap: `docs/PLAN.md` (engineering), `docs/ROADMAP.md` (launch and community)
 
 ## Commands
 
@@ -50,8 +50,9 @@ lib/
 assets/       catalog JSON, sprite packs, fonts (OFL), brand
 tool/         builders, previews, smoke tests
 test/         mirrors lib/
-docs/         UX spec, plan, README media
-release/      the current APK + sha256
+docs/         UX spec, plan, roadmap, README media
+fastlane/     store listing metadata and per-versionCode changelogs
+.github/      CI, release and announce workflows, issue forms
 ```
 
 ## Conventions
@@ -103,5 +104,14 @@ files. Don't flash test streams on someone's display without saying so.
 
 - Work on `main` unless told otherwise; commit only when asked.
 - Commit messages: imperative summary line, a body explaining why.
-- Releases: bump `version:` in `pubspec.yaml`, rebuild the APK into
-  `release/` with its `.sha256`, tag `vX.Y.Z` on GitHub.
+- Releases: bump `version:` in `pubspec.yaml` (`X.Y.Z+N`), add
+  `fastlane/metadata/android/en-US/changelogs/<N>.txt` (≤500 chars), then
+  push a `vX.Y.Z` tag. `.github/workflows/release.yml` builds the signed
+  arm64 APK and its `.sha256` and publishes the GitHub release; don't commit
+  APKs to `release/` any more. CI (`ci.yml`) runs analyze + test on every PR.
+
+## Licence and contributing
+
+Glyph is MIT-licensed (`LICENSE`). `CONTRIBUTING.md` is the guide for
+contributors (sprite format, licensing rules for art, PR checklist); keep it
+in sync when the sprite format or commands change.

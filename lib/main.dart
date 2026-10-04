@@ -33,6 +33,7 @@ Future<void> main() async {
     creations: creations,
     showOnboarding: !onboarded,
     showSplash: true,
+    whatsNew: true,
   ));
 }
 
@@ -45,6 +46,7 @@ class GlyphApp extends StatefulWidget {
     required this.creations,
     this.showOnboarding = false,
     this.showSplash = false,
+    this.whatsNew = false,
   });
 
   final Catalog catalog;
@@ -57,6 +59,9 @@ class GlyphApp extends StatefulWidget {
 
   /// Play the Glyph intro before anything else (off in tests).
   final bool showSplash;
+
+  /// Offer release notes after an update (off in tests).
+  final bool whatsNew;
 
   @override
   State<GlyphApp> createState() => _GlyphAppState();
@@ -97,7 +102,7 @@ class _GlyphAppState extends State<GlyphApp> {
                   )
                 : _onboarding
                     ? OnboardingFlow(onDone: () => setState(() => _onboarding = false))
-                    : const HomeShell(),
+                    : HomeShell(whatsNew: widget.whatsNew, firstRun: widget.showOnboarding),
           ),
         ),
       ),

@@ -81,6 +81,12 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Community links (feedback, roadmap) open in the browser; Android 11+
+             needs this to see that a browser can handle them (url_launcher). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
         <!-- Now Playing names the player ("Spotify"); Android 11+ hides other
              apps' labels unless asked for. Music apps publish this service. -->
         <intent>

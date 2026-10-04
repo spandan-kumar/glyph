@@ -215,11 +215,14 @@ void main() {
     expect(tester.takeException(), isNull);
 
     wled.offline = false;
-    await reveal(tester, find.text('Try again'));
+    // Back up: the Community section below can scroll it out of the list.
+    await tester.scrollUntilVisible(find.text('Try again'), -200, scrollable: find.byType(Scrollable).first);
+    await settle(tester, 200);
     await tester.tap(find.text('Try again'));
     await settle(tester, 800);
     expect(devices.isConnected, isTrue);
-    expect(find.text('16×16 · WLED 16.0.1 · Wi-Fi 20%'), findsOneWidget);
+    // The header may sit just above the viewport after scrolling back up.
+    expect(find.text('16×16 · WLED 16.0.1 · Wi-Fi 20%', skipOffstage: false), findsOneWidget);
     playback.pause();
   });
 

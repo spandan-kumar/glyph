@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & help
+    url: https://github.com/spandan-kumar/glyph/discussions/categories/q-a
+    about: Ask how to set something up or get help with your display.
+  - name: Show your setup
+    url: https://github.com/spandan-kumar/glyph/discussions/categories/show-and-tell
+    about: Share photos and clips of your matrix running Glyph.

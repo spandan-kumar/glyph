@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../app/community.dart';
 import '../../../engine/clip.dart';
 import '../../../ui/design/ambient.dart';
 import '../../../ui/design/parts.dart';
@@ -343,6 +344,7 @@ Future<bool> guarded(BuildContext context, Future<void> Function() task, {String
     if (done != null && context.mounted) toast(context, done);
     return true;
   } catch (e) {
+    LastError.record('$e');
     if (context.mounted) toast(context, friendlyError(e));
     return false;
   }

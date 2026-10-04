@@ -7,6 +7,7 @@ import '../features/device/boot_intro.dart';
 import '../engine/clip.dart';
 import '../engine/frame.dart';
 import '../app/background.dart';
+import '../app/community.dart';
 import '../app/devices.dart';
 import '../engine/gif_baker.dart';
 import '../engine/gif_encoder.dart';
@@ -39,7 +40,7 @@ abstract final class GlyphActions {
       await d.client!.prepareStream();
       await s.playback.startStreaming(d.selected!.host, d.selected!.layout);
     } catch (e) {
-      if (context.mounted) _toast(context, 'Couldn\'t start streaming: $e');
+      if (context.mounted) _fail(context, 'Couldn\'t start streaming: $e');
     }
   }
 
@@ -137,12 +138,12 @@ abstract final class GlyphActions {
     final caps = d.caps, client = d.client;
     if (caps == null || client == null) return null;
     if (!caps.canPlayGifs) {
-      return _report(context, 'This controller can\'t play GIFs. Live streaming still works.');
+      return _fail(context, 'This controller can\'t play GIFs. Live streaming still works.');
     }
     try {
       final bytes = await encoding;
       if (!caps.fitsFile(bytes.length)) {
-        return context.mounted ? _report(context, 'Not enough space on the controller.') : null;
+        return context.mounted ? _fail(context, 'Not enough space on the controller.') : null;
       }
       if (!context.mounted) return null;
       // Keep the current look on the matrix while the file uploads (a slow
@@ -178,6 +179,7 @@ abstract final class GlyphActions {
       // Nothing changed on the matrix: carry on streaming at full rate.
       s.playback.streamThrottled = false;
       final why = e is WledException ? e.message : '$e';
+      LastError.record('Couldn\'t send it: $why');
       return context.mounted ? _report(context, 'Couldn\'t send it: $why') : null;
     }
   }
@@ -196,6 +198,12 @@ abstract final class GlyphActions {
       // Fall back to a new slot; a duplicate beats a failed send.
     }
     return null;
+  }
+
+  /// Reports a failure and keeps it for feedback reports (LastError).
+  static String _fail(BuildContext context, String msg) {
+    LastError.record(msg);
+    return _report(context, msg);
   }
 
   static String _report(BuildContext context, String msg) {

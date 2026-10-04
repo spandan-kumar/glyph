@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../app/community.dart';
 import '../../app/storage_alerts.dart';
+import '../../app/whats_new.dart';
+import '../community/whats_new_sheet.dart';
 import '../design/ambient.dart';
 import '../design/dock.dart';
 import '../make/make_screen.dart';
@@ -10,9 +13,15 @@ import '../tune/tune_screen.dart';
 
 /// The app: one room lit by the matrix, three places, a dock strip.
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key, this.initialTab = 0});
+  const HomeShell({super.key, this.initialTab = 0, this.whatsNew = false, this.firstRun = false});
 
   final int initialTab;
+
+  /// Offer release notes once after an update (off in tests).
+  final bool whatsNew;
+
+  /// The person was onboarded this launch, so it's a fresh install.
+  final bool firstRun;
 
   /// Lets any screen jump to another destination (e.g. "Connect a matrix").
   static void go(BuildContext context, int tab) => context.findAncestorStateOfType<_HomeShellState>()?._select(tab);
@@ -68,6 +77,23 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   StorageAlerts? _storage;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.whatsNew) WidgetsBinding.instance.addPostFrameCallback((_) => _whatsNew());
+  }
+
+  Future<void> _whatsNew() async {
+    try {
+      final env = await Community.env();
+      final notes = await WhatsNew.due(env.version, firstRun: widget.firstRun);
+      if (notes == null || !mounted) return;
+      await showWhatsNewSheet(context, env.version, notes);
+    } catch (_) {
+      // Notes are a nicety; never let them get in the way.
+    }
+  }
 
   @override
   void didChangeDependencies() {

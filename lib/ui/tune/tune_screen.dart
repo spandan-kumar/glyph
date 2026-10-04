@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../app/community.dart';
 import '../../app/devices.dart';
 import '../../library/user_library.dart';
 import '../actions.dart';
@@ -289,6 +290,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
       _toast(sendSuccessMessage);
     } else {
       _charge.value = 0;
+      if (msg != liveOnlyMessage) LastError.record('Send from Display failed: ${msg ?? 'no device details'}');
       _toast(friendlySendError(msg),
           action: msg == liveOnlyMessage ? null : SnackBarAction(label: 'Try again', onPressed: _keepIt));
     }

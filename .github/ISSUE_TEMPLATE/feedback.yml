@@ -1,0 +1,15 @@
+name: Idea or feedback
+description: Tell us what you'd like, what you love or what's confusing.
+labels: [feedback]
+body:
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Your idea or feedback
+    validations:
+      required: true
+  - type: input
+    id: app_version
+    attributes:
+      label: Glyph version
+      placeholder: "1.3.0"
