@@ -57,6 +57,9 @@ with whatever is on your matrix.
 - **Bring a GIF** — any GIF, WebP or photo, cropped and tuned for LEDs.
 - **Music** — nine visualisers driven by the microphone, with beat detection.
   Audio never leaves the phone.
+- **Now Playing** — the cover of whatever your phone is playing (Spotify,
+  YouTube Music, any player) with a progress bar, live on the matrix. Covers
+  are never stored on the phone or the device.
 - **Play** — Snake, Blocks, Brick Breaker, Pong, Flap, Racer and Invaders,
   with your phone as the controller.
 

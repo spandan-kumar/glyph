@@ -81,7 +81,7 @@ class _EditorStartViewState extends State<EditorStartView> {
         Wrap(spacing: 8, runSpacing: 8, children: [
           if (dev != null)
             ChoiceChip(
-              avatar: const Icon(Icons.grid_view, size: 16),
+              avatar: const Icon(Icons.grid_view_sharp, size: 16),
               label: Text('My device · ${dev.$1}×${dev.$2}'),
               selected: _size == dev,
               onSelected: (_) => setState(() => _size = dev),
@@ -112,7 +112,7 @@ class _EditorStartViewState extends State<EditorStartView> {
             _Tile(
               label: 'Blank',
               onTap: () => widget.onStart(EditorModel(width: w, height: h)),
-              child: const Icon(Icons.add, size: 32, color: Lb.text2),
+              child: const Icon(Icons.add_sharp, size: 32, color: Lb.text2),
             ),
             for (final t in editorTemplates)
               _Tile(

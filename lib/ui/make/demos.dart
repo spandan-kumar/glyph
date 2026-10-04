@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:typed_data';
 
 import '../../engine/clip.dart';
 import '../../engine/frame.dart';
@@ -9,6 +10,9 @@ import '../../features/audio/visualizers.dart';
 import '../../features/editor/templates.dart';
 import '../../features/games/catalog.dart';
 import '../../features/games/core/game_generator.dart';
+import '../../features/now_playing/cover_art.dart';
+import '../../features/now_playing/now_playing.dart';
+import '../../features/now_playing/now_playing_generator.dart';
 import '../../features/text/text_generators.dart';
 import '../../features/text/text_settings.dart';
 
@@ -246,3 +250,70 @@ class _Quiet implements AudioFeed {
 
 /// Snake playing itself.
 Generator playDemo() => GameGenerator(gameById('snake'));
+
+/// Now Playing running through three made-up songs with covers drawn here
+/// (a sunset, a record, a bloom): never real album art.
+Generator nowPlayingDemo() => NowPlayingGenerator(_DemoTracks());
+
+class _DemoTracks implements NowPlayingFeed {
+  static const _songMs = 7000;
+  static final _songs = [
+    ('Golden Hour', 'Pixel Coast', _sunsetCover()),
+    ('Spin Cycle', 'The Grooves', _recordCover()),
+    ('Petal Pop', 'Bloom Club', _bloomCover()),
+  ];
+  final _start = DateTime.now();
+
+  @override
+  NowPlaying get current {
+    final now = DateTime.now();
+    final ms = now.difference(_start).inMilliseconds;
+    final (title, artist, art) = _songs[(ms ~/ _songMs) % _songs.length];
+    return NowPlaying(
+      title: title,
+      artist: artist,
+      durationMs: _songMs,
+      positionMs: ms % _songMs,
+      at: now,
+      art: art,
+      artSize: _coverSize,
+    );
+  }
+}
+
+const _coverSize = 32;
+
+Uint8List _cover(int Function(double x, double y) paint) {
+  final out = Uint8List(_coverSize * _coverSize * 3);
+  for (var y = 0; y < _coverSize; y++) {
+    for (var x = 0; x < _coverSize; x++) {
+      final c = paint((x + 0.5) / _coverSize, (y + 0.5) / _coverSize);
+      final i = (y * _coverSize + x) * 3;
+      out[i] = (c >> 16) & 0xFF;
+      out[i + 1] = (c >> 8) & 0xFF;
+      out[i + 2] = c & 0xFF;
+    }
+  }
+  return out;
+}
+
+Uint8List _sunsetCover() => _cover((x, y) {
+      if (y > 0.66) return (y * 40).floor().isEven ? 0x123C6E : 0x0B2550; // sea
+      final sun = (x - 0.5) * (x - 0.5) + (y - 0.6) * (y - 0.6) < 0.05;
+      return sun ? 0xFFD447 : lerpColor(0x5A1E8C, 0xFF7A3D, y / 0.66);
+    });
+
+Uint8List _recordCover() => _cover((x, y) {
+      final r = sqrt((x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5));
+      if (r < 0.1) return 0xFF3B5C; // label
+      if (r < 0.44) return (r * 30).floor().isEven ? 0x111116 : 0x23232C; // grooves
+      return 0x18C4B4;
+    });
+
+Uint8List _bloomCover() => _cover((x, y) {
+      final dx = x - 0.5, dy = y - 0.5;
+      final a = atan2(dy, dx), r = sqrt(dx * dx + dy * dy);
+      if (r < 0.1) return 0xFFE14D;
+      if (r < 0.2 + 0.18 * cos(a * 5).abs()) return 0xFF5FA8;
+      return 0x2B3AA8;
+    });

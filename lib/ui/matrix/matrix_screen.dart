@@ -114,7 +114,7 @@ class _MatrixScreenState extends State<MatrixScreen> {
                     label: 'Saved',
                     padding: const EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 0),
                     trailing: manager.isLoading && manager.isLoaded
-                        ? const SizedBox.square(dimension: 12, child: CircularProgressIndicator(strokeWidth: 1.5))
+                        ? const _BusyLed()
                         : null,
                     child: KeptSection(manager: manager, store: devices, onPlay: _play),
                   ),
@@ -262,7 +262,7 @@ class _NowShowing extends StatelessWidget {
             if (store.playlistRunning && !playback.isStreaming)
               IconButton(
                 tooltip: 'Next in the show',
-                icon: const Icon(Icons.skip_next_rounded, color: Lb.text2),
+                icon: const Icon(Icons.skip_next_sharp, color: Lb.text2),
                 onPressed: () => guarded(context, () async {
                   await store.client?.nextInPlaylist();
                   await Future<void>.delayed(const Duration(milliseconds: 400));
@@ -382,6 +382,7 @@ class _EmptyState extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 36),
+      // A notch under display size so the headline holds one line on a phone.
       Text('Connect your device', textAlign: TextAlign.center, style: LbType.display.copyWith(fontSize: 34)),
       const SizedBox(height: 12),
       Text(
@@ -396,5 +397,31 @@ class _EmptyState extends StatelessWidget {
         child: const Text('Connect your device'),
       ),
     ],
+  );
+}
+
+/// A small LED blinking while the device is being read (instead of a
+/// round Material spinner).
+class _BusyLed extends StatefulWidget {
+  const _BusyLed();
+
+  @override
+  State<_BusyLed> createState() => _BusyLedState();
+}
+
+class _BusyLedState extends State<_BusyLed> with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 700))
+    ..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+    opacity: CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+    child: StatusDot(on: true, color: accentOf(context)),
   );
 }

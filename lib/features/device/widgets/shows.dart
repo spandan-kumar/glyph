@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/devices.dart';
 import '../../../ui/design/parts.dart';
+import '../../../ui/design/toggle.dart';
 import '../../../ui/design/tokens.dart';
 import '../../../ui/design/type.dart';
 import '../../../wled/presets.dart';
@@ -49,7 +50,7 @@ class ShowsSection extends StatelessWidget {
             padding: const EdgeInsets.only(top: 2),
             child: OutlinedButton.icon(
               onPressed: () => openShowEditor(context, manager),
-              icon: const Icon(Icons.add_rounded, size: 20),
+              icon: const Icon(Icons.add_sharp, size: 20),
               label: const Text('New show'),
             ),
           ),
@@ -123,7 +124,7 @@ class ShowCard extends StatelessWidget {
               PopupMenuButton<String>(
                 tooltip: 'Show options',
                 shape: squareMenu,
-                icon: const Icon(Icons.more_horiz_rounded, color: Lb.text2),
+                icon: const Icon(Icons.more_horiz_sharp, color: Lb.text2),
                 onSelected: (v) => v == 'edit' ? onEdit?.call() : onDelete?.call(),
                 itemBuilder: (_) => const [
                   PopupMenuItem(value: 'edit', child: Text('Edit')),
@@ -338,7 +339,7 @@ class _ShowEditorState extends State<ShowEditor> {
                 Expanded(child: MonoLabel('In this show · ${entries.length}')),
                 TextButton.icon(
                   onPressed: entries.length >= WledPlaylist.maxEntries ? null : _add,
-                  icon: const Icon(Icons.add_rounded, size: 18),
+                  icon: const Icon(Icons.add_sharp, size: 18),
                   label: const Text('Add'),
                 ),
               ],
@@ -403,7 +404,7 @@ class _ShowEditorState extends State<ShowEditor> {
                   onPressed: _pl.repeat > 1
                       ? () => setState(() => _pl = _pl.copyWith(repeat: _pl.repeat - 1))
                       : null,
-                  icon: const Icon(Icons.remove_rounded),
+                  icon: const Icon(Icons.remove_sharp),
                 ),
                 Text('${_pl.repeat}×', style: LbType.bodyStrong),
                 IconButton(
@@ -411,7 +412,7 @@ class _ShowEditorState extends State<ShowEditor> {
                   onPressed: _pl.repeat < 99
                       ? () => setState(() => _pl = _pl.copyWith(repeat: _pl.repeat + 1))
                       : null,
-                  icon: const Icon(Icons.add_rounded),
+                  icon: const Icon(Icons.add_sharp),
                 ),
               ],
             ),
@@ -419,7 +420,7 @@ class _ShowEditorState extends State<ShowEditor> {
         Row1(
           title: 'Shuffle',
           subtitle: 'A new order every time round',
-          trailing: Switch(
+          trailing: LbToggle(
             value: _pl.shuffle,
             onChanged: (v) => setState(() => _pl = _pl.copyWith(shuffle: v)),
           ),
@@ -428,7 +429,7 @@ class _ShowEditorState extends State<ShowEditor> {
           Row1(
             title: 'When it ends',
             subtitle: endLabel,
-            trailing: const Icon(Icons.chevron_right_rounded, color: Lb.text3),
+            trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
             onTap: _pickEnd,
           ),
       ],
@@ -440,9 +441,9 @@ class _ShowEditorState extends State<ShowEditor> {
       context,
       title: 'When it ends',
       actions: const [
-        ActionItem('Stay on the last one', Icons.stop_rounded, '0'),
-        ActionItem('Go back to what was playing', Icons.undo_rounded, 'back'),
-        ActionItem('Play something else…', Icons.grid_view_rounded, 'pick'),
+        ActionItem('Stay on the last one', Icons.stop_sharp, '0'),
+        ActionItem('Go back to what was playing', Icons.undo_sharp, 'back'),
+        ActionItem('Play something else…', Icons.grid_view_sharp, 'pick'),
       ],
     );
     if (choice == null || !mounted) return;
@@ -487,7 +488,7 @@ class _EntryRow extends StatelessWidget {
               index: index,
               child: const Padding(
                 padding: EdgeInsets.all(8),
-                child: Icon(Icons.drag_indicator_rounded, color: Lb.text3),
+                child: Icon(Icons.drag_indicator_sharp, color: Lb.text3),
               ),
             ),
             SizedBox.square(
@@ -513,14 +514,14 @@ class _EntryRow extends StatelessWidget {
                     spacing: 10,
                     children: [
                       _ChipMenu(
-                        icon: Icons.timer_outlined,
+                        icon: Icons.timer_sharp,
                         label: formatTenths(entry.durationDs),
                         values: _withCurrent(_durations, entry.durationDs),
                         format: formatTenths,
                         onSelected: (v) => onChanged(entry.copyWith(durationDs: v)),
                       ),
                       _ChipMenu(
-                        icon: Icons.blur_on_rounded,
+                        icon: Icons.blur_on_sharp,
                         label: _tr(entry.transitionDs),
                         values: _withCurrent(_transitions, entry.transitionDs),
                         format: _tr,
@@ -534,7 +535,7 @@ class _EntryRow extends StatelessWidget {
             IconButton(
               tooltip: 'Remove',
               onPressed: onRemove,
-              icon: const Icon(Icons.close_rounded, size: 20, color: Lb.text3),
+              icon: const Icon(Icons.close_sharp, size: 20, color: Lb.text3),
             ),
           ],
         ),

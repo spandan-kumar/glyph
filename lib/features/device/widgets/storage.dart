@@ -50,7 +50,7 @@ class StorageSection extends StatelessWidget {
           Row(
             children: [
               Expanded(child: Text('$used KB of $total KB used', style: LbType.bodyStrong)),
-              const Icon(Icons.chevron_right_rounded, color: Lb.text3),
+              const Icon(Icons.chevron_right_sharp, color: Lb.text3),
             ],
           ),
           const SizedBox(height: 12),
@@ -182,14 +182,14 @@ class StoragePage extends StatelessWidget {
       key: ValueKey(path),
       leading: gif
           ? SizedBox.square(dimension: 40, child: LedBezel(child: GifThumb(manager: manager, name: path)))
-          : Icon(locked ? Icons.lock_outline_rounded : Icons.insert_drive_file_outlined, color: Lb.text3),
+          : Icon(locked ? Icons.lock_outline_sharp : Icons.insert_drive_file_sharp, color: Lb.text3),
       title: path.substring(1),
       subtitle: [what, if (locked) 'Your device needs this', formatBytes(size)].join(' · '),
       trailing: locked
           ? null
           : IconButton(
               tooltip: 'Delete',
-              icon: const Icon(Icons.delete_outline_rounded, color: Lb.text2),
+              icon: const Icon(Icons.delete_outline_sharp, color: Lb.text2),
               onPressed: () => _delete(context, path, size, users.map((p) => p.name).toList()),
             ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../ui/design/parts.dart';
+import '../../../ui/design/toggle.dart';
 import '../../../ui/design/tokens.dart';
 import '../../../ui/design/type.dart';
 import '../../../wled/schedule.dart';
@@ -103,9 +104,9 @@ class RoutinesSection extends StatelessWidget {
         RowGroup(
           children: [
             Row1(
-              leading: const Icon(Icons.power_outlined, color: Lb.text2, size: 20),
+              leading: const Icon(Icons.power_sharp, color: Lb.text2, size: 20),
               title: 'When it powers on → ${_powerOn(manager)}',
-              trailing: const Icon(Icons.chevron_right_rounded, color: Lb.text3),
+              trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
               onTap: () => _pickBoot(context, s),
             ),
             for (final (i, t) in s.timers.indexed)
@@ -117,7 +118,7 @@ class RoutinesSection extends StatelessWidget {
                 ),
                 title: describeRoutine(t, keptName(manager, t.presetId)),
                 onTap: s.isEditable ? () => _edit(context, s, i) : null,
-                trailing: Switch(
+                trailing: LbToggle(
                   value: t.enabled,
                   onChanged: s.isEditable
                       ? (v) => guarded(context, () {
@@ -142,7 +143,7 @@ class RoutinesSection extends StatelessWidget {
             padding: const EdgeInsets.only(top: 10),
             child: OutlinedButton.icon(
               onPressed: () => _edit(context, s, null),
-              icon: const Icon(Icons.add_rounded, size: 20),
+              icon: const Icon(Icons.add_sharp, size: 20),
               label: const Text('New routine'),
             ),
           ),
@@ -158,10 +159,10 @@ class RoutinesSection extends StatelessWidget {
   }
 
   static IconData _icon(TimerTrigger t) => switch (t) {
-    TimerTrigger.sunrise => Icons.wb_sunny_outlined,
-    TimerTrigger.sunset => Icons.wb_twilight_rounded,
-    TimerTrigger.everyHour => Icons.update_rounded,
-    TimerTrigger.time => Icons.schedule_rounded,
+    TimerTrigger.sunrise => Icons.wb_sunny_sharp,
+    TimerTrigger.sunset => Icons.wb_twilight_sharp,
+    TimerTrigger.everyHour => Icons.update_sharp,
+    TimerTrigger.time => Icons.schedule_sharp,
   };
 
   Future<void> _pickBoot(BuildContext context, WledSchedule s) async {
@@ -241,7 +242,7 @@ class _TargetPicker extends StatelessWidget {
             if (allowNone)
               Row1(
                 title: noneLabel,
-                trailing: selected == 0 ? const Icon(Icons.check_rounded) : null,
+                trailing: selected == 0 ? const Icon(Icons.check_sharp) : null,
                 onTap: () => Navigator.pop(ctx, 0),
               ),
             for (final p in pickable(manager))
@@ -253,7 +254,7 @@ class _TargetPicker extends StatelessWidget {
                 ),
                 title: keptName(manager, p.id),
                 subtitle: p.isPlaylist ? 'Show' : null,
-                trailing: p.id == selected ? const Icon(Icons.check_rounded) : null,
+                trailing: p.id == selected ? const Icon(Icons.check_sharp) : null,
                 onTap: () => Navigator.pop(ctx, p.id),
               ),
           ],
@@ -380,7 +381,7 @@ class _RoutineEditorState extends State<RoutineEditor> {
             children: [
               Row1(
                 title: m.preset(_t.presetId) == null ? 'Pick what to play' : keptName(m, _t.presetId),
-                trailing: const Icon(Icons.chevron_right_rounded, color: Lb.text3),
+                trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
                 onTap: () async {
                   final id = await showModalBottomSheet<int>(
                     context: context,
@@ -392,7 +393,7 @@ class _RoutineEditorState extends State<RoutineEditor> {
               ),
               Row1(
                 title: 'All year',
-                trailing: Switch(
+                trailing: LbToggle(
                   value: _t.allYear,
                   onChanged: (v) => _set(
                     v
@@ -417,7 +418,7 @@ class _RoutineEditorState extends State<RoutineEditor> {
               ],
               Row1(
                 title: 'On',
-                trailing: Switch(value: _t.enabled, onChanged: (v) => _set(_t.copyWith(enabled: v))),
+                trailing: LbToggle(value: _t.enabled, onChanged: (v) => _set(_t.copyWith(enabled: v))),
               ),
             ],
           ),
@@ -455,7 +456,7 @@ class _RoutineEditorState extends State<RoutineEditor> {
       case TimerTrigger.time:
         return [
           OutlinedButton.icon(
-            icon: const Icon(Icons.schedule_rounded),
+            icon: const Icon(Icons.schedule_sharp),
             label: Text('${_t.hour}:${_t.minute.toString().padLeft(2, '0')}', style: LbType.title),
             onPressed: () async {
               final picked = await showTimePicker(

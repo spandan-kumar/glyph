@@ -105,15 +105,15 @@ Future<void> showCreationActions(BuildContext context, Creation c) {
       ),
     ]),
     actions: [
-      StudioAction(Icons.play_arrow_rounded, 'Play',
+      StudioAction(Icons.play_arrow_sharp, 'Play',
           () => GlyphActions.playClip(context, c.clip, c.title)),
-      if (editable) StudioAction(Icons.edit_outlined, 'Edit', () => openCreation(context, c)),
-      StudioAction(Icons.push_pin_outlined, 'Send to device', () => keepOnMatrix(context, c),
+      if (editable) StudioAction(Icons.edit_sharp, 'Edit', () => openCreation(context, c)),
+      StudioAction(Icons.push_pin_sharp, 'Send to device', () => keepOnMatrix(context, c),
           subtitle: 'Plays without your phone'),
-      StudioAction(Icons.gif_box_outlined, 'Share as GIF', () => shareCreationAsGif(context, c)),
-      StudioAction(Icons.ios_share, 'Share Glyph file', () => shareCreationFile(context, c),
+      StudioAction(Icons.gif_box_sharp, 'Share as GIF', () => shareCreationAsGif(context, c)),
+      StudioAction(Icons.ios_share_sharp, 'Share Glyph file', () => shareCreationFile(context, c),
           subtitle: 'Opens editable in Glyph'),
-      StudioAction(Icons.delete_outline, 'Delete', () => deleteCreation(context, c), danger: true),
+      StudioAction(Icons.delete_outline_sharp, 'Delete', () => deleteCreation(context, c), danger: true),
     ],
   );
 }

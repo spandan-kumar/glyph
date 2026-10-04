@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../engine/clip.dart';
 import '../design/ambient.dart';
+import '../design/led_text.dart';
 import '../design/parts.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
@@ -228,7 +229,7 @@ class _Caption extends StatelessWidget {
                     child: Text(title, style: LbType.title, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                   const SizedBox(width: 6),
-                  const Icon(Icons.keyboard_arrow_up_rounded, size: 20, color: Lb.text3),
+                  const Icon(Icons.keyboard_arrow_up_sharp, size: 20, color: Lb.text3),
                 ]),
                 const SizedBox(height: 2),
                 Text(sub, style: LbType.small, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -262,7 +263,7 @@ class _Transport extends StatelessWidget {
     final accent = AmbientScope.of(context).accent;
     final item = scope.playback.item;
     final devices = scope.devices;
-    final canSend = devices.isConnected && (devices.caps?.canPlayGifs ?? false) && scope.playback.generator != null;
+    final canSend = devices.isConnected && (devices.caps?.canPlayGifs ?? false) && !(scope.playback.generator?.liveOnly ?? true);
     return ListenableBuilder(
       listenable: tune.library,
       builder: (context, _) {
@@ -282,7 +283,7 @@ class _Transport extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             SquareKey(
-              icon: Icons.casino_outlined,
+              icon: Icons.casino_sharp,
               label: 'Surprise me',
               onTap: tune.shuffling ? null : () => tune.surprise(context, scope.catalog),
             ),
@@ -365,7 +366,7 @@ class _SendButton extends StatelessWidget {
     final fg = dim ? Lb.text3 : Lb.text;
     final label = switch (state) {
       KeepState.beaming => 'Sending',
-      KeepState.kept => '✓ Sent',
+      KeepState.kept => 'Sent',
       _ => 'Send',
     };
     return Semantics(
@@ -383,7 +384,7 @@ class _SendButton extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: SizedBox(
-              height: 44,
+              height: 34,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -391,10 +392,11 @@ class _SendButton extends StatelessWidget {
                     _Chaser(color: accent ?? Lb.text),
                     const SizedBox(width: 8),
                   ] else if (state != KeepState.kept) ...[
-                    Icon(Icons.north_sharp, size: 16, color: accent ?? fg),
+                    Icon(Icons.north_sharp, size: 14, color: accent ?? fg),
                     const SizedBox(width: 8),
                   ],
-                  Text(label.toUpperCase(), style: LbType.label.copyWith(color: fg, fontSize: 11.5)),
+                  // The pixel font, like the dock and the section headers.
+                  LedText(label.toUpperCase(), dot: 2, color: fg),
                 ],
               ),
             ),

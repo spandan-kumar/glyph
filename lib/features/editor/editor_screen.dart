@@ -382,15 +382,15 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
           actions: [
             IconButton(
                 style: studioIconStyle,
-                tooltip: 'Undo', onPressed: m.canUndo ? m.undo : null, icon: const Icon(Icons.undo)),
+                tooltip: 'Undo', onPressed: m.canUndo ? m.undo : null, icon: const Icon(Icons.undo_sharp)),
             IconButton(
                 style: studioIconStyle,
-                tooltip: 'Redo', onPressed: m.canRedo ? m.redo : null, icon: const Icon(Icons.redo)),
+                tooltip: 'Redo', onPressed: m.canRedo ? m.redo : null, icon: const Icon(Icons.redo_sharp)),
             IconButton(
               style: studioIconStyle,
               tooltip: 'Save',
               onPressed: _save,
-              icon: Icon(m.isDirty || _id == null ? Icons.save_outlined : Icons.check_circle_outline),
+              icon: Icon(m.isDirty || _id == null ? Icons.save_sharp : Icons.check_circle_sharp),
             ),
             PopupMenuButton<String>(
               tooltip: 'More',
@@ -413,18 +413,18 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
                   value: 'matrix',
                   enabled: !_saving,
                   child: const ListTile(
-                      leading: Icon(Icons.push_pin_outlined), title: Text('Send to device')),
+                      leading: Icon(Icons.push_pin_sharp), title: Text('Send to device')),
                 ),
                 const PopupMenuItem(
                     value: 'rename',
-                    child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Rename'))),
+                    child: ListTile(leading: Icon(Icons.edit_sharp), title: Text('Rename'))),
                 const PopupMenuItem(
                     value: 'clear',
                     child: ListTile(
-                        leading: Icon(Icons.layers_clear_outlined), title: Text('Clear frame'))),
+                        leading: Icon(Icons.layers_clear_sharp), title: Text('Clear frame'))),
                 const PopupMenuItem(
                     value: 'new',
-                    child: ListTile(leading: Icon(Icons.note_add_outlined), title: Text('New drawing'))),
+                    child: ListTile(leading: Icon(Icons.note_add_sharp), title: Text('New drawing'))),
               ],
             ),
           ],
@@ -506,7 +506,7 @@ class _CanvasHeader extends StatelessWidget {
         if (saving)
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 8),
-            child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+            child: LedSpinner(size: 14),
           ),
         Text('${model.width}×${model.height}', style: LbType.mono),
         IconButton(
@@ -515,8 +515,8 @@ class _CanvasHeader extends StatelessWidget {
           isSelected: model.mirrorX,
           visualDensity: VisualDensity.compact,
           onPressed: () => model.mirrorX = !model.mirrorX,
-          icon: const Icon(Icons.flip, color: Lb.text3),
-          selectedIcon: Icon(Icons.flip, color: accent),
+          icon: const Icon(Icons.flip_sharp, color: Lb.text3),
+          selectedIcon: Icon(Icons.flip_sharp, color: accent),
         ),
         IconButton(
           tooltip: 'Mirror top/bottom',
@@ -524,15 +524,15 @@ class _CanvasHeader extends StatelessWidget {
           isSelected: model.mirrorY,
           visualDensity: VisualDensity.compact,
           onPressed: () => model.mirrorY = !model.mirrorY,
-          icon: const RotatedBox(quarterTurns: 1, child: Icon(Icons.flip, color: Lb.text3)),
-          selectedIcon: RotatedBox(quarterTurns: 1, child: Icon(Icons.flip, color: accent)),
+          icon: const RotatedBox(quarterTurns: 1, child: Icon(Icons.flip_sharp, color: Lb.text3)),
+          selectedIcon: RotatedBox(quarterTurns: 1, child: Icon(Icons.flip_sharp, color: accent)),
         ),
         IconButton(
           tooltip: led ? 'Square pixels' : 'LED dots',
           style: studioIconStyle,
           visualDensity: VisualDensity.compact,
           onPressed: onLed,
-          icon: Icon(led ? Icons.grid_on : Icons.blur_on, color: Lb.text2),
+          icon: Icon(led ? Icons.grid_on_sharp : Icons.blur_on_sharp, color: Lb.text2),
         ),
       ]),
     );

@@ -125,12 +125,12 @@ class _SearchPageState extends State<_SearchPage> {
                     onChanged: (v) => setState(() => _query = v.trim()),
                     decoration: InputDecoration(
                       hintText: 'Search ${catalog.items.length} looks',
-                      prefixIcon: const Icon(Icons.search, color: Lb.text3, size: 20),
+                      prefixIcon: const Icon(Icons.search_sharp, color: Lb.text3, size: 20),
                       suffixIcon: _query.isEmpty
                           ? null
                           : IconButton(
                               tooltip: 'Clear',
-                              icon: const Icon(Icons.close, size: 18, color: Lb.text3),
+                              icon: const Icon(Icons.close_sharp, size: 18, color: Lb.text3),
                               onPressed: () => _set(''),
                             ),
                     ),

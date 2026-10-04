@@ -233,7 +233,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
                     style: IconButton.styleFrom(
                         backgroundColor: Lb.panel, side: Lb.hairline, shape: studioShape),
                     onPressed: _view.reset,
-                    icon: const Icon(Icons.fit_screen, size: 20),
+                    icon: const Icon(Icons.fit_screen_sharp, size: 20),
                   )
                 : const SizedBox.shrink(),
           ),

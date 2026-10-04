@@ -77,7 +77,7 @@ class KeptSection extends StatelessWidget {
         title: p.name,
         subtitle: 'Its animation file is gone from your device, so it can\'t play. '
             'Send it again from Display, or delete it.',
-        actions: const [ActionItem('Delete', Icons.delete_outline_rounded, 'delete', danger: true)],
+        actions: const [ActionItem('Delete', Icons.delete_outline_sharp, 'delete', danger: true)],
       );
       if (v == 'delete' && context.mounted) await deleteKept(context, manager, p);
       return;
@@ -88,11 +88,11 @@ class KeptSection extends StatelessWidget {
       title: p.name,
       subtitle: boot ? 'Plays when your device powers on.' : 'Saved on your device.',
       actions: [
-        const ActionItem('Play now', Icons.play_arrow_rounded, 'play'),
-        const ActionItem('Rename', Icons.edit_outlined, 'rename'),
+        const ActionItem('Play now', Icons.play_arrow_sharp, 'play'),
+        const ActionItem('Rename', Icons.edit_sharp, 'rename'),
         if (!boot && manager.schedule != null)
-          const ActionItem('Play when it powers on', Icons.power_outlined, 'boot'),
-        const ActionItem('Delete', Icons.delete_outline_rounded, 'delete', danger: true),
+          const ActionItem('Play when it powers on', Icons.power_sharp, 'boot'),
+        const ActionItem('Delete', Icons.delete_outline_sharp, 'delete', danger: true),
       ],
     );
     if (!context.mounted) return;

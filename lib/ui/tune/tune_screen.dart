@@ -289,7 +289,8 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
       _toast(sendSuccessMessage);
     } else {
       _charge.value = 0;
-      _toast(friendlySendError(msg), action: SnackBarAction(label: 'Try again', onPressed: _keepIt));
+      _toast(friendlySendError(msg),
+          action: msg == liveOnlyMessage ? null : SnackBarAction(label: 'Try again', onPressed: _keepIt));
     }
     await _flash.forward(from: 0);
     if (!mounted) return;
@@ -332,6 +333,8 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
 
   bool _onNotification(ScrollNotification n) {
     if (n.depth != 0) return false;
+    if (n is ScrollStartNotification && n.dragDetails != null) _dragged = true;
+    if (n is ScrollUpdateNotification && (n.scrollDelta ?? 0) != 0) _collapsing = n.scrollDelta! > 0;
     if (n is OverscrollNotification && n.overscroll < 0 && n.dragDetails != null) {
       _pull -= n.overscroll;
       if (_pull > 90) {
@@ -340,8 +343,26 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
       }
     } else if (n is ScrollEndNotification) {
       _pull = 0;
+      if (_dragged) _snapMorph();
+      _dragged = false;
     }
     return false;
+  }
+
+  bool _dragged = false;
+  bool _collapsing = false;
+
+  /// Coming to rest mid-collapse would leave a half-shrunk Stage beside its
+  /// empty slot, so finish the way it was going (a small nudge falls back).
+  void _snapMorph() {
+    if (!_morph.between || !_scroll.hasClients) return;
+    final collapse = _collapsing ? _morph.t > 0.2 : _morph.t > 0.8;
+    final target = collapse ? _morph.travel : 0.0;
+    // After this notification: starting a scroll from inside it is unsafe.
+    Future.microtask(() {
+      if (!mounted || !_scroll.hasClients || !_morph.between) return;
+      _scroll.animateTo(target, duration: Lb.medium, curve: Lb.ease);
+    });
   }
 
   Future<void> _search() async {
@@ -527,6 +548,7 @@ const sendSuccessMessage = 'Sent to your device. It keeps playing without your p
 /// Our words for what went wrong sending a look (from saveToDevice's).
 String friendlySendError(String? msg) {
   if (msg == null) return 'Couldn’t send this one. Try again?';
+  if (msg == liveOnlyMessage) return msg;
   if (msg.contains('space')) return 'Your device is full. Make room in Device → Storage.';
   if (msg.contains('GIF')) return 'This device can only show looks live from your phone.';
   final why = msg.replaceFirst(RegExp(r"^Couldn['’]t (keep|send)( it| this)?: "), '');

@@ -148,7 +148,7 @@ class StudioKnob extends StatelessWidget {
           ),
           if (valueText != null) ...[
             const SizedBox(height: 2),
-            Text(valueText!, style: LbType.mono.copyWith(fontSize: 11)),
+            Text(valueText!, style: LbType.mono),
           ],
         ],
       );

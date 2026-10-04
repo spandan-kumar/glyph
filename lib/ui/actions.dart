@@ -16,6 +16,9 @@ import '../library/catalog.dart';
 import '../wled/wled_client.dart';
 import 'scope.dart';
 
+/// Why a live-only look (see [Generator.liveOnly]) wasn't sent.
+const liveOnlyMessage = 'This one follows your phone live, so it stays on your phone.';
+
 /// User-level operations that touch both playback and the device.
 abstract final class GlyphActions {
   static Future<void> play(BuildContext context, LibraryItem item) async {
@@ -66,6 +69,7 @@ abstract final class GlyphActions {
     final s = AppScope.of(context);
     final caps = s.devices.caps;
     final g = s.playback.generator;
+    if (g != null && g.liveOnly) return liveOnlyMessage;
     if (caps == null || g == null) return null;
     final title = s.playback.item?.title ?? g.name;
     final w = caps.width, h = caps.height;

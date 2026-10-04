@@ -11,6 +11,8 @@ import '../../engine/clip.dart';
 import '../../engine/frame.dart';
 import '../../ui/scope.dart';
 import '../../engine/generator.dart';
+import '../../ui/design/toggle.dart';
+import '../../ui/design/parts.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
 import '../../ui/make/demos.dart';
@@ -464,14 +466,14 @@ class _ImportScreenState extends State<ImportScreen>
               IconButton(
                 style: studioIconStyle,
                 tooltip: 'Open another',
-                icon: const Icon(Icons.folder_open_outlined),
+                icon: const Icon(Icons.folder_open_sharp),
                 onPressed: _loading ? null : () => _pick(anyFile: false),
               ),
               PopupMenuButton<String>(
                 tooltip: 'Share',
                 shape: studioMenuShape,
                 style: studioIconStyle,
-                icon: const Icon(Icons.ios_share),
+                icon: const Icon(Icons.ios_share_sharp),
                 onSelected: (v) => _share(gif: v == 'gif'),
                 itemBuilder: (_) => const [
                   PopupMenuItem(value: 'gif', child: Text('Share as GIF')),
@@ -517,11 +519,7 @@ class _ImportScreenState extends State<ImportScreen>
           if (_loading)
             Column(
               children: [
-                const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                const LedSpinner(size: 22),
                 const SizedBox(height: 12),
                 Text('Opening…', style: LbType.small),
               ],
@@ -531,7 +529,7 @@ class _ImportScreenState extends State<ImportScreen>
               width: 260,
               child: FilledButton.icon(
                 onPressed: () => _pick(anyFile: false),
-                icon: const Icon(Icons.photo_library_outlined),
+                icon: const Icon(Icons.photo_library_sharp),
                 label: const Text('Choose a picture'),
               ),
             ),
@@ -540,7 +538,7 @@ class _ImportScreenState extends State<ImportScreen>
               width: 260,
               child: OutlinedButton.icon(
                 onPressed: () => _pick(anyFile: true),
-                icon: const Icon(Icons.folder_open_outlined),
+                icon: const Icon(Icons.folder_open_sharp),
                 label: const Text('Open a file'),
               ),
             ),
@@ -633,21 +631,21 @@ class _ImportScreenState extends State<ImportScreen>
                   IconButton(
                     style: studioIconStyle,
                     tooltip: 'Rotate',
-                    icon: const Icon(Icons.rotate_90_degrees_cw_outlined),
+                    icon: const Icon(Icons.rotate_90_degrees_cw_sharp),
                     onPressed: () => _set(s.copyWith(quarterTurns: s.quarterTurns + 1)),
                   ),
                   IconButton(
                     style: studioIconStyle,
                     tooltip: 'Flip horizontally',
                     isSelected: s.flipH,
-                    icon: const Icon(Icons.flip),
+                    icon: const Icon(Icons.flip_sharp),
                     onPressed: () => _set(s.copyWith(flipH: !s.flipH)),
                   ),
                   IconButton(
                     style: studioIconStyle,
                     tooltip: 'Flip vertically',
                     isSelected: s.flipV,
-                    icon: const RotatedBox(quarterTurns: 1, child: Icon(Icons.flip)),
+                    icon: const RotatedBox(quarterTurns: 1, child: Icon(Icons.flip_sharp)),
                     onPressed: () => _set(s.copyWith(flipV: !s.flipV)),
                   ),
                   FilterChip(
@@ -726,10 +724,9 @@ class _ImportScreenState extends State<ImportScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('Turn background off', style: LbType.body),
-                subtitle: Text('Dark or one colour becomes unlit LEDs', style: LbType.small),
+              LbToggleTile(
+                title: 'Turn background off',
+                subtitle: 'Dark or one colour becomes unlit LEDs',
                 value: s.background != BackgroundMode.off,
                 onChanged: (v) =>
                     _set(s.copyWith(background: v ? BackgroundMode.dark : BackgroundMode.off)),
@@ -760,11 +757,8 @@ class _ImportScreenState extends State<ImportScreen>
                           ),
                         ),
                         const SizedBox(width: 10),
-                        const Expanded(
-                          child: Text(
-                            'Tap the image above to pick the colour',
-                            style: TextStyle(fontSize: 13, color: Lb.text2),
-                          ),
+                        Expanded(
+                          child: Text('Tap the image above to pick the colour', style: LbType.small),
                         ),
                       ],
                     ),
@@ -794,10 +788,9 @@ class _ImportScreenState extends State<ImportScreen>
                 divisions: _colorSteps.length - 1,
                 label: s.colors == 0 ? 'All' : '${s.colors}',
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('Dither', style: LbType.body),
-                subtitle: Text('Smoother gradients with fewer colours', style: LbType.small),
+              LbToggleTile(
+                title: 'Dither',
+                subtitle: 'Smoother gradients with fewer colours',
                 value: s.dither,
                 onChanged: s.colors == 0 ? null : (v) => _set(s.copyWith(dither: v)),
               ),
@@ -821,7 +814,7 @@ class _ImportScreenState extends State<ImportScreen>
           IconButton(
             style: studioIconStyle,
             tooltip: _playing ? 'Pause' : 'Play',
-            icon: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
+            icon: Icon(_playing ? Icons.pause_sharp : Icons.play_arrow_sharp),
             onPressed: () => setState(() => _playing = !_playing),
           ),
         Expanded(
@@ -849,7 +842,7 @@ class _ImportScreenState extends State<ImportScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('$tw×$th', style: LbType.mono.copyWith(color: Lb.text)),
-                  const Icon(Icons.arrow_drop_down, size: 20),
+                  const Icon(Icons.arrow_drop_down_sharp, size: 20),
                 ],
               ),
             ),
@@ -987,7 +980,7 @@ class _ImportScreenState extends State<ImportScreen>
                   minimumSize: const Size(52, 48),
                   padding: EdgeInsets.zero,
                 ),
-                child: const Icon(Icons.play_arrow_rounded),
+                child: const Icon(Icons.play_arrow_sharp),
               ),
             ),
             const SizedBox(width: 10),
@@ -1001,12 +994,8 @@ class _ImportScreenState extends State<ImportScreen>
               child: OutlinedButton.icon(
                 onPressed: caps != null && !_uploading ? _upload : null,
                 icon: _uploading
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.push_pin_outlined, size: 18),
+                    ? const LedSpinner(size: 16)
+                    : const Icon(Icons.push_pin_sharp, size: 18),
                 label: const FittedBox(child: Text('Send to device')),
               ),
             ),

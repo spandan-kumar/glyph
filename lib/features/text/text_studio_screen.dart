@@ -14,6 +14,7 @@ import '../../engine/registry.dart';
 import '../../ui/actions.dart';
 import '../../ui/scope.dart';
 import '../../ui/design/parts.dart';
+import '../../ui/design/toggle.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
 import '../../ui/make/studio_kit.dart';
@@ -378,7 +379,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                       }),
                     ),
                   ChoiceChip(
-                    avatar: const Icon(Icons.event, size: 16),
+                    avatar: const Icon(Icons.event_sharp, size: 16),
                     label: Text(!_s.useDuration && _s.target != null ? _fmtDate(_s.target!) : 'Date & time'),
                     selected: !_s.useDuration,
                     onSelected: (_) => _pickDate(),
@@ -388,7 +389,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                 TextField(
                   controller: _doneCtl,
                   decoration: const InputDecoration(
-                      hintText: 'Message at zero', prefixIcon: Icon(Icons.celebration_outlined)),
+                      hintText: 'Message at zero', prefixIcon: Icon(Icons.celebration_sharp)),
                   onChanged: (v) => _update(() => _s.doneText = v),
                 ),
               ]),
@@ -427,11 +428,10 @@ class _TextStudioScreenState extends State<TextStudioScreen>
           ],
       };
 
-  Widget _switch(String label, bool value, void Function(bool) set, {String? subtitle}) => SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        dense: true,
-        title: Text(label, style: LbType.body),
-        subtitle: subtitle == null ? null : Text(subtitle, style: LbType.small),
+  Widget _switch(String label, bool value, void Function(bool) set, {String? subtitle}) => LbToggleTile(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        title: label,
+        subtitle: subtitle,
         value: value,
         onChanged: (v) => _update(() => set(v)),
       );
@@ -540,7 +540,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
       const SizedBox(height: 4),
       FilledButton.icon(
         onPressed: _play,
-        icon: const Icon(Icons.play_arrow_rounded),
+        icon: const Icon(Icons.play_arrow_sharp),
         label: const Text('Play on device'),
       ),
       const SizedBox(height: 10),
@@ -548,7 +548,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         Expanded(
           child: OutlinedButton.icon(
             onPressed: _saveCreation,
-            icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+            icon: const Icon(Icons.bookmark_add_sharp, size: 18),
             label: const Text('Save'),
           ),
         ),
@@ -559,8 +559,8 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                 ? _saveToMatrix
                 : null,
             icon: _busy
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.push_pin_outlined, size: 18),
+                ? const LedSpinner(size: 16)
+                : const Icon(Icons.push_pin_sharp, size: 18),
             label: FittedBox(child: Text(_busy ? 'Sending…' : 'Send to device')),
           ),
         ),

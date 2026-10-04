@@ -22,6 +22,10 @@ abstract class Generator {
   String get defaultPalette => 'rainbow';
   List<ParamSpec> get params => const [];
 
+  /// Follows something only the phone knows (e.g. what's playing), so it
+  /// can't be baked into a GIF and sent to the device.
+  bool get liveOnly => false;
+
   /// Creates per-run state (particles, heat buffers, …) for a matrix size.
   EffectInstance create(int width, int height, int seed);
 }

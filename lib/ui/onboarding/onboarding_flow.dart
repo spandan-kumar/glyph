@@ -233,7 +233,7 @@ class HelloStep extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: onBack == null
               ? const SizedBox(height: 48)
-              : IconButton(tooltip: 'Back', onPressed: onBack, icon: const Icon(Icons.arrow_back_rounded)),
+              : IconButton(tooltip: 'Back', onPressed: onBack, icon: const Icon(Icons.arrow_back_sharp)),
         ),
         const SizedBox(height: 4),
         ListenableBuilder(
@@ -310,7 +310,7 @@ class VibeStep extends StatelessWidget {
         Row(
           children: [
             if (onBack != null)
-              IconButton(tooltip: 'Back', onPressed: onBack, icon: const Icon(Icons.arrow_back_rounded))
+              IconButton(tooltip: 'Back', onPressed: onBack, icon: const Icon(Icons.arrow_back_sharp))
             else
               const SizedBox(height: 48),
             const Spacer(),
@@ -382,7 +382,7 @@ class _VibeTile extends StatelessWidget {
             ],
           ),
         ),
-        const Icon(Icons.play_arrow_rounded, color: Lb.text2),
+        const Icon(Icons.play_arrow_sharp, color: Lb.text2),
       ],
     ),
   );

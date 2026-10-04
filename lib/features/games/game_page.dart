@@ -196,7 +196,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
       actions: [
           if (def.options.isNotEmpty)
             PopupMenuButton<String>(
-              icon: const Icon(Icons.tune),
+              icon: const Icon(Icons.tune_sharp),
               shape: studioMenuShape,
               style: studioIconStyle,
               onSelected: _toggleOption,
@@ -210,7 +210,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
             style: studioIconStyle,
             tooltip: _paused ? 'Resume' : 'Pause',
             onPressed: _over ? null : () => _setPaused(!_paused),
-            icon: Icon(_paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+            icon: Icon(_paused ? Icons.play_arrow_sharp : Icons.pause_sharp),
           ),
       ],
       body: SafeArea(
@@ -292,7 +292,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
                 onDown: _press,
                 onUp: _release,
                 size: unit,
-                upIcon: Icons.rotate_right_rounded),
+                upIcon: Icons.rotate_right_sharp),
             Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               PadButton(
                 width: unit * 1.1,
@@ -300,7 +300,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
                 label: 'drop',
                 color: Lb.panel,
                 onDown: () => _press(GameKey.b),
-                child: const Icon(Icons.vertical_align_bottom_rounded),
+                child: const Icon(Icons.vertical_align_bottom_sharp),
               ),
               SizedBox(height: unit * 0.3),
               PadButton(
@@ -309,7 +309,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
                 label: 'rotate',
                 color: Lb.raised,
                 onDown: () => _press(GameKey.a),
-                child: const Icon(Icons.rotate_right_rounded),
+                child: const Icon(Icons.rotate_right_sharp),
               ),
             ]),
           ]);
@@ -336,10 +336,10 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
               );
           return Row(children: [
             side(GameKey.left,
-                rotated ? Icons.arrow_upward_rounded : Icons.arrow_back_rounded),
+                rotated ? Icons.arrow_upward_sharp : Icons.arrow_back_sharp),
             const SizedBox(width: 12),
             side(GameKey.right,
-                rotated ? Icons.arrow_downward_rounded : Icons.arrow_forward_rounded),
+                rotated ? Icons.arrow_downward_sharp : Icons.arrow_forward_sharp),
           ]);
         case Controls.shooter:
           Widget hold(GameKey k, IconData icon) => PadButton(
@@ -352,9 +352,9 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
                 child: Icon(icon),
               );
           return Row(children: [
-            hold(GameKey.left, Icons.keyboard_arrow_left_rounded),
+            hold(GameKey.left, Icons.keyboard_arrow_left_sharp),
             SizedBox(width: unit * 0.25),
-            hold(GameKey.right, Icons.keyboard_arrow_right_rounded),
+            hold(GameKey.right, Icons.keyboard_arrow_right_sharp),
             const Spacer(),
             PadButton(
               width: unit * 1.6,

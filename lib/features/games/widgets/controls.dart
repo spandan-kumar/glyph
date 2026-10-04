@@ -99,7 +99,7 @@ class DPad extends StatelessWidget {
     required this.onDown,
     this.onUp,
     this.size = 68,
-    this.upIcon = Icons.keyboard_arrow_up_rounded,
+    this.upIcon = Icons.keyboard_arrow_up_sharp,
   });
 
   final void Function(GameKey k) onDown;
@@ -123,13 +123,13 @@ class DPad extends StatelessWidget {
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Row(mainAxisSize: MainAxisSize.min, children: [gap, _b(GameKey.up, upIcon), gap]),
       Row(mainAxisSize: MainAxisSize.min, children: [
-        _b(GameKey.left, Icons.keyboard_arrow_left_rounded),
+        _b(GameKey.left, Icons.keyboard_arrow_left_sharp),
         gap,
-        _b(GameKey.right, Icons.keyboard_arrow_right_rounded),
+        _b(GameKey.right, Icons.keyboard_arrow_right_sharp),
       ]),
       Row(mainAxisSize: MainAxisSize.min, children: [
         gap,
-        _b(GameKey.down, Icons.keyboard_arrow_down_rounded),
+        _b(GameKey.down, Icons.keyboard_arrow_down_sharp),
         gap,
       ]),
     ]);
@@ -206,7 +206,7 @@ class DragPad extends StatelessWidget {
           onPointerMove: (e) => at(e.localPosition),
           child: _Surface(
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(vertical ? Icons.swap_vert_rounded : Icons.swap_horiz_rounded,
+              Icon(vertical ? Icons.swap_vert_sharp : Icons.swap_horiz_sharp,
                   size: 40, color: Lb.text3),
               const SizedBox(height: 8),
               Text(label.toUpperCase(), textAlign: TextAlign.center, style: LbType.label),

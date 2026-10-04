@@ -186,7 +186,7 @@ class _SearchStepState extends State<SearchStep> with SingleTickerProviderStateM
               : IconButton(
                   tooltip: 'Back',
                   onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back_rounded),
+                  icon: const Icon(Icons.arrow_back_sharp),
                 ),
         ),
         const SizedBox(height: 8),
@@ -317,7 +317,7 @@ class FoundTile extends StatelessWidget {
             ),
           ),
           if (busy)
-            const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+            const LedSpinner()
           else
             Text('Connect', style: LbType.bodyStrong),
           const SizedBox(width: 4),

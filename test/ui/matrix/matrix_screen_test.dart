@@ -9,6 +9,7 @@ import 'package:glyph/app/playback.dart';
 import 'package:glyph/features/device/boot_intro.dart';
 import 'package:glyph/features/device/widgets/device_settings.dart';
 import 'package:glyph/library/catalog.dart';
+import 'package:glyph/ui/design/toggle.dart';
 import 'package:glyph/ui/matrix/matrix_screen.dart';
 import 'package:glyph/ui/onboarding/onboarding_flow.dart';
 import 'package:glyph/ui/scope.dart';
@@ -142,8 +143,8 @@ void main() {
     expect(find.text('Add a device'), findsOneWidget);
     expect(find.text('Device settings'), findsOneWidget);
     expect(find.text('The full WLED setup, inside Glyph'), findsOneWidget);
-    await reveal(tester, find.byType(Switch).last);
-    await tester.tap(find.byType(Switch).last);
+    await reveal(tester, find.byType(LbToggle).last);
+    await tester.tap(find.byType(LbToggle).last);
     await settle(tester);
     expect(devices.mirrorHosts, {'192.168.29.7'});
     await reveal(tester, find.text('Advanced'));

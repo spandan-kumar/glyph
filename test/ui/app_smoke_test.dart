@@ -82,6 +82,10 @@ void main() {
     expect(island.width, lessThan(screen.width * 0.75), reason: 'floats, doesn\'t span the screen');
     expect((island.center.dx - screen.width / 2).abs(), lessThan(1), reason: 'centred');
 
+    // Equal tabs: Make sits dead centre.
+    final make = tester.getCenter(find.descendant(of: dock, matching: find.bySemanticsLabel('Make')));
+    expect((make.dx - screen.width / 2).abs(), lessThan(1), reason: 'symmetric');
+
     final indicator = find.byKey(const ValueKey('dock-indicator'));
     double block() => tester.getRect(indicator).center.dx;
     final atDisplay = block();
@@ -93,6 +97,29 @@ void main() {
     final atDevice = block();
     expect(midway, inExclusiveRange(atDisplay, atDevice), reason: 'the block slides');
     expect(tester.takeException(), isNull);
+    playback.pause();
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the dock tucks away scrolling down and returns scrolling up', (tester) async {
+    final playback = await pumpApp(tester);
+    final dock = find.byType(Dock);
+    await tester.tap(find.descendant(of: dock, matching: find.bySemanticsLabel('Make')));
+    await tester.pump(const Duration(milliseconds: 500));
+    final screenH = tester.getSize(find.byType(MaterialApp)).height;
+    double top() => tester.getRect(find.descendant(of: dock, matching: find.byType(BackdropFilter))).top;
+    final shown = top();
+    expect(shown, lessThan(screenH));
+
+    await tester.drag(find.text('Timer'), const Offset(0, -300));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(top(), greaterThanOrEqualTo(screenH - 4), reason: 'slid away');
+
+    await tester.drag(find.text('Music'), const Offset(0, 120));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(top(), closeTo(shown, 0.5), reason: 'back');
     playback.pause();
     await tester.pumpWidget(const SizedBox());
   });

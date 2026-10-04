@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -12,6 +10,7 @@ import '../../engine/palette.dart';
 import '../../ui/actions.dart';
 import '../../ui/scope.dart';
 import '../../ui/design/parts.dart';
+import '../../ui/design/toggle.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
 import '../../ui/make/studio_kit.dart';
@@ -82,6 +81,11 @@ class _AudioScreenState extends State<AudioScreen>
       _engine.release(this);
     }
   }
+
+  // Background on: the visualiser keeps dancing after the screen closes,
+  // until it's stopped from the notification or something else plays.
+  @override
+  bool get keepAfterLeaving => BackgroundStreaming.isRunning;
 
   bool _isOurs(PlaybackController p) {
     final g = p.generator;
@@ -215,7 +219,7 @@ class _AudioScreenState extends State<AudioScreen>
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: live && playback.isStreaming ? null : _play,
-                      icon: const Icon(Icons.play_arrow_rounded),
+                      icon: const Icon(Icons.play_arrow_sharp),
                       label: Text(
                         live
                             ? (playback.isStreaming ? 'Playing on device' : 'Playing (preview)')
@@ -232,7 +236,7 @@ class _AudioScreenState extends State<AudioScreen>
                       style: IconButton.styleFrom(
                           side: Lb.hairline, minimumSize: const Size(48, 48), shape: studioShape),
                       onPressed: _stop,
-                      icon: const Icon(Icons.stop_rounded),
+                      icon: const Icon(Icons.stop_sharp),
                     ),
                   ],
                 ],
@@ -320,24 +324,19 @@ class _AudioScreenState extends State<AudioScreen>
                 padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
                 child: Column(
                   children: [
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text('Keep screen on', style: LbType.body),
+                    LbToggleTile(
+                      title: 'Keep screen on',
                       value: _keepAwake,
                       onChanged: _toggleAwake,
                     ),
                     if (BackgroundStreaming.supported)
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text('Keep running in background', style: LbType.body),
-                        subtitle: Text(
-                          BackgroundStreaming.isRunning
-                              ? 'Running · stop it from the notification'
-                              : devices.isConnected
-                              ? 'Keeps the device dancing with the screen off'
-                              : 'Connect a device to use this',
-                          style: LbType.small,
-                        ),
+                      LbToggleTile(
+                        title: 'Keep running in background',
+                        subtitle: BackgroundStreaming.isRunning
+                            ? 'Running · stop it from the notification'
+                            : devices.isConnected
+                            ? 'Keeps the device dancing with the screen off'
+                            : 'Connect a device to use this',
                         value: BackgroundStreaming.isRunning || _wantBackground,
                         onChanged: devices.isConnected ? _toggleBackground : null,
                       ),
@@ -442,7 +441,7 @@ class _PermissionCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.mic_none_rounded, color: readAccent(context)),
+                Icon(Icons.mic_none_sharp, color: readAccent(context)),
                 const SizedBox(width: 10),
                 Expanded(child: Text(title, style: LbType.heading)),
               ],
@@ -458,8 +457,8 @@ class _PermissionCard extends StatelessWidget {
   }
 }
 
-/// "Listening…" with a ring that fills with the input level and flashes on
-/// each beat.
+/// "Listening…" with a little LED meter: a beat LED that flashes in time and
+/// a row of LEDs that light with the input level.
 class _Listening extends StatelessWidget {
   const _Listening({required this.engine});
 
@@ -489,12 +488,17 @@ class _Listening extends StatelessWidget {
               tween: Tween(begin: f.beatCount > 0 ? 1 : 0, end: 0),
               duration: const Duration(milliseconds: 260),
               builder: (context, beat, _) => CustomPaint(
-                size: const Size.square(22),
-                painter: _LevelRing(level, beat, on ? accent : Lb.text3),
+                size: const Size(46, 10),
+                painter: _LevelLeds(level, beat, on ? accent : Lb.text3),
               ),
             ),
             const SizedBox(width: 10),
-            Text(label.toUpperCase(), style: LbType.label.copyWith(color: on ? Lb.text2 : Lb.text3)),
+            Flexible(
+              child: Text(label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: LbType.label.copyWith(color: on ? Lb.text2 : Lb.text3)),
+            ),
           ],
         );
       },
@@ -502,28 +506,28 @@ class _Listening extends StatelessWidget {
   }
 }
 
-class _LevelRing extends CustomPainter {
-  _LevelRing(this.level, this.beat, this.color);
+class _LevelLeds extends CustomPainter {
+  _LevelLeds(this.level, this.beat, this.color);
 
   final double level, beat;
   final Color color;
 
+  static const _meter = 5;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final c = size.center(Offset.zero);
-    final r = size.width / 2 - 2;
-    final stroke = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawCircle(c, r, stroke..color = Lb.line);
-    canvas.drawArc(Rect.fromCircle(center: c, radius: r), -pi / 2, 2 * pi * level, false,
-        stroke..color = color);
-    canvas.drawCircle(c, 2.5 + 2 * beat, Paint()..color = Color.lerp(Lb.line, color, 0.3 + 0.7 * beat)!);
+    final cell = size.height, r = cell * 0.36, y = size.height / 2;
+    // Beat LED, a gap, then the level meter.
+    canvas.drawCircle(Offset(cell / 2, y), r, Paint()..color = Color.lerp(Lb.ledOff, color, 0.25 + 0.75 * beat)!);
+    final lit = (level * _meter).round();
+    for (var i = 0; i < _meter; i++) {
+      canvas.drawCircle(Offset(cell * (i + 2) + cell / 2, y), r,
+          Paint()..color = i < lit ? color : Lb.ledOff);
+    }
   }
 
   @override
-  bool shouldRepaint(_LevelRing old) => old.level != level || old.beat != beat || old.color != color;
+  bool shouldRepaint(_LevelLeds old) => old.level != level || old.beat != beat || old.color != color;
 }
 
 /// Runs a visualiser locally for the picker and the big preview.

@@ -7,6 +7,7 @@ import '../../features/editor/editor_screen.dart';
 import '../../features/games/catalog.dart';
 import '../../features/games/games_screen.dart';
 import '../../features/import/import_screen.dart';
+import '../../features/now_playing/now_playing_screen.dart';
 import '../../features/text/text_studio_screen.dart';
 import '../design/parts.dart';
 import '../design/tokens.dart';
@@ -34,6 +35,7 @@ class _MakeScreenState extends State<MakeScreen> {
   final _gif = ClipGenerator(gifDemoClip, title: 'Bring a GIF');
   final _music = musicDemo();
   final _play = playDemo();
+  final _nowPlaying = nowPlayingDemo();
 
   void _open(Widget page) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
@@ -103,6 +105,12 @@ class _MakeScreenState extends State<MakeScreen> {
                       generator: _music,
                       onTap: () => _open(const AudioScreen()),
                     ),
+                    nowPlaying: _StudioBanner(
+                      label: 'Now Playing',
+                      line: 'Album art, live',
+                      generator: _nowPlaying,
+                      onTap: () => _open(const NowPlayingScreen()),
+                    ),
                     play: _StudioBanner(
                       label: 'Play',
                       line: '${gameDefs.length} games',
@@ -159,7 +167,7 @@ class _MakeScreenState extends State<MakeScreen> {
   }
 }
 
-/// Seven tools on a three-column grid, read in order:
+/// Eight tools on a three-column grid, read in order:
 ///
 ///     ┌───────────┬─────┐
 ///     │           │Write│
@@ -168,11 +176,13 @@ class _MakeScreenState extends State<MakeScreen> {
 ///     ├─────┬─────┼─────┤
 ///     │Timer│ GIF │Music│
 ///     ├─────┴─────┴─────┤
+///     │ Now Playing ▸ ░ │   a cover and its song name, wide
+///     ├─────────────────┤
 ///     │ Play ▸ ░░░░░░░░ │   arcade marquee, game running wide
 ///     └─────────────────┘
 ///
 /// Draw is the big one (2×2); the text tools start beside it and spill into
-/// the row below; Play closes the studio as a full-width strip.
+/// the row below; Now Playing and Play close the studio as full-width strips.
 class _StudioGrid extends StatelessWidget {
   const _StudioGrid({
     required this.draw,
@@ -181,10 +191,11 @@ class _StudioGrid extends StatelessWidget {
     required this.timer,
     required this.gif,
     required this.music,
+    required this.nowPlaying,
     required this.play,
   });
 
-  final Widget draw, write, clock, timer, gif, music, play;
+  final Widget draw, write, clock, timer, gif, music, nowPlaying, play;
 
   static const _gap = 10.0;
 
@@ -222,6 +233,8 @@ class _StudioGrid extends StatelessWidget {
               ),
               const SizedBox(height: _gap),
               row([timer, gif, music]),
+              const SizedBox(height: _gap),
+              SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: nowPlaying),
               const SizedBox(height: _gap),
               SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: play),
             ]);

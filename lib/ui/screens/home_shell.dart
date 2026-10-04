@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../app/storage_alerts.dart';
 import '../design/ambient.dart';
 import '../design/dock.dart';
-import '../design/tokens.dart';
 import '../make/make_screen.dart';
 import '../matrix/matrix_screen.dart';
 import '../scope.dart';
@@ -16,8 +15,7 @@ class HomeShell extends StatefulWidget {
   final int initialTab;
 
   /// Lets any screen jump to another destination (e.g. "Connect a matrix").
-  static void go(BuildContext context, int tab) =>
-      context.findAncestorStateOfType<_HomeShellState>()?._select(tab);
+  static void go(BuildContext context, int tab) => context.findAncestorStateOfType<_HomeShellState>()?._select(tab);
 
   /// Panels that need the full height (e.g. Display's Tweak) hide the dock.
   static final dockHidden = ValueNotifier<bool>(false);
@@ -35,7 +33,39 @@ class _HomeShellState extends State<HomeShell> {
     DockItem('Device', DockGlyph.device),
   ];
 
-  void _select(int i) => setState(() => _tab = i);
+  void _select(int i) {
+    _showDock();
+    setState(() => _tab = i);
+  }
+
+  /// The dock tucks away while the page scrolls down and comes back as soon
+  /// as it scrolls up (or reaches the top), like a browser's toolbar.
+  final _scrolledAway = ValueNotifier(false);
+  double _drift = 0;
+
+  void _showDock() {
+    _drift = 0;
+    _scrolledAway.value = false;
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (n is! ScrollUpdateNotification || n.metrics.axis != Axis.vertical) return false;
+    final d = n.scrollDelta ?? 0;
+    if (n.metrics.pixels <= n.metrics.minScrollExtent + 8) {
+      _showDock();
+      return false;
+    }
+    // Only a deliberate run of scrolling one way flips it, not jitter.
+    if (d == 0) return false;
+    if (d.sign != _drift.sign) _drift = 0;
+    _drift += d;
+    if (_drift > 24) {
+      _scrolledAway.value = true;
+    } else if (_drift < -12) {
+      _scrolledAway.value = false;
+    }
+    return false;
+  }
 
   StorageAlerts? _storage;
 
@@ -47,6 +77,7 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   void dispose() {
+    _scrolledAway.dispose();
     _storage?.dispose();
     super.dispose();
   }
@@ -58,11 +89,13 @@ class _HomeShellState extends State<HomeShell> {
         : 'Your device is half full. You can free up space anytime in the Device tab.';
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(msg),
-        duration: Duration(seconds: level == StorageLevel.nearlyFull ? 8 : 5),
-        action: SnackBarAction(label: 'Open', onPressed: () => _select(2)),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          duration: Duration(seconds: level == StorageLevel.nearlyFull ? 8 : 5),
+          action: SnackBarAction(label: 'Open', onPressed: () => _select(2)),
+        ),
+      );
   }
 
   @override
@@ -78,32 +111,35 @@ class _HomeShellState extends State<HomeShell> {
         backgroundColor: Colors.transparent,
         extendBody: true,
         body: AmbientBackdrop(
-          child: IndexedStack(
-            index: _tab,
-            children: [
-              for (var i = 0; i < 3; i++)
-                // Hidden destinations stop their tickers.
-                TickerMode(
-                  enabled: i == _tab,
-                  child: const [TuneScreen(), MakeScreen(), MatrixScreen()][i],
-                ),
-            ],
+          child: NotificationListener<ScrollNotification>(
+            onNotification: _onScroll,
+            child: IndexedStack(
+              index: _tab,
+              children: [
+                for (var i = 0; i < 3; i++)
+                  // Hidden destinations stop their tickers.
+                  TickerMode(enabled: i == _tab, child: const [TuneScreen(), MakeScreen(), MatrixScreen()][i]),
+              ],
+            ),
           ),
         ),
-        bottomNavigationBar: ValueListenableBuilder<bool>(
-          valueListenable: HomeShell.dockHidden,
-          builder: (context, hidden, dock) => AnimatedSlide(
-            offset: Offset(0, hidden ? 1.5 : 0),
-            duration: Lb.medium,
-            curve: Lb.ease,
-            child: IgnorePointer(ignoring: hidden, child: dock),
-          ),
-          child: Dock(
-            items: _items,
-            index: _tab,
-            onSelect: _select,
-            accent: ambient.accent,
-          ),
+        bottomNavigationBar: ListenableBuilder(
+          listenable: Listenable.merge([HomeShell.dockHidden, _scrolledAway]),
+          builder: (context, dock) {
+            final hidden = HomeShell.dockHidden.value || _scrolledAway.value;
+            return AnimatedSlide(
+              offset: Offset(0, hidden ? 1.6 : 0),
+              duration: const Duration(milliseconds: 360),
+              curve: Curves.easeInOutCubic,
+              child: AnimatedOpacity(
+                opacity: hidden ? 0 : 1,
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOut,
+                child: IgnorePointer(ignoring: hidden, child: dock),
+              ),
+            );
+          },
+          child: Dock(items: _items, index: _tab, onSelect: _select, accent: ambient.accent),
         ),
       ),
     );

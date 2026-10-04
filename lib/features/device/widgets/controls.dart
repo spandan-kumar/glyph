@@ -32,7 +32,7 @@ class HardwareControls extends StatelessWidget {
                 semantics: 'Power',
                 lit: on,
                 litColor: Lb.ok,
-                icon: Icons.power_settings_new_rounded,
+                icon: Icons.power_settings_new_sharp,
                 onTap: store.isOn == null
                     ? null
                     : () => guarded(context, () => store.setPower(!on)),
@@ -64,7 +64,7 @@ class HardwareControls extends StatelessWidget {
                 semantics: 'Night light',
                 lit: store.nightlightOn,
                 litColor: Lb.phosphor,
-                icon: store.nightlightOn ? Icons.bedtime_rounded : Icons.bedtime_outlined,
+                icon: Icons.bedtime_sharp,
                 onTap: store.isConnected
                     ? () => showModalBottomSheet<void>(
                         context: context,
@@ -135,17 +135,10 @@ class ChunkyButton extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: Lb.raised,
+          // Flat key; a lit one takes a faint wash of its LED colour.
+          color: lit ? Color.lerp(Lb.raised, litColor, 0.08) : Lb.raised,
           borderRadius: BorderRadius.circular(Lb.rControl),
           border: Border.all(color: lit ? litColor.withValues(alpha: 0.5) : Lb.line),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color.lerp(Lb.raised, Lb.text, 0.05)!,
-              lit ? Color.lerp(Lb.raised, litColor, 0.10)! : Lb.raised,
-            ],
-          ),
         ),
         child: Stack(
           alignment: Alignment.center,

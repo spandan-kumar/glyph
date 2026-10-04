@@ -60,9 +60,10 @@ void main() {
     final (playback, _) = await pumpMake(tester);
     expect(tester.takeException(), isNull);
     expect(find.text('Make'), findsOneWidget);
-    for (final verb in ['Draw', 'Write', 'Clock', 'Timer', 'Bring a GIF', 'Music', 'Play']) {
+    for (final verb in ['Draw', 'Write', 'Clock', 'Timer', 'Bring a GIF', 'Music', 'Now Playing', 'Play']) {
       expect(find.text(verb), findsOneWidget, reason: verb);
     }
+    await tester.scrollUntilVisible(find.text('MADE BY YOU'), 200);
     expect(find.text('MADE BY YOU'), findsOneWidget);
     // Previews keep running without errors.
     await tester.pump(const Duration(seconds: 1));

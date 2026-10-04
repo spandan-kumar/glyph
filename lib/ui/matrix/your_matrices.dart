@@ -11,6 +11,7 @@ import '../../wled/device.dart';
 import '../../wled/layout.dart';
 import '../actions.dart';
 import '../design/parts.dart';
+import '../design/toggle.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 import '../onboarding/onboarding_flow.dart';
@@ -83,26 +84,26 @@ class YourMatrices extends StatelessWidget {
             children: [
               if (store.isConnected)
                 Row1(
-                  leading: const Icon(Icons.screen_rotation_alt_rounded, color: Lb.text2, size: 20),
+                  leading: const Icon(Icons.screen_rotation_alt_sharp, color: Lb.text2, size: 20),
                   title: 'Fix orientation',
                   subtitle: 'If things look sideways or backwards',
-                  trailing: const Icon(Icons.chevron_right_rounded, color: Lb.text3),
+                  trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
                   onTap: () => OrientationFixPage.open(context),
                 ),
               if (store.isConnected)
                 Row1(
-                  leading: const Icon(Icons.edit_outlined, color: Lb.text2, size: 20),
+                  leading: const Icon(Icons.edit_sharp, color: Lb.text2, size: 20),
                   title: 'Rename',
                   subtitle: store.info?.name ?? selected.name,
-                  trailing: const Icon(Icons.chevron_right_rounded, color: Lb.text3),
+                  trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
                   onTap: () => _rename(context),
                 ),
               if (store.isConnected)
                 Row1(
-                  leading: const Icon(Icons.settings_outlined, color: Lb.text2, size: 20),
+                  leading: const Icon(Icons.settings_sharp, color: Lb.text2, size: 20),
                   title: 'Device settings',
                   subtitle: 'The full WLED setup, inside Glyph',
-                  trailing: const Icon(Icons.chevron_right_rounded, color: Lb.text3),
+                  trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
                   onTap: () => DeviceSettingsPage.open(context, store, viewBuilder: settingsView),
                 ),
               _Advanced(store: store),
@@ -167,7 +168,7 @@ class _MatrixChip extends StatelessWidget {
             Row(
               children: [
                 if (add)
-                  const Icon(Icons.add_rounded, size: 18, color: Lb.text)
+                  const Icon(Icons.add_sharp, size: 18, color: Lb.text)
                 else
                   StatusDot(on: online == true, color: Lb.ok),
                 const Spacer(),
@@ -182,7 +183,7 @@ class _MatrixChip extends StatelessWidget {
                   online == false ? 'Offline' : detail,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: LbType.mono.copyWith(fontSize: 11),
+                  style: LbType.mono,
                 ),
               ],
             ),
@@ -218,7 +219,7 @@ class _MirrorGroup extends StatelessWidget {
                 : store.isOnline(d.host) == false
                 ? 'Offline'
                 : d.host,
-            trailing: Switch(
+            trailing: LbToggle(
               value: mirrors.contains(d.host),
               onChanged: (v) async {
                 await store.setMirror(d.host, v);
@@ -263,13 +264,13 @@ class _AdvancedState extends State<_Advanced> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row1(
-          leading: const Icon(Icons.tune_rounded, color: Lb.text2, size: 20),
+          leading: const Icon(Icons.tune_sharp, color: Lb.text2, size: 20),
           title: 'Advanced',
           subtitle: 'Address, firmware, layout',
           trailing: AnimatedRotation(
             turns: _open ? 0.25 : 0,
             duration: Lb.fast,
-            child: const Icon(Icons.chevron_right_rounded, color: Lb.text3),
+            child: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
           ),
           onTap: () => setState(() => _open = !_open),
         ),
@@ -362,23 +363,8 @@ class _AdvancedState extends State<_Advanced> {
     ),
   );
 
-  Widget _switch(String label, bool v, ValueChanged<bool> on, {String? hint}) => Padding(
-    padding: const EdgeInsets.only(top: 6),
-    child: Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: LbType.body),
-              if (hint != null) Text(hint, style: LbType.small),
-            ],
-          ),
-        ),
-        Switch(value: v, onChanged: on),
-      ],
-    ),
-  );
+  Widget _switch(String label, bool v, ValueChanged<bool> on, {String? hint}) =>
+      LbToggleTile(title: label, subtitle: hint, value: v, onChanged: on, padding: const EdgeInsets.symmetric(vertical: 6));
 
   Future<void> _forget(BuildContext context, SavedDevice d) async {
     final ok = await confirm(

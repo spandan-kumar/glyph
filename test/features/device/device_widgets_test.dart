@@ -10,6 +10,7 @@ import 'package:glyph/features/device/widgets/routines.dart';
 import 'package:glyph/features/device/widgets/shows.dart';
 import 'package:glyph/features/device/widgets/storage.dart';
 import 'package:glyph/ui/design/knob.dart';
+import 'package:glyph/ui/design/toggle.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:glyph/wled/device.dart';
 import 'package:glyph/wled/schedule.dart';
@@ -78,7 +79,7 @@ void main() {
   testWidgets('Routines: toggle saves, tap opens the editor', (tester) async {
     await pump(tester, (_, m) => RoutinesSection(manager: m));
     expect(find.text('Mon, Wed, Fri at 3:07 → something removed'), findsOneWidget);
-    await tester.tap(find.byType(Switch).first);
+    await tester.tap(find.byType(LbToggle).first);
     await settle(tester, 800);
     final cfg = wled.posts.lastWhere((p) => p.$1 == '/json/cfg').$2;
     expect((cfg['timers'] as Map)['ins'], hasLength(3));
@@ -102,7 +103,7 @@ void main() {
     await settle(tester, 600);
     await tester.tap(find.text('Ocean Plasma').last);
     await settle(tester, 600);
-    expect(find.byIcon(Icons.drag_indicator_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.drag_indicator_sharp), findsOneWidget);
     await tester.tap(find.text('Save'));
     await settle(tester, 1600);
     final save = wled.posts.firstWhere((p) => p.$2.containsKey('playlist'));

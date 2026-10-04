@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -31,26 +32,35 @@ class DockItem {
 
 /// The navigation island: a small, sharp-cornered panel floating above the
 /// content. Tab names are drawn in Glyph's own pixel font, like the LED
-/// section headers on Display; the active tab sits on a raised block that
-/// slides between tabs, its name lit in the room colour.
+/// section headers on Display; the active tab sits on a raised block, faintly
+/// tinted by the room, that slides between tabs, its name lit in the room
+/// colour.
+///
+/// Tabs share one width so the island is symmetric (Make sits dead centre),
+/// and the LED cell is snapped to whole device pixels so every letter's dots
+/// land on the same grid instead of smearing across pixel boundaries.
 class Dock extends StatelessWidget {
   const Dock({super.key, required this.items, required this.index, required this.onSelect, this.accent = Lb.phosphor});
 
-  static const height = 40.0;
+  static const height = 42.0;
   static const _dot = 2.2;
   static const _padX = 14.0;
+  static const _inset = 4.0;
 
   final List<DockItem> items;
   final int index;
   final ValueChanged<int> onSelect;
   final Color accent;
 
-  static double _tabWidth(DockItem i) => tinyFont.measure(i.label.toUpperCase()) * _dot + 2 * _padX;
-
   @override
   Widget build(BuildContext context) {
-    final widths = [for (final i in items) _tabWidth(i)];
-    final left = widths.take(index).fold(0.0, (a, b) => a + b);
+    final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
+    double snap(double v) => (v * dpr).round() / dpr;
+    final dot = snap(_dot);
+    final cells = items.fold(0, (m, i) => math.max(m, tinyFont.measure(i.label.toUpperCase())));
+    final tab = snap(cells * dot + 2 * _padX);
+    final widths = [for (final _ in items) tab];
+    final left = tab * index;
     return SafeArea(
       top: false,
       child: Padding(
@@ -60,7 +70,7 @@ class Dock extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(Lb.rPanel),
-              boxShadow: const [BoxShadow(color: Color(0xB3000000), blurRadius: 22, offset: Offset(0, 8))],
+              boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 18, offset: Offset(0, 6))],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(Lb.rPanel),
@@ -68,14 +78,15 @@ class Dock extends StatelessWidget {
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Lb.panel.withValues(alpha: 0.82),
+                    // Opaque enough that busy thumbnails don't muddy the labels.
+                    color: Lb.panel.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(Lb.rPanel),
                     border: Border.all(color: Lb.line),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(3),
+                    padding: const EdgeInsets.all(_inset),
                     child: SizedBox(
-                      height: height - 6,
+                      height: height - 2 * _inset,
                       width: widths.fold<double>(0, (a, b) => a + b),
                       child: Stack(
                         children: [
@@ -91,9 +102,9 @@ class Dock extends StatelessWidget {
                             child: AnimatedContainer(
                               duration: Lb.medium,
                               decoration: BoxDecoration(
-                                color: Lb.raised,
+                                color: Color.alphaBlend(accent.withValues(alpha: 0.12), Lb.raised),
                                 borderRadius: BorderRadius.circular(Lb.rControl),
-                                border: Border(bottom: BorderSide(color: accent, width: 2)),
+                                border: Border.all(color: accent.withValues(alpha: 0.28)),
                               ),
                             ),
                           ),
@@ -104,6 +115,7 @@ class Dock extends StatelessWidget {
                                   width: widths[i],
                                   child: _DockTab(
                                     item: items[i],
+                                    dot: dot,
                                     active: i == index,
                                     accent: accent,
                                     onTap: () {
@@ -129,9 +141,16 @@ class Dock extends StatelessWidget {
 }
 
 class _DockTab extends StatelessWidget {
-  const _DockTab({required this.item, required this.active, required this.accent, required this.onTap});
+  const _DockTab({
+    required this.item,
+    required this.dot,
+    required this.active,
+    required this.accent,
+    required this.onTap,
+  });
 
   final DockItem item;
+  final double dot;
   final bool active;
   final Color accent;
   final VoidCallback onTap;
@@ -152,7 +171,7 @@ class _DockTab extends StatelessWidget {
             duration: Lb.medium,
             curve: Lb.ease,
             builder: (context, color, _) =>
-                LedText(item.label.toUpperCase(), dot: Dock._dot, color: color ?? Lb.text3),
+                LedText(item.label.toUpperCase(), dot: dot, color: color ?? Lb.text3),
           ),
         ),
       ),

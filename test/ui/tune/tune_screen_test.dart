@@ -236,7 +236,7 @@ void main() {
 
   testWidgets('Send without a device explains instead of failing', (tester) async {
     final playback = await pumpApp(tester);
-    await tester.tap(find.text('SEND'));
+    await tester.tap(find.bySemanticsLabel('Send'));
     await step(tester, 300);
     expect(find.text('Connect a device to send this to it.'), findsOneWidget);
     playback.pause();
@@ -290,6 +290,26 @@ void main() {
     expect(tester.getRect(find.byType(Stage)).width, closeTo(full.width, 0.5));
     expect(find.byTooltip('Next').hitTestable(), findsNothing);
     expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('letting go mid-collapse settles the Stage at the nearer end', (tester) async {
+    final playback = await pumpApp(tester, size: const Size(360, 740));
+    final pos = pagePosition(tester);
+    final full = tester.getRect(find.byType(Stage)).width;
+
+    // A short drag: back to the full Stage.
+    await tester.timedDrag(find.text('SEE ALL').first, const Offset(0, -60), const Duration(milliseconds: 600));
+    await step(tester, 900);
+    expect(pos.pixels, 0);
+    expect(tester.getRect(find.byType(Stage)).width, closeTo(full, 0.5));
+
+    // Most of the way: on to the thumbnail.
+    await tester.timedDrag(find.text('SEE ALL').first, const Offset(0, -260), const Duration(milliseconds: 900));
+    await step(tester, 900);
+    final f = playback.frame;
+    final mini = MiniStage.panelRect(top: 0, aspect: f.width / f.height);
+    expect(tester.getRect(find.byType(Stage)).width, closeTo(mini.width, 0.5));
     playback.pause();
   });
 

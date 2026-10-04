@@ -20,7 +20,8 @@ typedef ToolClipSender = Future<String?> Function(BuildContext context, FrameCli
 /// stage no longer shows the tool's content.
 ///
 /// Something sent during the visit is left alone: the matrix plays the saved
-/// GIF on its own. Whatever was playing before the tool opened is left alone
+/// GIF on its own. So is anything the tool set running in the background
+/// ([keepAfterLeaving]): the person asked for it to outlive the screen. Whatever was playing before the tool opened is left alone
 /// too, unless the tool replaced it.
 ///
 /// Tools tell the session what they play ([toolPlays], [toolOwns],
@@ -34,6 +35,10 @@ mixin ToolSession<T extends StatefulWidget> on State<T> {
   bool _toolSent = false;
   AppScope? _toolScope;
   BuildContext? _toolRoot;
+
+  /// Whether what this tool plays should keep going after the screen closes
+  /// (e.g. "Keep running in background" is on and running). Read on leaving.
+  bool get keepAfterLeaving => false;
 
   /// Whether something was sent to the device since this tool last started
   /// playing.
@@ -87,7 +92,7 @@ mixin ToolSession<T extends StatefulWidget> on State<T> {
 
   void _endToolSession() {
     final scope = _toolScope;
-    if (scope == null) return;
+    if (scope == null || keepAfterLeaving) return;
     final pb = scope.playback, g = pb.generator;
     if (_toolSent || g == null || !_toolOwned.contains(g)) return;
     final root = _toolRoot, devices = scope.devices;

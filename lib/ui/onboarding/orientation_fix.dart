@@ -150,7 +150,7 @@ class _Frame extends StatelessWidget {
         alignment: Alignment.centerLeft,
         child: onBack == null
             ? const SizedBox(height: 48)
-            : IconButton(tooltip: 'Back', onPressed: onBack, icon: const Icon(Icons.arrow_back_rounded)),
+            : IconButton(tooltip: 'Back', onPressed: onBack, icon: const Icon(Icons.arrow_back_sharp)),
       ),
       const SizedBox(height: 8),
       Text(title, style: LbType.title),
@@ -180,12 +180,12 @@ class _ArrowQuestion extends StatelessWidget {
       onBack: onBack,
       child: Column(
         children: [
-          b(ArrowSeen.up, Icons.arrow_upward_rounded, 'Up'),
+          b(ArrowSeen.up, Icons.arrow_upward_sharp, 'Up'),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              b(ArrowSeen.left, Icons.arrow_back_rounded, 'Left'),
+              b(ArrowSeen.left, Icons.arrow_back_sharp, 'Left'),
               const SizedBox(width: 12),
               Container(
                 width: 84,
@@ -199,11 +199,11 @@ class _ArrowQuestion extends StatelessWidget {
                 child: const LedText('?', dot: 6, color: Lb.text3),
               ),
               const SizedBox(width: 12),
-              b(ArrowSeen.right, Icons.arrow_forward_rounded, 'Right'),
+              b(ArrowSeen.right, Icons.arrow_forward_sharp, 'Right'),
             ],
           ),
           const SizedBox(height: 12),
-          b(ArrowSeen.down, Icons.arrow_downward_rounded, 'Down'),
+          b(ArrowSeen.down, Icons.arrow_downward_sharp, 'Down'),
         ],
       ),
     );

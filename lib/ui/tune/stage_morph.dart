@@ -28,6 +28,13 @@ class StageMorph extends ChangeNotifier {
   Rect? _home;
   Rect _mini = Rect.zero;
   double _t = 0;
+  double _travel = 1;
+
+  /// Scroll distance over which the Stage collapses.
+  double get travel => _travel;
+
+  /// Part-way between full Stage and thumbnail: not a place to rest.
+  bool get between => _t > 0.01 && _t < 0.99;
 
   /// False until the Stage's home has been laid out and measured.
   bool get ready => _home != null;
@@ -50,6 +57,7 @@ class StageMorph extends ChangeNotifier {
   /// Stage's home would have scrolled up to it.
   void update({required Rect home, required Rect mini, required double barBottom, required double offset}) {
     final travel = max(1.0, home.bottom - barBottom);
+    _travel = travel;
     final t = (offset / travel).clamp(0.0, 1.0);
     if (home == _home && mini == _mini && t == _t) return;
     _home = home;
@@ -272,19 +280,17 @@ class _ReelPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Two soft bands rolling downward, like a reel blurring past.
+    // Two bands rolling downward, like a reel blurring past. Stepped in
+    // hard strips rather than a gradient, like rows of a matrix.
+    const steps = [0.15, 0.35, 0.55, 0.35, 0.15];
+    final strip = size.height * 0.24 / steps.length;
+    final paint = Paint();
     for (final o in [0.0, 0.5]) {
-      final y = ((t + o) % 1.0) * size.height * 1.4 - size.height * 0.2;
-      final rect = Rect.fromLTWH(0, y - size.height * 0.12, size.width, size.height * 0.24);
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Lb.ink.withValues(alpha: 0), Lb.ink.withValues(alpha: 0.55), Lb.ink.withValues(alpha: 0)],
-          ).createShader(rect),
-      );
+      final top = ((t + o) % 1.0) * size.height * 1.4 - size.height * 0.32;
+      for (var i = 0; i < steps.length; i++) {
+        canvas.drawRect(Rect.fromLTWH(0, top + i * strip, size.width, strip + 0.5),
+            paint..color = Lb.ink.withValues(alpha: steps[i]));
+      }
     }
   }
 

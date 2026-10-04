@@ -84,3 +84,67 @@ class StatusDot extends StatelessWidget {
         ),
       );
 }
+
+/// A busy indicator drawn as a 3×3 block of LEDs with one lit dot chasing
+/// round the edge — the matrix stand-in for a circular spinner.
+class LedSpinner extends StatefulWidget {
+  const LedSpinner({super.key, this.size = 20, this.color = Lb.text});
+
+  final double size;
+  final Color color;
+
+  @override
+  State<LedSpinner> createState() => _LedSpinnerState();
+}
+
+class _LedSpinnerState extends State<LedSpinner> with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 960))..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: widget.size,
+    child: CustomPaint(painter: _SpinnerPainter(_c, widget.color)),
+  );
+}
+
+class _SpinnerPainter extends CustomPainter {
+  _SpinnerPainter(this.t, this.color) : super(repaint: t);
+
+  final Animation<double> t;
+  final Color color;
+
+  // The eight edge cells, clockwise from top-left.
+  static const _ring = [(0, 0), (1, 0), (2, 0), (2, 1), (2, 2), (1, 2), (0, 2), (0, 1)];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cell = size.shortestSide / 3;
+    final r = cell * 0.32;
+    final head = (t.value * _ring.length).floor();
+    for (var i = 0; i < _ring.length; i++) {
+      // Head fully lit, two fading cells behind it.
+      final age = (head - i) % _ring.length;
+      final a = switch (age) {
+        0 => 1.0,
+        1 => 0.45,
+        2 => 0.18,
+        _ => 0.0,
+      };
+      final (x, y) = _ring[i];
+      canvas.drawCircle(
+        Offset((x + 0.5) * cell, (y + 0.5) * cell),
+        r,
+        Paint()..color = a == 0 ? Lb.ledOff : color.withValues(alpha: a),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SpinnerPainter old) => old.color != color;
+}

@@ -14,13 +14,13 @@ class EditorToolBar extends StatelessWidget {
   final EditorModel model;
 
   static const _tools = <(EditorTool, String, IconData?)>[
-    (EditorTool.pencil, 'Pencil', Icons.edit),
+    (EditorTool.pencil, 'Pencil', Icons.edit_sharp),
     (EditorTool.eraser, 'Eraser', null),
-    (EditorTool.fill, 'Fill', Icons.format_color_fill),
-    (EditorTool.picker, 'Pick colour', Icons.colorize),
-    (EditorTool.line, 'Line', Icons.horizontal_rule),
-    (EditorTool.rect, 'Rectangle', Icons.crop_square),
-    (EditorTool.move, 'Move', Icons.open_with),
+    (EditorTool.fill, 'Fill', Icons.format_color_fill_sharp),
+    (EditorTool.picker, 'Pick colour', Icons.colorize_sharp),
+    (EditorTool.line, 'Line', Icons.horizontal_rule_sharp),
+    (EditorTool.rect, 'Rectangle', Icons.crop_square_sharp),
+    (EditorTool.move, 'Move', Icons.open_with_sharp),
   ];
 
   @override
@@ -102,7 +102,7 @@ class _EraserPainter extends CustomPainter {
       ..rotate(-0.785);
     final body = RRect.fromRectAndRadius(
         Rect.fromCenter(center: Offset.zero, width: s * 0.82, height: s * 0.42),
-        const Radius.circular(1));
+        const Radius.circular(Lb.rTile));
     final stroke = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
@@ -152,7 +152,7 @@ class ColorStrip extends StatelessWidget {
                   borderRadius: BorderRadius.circular(Lb.rControl),
                   border: Border.all(color: Lb.text, width: 1.5),
                 ),
-                child: Icon(Icons.palette_outlined,
+                child: Icon(Icons.palette_sharp,
                     size: 20,
                     color: _luma(current) > 140 ? Colors.black87 : Colors.white),
               ),
@@ -249,10 +249,10 @@ class _FrameTimelineState extends State<FrameTimeline> {
   void _frameMenu(BuildContext context) {
     final m = widget.model;
     showStudioActions(context, header: MonoLabel('Frame ${m.index + 1} of ${m.frameCount}'), actions: [
-      StudioAction(Icons.content_copy, 'Duplicate frame', m.duplicateFrame),
-      StudioAction(Icons.add_box_outlined, 'Insert blank frame after', m.addFrame),
-      StudioAction(Icons.layers_clear_outlined, 'Clear frame', m.clearFrame),
-      StudioAction(Icons.delete_outline, m.frameCount > 1 ? 'Delete frame' : 'Delete frame (clears it)',
+      StudioAction(Icons.content_copy_sharp, 'Duplicate frame', m.duplicateFrame),
+      StudioAction(Icons.add_box_sharp, 'Insert blank frame after', m.addFrame),
+      StudioAction(Icons.layers_clear_sharp, 'Clear frame', m.clearFrame),
+      StudioAction(Icons.delete_sharp, m.frameCount > 1 ? 'Delete frame' : 'Delete frame (clears it)',
           m.deleteFrame,
           danger: true),
     ]);
@@ -278,8 +278,8 @@ class _FrameTimelineState extends State<FrameTimeline> {
             isSelected: m.onion,
             visualDensity: VisualDensity.compact,
             onPressed: () => m.onion = !m.onion,
-            icon: const Icon(Icons.layers_outlined, color: Lb.text3),
-            selectedIcon: Icon(Icons.layers, color: readAccent(context)),
+            icon: const Icon(Icons.layers_sharp, color: Lb.text3),
+            selectedIcon: Icon(Icons.layers_sharp, color: readAccent(context)),
           ),
           TextButton(
             onPressed: widget.onFps,
@@ -291,7 +291,7 @@ class _FrameTimelineState extends State<FrameTimeline> {
             visualDensity: VisualDensity.compact,
             style: IconButton.styleFrom(backgroundColor: Lb.text, foregroundColor: Lb.ink, shape: studioShape),
             onPressed: widget.onPlay,
-            icon: Icon(widget.playing ? Icons.pause : Icons.play_arrow),
+            icon: Icon(widget.playing ? Icons.pause_sharp : Icons.play_arrow_sharp),
           ),
         ]),
         SizedBox(
@@ -338,13 +338,13 @@ class _FrameTimelineState extends State<FrameTimeline> {
               tooltip: 'Duplicate frame',
               style: studioIconStyle,
               onPressed: m.duplicateFrame,
-              icon: const Icon(Icons.content_copy, size: 20),
+              icon: const Icon(Icons.content_copy_sharp, size: 20),
             ),
             IconButton.outlined(
               tooltip: 'Add frame',
               style: IconButton.styleFrom(side: Lb.hairline, shape: studioShape),
               onPressed: m.addFrame,
-              icon: const Icon(Icons.add),
+              icon: const Icon(Icons.add_sharp),
             ),
           ]),
         ),
