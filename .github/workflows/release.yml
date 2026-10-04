@@ -84,6 +84,7 @@ jobs:
           fi
 
       - uses: softprops/action-gh-release@v2
+        id: release
         with:
           name: Glyph ${{ steps.version.outputs.version }}
           body_path: dist/body.md
@@ -91,6 +92,23 @@ jobs:
           files: |
             ${{ steps.apk.outputs.apk }}
             ${{ steps.apk.outputs.apk }}.sha256
+
+      # Here rather than in announce.yml: a release created with the
+      # workflow's own token doesn't trigger other workflows.
+      - name: Announce on Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          NAME: Glyph ${{ steps.version.outputs.version }}
+          URL: ${{ steps.release.outputs.url }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "DISCORD_WEBHOOK_URL is not set; skipping."
+            exit 0
+          fi
+          body="$(cat dist/body.md 2>/dev/null | head -c 1500)"
+          jq -n --arg name "$NAME" --arg url "$URL" --arg body "$body" \
+            '{username: "Glyph", content: ("**\($name)** is out\n\($url)\n\n\($body)")[0:2000]}' \
+            | curl -fsS -H 'Content-Type: application/json' -d @- "$WEBHOOK"
 
       - name: Remove signing material
         if: always()
