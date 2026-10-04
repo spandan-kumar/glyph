@@ -5,8 +5,7 @@ import '../generator.dart';
 import '../palette.dart';
 
 /// The Glyph logo: a blocky arcade "g" with a 3D drop shadow and a spark,
-/// on a 16×16 grid. Its final frame is also the app icon
-/// (tool/make_icon.dart).
+/// on a 16×16 grid: what the device shows when it powers on.
 const glyphLogo = [
   '................',
   '................',

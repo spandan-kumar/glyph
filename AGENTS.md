@@ -31,7 +31,7 @@ Generated files — regenerate, never hand-edit:
 ```bash
 dart run tool/build_sprites.dart    # assets/catalog/sprites/*.json → lib/engine/generators/sprite_data.g.dart
 dart run tool/build_catalog.dart    # → assets/catalog/catalog.json
-dart run tool/make_icon.dart        # launcher icons from the intro's final frame
+dart run tool/make_icon.dart        # launcher icons + assets/brand/glyph_icon.svg (amber LED-dot g)
 ```
 
 A test fails if the generated sprite data or catalog is stale.
