@@ -153,12 +153,24 @@ class PlaybackController extends ChangeNotifier {
     _t += dt;
     _instance?.render(_frame, _t, dt, _params, _palette);
     final g = _group;
-    if (g != null && g.isOpen && _ticks++ % _sendEvery == 0) g.send(_frame);
+    if (g != null && g.isOpen && !_held && _ticks++ % _sendEvery == 0) g.send(_frame);
     frameTick.value++;
   }
 
   int _ticks = 0;
   int _sendEvery = 1;
+  bool _held = false;
+
+  /// While true, the stream stays open but no frames go out — the device is
+  /// switched off. WLED lights itself back up when live frames resume after
+  /// its realtime timeout, so an off device must get none; the phone keeps
+  /// rendering, and sending resumes the moment it's switched back on.
+  bool get streamHeld => _held;
+  set streamHeld(bool on) {
+    if (on == _held) return;
+    _held = on;
+    notifyListeners();
+  }
 
   /// While true, frames go to the matrix at ~2.5 fps instead of 40: enough
   /// to stay in live mode (WLED's realtime timeout is 2.5 s) and keep showing

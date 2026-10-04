@@ -1,0 +1,5 @@
+• Halloween and Diwali packs: 16 new animations (haunted house, black cat, sky lanterns, chakri, anaar, mithai box…).
+• Glyph menu (⋯ on every tab): Discord, share your setup, roadmap, feedback, what's new.
+• Send feedback pre-fills app, phone and device details; errors offer Report.
+• "Device settings" is now "WLED firmware settings".
+• Fixed: switching the device off while Now Playing or a visualiser ran no longer lets it light up again.

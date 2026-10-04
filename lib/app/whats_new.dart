@@ -4,6 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.3.1': [
+    'Halloween and Diwali packs: 16 new animations, from a haunted house to sky lanterns.',
+    'A Glyph menu (⋯ on every tab): Discord, share your setup, the roadmap, feedback.',
+    'Send feedback fills in the details for you; errors have a Report button.',
+    'Fixed: a device switched off while Now Playing ran could light up again.',
+  ],
   '1.3.0': [
     'Now Playing: show what\'s playing on your phone — cover art and title — on your device.',
     'A square, LED-style look throughout the app.',
