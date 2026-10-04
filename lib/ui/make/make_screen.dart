@@ -13,6 +13,7 @@ import '../design/parts.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 import '../scope.dart';
+import '../community/glyph_menu.dart';
 import 'creation_tile.dart';
 import 'demos.dart';
 import 'led_loop.dart';
@@ -56,7 +57,10 @@ class _MakeScreenState extends State<MakeScreen> {
                 padding: const EdgeInsets.fromLTRB(Lb.gutter, 20, Lb.gutter, 20),
                 sliver: SliverToBoxAdapter(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Make', style: LbType.display),
+                    Row(children: [
+                      Expanded(child: Text('Make', style: LbType.display)),
+                      const GlyphMenuKey(),
+                    ]),
                     const SizedBox(height: 8),
                     Text('Draw it, write it, bring it — it shows up on your device.',
                         style: LbType.body.copyWith(color: Lb.text2)),

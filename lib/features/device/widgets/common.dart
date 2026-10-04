@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../../../app/community.dart';
 import '../../../engine/clip.dart';
+import '../../../ui/community/glyph_menu.dart';
 import '../../../ui/design/ambient.dart';
 import '../../../ui/design/parts.dart';
 import '../../../ui/design/tokens.dart';
@@ -331,10 +332,10 @@ class _PromptDialogState extends State<_PromptDialog> {
   );
 }
 
-void toast(BuildContext context, String msg) {
+void toast(BuildContext context, String msg, {SnackBarAction? action}) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(msg)));
+    ..showSnackBar(SnackBar(content: Text(msg), action: action));
 }
 
 /// Runs [task], showing its error as a snackbar. Returns whether it worked.
@@ -345,7 +346,7 @@ Future<bool> guarded(BuildContext context, Future<void> Function() task, {String
     return true;
   } catch (e) {
     LastError.record('$e');
-    if (context.mounted) toast(context, friendlyError(e));
+    if (context.mounted) toast(context, friendlyError(e), action: reportAction(context));
     return false;
   }
 }

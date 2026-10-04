@@ -63,6 +63,7 @@ void main() {
   test('other links: idea, animation, display, show-and-tell, roadmap', () {
     final idea = Community.idea(connected).queryParameters;
     expect(idea, {'template': 'feedback.yml', 'labels': 'feedback,community', 'app_version': '1.3.0 (5)'});
+    expect(Community.animationRequest(connected, idea: 'dancing peacock').queryParameters['idea'], 'dancing peacock');
     final anim = Community.animationRequest(connected).queryParameters;
     expect(anim, {'template': 'animation_request.yml', 'labels': 'animation-request,community', 'panel': '16×16'});
     expect(Community.displayRequest().queryParameters, {'template': 'display_request.yml'});

@@ -7,7 +7,7 @@ import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
 import 'package:glyph/library/catalog.dart';
-import 'package:glyph/ui/community/community_section.dart';
+import 'package:glyph/ui/community/glyph_menu.dart';
 import 'package:glyph/ui/matrix/matrix_screen.dart';
 import 'package:glyph/ui/onboarding/onboarding_flow.dart';
 import 'package:glyph/ui/scope.dart';
@@ -58,31 +58,42 @@ void main() {
     return playback;
   }
 
-  Future<void> reveal(WidgetTester tester, Finder f) async {
-    await tester.scrollUntilVisible(f, 200, scrollable: find.byType(Scrollable).first);
-    await tester.pump(const Duration(milliseconds: 200));
+  Future<void> openMenu(WidgetTester tester) async {
+    await tester.tap(find.byType(GlyphMenuKey).first);
+    await settle(tester);
   }
 
-  testWidgets('Community shows with no device; Send feedback previews before opening GitHub', (tester) async {
+  testWidgets('the Device tab is only about devices; the Glyph menu holds community and help', (tester) async {
     final playback = await pump(tester);
     expect(find.text('Connect your device'), findsWidgets, reason: 'no device yet');
-    await reveal(tester, find.text('Send feedback'));
-    expect(find.text('COMMUNITY'), findsOneWidget);
+    expect(find.text('COMMUNITY'), findsNothing);
+    expect(find.text('Send feedback'), findsNothing);
+
+    await openMenu(tester);
+    for (final label in ['COMMUNITY', 'HELP & FEEDBACK', 'GLYPH']) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
     for (final row in [
-      'Suggest an animation',
-      'Request support for your display',
+      'Chat on Discord',
       'Share your setup',
       'Roadmap',
-      'Chat on Discord',
+      'Send feedback',
+      'Suggest an animation',
+      'Request display support',
       'What\'s new',
+      'Source code',
     ]) {
       expect(find.text(row), findsOneWidget, reason: row);
     }
-    await reveal(tester, find.textContaining('Free & open source'));
     expect(find.text('Glyph 1.3.0 · Free & open source · MIT'), findsOneWidget);
+    playback.pause();
+    await tester.pumpWidget(const SizedBox());
+  });
 
+  testWidgets('Send feedback previews exactly what is included before opening GitHub', (tester) async {
+    final playback = await pump(tester);
     LastError.record('Couldn\'t send it: timed out talking to 192.168.1.20');
-    await reveal(tester, find.text('Send feedback'));
+    await openMenu(tester);
     await tester.tap(find.text('Send feedback'));
     await settle(tester);
     expect(opened, isEmpty, reason: 'nothing opens until the person agrees');
@@ -103,21 +114,32 @@ void main() {
     expect(opened.single.queryParameters['template'], 'bug.yml');
     expect(opened.single.queryParameters['diagnostics'], preview);
     expect(find.text('Open GitHub'), findsNothing, reason: 'sheet closed');
-
     playback.pause();
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('link rows open their pages', (tester) async {
+  testWidgets('menu links open their pages and close the menu', (tester) async {
     final playback = await pump(tester);
-    await reveal(tester, find.text('Roadmap'));
-    await tester.tap(find.text('Roadmap'));
-    await tester.pump(const Duration(milliseconds: 100));
+    await openMenu(tester);
+    await tester.tap(find.text('Chat on Discord'));
+    await settle(tester);
+    expect(opened, [Community.discord]);
+    expect(find.text('Roadmap'), findsNothing, reason: 'menu closed');
+    await openMenu(tester);
     await tester.tap(find.text('Suggest an animation'));
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(opened, [Community.roadmap, isA<Uri>()]);
+    await settle(tester);
     expect(opened.last.queryParameters['template'], 'animation_request.yml');
-    expect(find.byType(CommunitySection), findsOneWidget);
+    playback.pause();
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('setting up a device offers display support right there', (tester) async {
+    final playback = await pump(tester);
+    await tester.scrollUntilVisible(find.text('Not WLED? Ask for your display'), 200,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Not WLED? Ask for your display'));
+    await settle(tester);
+    expect(opened.single.queryParameters['template'], 'display_request.yml');
     playback.pause();
     await tester.pumpWidget(const SizedBox());
   });

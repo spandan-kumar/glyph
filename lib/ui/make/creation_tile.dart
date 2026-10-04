@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../app/community.dart';
+import '../community/glyph_menu.dart';
+
 import '../../app/creations.dart';
 import '../../engine/clip.dart';
 import '../../features/editor/editor_screen.dart';
@@ -113,6 +116,8 @@ Future<void> showCreationActions(BuildContext context, Creation c) {
       StudioAction(Icons.gif_box_sharp, 'Share as GIF', () => shareCreationAsGif(context, c)),
       StudioAction(Icons.ios_share_sharp, 'Share Glyph file', () => shareCreationFile(context, c),
           subtitle: 'Opens editable in Glyph'),
+      StudioAction(Icons.photo_camera_sharp, 'Show it off', () => openCommunityLink(context, Community.showAndTell),
+          subtitle: 'Post it in Show and tell'),
       StudioAction(Icons.delete_outline_sharp, 'Delete', () => deleteCreation(context, c), danger: true),
     ],
   );

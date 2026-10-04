@@ -33,8 +33,9 @@ abstract final class Community {
   static Uri idea(Diagnostics d) =>
       _issue('feedback.yml', 'feedback,community', {'app_version': d.appLine});
 
-  static Uri animationRequest(Diagnostics d) =>
-      _issue('animation_request.yml', 'animation-request,community', {'panel': ?d.panel});
+  /// [idea] pre-fills what to draw (e.g. a search that found nothing).
+  static Uri animationRequest(Diagnostics d, {String? idea}) =>
+      _issue('animation_request.yml', 'animation-request,community', {'idea': ?idea, 'panel': ?d.panel});
 
   static Uri displayRequest() => _issue('display_request.yml', null, const {});
 

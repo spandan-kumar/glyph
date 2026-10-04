@@ -288,7 +288,7 @@ class _Sideways extends StatelessWidget {
     final store = AppScope.of(context).devices;
     return _Frame(
       title: 'This one needs a turn in its own settings',
-      subtitle: 'Your device isn\'t square, so Glyph can\'t turn it sideways. Open Device settings '
+      subtitle: 'Your device isn\'t square, so Glyph can\'t turn it sideways. Open WLED firmware settings '
           '→ LED Preferences → 2D and change how the panel is turned.',
       onBack: onBack,
       child: Column(
@@ -304,7 +304,7 @@ class _Sideways extends StatelessWidget {
             OutlinedButton(
               style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
               onPressed: () => DeviceSettingsPage.open(context, store),
-              child: const Text('Open Device settings'),
+              child: const Text('Open WLED firmware settings'),
             ),
           ],
         ],

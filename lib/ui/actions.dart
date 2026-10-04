@@ -15,6 +15,7 @@ import '../engine/palette.dart';
 import '../engine/registry.dart';
 import '../library/catalog.dart';
 import '../wled/wled_client.dart';
+import 'community/glyph_menu.dart';
 import 'scope.dart';
 
 /// Why a live-only look (see [Generator.liveOnly]) wasn't sent.
@@ -179,8 +180,7 @@ abstract final class GlyphActions {
       // Nothing changed on the matrix: carry on streaming at full rate.
       s.playback.streamThrottled = false;
       final why = e is WledException ? e.message : '$e';
-      LastError.record('Couldn\'t send it: $why');
-      return context.mounted ? _report(context, 'Couldn\'t send it: $why') : null;
+      return context.mounted ? _fail(context, 'Couldn\'t send it: $why') : null;
     }
   }
 
@@ -203,7 +203,8 @@ abstract final class GlyphActions {
   /// Reports a failure and keeps it for feedback reports (LastError).
   static String _fail(BuildContext context, String msg) {
     LastError.record(msg);
-    return _report(context, msg);
+    _toast(context, msg, action: reportAction(context));
+    return msg;
   }
 
   static String _report(BuildContext context, String msg) {
@@ -211,10 +212,10 @@ abstract final class GlyphActions {
     return msg;
   }
 
-  static void _toast(BuildContext context, String msg) {
+  static void _toast(BuildContext context, String msg, {SnackBarAction? action}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
+      ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating, action: action));
   }
 }
 

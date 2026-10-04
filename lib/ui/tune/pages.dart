@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../community/glyph_menu.dart';
+
 import '../design/ambient.dart';
 import '../design/led_text.dart';
 import '../design/tokens.dart';
@@ -65,7 +67,20 @@ class _ChannelPage extends StatelessWidget {
           const MiniStage(),
           Expanded(
             child: CustomScrollView(
-              slivers: [TileGrid(channel: channel, entries: channel.all)],
+              slivers: [
+                TileGrid(channel: channel, entries: channel.all),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(Lb.gutter, 8, Lb.gutter, 40),
+                    child: Center(
+                      child: TextButton(
+                        onPressed: () => suggestAnimation(context),
+                        child: const Text('Can\'t find it? Suggest an animation'),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -176,6 +191,11 @@ class _SearchPageState extends State<_SearchPage> {
                   Text('Nothing called that yet.', style: LbType.body.copyWith(color: Lb.text2)),
                   const SizedBox(height: 4),
                   Text('Try a mood like “cozy” or “space”.', style: LbType.small),
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: () => suggestAnimation(context, idea: _query),
+                    child: Text('Suggest “$_query” as an animation'),
+                  ),
                 ]),
               ),
             )

@@ -362,7 +362,7 @@ class WledClient {
         headers: const {'Content-Type': 'application/json'},
         body: jsonEncode(patch)));
     if (res.statusCode == 401) {
-      throw WledException('Device settings are PIN-locked; unlock them in WLED first', 401);
+      throw WledException('WLED firmware settings are PIN-locked; unlock them in WLED first', 401);
     }
     _check(res, '/json/cfg');
   }

@@ -10,6 +10,7 @@ import '../../app/community.dart';
 import '../../app/devices.dart';
 import '../../library/user_library.dart';
 import '../actions.dart';
+import '../community/glyph_menu.dart';
 import '../design/ambient.dart';
 import '../design/parts.dart';
 import '../design/stage.dart';
@@ -287,7 +288,8 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     if (ok) {
       _charge.value = 1;
       HapticFeedback.lightImpact();
-      _toast(sendSuccessMessage);
+      _toast(sendSuccessMessage,
+          action: SnackBarAction(label: 'Show it off', onPressed: () => openCommunityLink(context, Community.showAndTell)));
     } else {
       _charge.value = 0;
       if (msg != liveOnlyMessage) LastError.record('Send from Display failed: ${msg ?? 'no device details'}');
@@ -700,6 +702,8 @@ class _Header extends StatelessWidget {
             padding: const EdgeInsets.only(top: 2),
             child: SquareKey(icon: Icons.search_sharp, label: 'Search', onTap: onSearch),
           ),
+          const SizedBox(width: 8),
+          const Padding(padding: EdgeInsets.only(top: 2), child: GlyphMenuKey()),
         ],
       ),
     );

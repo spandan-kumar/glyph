@@ -101,8 +101,8 @@ class YourMatrices extends StatelessWidget {
               if (store.isConnected)
                 Row1(
                   leading: const Icon(Icons.settings_sharp, color: Lb.text2, size: 20),
-                  title: 'Device settings',
-                  subtitle: 'The full WLED setup, inside Glyph',
+                  title: 'WLED firmware settings',
+                  subtitle: 'Wi-Fi, LEDs, 2D layout and more, inside Glyph',
                   trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
                   onTap: () => DeviceSettingsPage.open(context, store, viewBuilder: settingsView),
                 ),
@@ -300,7 +300,7 @@ class _AdvancedState extends State<_Advanced> {
                               color: Lb.phosphor,
                               lit: true,
                               text: 'WLED 16 lets your device save animations and run routines. Update '
-                                  'in Device settings → Security & Updates, or at install.wled.me.',
+                                  'in WLED firmware settings → Security & Updates, or at install.wled.me.',
                             ),
                           ),
                       ],

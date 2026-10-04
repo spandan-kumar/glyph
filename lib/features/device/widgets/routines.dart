@@ -99,7 +99,7 @@ class RoutinesSection extends StatelessWidget {
             color: Lb.phosphor,
             lit: true,
             text: 'Sunrise and sunset need your device to know where it is — set its location in '
-                'Device settings → Time & Macros.',
+                'WLED firmware settings → Time & Macros.',
           ),
         RowGroup(
           children: [
@@ -353,7 +353,7 @@ class _RoutineEditorState extends State<RoutineEditor> {
             const Note(
               color: Lb.phosphor,
               lit: true,
-              text: 'Your device needs its location for this (Device settings → Time & Macros).',
+              text: 'Your device needs its location for this (WLED firmware settings → Time & Macros).',
             ),
           const SizedBox(height: 16),
           const MonoLabel('Days'),

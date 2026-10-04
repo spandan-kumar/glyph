@@ -119,7 +119,7 @@ class _DeviceSettingsPageState extends State<DeviceSettingsPage> {
         backgroundColor: Lb.ink,
         appBar: AppBar(
           backgroundColor: Lb.ink,
-          title: const Text('Device settings'),
+          title: const Text('WLED firmware settings'),
           actions: [
             IconButton(
               tooltip: 'Refresh',

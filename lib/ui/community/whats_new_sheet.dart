@@ -4,7 +4,7 @@ import '../../app/community.dart';
 import '../../features/device/widgets/common.dart';
 import '../design/tokens.dart';
 import '../make/studio_kit.dart';
-import 'community_section.dart';
+import 'glyph_menu.dart';
 
 /// The release notes for [version], ending with two quiet community links.
 Future<void> showWhatsNewSheet(BuildContext context, String version, List<String> lines) =>

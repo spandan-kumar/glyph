@@ -141,8 +141,8 @@ void main() {
     await reveal(tester, find.text('Shelf').last);
     expect(find.text('YOUR DEVICES'), findsOneWidget);
     expect(find.text('Add a device'), findsOneWidget);
-    expect(find.text('Device settings'), findsOneWidget);
-    expect(find.text('The full WLED setup, inside Glyph'), findsOneWidget);
+    expect(find.text('WLED firmware settings'), findsOneWidget);
+    expect(find.text('Wi-Fi, LEDs, 2D layout and more, inside Glyph'), findsOneWidget);
     await reveal(tester, find.byType(LbToggle).last);
     await tester.tap(find.byType(LbToggle).last);
     await settle(tester);
@@ -209,7 +209,7 @@ void main() {
     expect(find.text('Matrix'), findsWidgets);
     expect(find.text('Can\'t reach it right now'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
-    expect(find.text('Device settings'), findsNothing, reason: 'only offered when it answers');
+    expect(find.text('WLED firmware settings'), findsNothing, reason: 'only offered when it answers');
     await reveal(tester, find.text('Add a device'));
     expect(find.text('Shelf'), findsWidgets);
     expect(tester.takeException(), isNull);
@@ -226,14 +226,14 @@ void main() {
     playback.pause();
   });
 
-  testWidgets('Device settings opens WLED\'s own pages and re-reads the device on close', (tester) async {
+  testWidgets('WLED firmware settings opens WLED\'s own pages and re-reads the device on close', (tester) async {
     SharedPreferences.setMockInitialValues(twoMatrices);
     final (_, playback) = await pump(
       tester,
       settingsView: (context, url) => Center(child: Text('web view: $url')),
     );
-    await reveal(tester, find.text('Device settings'));
-    await tester.tap(find.text('Device settings'));
+    await reveal(tester, find.text('WLED firmware settings'));
+    await tester.tap(find.text('WLED firmware settings'));
     await settle(tester, 600);
     expect(find.byType(DeviceSettingsPage), findsOneWidget);
     expect(find.text('web view: http://192.168.29.6/settings'), findsOneWidget);
@@ -245,7 +245,7 @@ void main() {
     await settle(tester, 600);
     expect(find.byType(DeviceSettingsPage), findsNothing);
     expect(wled.gets, contains('/json/info'), reason: 'changes made in WLED show up');
-    expect(find.text('Device settings'), findsOneWidget);
+    expect(find.text('WLED firmware settings'), findsOneWidget);
     playback.pause();
   });
 }
