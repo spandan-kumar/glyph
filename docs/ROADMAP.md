@@ -233,6 +233,10 @@ Trending):
 - [ ] **Home Assistant entity watcher** (URL + token → Glance cards/alerts).
 - [ ] **Non-Latin fonts** (Devanagari, Cyrillic, …).
 - [ ] **iDotMatrix BLE** panels (experimental).
+- [ ] **Live matrix preview in the browser** (idea): share a link that shows
+      your matrix live in any browser, streamed peer-to-peer from the phone
+      with PeerJS/WebRTC — no Glyph server, a static viewer page draws the
+      LED dots. For showing friends, people without hardware, embeds.
 - [ ] **iOS** build.
 
 Not planned: AI image generation (paid cloud keys), sports scores (fragile
