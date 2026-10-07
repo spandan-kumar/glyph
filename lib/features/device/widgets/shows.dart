@@ -59,7 +59,13 @@ class ShowsSection extends StatelessWidget {
           ),
         if (context.getInheritedWidgetOfExactType<AppScope>()?.glance != null) ...[
           const SizedBox(height: 12),
-          OutlinedButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GlanceScreen())), icon: const Icon(Icons.smartphone_sharp), label: const Text('Phone Shows · needs your phone')),
+          // Shows run on the device; live cards can't, so point at Glance
+          // Rotations instead of pretending they're the same thing.
+          TextButton.icon(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GlanceScreen())),
+            icon: const Icon(Icons.smartphone_sharp, size: 18),
+            label: const Text('Weather or a countdown in the mix? Make a Rotation in Glance'),
+          ),
         ],
       ],
     );

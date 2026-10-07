@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import '../../app/creations.dart';
 import '../../app/playback.dart';
 import '../../engine/clip.dart';
+import '../../library/bundled_catalog.dart';
 import '../../library/catalog.dart';
 import '../actions.dart';
 import 'seasons.dart';
@@ -192,7 +193,11 @@ class CatalogChannels {
 
     final sprites = c.items.where((i) => i.isPixelArt).toList();
     final cute = sprites.where((i) => i.tags.contains('cute'));
+    // Animations newer than anything shipped in the app: downloaded from
+    // the remote catalog since the last app update.
+    final fresh = bundledRevision > 0 ? c.items.where((i) => i.added > bundledRevision).toList() : const <LibraryItem>[];
     lead = [
+      if (fresh.isNotEmpty) make('new', 'Just added', fresh, limit: 30),
       make('classics', 'Famous Classics', c.items.where((i) => classicCategories.contains(i.category)), limit: 30),
       make('pals', 'Pixel Pals', union(cute, sprites), limit: 30),
       make('calm', 'Calm', union(c.inCategory('Chill'), c.tagged(['calm']))),
@@ -208,7 +213,8 @@ class CatalogChannels {
   final Catalog catalog;
   late final Channel nowChannel;
 
-  /// Famous Classics, Pixel Pals, Calm, Party, Space.
+  /// Just added (when there is something new), Famous Classics, Pixel Pals,
+  /// Calm, Party, Space.
   late final List<Channel> lead;
 
   /// Every other catalog category.

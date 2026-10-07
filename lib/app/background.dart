@@ -29,6 +29,7 @@ abstract final class BackgroundStreaming {
   static int _pendingOperations = 0;
   static final _retainers = <Object, ({VoidCallback stop, String title, String text})>{};
   static PlaybackController? _watched;
+  static bool _micType = false;
 
   static bool get supported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
@@ -80,6 +81,7 @@ abstract final class BackgroundStreaming {
       callback: _startCallback,
     );
     running.value = result is ServiceRequestSuccess;
+    _micType = running.value && microphone;
     return running.value;
   }
 
@@ -118,9 +120,16 @@ abstract final class BackgroundStreaming {
     _onStop = null;
     if (_retainers.isNotEmpty) {
       final owner = _retainers.values.last;
-      await update(title: owner.title, text: owner.text);
+      if (_micType && running.value) {
+        // The last microphone user left: the type can't change on a running
+        // service, so restart without it (no stale mic indicator/permission use).
+        await _start(title: owner.title, text: owner.text, microphone: false, onStop: null);
+      } else {
+        await update(title: owner.title, text: owner.text);
+      }
       return;
     }
+    _micType = false;
     if (!running.value) return;
     running.value = false;
     await FlutterForegroundTask.stopService();
@@ -187,6 +196,7 @@ abstract final class BackgroundStreaming {
     _watched = null;
     _onStop = null;
     _retainers.clear();
+    _micType = false;
     running.value = false;
   }
 }

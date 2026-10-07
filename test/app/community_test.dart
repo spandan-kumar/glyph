@@ -86,6 +86,15 @@ void main() {
     expect(await Community.inviteAfterSend(now: start.add(const Duration(days: 14))), isTrue);
   });
 
+  test('an invite that is not going to be shown is kept for the next Send', () async {
+    SharedPreferences.setMockInitialValues({});
+    final start = DateTime.utc(2026, 10, 7);
+    expect(await Community.inviteAfterSend(now: start, stillShowing: () => false), isFalse);
+    // Still the first invite: nothing was spent.
+    expect(await Community.inviteAfterSend(now: start), isTrue);
+    expect(await Community.inviteAfterSend(now: start), isFalse);
+  });
+
   test('a huge last error is cut so the URL stays under the limit', () {
     LastError.record('Ünïcode ✓ ${'x y ' * 5000}');
     final d = Diagnostics(env: env, lastError: LastError.message, deviceCount: 1);

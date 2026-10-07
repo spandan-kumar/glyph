@@ -153,4 +153,33 @@ void main() {
       expect(manager.presets.single.name, 'Beta only');
     },
   );
+
+  for (final kind in ['preset', 'nightlight']) {
+    test(
+      '$kind write still lands when a brightness drag bumps state meanwhile',
+      () async {
+        final entered = Completer<void>(), release = Completer<void>();
+        alpha.beforeRequest = (r) async {
+          if (r.method == 'POST' &&
+              r.url.path == '/json/state' &&
+              (r.body.contains('"ps"') || r.body.contains('"nl"'))) {
+            if (!entered.isCompleted) entered.complete();
+            await release.future;
+          }
+        };
+        final write = kind == 'preset'
+            ? store.applyPreset(12)
+            : store.setNightlight(true, minutes: 5);
+        await entered.future;
+        store.setBrightness(90); // bumps the read counter mid-write
+        release.complete();
+        await write;
+        if (kind == 'preset') {
+          expect(store.presetId, 12);
+        } else {
+          expect(store.nightlightOn, isTrue);
+        }
+      },
+    );
+  }
 }

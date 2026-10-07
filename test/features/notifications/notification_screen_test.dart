@@ -12,7 +12,6 @@ import 'package:glyph/features/notifications/notification_controller.dart';
 import 'package:glyph/features/notifications/notification_screen.dart';
 import 'package:glyph/features/notifications/notification_service.dart';
 import 'package:glyph/library/catalog.dart';
-import 'package:glyph/ui/design/toggle.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,6 +22,7 @@ void main() {
   late DeviceStore devices;
   late StreamController<Object?> bridge;
   late int openedSettings;
+  late bool access;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -30,15 +30,17 @@ void main() {
     devices = DeviceStore();
     bridge = StreamController<Object?>.broadcast();
     openedSettings = 0;
+    access = false;
     final service = NotificationService(
       supported: true,
       events: () => bridge.stream,
       invoke: (method, args) async {
         return switch (method) {
-          'status' || 'configure' => {'access': false, 'connected': false},
+          'status' || 'configure' => {'access': access, 'connected': access},
           'apps' => [
             {'package': 'chat', 'name': 'Chat'},
             {'package': 'mail', 'name': 'Mail'},
+            {'package': 'com.whatsapp', 'name': 'WhatsApp'},
           ],
           'icon' => Uint8List(3072)..fillRange(0, 3072, 180),
           'openSettings' => openedSettings++,
@@ -85,51 +87,54 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  testWidgets('shows consent and defaults off at phone size', (tester) async {
+  testWidgets('asks for access first, starts off, and nothing is chosen', (tester) async {
     await pump(tester);
-    expect(find.text('Notifications'), findsOneWidget);
-    expect(find.text('Allow notification access'), findsOneWidget);
+    expect(find.text('Alerts'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Allow notification access'), findsOneWidget);
+    expect(find.textContaining('never the message'), findsOneWidget);
     expect(controller.monitoring, isFalse);
     expect(controller.settings.packages, isEmpty);
     expect(tester.takeException(), isNull);
-    await tester.ensureVisible(
-      find.widgetWithText(OutlinedButton, 'Allow notification access'),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.text('Allow notification access'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(openedSettings, 1);
   });
 
-  testWidgets(
-    'search and toggles select independent apps without starting monitoring',
-    (tester) async {
-      await pump(tester);
-      await tester.scrollUntilVisible(find.byKey(const ValueKey('chat')), 200);
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.text('Chat'));
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(controller.settings.packages, {'chat'});
-      expect(controller.monitoring, isFalse);
-      await tester.ensureVisible(find.byType(TextField));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.enterText(find.byType(TextField), 'mail');
-      await tester.pump(const Duration(milliseconds: 200));
-      final appToggles = find.byType(LbToggleTile);
-      expect(
-        find.descendant(of: appToggles, matching: find.text('Chat')),
-        findsNothing,
-      );
-      expect(
-        find.descendant(of: appToggles, matching: find.text('Mail')),
-        findsOneWidget,
-      );
-      await tester.ensureVisible(find.byKey(const ValueKey('mail')));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.text('Mail'));
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(controller.settings.packages, {'chat', 'mail'});
-      expect(tester.takeException(), isNull);
-    },
-  );
+  testWidgets('suggested apps come first; the main button waits for an app', (tester) async {
+    access = true;
+    await pump(tester);
+    await tester.runAsync(() => controller.service.refresh());
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.widgetWithText(FilledButton, 'Pick an app below first'), findsOneWidget);
+    // WhatsApp is a suggestion, so it gets a tile straight away.
+    await tester.ensureVisible(find.bySemanticsLabel('WhatsApp'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.runAsync(() async => tester.tap(find.bySemanticsLabel('WhatsApp')));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(controller.settings.packages, {'com.whatsapp'});
+    expect(controller.monitoring, isFalse, reason: 'choosing an app never starts alerts by itself');
+    await tester.scrollUntilVisible(find.text('Turn on alerts'), -200, scrollable: find.byType(Scrollable).first);
+    expect(find.widgetWithText(FilledButton, 'Turn on alerts'), findsOneWidget);
+    expect(find.text('Connect a device to test'), findsOneWidget, reason: 'the test button explains what it needs');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('all apps: search and toggle any installed app', (tester) async {
+    await pump(tester);
+    await tester.scrollUntilVisible(find.textContaining('All apps'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.textContaining('All apps'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.byKey(const ValueKey('chat')));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(controller.settings.packages, {'chat'});
+    await tester.enterText(find.byType(TextField).last, 'mail');
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byKey(const ValueKey('chat')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('mail')));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(controller.settings.packages, {'chat', 'mail'});
+    expect(controller.monitoring, isFalse);
+    expect(tester.takeException(), isNull);
+  });
 }

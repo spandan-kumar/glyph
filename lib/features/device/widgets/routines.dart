@@ -141,9 +141,18 @@ class RoutinesSection extends StatelessWidget {
             ),
           ),
         if (manager.bootIntro.installed && manager.powerOnLook == 0 && pickable(manager).isNotEmpty)
-          TextButton(
-            onPressed: () => _pickBoot(context, s),
-            child: const Text('Choose a power-on look'),
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: RowGroup(
+              children: [
+                Row1(
+                  leading: const Icon(Icons.power_sharp, color: Lb.text2, size: 20),
+                  title: 'Choose a power-on look',
+                  trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
+                  onTap: () => _pickBoot(context, s),
+                ),
+              ],
+            ),
           ),
         if (canAdd)
           Padding(

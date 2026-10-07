@@ -206,53 +206,69 @@ and Glance changes are scoped in [PLAN.md](../PLAN.md).
   restyled to the new kit, not rebuilt.
 
 
-## Notifications (next release)
+## Live from your phone (next release)
 
-Make → Notifications uses the studio's Lightbox panels, sharp toggles and
-LED preview. Start with every app off. Pick installed apps by name/icon,
-optionally set quiet hours, grant the shared Android notification access,
-then explicitly enable monitoring while Glyph is visible. App names stay
-in this settings screen. The device gets only a bouncing installed logo for
-four seconds, then returns to its live or native playback.
+Make opens with a "Live from your phone" row of three equal tiles — Now
+Playing, Glance, Alerts — above the Play banner. All three stream from the
+phone, so each screen says plainly that it needs the phone on the device's
+Wi-Fi, and each keeps going after you leave unless you stop it.
 
-The preview uses a selected app's logo and needs no incoming notification.
-Monitoring needs the phone on the device's Wi-Fi and the foreground service;
-its Stop button ends both monitoring and live playback. Removing Glyph from
-recent apps ends the session. Persist app selections and quiet hours, never
-persist or auto-resume monitoring. Report unavailable access, a disconnected
-listener or device, and quiet hours clearly. Drawing, games, setup, import
-and Send suppress alerts; mirrored devices retain their base look.
+### Alerts
 
+Journey: see it → pick apps → allow access → turn on → test.
 
-## Glance and phone Shows (next release)
+- Stage first: the focused app's logo bounces on the LED preview (the bell
+  demo before any app is chosen; the live frame while alerting).
+- One primary button that always names the next step: **Pick an app below
+  first** (disabled) → **Allow notification access** → **Turn on alerts** /
+  **Turn off alerts**. Then **Test {app} on your device**.
+- **Which apps?** is a grid of suggested installed apps as square LED icon
+  tiles: tap to choose/focus, long-press to toggle. **All apps (N)** opens a
+  searchable sheet of every launchable app.
+- Every app starts off. The device gets only the logo for four seconds —
+  never the message or app name — then returns to what was showing.
+- Quiet hours below. Selections and quiet hours persist; monitoring never
+  auto-resumes. The foreground notification's Stop ends it, and so does the
+  Flutter engine going away (Glyph swiped from recents).
+- Drawing, games, setup, import and Send suppress alerts; mirrored devices
+  keep their base look.
 
-Make → Glance holds locally saved Weather and Days counter cards, plus Shows
-that mix cards, library looks and creations. Cards preview on LED panels before
-playback. Weather has explicit place search/manual coordinates, Celsius/
-Fahrenheit, timestamped readings and clear OLD/unavailable states. Disclose
-Open-Meteo requests before search; provide provider/data attribution. Counters
-use the phone timezone only, with Until/Since and a civil date.
+### Glance
 
-Use **Show on device** and **Needs your phone** for live cards/Shows, with a
-visible background toggle (off per run). Show order, duration and unavailable
-references are editable. Device → Shows labels its existing autonomous Shows
-**Runs on your device** and links to phone Shows. Never convert a device Show
-or claim a live counter can be sent as a self-updating GIF. Alert logos pause
-phone-Show durations, then resume the same instance. See [Glance QA](../GLANCE.md).
+Journey: see a demo → add a card → show it → (optionally) build a Rotation.
 
+- Stage plays the live frame, else the focused card/Rotation, else a demo
+  that alternates a weather card and a countdown.
+- Empty state: "Weather and the days that matter" + **Add your first card**.
+- **Your cards**: LED tiles plus **Add Weather** / **Add Countdown** tiles.
+  Tap focuses and previews; the actions sheet offers Show on device / Edit /
+  Delete.
+- Weather editor is search-first (place search, debounced), then °C/°F and
+  "Name on the card" (defaults to the city). Coordinates are a fallback.
+  Disclose Open-Meteo before search and credit providers. Readings show
+  their age; stale/unavailable states are explicit.
+- Countdown editor: "What's the day?", **Counting down to** / **Counting up
+  since**, a friendly date (never ISO), works offline, phone timezone only.
+- **Rotations** (never "Shows" — that word belongs to the device) cycle
+  cards, animations and creations a few seconds each. The editor previews
+  the Rotation, lists entries with LED thumbnails, a tap-to-cycle duration
+  chip (5/10/15/30/60 s) and a More menu (move up/down, remove), and adds
+  entries from a Cards / Animations / Yours picker.
+- **Keep showing after you leave** is on by default. Alert logos pause a
+  Rotation's timing, then resume the same entry. Never offer to Send a live
+  card as a GIF. See [Glance QA](../GLANCE.md).
 
 ## New animations (next release)
 
-Glyph menu → New animations explains the static catalog host and offline
-availability, shows the last check/content revision, and offers **Check for
-new animations**. **Daily automatic checks** is off by default; enabling it
-allows one check per 24 hours while Glyph is open, including on resume when
-due. A failure keeps the library available and waits until the next daily
-check; manual retry remains available. No background service or alerts.
+Glyph menu → **New animations** appears only once the signed catalog is
+live. The page leads with the animation count in LED digits, one status line
+(Up to date · checked 2 h ago / Checking… / Couldn't check — are you online?
+/ "There are new animations for a newer Glyph" with **Get the latest
+Glyph**), a **Check now** button and **Check once a day** (off by default,
+only while Glyph is open). A footnote names the host and says the catalog is
+signed and Glyph sends nothing about you or your device.
 
-Updates refresh rails, open channel pages, search and phone-Show pickers.
-Keep the selected channel, favourites/recents, active generator and its
-palette/parameters. Show compatible content with an optional skipped-entry
-details sheet. Disclose that Glyph sends no device details, notifications
-or analytics. A build without a configured host explains that catalog
-delivery is being prepared and keeps the bundled library available.
+New arrivals land on a **Just added** shelf at the top of Display. Updates
+keep the selected channel, favourites/recents and the playing look; a failed
+check keeps the library as it was.
+

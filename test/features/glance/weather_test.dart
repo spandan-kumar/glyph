@@ -60,7 +60,7 @@ void main() {
     expect(value.dailyIsToday(now), true);
   });
   test('missing temperatures, invalid codes, stale dates, units and status never invent data', () async {
-    for (var i = 0; i < 6; i++) {
+    for (var i = 0; i < 5; i++) {
       final raw = response(), current = raw['current'] as Map;
       switch (i) {
         case 0:
@@ -79,10 +79,7 @@ void main() {
       final api = WeatherApi(
         now: () => now,
         client: MockClient(
-          (r) async => http.Response.bytes(
-            utf8.encode(jsonEncode(raw)),
-            i == 5 ? 503 : 200,
-          ),
+          (r) async => http.Response.bytes(utf8.encode(jsonEncode(raw)), 200),
         ),
       );
       await expectLater(api.fetch(place), throwsFormatException);
@@ -170,9 +167,9 @@ void main() {
     await reload.load();
     expect(reload.snapshot(place)!.celsius, 25.5);
     expect(reload.isWatching, false);
-    now = now.add(const Duration(minutes: 30));
+    now = now.add(const Duration(minutes: 45));
     expect(reload.freshness(place), WeatherFreshness.stale);
-    now = now.add(const Duration(minutes: 90));
+    now = now.add(const Duration(minutes: 75));
     expect(reload.freshness(place), WeatherFreshness.unavailable);
   });
   test(
@@ -216,4 +213,257 @@ void main() {
       expect(service.freshness(place), WeatherFreshness.unavailable);
     },
   );
+
+  group('retry and batching', () {
+    http.Response ok([Object? body]) =>
+        http.Response.bytes(utf8.encode(jsonEncode(body ?? response())), 200);
+    WeatherService service(http.Client client) {
+      final s = WeatherService(
+        now: () => now,
+        api: WeatherApi(now: () => now, client: client),
+      );
+      addTearDown(s.dispose);
+      return s;
+    }
+
+    test(
+      'with no cache a failure retries after 10 s, 30 s, 60 s, then 15 min',
+      () async {
+        var calls = 0, fail = true;
+        final s = service(
+          MockClient((r) async {
+            calls++;
+            if (fail) throw http.ClientException('blip');
+            return ok();
+          }),
+        );
+        await s.refresh(place);
+        expect(calls, 1);
+        expect(s.snapshot(place), isNull);
+        now = now.add(const Duration(seconds: 9));
+        await s.refresh(place);
+        expect(calls, 1);
+        now = now.add(const Duration(seconds: 1));
+        await s.refresh(place);
+        expect(calls, 2);
+        now = now.add(const Duration(seconds: 30));
+        await s.refresh(place);
+        expect(calls, 3);
+        now = now.add(const Duration(seconds: 60));
+        await s.refresh(place);
+        expect(calls, 4);
+        now = now.add(const Duration(minutes: 14));
+        await s.refresh(place);
+        expect(calls, 4);
+        now = now.add(const Duration(minutes: 1));
+        fail = false;
+        await s.refresh(place);
+        expect(calls, 5);
+        expect(s.snapshot(place)!.celsius, 25.5);
+      },
+    );
+
+    testWidgets(
+      'a short backoff wakes itself without waiting for the minute tick',
+      (tester) async {
+        var calls = 0;
+        final s = service(
+          MockClient((r) async {
+            calls++;
+            if (calls == 1) throw http.ClientException('blip');
+            return ok();
+          }),
+        );
+        final owner = Object();
+        s.watch(owner, [place]);
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+        await tester.pump();
+        expect(calls, 1);
+        now = now.add(const Duration(seconds: 11));
+        await tester.pump(const Duration(seconds: 11));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+        await tester.pump();
+        expect(calls, 2);
+        expect(s.snapshot(place), isNotNull);
+        s.release(owner);
+      },
+    );
+
+    test('429 honours Retry-After; 5xx is transient', () async {
+      var calls = 0, status = 429;
+      final s = service(
+        MockClient((r) async {
+          calls++;
+          return status == 200
+              ? ok()
+              : http.Response(
+                  '',
+                  status,
+                  headers: status == 429 ? {'retry-after': '600'} : {},
+                );
+        }),
+      );
+      await s.refresh(place);
+      now = now.add(const Duration(minutes: 9));
+      await s.refresh(place);
+      expect(calls, 1);
+      now = now.add(const Duration(minutes: 1));
+      status = 503;
+      await s.refresh(place);
+      expect(calls, 2);
+      expect(s.failed(place), true);
+      now = now.add(const Duration(seconds: 30));
+      status = 200;
+      await s.refresh(place);
+      expect(calls, 3);
+      expect(s.failed(place), false);
+    });
+
+    test('with a good cache failures back off 15/30/60 minutes', () async {
+      var calls = 0, offline = false;
+      final s = service(
+        MockClient((r) async {
+          calls++;
+          if (offline) throw http.ClientException('offline');
+          return ok();
+        }),
+      );
+      await s.refresh(place);
+      offline = true;
+      now = now.add(const Duration(minutes: 15));
+      await s.refresh(place);
+      expect(calls, 2);
+      now = now.add(const Duration(minutes: 14));
+      await s.refresh(place);
+      expect(calls, 2);
+      now = now.add(const Duration(minutes: 1));
+      await s.refresh(place);
+      expect(calls, 3);
+      now = now.add(const Duration(minutes: 29));
+      await s.refresh(place);
+      expect(calls, 3);
+    });
+
+    test('several places share one request per timezone', () async {
+      final urls = <Uri>[];
+      const other = WeatherPlace('Pune', 18.5, 73.8, timezone: 'Asia/Kolkata');
+      const far = WeatherPlace('Oslo', 59.9, 10.7, timezone: 'Europe/Oslo');
+      final s = service(
+        MockClient((r) async {
+          urls.add(r.url);
+          final n = r.url.queryParameters['latitude']!.split(',').length;
+          return ok(
+            n == 1
+                ? response()
+                : [
+                    for (var i = 0; i < n; i++)
+                      response()
+                        ..['current'] = {
+                          ...(response()['current'] as Map),
+                          'temperature_2m': 10.0 + i,
+                        },
+                  ],
+          );
+        }),
+      );
+      final owner = Object();
+      s.watch(owner, [place, other, far]);
+      await Future.wait([
+        for (final p in [place, other, far]) s.refresh(p),
+      ]);
+      expect(urls.length, 2);
+      final shared = urls.firstWhere(
+        (u) => u.queryParameters['timezone'] == 'Asia/Kolkata',
+      );
+      expect(shared.queryParameters['latitude'], '28.6,18.5');
+      expect(shared.queryParameters['longitude'], '77.2,73.8');
+      expect(s.snapshot(place)!.celsius, 10);
+      expect(s.snapshot(other)!.celsius, 11);
+      expect(s.snapshot(far)!.celsius, 25.5);
+      s.release(owner);
+    });
+
+    test('eviction is least-recently-used and keeps active backoff', () async {
+      var requests = 0;
+      final s = service(
+        MockClient((r) async {
+          if (r.url.queryParameters['latitude'] == '1.0') {
+            requests++;
+            return http.Response('', 503);
+          }
+          return ok();
+        }),
+      );
+      WeatherPlace at(int i) =>
+          WeatherPlace('P$i', 10.0 + i, 20, timezone: 'UTC');
+      const bad = WeatherPlace('Bad', 1, 2, timezone: 'UTC');
+      await s.refresh(bad);
+      for (var i = 0; i < 32; i++) {
+        await s.refresh(at(i));
+      }
+      s.snapshot(at(0));
+      await s.refresh(at(40));
+      expect(s.snapshot(at(0)), isNotNull);
+      expect(s.snapshot(at(1)), isNull);
+      for (var i = 41; i < 110; i++) {
+        await s.refresh(at(i));
+      }
+      // The failing place stays inside its backoff window on the real service.
+      await s.refresh(bad);
+      expect(s.failed(bad), true);
+      expect(requests, 1);
+    });
+  });
+
+  group('api details', () {
+    test('sends a descriptive User-Agent and drains non-200 bodies', () async {
+      var listened = false;
+      String? agent;
+      final api = WeatherApi(
+        client: MockClient.streaming((r, body) async {
+          agent = r.headers['User-Agent'];
+          return http.StreamedResponse(
+            Stream.fromIterable([
+              [1, 2, 3],
+            ]).map((e) {
+              listened = true;
+              return e;
+            }),
+            429,
+            headers: {'retry-after': '120'},
+          );
+        }),
+      );
+      addTearDown(api.dispose);
+      await expectLater(
+        api.fetch(place),
+        throwsA(
+          isA<WeatherHttpException>()
+              .having((e) => e.status, 'status', 429)
+              .having(
+                (e) => e.retryAfter,
+                'retryAfter',
+                const Duration(seconds: 120),
+              ),
+        ),
+      );
+      expect(listened, true);
+      expect(agent, startsWith('Glyph'));
+      expect(agent, contains('github.com/spandan-kumar/glyph'));
+    });
+  });
+
+  test('every WMO code Open-Meteo can return has a real description', () {
+    for (var code = 0; code <= 99; code++) {
+      if (validWeatherCode(code)) {
+        expect(weatherDescription(code), isNot('Unavailable'), reason: '$code');
+      }
+    }
+    expect(weatherDescription(4), 'Unavailable');
+    expect(validWeatherCode(3), true);
+  });
 }

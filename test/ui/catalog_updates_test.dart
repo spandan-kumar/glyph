@@ -9,6 +9,7 @@ import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
 import 'package:glyph/engine/generators/sprite_library.dart';
+import 'package:glyph/library/bundled_catalog.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/library/catalog_store.dart';
 import 'package:glyph/library/remote_catalog.dart';
@@ -29,6 +30,7 @@ import 'package:image/image.dart' as image;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../features/device/fake_wled.dart';
+import '../library/catalog_fixture.dart';
 import '../library/remote_fixture.dart';
 
 Future<void> _step(WidgetTester tester, int ms) async {
@@ -39,6 +41,8 @@ Future<void> _step(WidgetTester tester, int ms) async {
 
 void main() {
   late Directory dir;
+  late TestKey key;
+  setUpAll(() async => key = await TestKey.create());
   final base = Catalog.parse(
     File('assets/catalog/catalog.json').readAsStringSync(),
   );
@@ -51,15 +55,17 @@ void main() {
   });
   tearDown(() async {
     SpriteLibrary.replaceRemote([]);
+    bundledRevision = 0;
     await dir.delete(recursive: true);
   });
 
   CatalogStore makeStore(http.Client client) => CatalogStore(
     bundled: base,
     remote: RemoteCatalog(
-      url: Uri.parse('https://example.com/catalog.json'),
+      url: Uri.parse('https://example.com/glyph/'),
       cacheDir: () async => dir,
       client: client,
+      publicKey: base64.encode(key.publicKey),
     ),
   );
 
@@ -72,9 +78,12 @@ void main() {
       final doc = remoteDocument();
       (doc['items'] as List)[1]['title'] = 'Collector Dot';
       (doc['items'] as List)[1]['category'] = 'Chill';
-      final store = makeStore(
-        MockClient((_) async => http.Response(jsonEncode(doc), 200)),
-      );
+      (doc['items'] as List)[1] = {
+        ...(doc['items'] as List)[1] as Map,
+        'added': 9,
+      };
+      bundledRevision = 3;
+      final store = makeStore(FakeHost(await key.publish(doc)).client);
       final playback = PlaybackController(), devices = DeviceStore();
       addTearDown(store.dispose);
       addTearDown(playback.dispose);
@@ -125,6 +134,12 @@ void main() {
         ),
         findsOneWidget,
       );
+      final fresh = CatalogChannels(
+        store.catalog,
+        DateTime.now(),
+      ).lead.firstWhere((c) => c.id == 'new');
+      expect(fresh.name, 'Just added');
+      expect(fresh.all.map((e) => e.title), ['Collector Dot']);
       expect(identical(playback.generator, generator), isTrue);
       expect(identical(playback.item, item), isTrue);
       expect(playback.revision, revision);
@@ -159,11 +174,12 @@ void main() {
     'manual update page discloses host, persists the opt-in and shows failed checks without losing content',
     (tester) async {
       var calls = 0;
+      final host = FakeHost(await key.publish(remoteDocument()), etag: null);
       final store = makeStore(
-        MockClient((_) async {
-          calls++;
+        MockClient((req) async {
+          if (req.url.path.endsWith('manifest-v1.json')) calls++;
           return calls == 1
-              ? http.Response(jsonEncode(remoteDocument()), 200)
+              ? host.client.get(req.url)
               : http.Response('offline', 503);
         }),
       );
@@ -191,15 +207,17 @@ void main() {
         isFalse,
       );
       await tester.runAsync(() async {
-        await tester.tap(find.text('Check for new animations'));
+        await tester.tap(find.text('Check now'));
         await store.check();
       });
       await tester.pump();
       expect(calls, 1);
       expect(find.text('Your library has been updated.'), findsOneWidget);
-      expect(find.text('Content revision 4'), findsOneWidget);
+      expect(find.textContaining('Up to date'), findsOneWidget);
+      expect(store.revision, 4);
+      expect(store.downloaded, 2);
       await tester.runAsync(() async {
-        await tester.tap(find.text('Daily automatic checks'));
+        await tester.tap(find.text('Check once a day'));
         await Future<void>.delayed(Duration.zero);
       });
       await _step(tester, 100);
@@ -210,12 +228,12 @@ void main() {
         reason: 'manual check already satisfied today’s cadence',
       );
       await tester.runAsync(() async {
-        await tester.tap(find.text('Check for new animations'));
+        await tester.tap(find.text('Check now'));
         await store.check();
       });
       await tester.pump();
       expect(calls, 2);
-      expect(find.textContaining('Couldn’t check'), findsOneWidget);
+      expect(find.text('Couldn\'t check — are you online?'), findsOneWidget);
       expect(store.catalog.byId('remote-dot-item'), isNotNull);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

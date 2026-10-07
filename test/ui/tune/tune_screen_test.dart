@@ -104,7 +104,7 @@ void main() {
       expect(playback.generator, isNotNull);
       expect(find.text(playingTitle(playback)!), findsWidgets);
       expect(find.textContaining('CH 01 · RIGHT NOW').hitTestable(), findsOneWidget);
-      expect(find.text('NO DEVICE · TAP TO CONNECT'), findsOneWidget);
+      expect(find.text('TAP TO CONNECT A DEVICE'), findsOneWidget);
       expect(find.text('SWIPE THE DISPLAY'), findsOneWidget);
 
       // Scroll through the rails; the mini-stage takes over at the top.
@@ -257,6 +257,50 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Send'));
     await step(tester, 300);
     expect(find.text('Connect a device to send this to it.'), findsOneWidget);
+    playback.pause();
+  });
+
+  testWidgets('Send from the collapsed mini bar uploads in place: no scroll, no beam, progress on its key', (tester) async {
+    final wled = FakeWled();
+    BootIntro.autoInstall = false;
+    addTearDown(BootIntro.resetForTest);
+    final devices = DeviceStore(clientFactory: wled.client);
+    addTearDown(devices.dispose);
+    await tester.runAsync(() => devices.addAndSelect('fake', 'Test device'));
+    final playback = await pumpApp(tester, size: const Size(360, 740),
+        devices: devices, controller: _NoStreamPlayback());
+    final clip = FrameClip(width: 1, height: 1, delaysMs: [100],
+        frames: [Frame(1, 1)..set(0, 0, 0xFF0000)]);
+    playback.playGenerator(ClipGenerator(clip, title: 'Fresh look'));
+    final pos = pagePosition(tester)..jumpTo(900);
+    await step(tester, 100);
+    late Completer<void> entered, release;
+    wled.beforeRequest = (r) async {
+      if (r.url.path == '/upload') {
+        if (!entered.isCompleted) entered.complete();
+        await release.future;
+      }
+    };
+    await tester.runAsync(() async {
+      entered = Completer<void>();
+      release = Completer<void>();
+      await tester.tap(find.bySemanticsLabel('Send').hitTestable());
+      await entered.future.timeout(const Duration(seconds: 10));
+    });
+    await step(tester, 100);
+    expect(pos.pixels, 900);
+    expect(find.bySemanticsLabel('Sending').hitTestable(), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is BeamPainter), findsNothing);
+    await tester.runAsync(() async {
+      release.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await step(tester, 300);
+    expect(pos.pixels, 900);
+    expect(wled.uploads, ['/fresh-look.gif']);
+    expect(find.bySemanticsLabel('Sent').hitTestable(), findsOneWidget);
+    expect(find.text(sendSuccessMessage), findsOneWidget);
+    await step(tester, 2000);
     playback.pause();
   });
 
@@ -467,7 +511,7 @@ void main() {
     expect(find.byTooltip('Connect a device'), findsOneWidget);
     await tester.tap(find.byKey(PowerKey.keyId));
     await step(tester, 100);
-    expect(find.text('DEVICE · OFF'), findsNothing);
+    expect(find.text('OFF · TAP TO WAKE'), findsNothing);
     expect(tester.takeException(), isNull);
     playback.pause();
   });
@@ -488,13 +532,13 @@ void main() {
     await step(tester, 200);
     expect(wled.posts.last.$2, {'on': false});
     expect(devices.isOn, isFalse);
-    expect(find.text('DEVICE · OFF'), findsOneWidget);
+    expect(find.text('OFF · TAP TO WAKE'), findsOneWidget);
     expect(find.byTooltip('Turn on'), findsOneWidget);
 
     await tester.tap(find.byKey(PowerKey.keyId));
     await step(tester, 200);
     expect(wled.posts.last.$2, {'on': true});
-    expect(find.text('DEVICE · OFF'), findsNothing);
+    expect(find.text('OFF · TAP TO WAKE'), findsNothing);
 
     // Off again, then surf: the device comes back on by itself.
     await tester.tap(find.byKey(PowerKey.keyId));

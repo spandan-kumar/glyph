@@ -150,12 +150,15 @@ class PhoneShowEntry {
         e.id.length > 80 ||
         e.seconds < 3 ||
         e.seconds > 120) {
-      throw const FormatException('Invalid Show entry');
+      throw const FormatException('Invalid rotation entry');
     }
     return e;
   }
 }
 
+/// A rotation of cards and looks that plays live from the phone. (Named
+/// "Rotation" in the UI so it is not confused with device-side Shows; the
+/// class and its stored `shows` key keep their original names.)
 class PhoneShow {
   PhoneShow({
     required this.id,
@@ -191,7 +194,7 @@ class PhoneShow {
         for (final e in m['entries'] as List) PhoneShowEntry.fromJson(e as Map),
       ],
     );
-    if (!s.valid) throw const FormatException('Invalid Show');
+    if (!s.valid) throw const FormatException('Invalid rotation');
     return s;
   }
 }

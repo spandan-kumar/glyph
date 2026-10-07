@@ -236,7 +236,7 @@ class GlanceSession extends ChangeNotifier with WidgetsBindingObserver {
           unawaited(stop());
         },
         title: 'Glyph · ${_active!.name}',
-        text: 'Live cards and Show · tap to open',
+        text: 'Live cards and rotation · tap to open',
       );
     } catch (_) {
       // A refused foreground service must not leave a hidden live session.

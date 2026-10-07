@@ -76,7 +76,7 @@ class _GlyphMenu extends StatelessWidget {
             const MonoLabel('Help & feedback'),
             const SizedBox(height: 8),
             RowGroup(children: [
-              row(Icons.bug_report_sharp, 'Send feedback', 'Something not right? Tell us on GitHub', _more,
+              row(Icons.bug_report_sharp, 'Send feedback', 'Something not right? Tell us', _more,
                   sendFeedback),
               row(Icons.auto_awesome_sharp, 'Suggest an animation', 'Something you\'d love to see', _out,
                   (c) => suggestAnimation(c)),
@@ -87,8 +87,11 @@ class _GlyphMenu extends StatelessWidget {
             const MonoLabel('Glyph'),
             const SizedBox(height: 8),
             RowGroup(children: [
-              row(Icons.download_sharp, 'New animations', 'Catalog updates & daily checks', _more,
-                  (c) => Navigator.of(c).push(MaterialPageRoute<void>(builder: (_) => const CatalogUpdatesScreen()))),
+              // Only once the signed catalog is switched on; until then new
+              // animations simply arrive with app updates.
+              if (AppScope.of(context).catalogStore?.enabled ?? false)
+                row(Icons.download_sharp, 'New animations', 'Get the latest without an app update', _more,
+                    (c) => Navigator.of(c).push(MaterialPageRoute<void>(builder: (_) => const CatalogUpdatesScreen()))),
               row(Icons.new_releases_sharp, 'What\'s new', null, _more, showWhatsNew),
               row(Icons.code_sharp, 'Source code', 'MIT licence · GitHub', _out,
                   (c) => openCommunityLink(c, Uri.parse(Community.repo))),
@@ -189,8 +192,7 @@ class _FeedbackSheet extends StatelessWidget {
         children: [
           const SheetTitle(
             'Send feedback',
-            subtitle: 'Opens a report on GitHub with these details filled in. '
-                'You\'ll describe what happened there; posting needs a free GitHub account.',
+            subtitle: 'Tell us on Discord — the easiest way — or on GitHub. These details help us find the problem.',
           ),
           const MonoLabel('Included'),
           const SizedBox(height: 8),
@@ -205,22 +207,33 @@ class _FeedbackSheet extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
+            icon: const Icon(Icons.forum_sharp, size: 18),
+            label: const Text('Ask on Discord'),
+            onPressed: () async {
+              Navigator.pop(context);
+              await Clipboard.setData(ClipboardData(text: diagnostics.text));
+              if (!parent.mounted) return;
+              toast(parent, 'Details copied — paste them in #help.');
+              await openCommunityLink(parent, Community.discord);
+            },
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
             icon: const Icon(Icons.open_in_new_sharp, size: 18),
-            label: const Text('Open GitHub'),
+            label: const Text('Report on GitHub'),
             onPressed: () {
               Navigator.pop(context);
               openCommunityLink(parent, Community.feedback(diagnostics));
             },
           ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.copy_sharp, size: 18),
-            label: const Text('Copy instead'),
+          const SizedBox(height: 4),
+          TextButton(
             onPressed: () async {
               Navigator.pop(context);
               await Clipboard.setData(ClipboardData(text: diagnostics.text));
               if (parent.mounted) toast(parent, 'Details copied.');
             },
+            child: const Text('Just copy the details'),
           ),
         ],
       ),

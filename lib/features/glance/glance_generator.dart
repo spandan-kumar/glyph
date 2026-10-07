@@ -65,25 +65,38 @@ class _CardEffect extends EffectInstance {
             : weatherDescription(weather.code);
       }
     }
-    // Strips alternate a whole-width value and label; square devices stack them.
+    final hiLo =
+        weather != null &&
+            weather.high != null &&
+            weather.low != null &&
+            weather.dailyIsToday(now)
+        ? 'H ${_temp(weather.high!, c.fahrenheit)} L ${_temp(weather.low!, c.fahrenheit)}'
+        : null;
+    // Strips cycle value, title, label (and high/low); square devices keep the
+    // value on top and cycle the small texts below it. Every segment lasts
+    // long enough to scroll its whole text.
     if (out.height < 13) {
-      final phase = t % 12;
-      if (weather != null && phase < 2 && out.width < 16) {
+      final icon = weather != null && out.width < 16;
+      final shown = _text.sequence(
+        out,
+        [
+          (value, true, 0xe8f6ef, 5.0),
+          (c.title, false, 0xe8f6ef, 3.5),
+          if (label != c.title) (label, false, 0xe8f6ef, 3.5),
+          ?(hiLo == null ? null : (hiLo, false, 0xe8f6ef, 3.5)),
+        ],
+        0,
+        out.height,
+        t,
+        lead: icon ? 2 : 0,
+      );
+      if (!shown) {
         _weatherIcon(
           out,
-          weather,
+          weather!,
           (out.width - 7) ~/ 2,
           (out.height - 7) ~/ 2,
           t,
-        );
-      } else {
-        _text.draw(
-          out,
-          phase < 7 ? value : ((t / 12).floor().isEven ? c.title : label),
-          0,
-          out.height,
-          phase < 7 ? phase : phase - 7,
-          large: phase < 7,
         );
       }
     } else {
@@ -92,32 +105,53 @@ class _CardEffect extends EffectInstance {
         _weatherIcon(out, weather, (out.width - 7) ~/ 2, 1, t);
         top = 9;
       }
-      _text.draw(out, value, top, out.height - top - 7, t, large: true);
-      _text.draw(
+      _text.sequence(
         out,
-        t % 8 < 4 ? c.title : label,
+        [(value, true, 0xe8f6ef, 1.0)],
+        top,
+        out.height - top - 7,
+        t,
+      );
+      final color = stale ? 0xffb347 : 0x80b3bd;
+      _text.sequence(
+        out,
+        [
+          (c.title, false, color, 4.0),
+          if (label != c.title) (label, false, color, 4.0),
+          ?(hiLo == null ? null : (hiLo, false, color, 4.0)),
+        ],
         out.height - 6,
         5,
-        t % 4,
-        color: stale ? 0xffb347 : 0x80b3bd,
+        t,
       );
     }
     if (stale) out.set(out.width - 1, 0, 0xffb347);
   }
 }
 
+String _temp(double celsius, bool fahrenheit) =>
+    '${(fahrenheit ? celsius * 9 / 5 + 32 : celsius).round()}';
+
+class _Fit {
+  const _Fit(this.mask, this.scale);
+  final TextMask mask;
+  final int scale;
+  int get width => mask.width * scale;
+  int get height => mask.height * scale;
+}
+
+/// (text, large, colour, minimum seconds on screen)
+typedef _Entry = (String, bool, int, double);
+
 class _CardText {
-  final _masks = <String, TextMask>{};
-  void draw(
-    Frame out,
-    String text,
-    int top,
-    int height,
-    double t, {
-    bool large = false,
-    int color = 0xe8f6ef,
-  }) {
-    if (height < 1) return;
+  static const _hold = 1.5, _speed = 8.0;
+  final _fits = <(String, int, int, bool), _Fit>{};
+
+  _Fit _fit(String text, int width, int height, bool large) {
+    final k = (text, width, height, large);
+    final cached = _fits[k];
+    if (cached != null) return cached;
+    if (_fits.length >= 48) _fits.clear();
     final fit = fitText(
       [
         [
@@ -125,30 +159,71 @@ class _CardText {
         ],
       ],
       large ? [boldFont, classicFont, tinyFont] : [tinyFont],
-      out.width,
+      width,
       height,
       maxScale: large ? 6 : 1,
     );
-    final font = fit?.font ?? tinyFont, scale = fit?.scale ?? 1;
-    final key = '${font.id}:$text';
-    if (_masks.length >= 16 && !_masks.containsKey(key)) _masks.clear();
-    final mask = _masks.putIfAbsent(
-      key,
-      () => TextMask.lines(font, [text], trim: true),
+    final font = fit?.font ?? tinyFont;
+    return _fits[k] = _Fit(
+      TextMask.lines(font, [text], trim: true),
+      fit?.scale ?? 1,
     );
-    final w = mask.width * scale, h = mask.height * scale;
-    // Begin with visible letters; hold at either end of overflowing text.
-    final overflow = max(0, w - out.width);
-    final period = overflow / 8 + 3;
-    final offset = ((t % period - 1.5) * 8)
-        .clamp(0.0, overflow.toDouble())
-        .floor();
+  }
+
+  /// A segment shows overflowing text from its start, scrolls to its end and
+  /// holds there, so the whole string is always seen before the next segment.
+  static double _seconds(_Fit fit, int width, double minimum) {
+    final overflow = max(0, fit.width - width);
+    return overflow == 0
+        ? minimum
+        : max(minimum, overflow / _speed + 2 * _hold);
+  }
+
+  /// Plays [entries] one after another on a looping clock. The first [lead]
+  /// seconds of each loop are left to the caller (returns false then).
+  bool sequence(
+    Frame out,
+    List<_Entry> entries,
+    int top,
+    int height,
+    double t, {
+    double lead = 0,
+  }) {
+    if (height < 1 || entries.isEmpty) return true;
+    final fits = [for (final e in entries) _fit(e.$1, out.width, height, e.$2)];
+    final spans = [
+      for (var i = 0; i < entries.length; i++)
+        _seconds(fits[i], out.width, entries[i].$4),
+    ];
+    final cycle = lead + spans.fold<double>(0, (a, b) => a + b);
+    var local = t % cycle - lead;
+    if (local < 0) return false;
+    var i = 0;
+    while (i < entries.length - 1 && local >= spans[i]) {
+      local -= spans[i++];
+    }
+    _paint(out, fits[i], top, height, local, entries[i].$3);
+    return true;
+  }
+
+  void _paint(
+    Frame out,
+    _Fit fit,
+    int top,
+    int height,
+    double local,
+    int color,
+  ) {
+    final overflow = max(0, fit.width - out.width);
+    final offset = overflow == 0
+        ? 0
+        : ((local - _hold) * _speed).clamp(0.0, overflow.toDouble()).floor();
     paintMask(
       out,
-      mask,
-      overflow == 0 ? (out.width - w) ~/ 2 : -offset,
-      top + (height - h) ~/ 2,
-      scale,
+      fit.mask,
+      overflow == 0 ? (out.width - fit.width) ~/ 2 : -offset,
+      top + (height - fit.height) ~/ 2,
+      fit.scale,
       (x, y, u, ch) => color,
     );
   }
@@ -223,9 +298,13 @@ class ShowLook {
 typedef ShowResolver = ShowLook? Function(PhoneShowEntry entry);
 
 class PhoneShowGenerator extends Generator {
-  PhoneShowGenerator(this.show, this.resolve);
+  PhoneShowGenerator(this.show, this.resolve, {DateTime Function()? now})
+    : now = now ?? DateTime.now;
   final PhoneShow show;
   final ShowResolver resolve;
+
+  /// Entry durations run on this wall clock, not on frame time.
+  final DateTime Function() now;
   @override
   String get id => 'phone-show:${show.id}';
   @override
@@ -247,7 +326,10 @@ class _ShowEffect extends EffectInstance {
   ShowLook? _look;
   EffectInstance? _effect;
   double _elapsed = 0, _effectTime = 0, _retry = 0;
+  DateTime? _lastWall;
   final _text = _CardText();
+
+  static const _maxGap = 0.5;
 
   void _next() {
     final entries = generator.show.entries;
@@ -268,10 +350,18 @@ class _ShowEffect extends EffectInstance {
 
   @override
   void render(Frame out, double t, double dt, Params p, Palette pal) {
-    _elapsed += dt;
+    // Entry time is wall-clock seconds. Rendering stops while an alert has the
+    // display (pauseDuringAlert) or playback is paused; a gap that long is
+    // not counted, so the entry resumes where it left off.
+    final wall = generator.now(), last = _lastWall;
+    _lastWall = wall;
+    if (last != null) {
+      final gap = wall.difference(last).inMicroseconds / 1e6;
+      if (gap > 0 && gap <= _maxGap) _elapsed += gap;
+    }
     if (_look != null &&
         (!_look!.available() ||
-            _elapsed >= generator.show.entries[_index].seconds)) {
+            _elapsed >= generator.show.entries[_index].seconds - 1e-6)) {
       _next();
     }
     if (_look == null) {
@@ -281,7 +371,7 @@ class _ShowEffect extends EffectInstance {
     final look = _look;
     if (look == null) {
       out.fill(0);
-      _text.draw(out, '--', 0, out.height, t, large: true, color: 0xffb347);
+      _text.sequence(out, [('--', true, 0xffb347, 1.0)], 0, out.height, t);
       return;
     }
     _effectTime += dt * look.speed;

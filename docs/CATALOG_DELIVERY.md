@@ -1,145 +1,192 @@
 # Animation catalog delivery
 
-Implemented in the unreleased checkout. GitHub Pages and optional daily
-checks were confirmed on 7 October 2026. The site is **not deployed yet**;
-`RemoteCatalog.defaultUrl` remains null. No APK version bump or release is
-part of this work.
+Signed, static, offline-first. A manifest signed with Ed25519 authenticates a
+payload; the app verifies both before parsing anything. The client ships
+switched on (`RemoteCatalog.defaultUrl` is the Pages site) but stays inert
+until the maintainer replaces the placeholder public key in
+`lib/library/catalog_key.dart` (see Maintainer setup). No APK version bump or
+release is part of this work.
 
 ## In the app
 
 Glyph menu → New animations offers a manual check and a daily-check toggle
 (off by default). Checks contact the named static host, without device IDs,
-notification content, analytics, accounts or custom request headers.
-Downloaded looks are cached on the phone and available offline.
+notification content, analytics or accounts. The only request headers are the
+standard `If-None-Match` conditional header. Downloaded looks are cached and
+available offline.
 
 Daily means at most one automatic attempt per 24 hours, persisted across
-restarts, including unsuccessful attempts. Checks run while Glyph is open
-or on resume when due; there is no background service, wakeup or notification.
-Turning the option on permits the first check immediately when due. Manual
-checks also satisfy that day's cadence; manual retries remain available.
+restarts, including unsuccessful attempts. Checks run while Glyph is open or
+on resume when due; there is no background service, wakeup or notification.
 
-Bundled content paints first. Startup then validates the source-bound cache
-without contacting the host. A single app-owned CatalogStore installs the
-staged sprites and rebuilds AppScope. Rails, open category pages, search and
-Glance pickers update; selected channel, favourite/recent IDs, current
-playback, its parameters/palette/speed and live stream remain intact.
-Retired IDs disappear from surf orders; an already playing generator keeps
-its own decoded drawing. Send transfers a decoded sprite into the GIF
-worker so downloaded art works in that isolate too.
+Bundled content paints first. Startup then re-verifies the cache (signature
+and hash) without contacting the host. `CatalogStore` installs the staged
+sprites and rebuilds AppScope. Favourites, recents, Glance rotations,
+creations, current playback and live streams keep working: every lookup of a
+catalog item is null-safe, so a retired item is skipped (Glance shows
+"Unavailable", rails omit it) and reappears if a later catalog restores it.
 
-## Artifact and publication
+## Delivery format
 
-`version: 1` is the document schema. `revision` is a positive integer content
-revision, independent of the app version and item `added` revisions. Its
-source is `assets/catalog/content_revision.json` (currently 3). A published
-revision is immutable; bump it for new or changed content. Identical
-workflow reruns are allowed.
+Site layout (all under `https://spandan-kumar.github.io/glyph/`):
 
-The builder combines the generated catalog with all reviewed sprite packs,
-including their source/attribution and item notices. It fails on rejected
-entries. No external GIF/assets are supported yet; clients skip unsupported
-entries with reasons. New drawings need new sprite IDs. An existing item ID
-cannot be reassigned to a different generator; changed art needs new item
-IDs too. Bundled drawings cannot be replaced by a download.
+| File | Purpose |
+| --- | --- |
+| `manifest-v1.json` | Signed metadata: `schema`, `revision`, `epoch`, `minApp`, `payload`, `sha256`, `size`, `revoked`, `published` |
+| `manifest-v1.json.sig` | Base64 Ed25519 signature over `"glyph-catalog-manifest-v1\n"` + the exact manifest bytes |
+| `payload/<sha256>.json` | The catalog (schema `version: 1`), content-addressed so a CDN can never pair a new manifest with an old payload |
+| `previous-manifest-v1.json(.sig)` | The previously published signed manifest, kept for rollback; its payload stays in `payload/` |
+| `index.html`, `.nojekyll` | Landing page |
+
+Client check order: fetch the manifest (with `If-None-Match`; a 304 ends the
+check), fetch the signature, verify the signature with the compiled-in key,
+apply the `minApp` gate and freshness rule, then download the payload only if
+its `sha256` differs from the cache, verify size and SHA-256, and only then
+parse. Verification and parsing run in `Isolate.run` (pure-Dart Ed25519 from
+the `cryptography` package); the UI isolate never decodes the catalog. The
+cache holds raw verified bytes (`remote_catalog.meta` plus
+`remote_catalog.<sha>.payload`, switched by one atomic rename).
+
+Rules the client enforces:
+
+- **Freshness**: accept only `revision` greater than the cached one, or the
+  same `revision` with a higher `epoch` (the rollback path). Anything else is
+  treated as stale and ignored; the cache is kept.
+- **minApp**: a manifest needing a newer app is refused ("needs a newer
+  version of Glyph"); the library is untouched.
+- **Takedown**: `revoked` lists item ids or generator ids (`sprite:x`).
+  Matching items are hidden whether they are downloaded or bundled, so
+  infringing bundled art can be pulled without an app update.
+- **No overrides**: a downloaded item whose id already exists in the bundled
+  catalog is ignored; the only way to change or remove bundled content is
+  `revoked`. A downloaded sprite that conflicts with a bundled drawing is
+  dropped with its items.
+- **Per-entry rejection**: an invalid or conflicting item, sprite, pack or
+  category is dropped and listed (Glyph menu → New animations shows the
+  count); the rest of the catalog still applies. Only schema and resource-limit
+  violations reject the whole document.
+- **One baseline**: validation always uses the bundled catalog, on cold start
+  and in session.
+- **HTTP**: https redirects only, to the same host or `*.github.io`, at most
+  three hops; every body is capped while streaming (decoded bytes, so gzip
+  bombs are cut off); eight-second total deadline; manifest at most 64 KiB,
+  payload at most 2 MiB and exactly `size` bytes.
+
+Schema bounds: 2,000 items, 32 packs, 512 sprites, 8,192 frames overall, 64
+frames per sprite, 256 sequence steps, 2 Mi decoded pixels overall; rows at
+most 256×64 and 8,192 pixels per frame; parts, colours, patches, metadata and
+nesting are bounded before sprite expansion. Device GIF encoding still caps
+each wait at one second. Unknown generators, palettes and asset types are
+skipped with reasons.
+
+## Building
+
+`revision` and `minApp` live in `assets/catalog/content_revision.json`;
+takedowns in `assets/catalog/revoked.json`.
 
 ```sh
 python3 skills/glyph-animation/scripts/validate_sprite.py --all
 dart run tool/build_sprites.dart
 dart run tool/build_catalog.dart
-dart run tool/build_remote_catalog.dart
+dart run tool/build_remote_catalog.dart --published build/published
 ```
 
-Output lives in `build/catalog-site/`, never in the app's docs folder:
+`--published` is a mirror of the live site (`tool/fetch_published_catalog.sh`
+creates it; a 404 means "nothing published yet", any other failure aborts so a
+hosting hiccup cannot discard the previous artifact). The builder verifies the
+published manifests against the app key, enforces that a changed catalog or
+takedown bumps `revision`, that published sprite and item ids keep their
+meaning (changed art needs new ids), and that `revoked` ids are never silently
+dropped (`--allow-unrevoke` for a deliberate restore). It keeps the previous
+signed set as `previous-*`. It writes an **unsigned** manifest to
+`build/catalog-site/`; `tool/catalog_sign.dart` signs it in the protected job
+and verifies the result against the key compiled into the app.
 
-- `catalog-v1.json`: current artifact.
-- `previous.json`: exact previously published artifact after a content change.
-- `revisions/<revision>.json`: current and previous versioned files.
-- `index.html`: small catalog landing page.
+Size budget: the full payload is about 0.94 MiB against the 2 MiB cap. CI
+prints a warning at 70% and fails at 90%. We publish the full catalog rather
+than a delta against the bundled one because installed apps have different
+bundled contents; when the warning fires, split the payload.
 
-`.github/workflows/catalog.yml` validates sprites and generated assets,
-runs engine/library/tool tests, downloads the currently hosted artifacts,
-and builds the site. A host failure other than initial 404 blocks publishing
-so it cannot silently discard a previous artifact. Actions retains a copy
-for 90 days; Pages deploys only from main. A content push or manual `publish`
-run publishes the reviewed content. No APK needs rebuilding for later
-compatible additions.
+`minApp` is the lowest `X.Y.Z` allowed to use the payload. Set it to the first
+release that contains the verifying client, and raise it for content that
+needs newer generators.
 
-For rollback, manually run Animation catalog with mode **rollback** from a
-validated main checkout. The builder validates both hosted artifacts and
-swaps them: previous becomes current, and current becomes previous. It
-keeps their original revision numbers and exact bytes. Clients accept the
-lower revision on their next manual/daily check; favourites referring to
-retired entries are retained for later restoration. A failed deployment
-leaves the existing Pages site unchanged. A second rollback restores the
-other artifact. For older recovery, restore a retained Actions artifact
-through the same validation/deployment process; the site guarantees the
-immediately previous artifact, not an indefinite history.
+## Maintainer setup (one time, by hand)
 
-Local rollback preparation (without publishing):
+1. Generate the signing key on a trusted machine:
+   `dart run tool/catalog_keygen.dart` (or `--out path`). The private key
+   (base64 32-byte seed) goes only to that file, default
+   `./catalog-signing-key.txt`, which is git-ignored; it is never printed. The
+   tool prints the public key.
+2. Paste the public key into `lib/library/catalog_key.dart`
+   (`catalogPublicKey`) and commit it. While the placeholder is there, the
+   client does not contact the host and ignores any cache, and the workflow
+   cannot sign.
+3. In GitHub: Settings → Environments → New environment `catalog`. Add
+   **required reviewers** (and yourself), restrict **deployment branches** to
+   `main`, and add the secret `CATALOG_SIGNING_KEY` with the key file's
+   contents to this environment only (not a repository secret). Back the key
+   up in a password manager, then delete the local file.
+4. Settings → Pages → Source: **GitHub Actions**. The `github-pages`
+   environment should also be limited to `main`.
+5. Optionally pin the actions in `catalog.yml` to commit SHAs.
 
-```sh
-dart run tool/build_remote_catalog.dart \
-  --current build/catalog-current.json --previous build/catalog-previous.json \
-  --rollback --output build/catalog-rollback
-```
+Key rotation: generate a new pair, ship an app release with the new public key
+first, wait for adoption, then switch the secret. Older apps stop trusting new
+catalogs, so keep the old key for as long as you want them updated.
 
-## Production activation
+## Runbook
 
-1. Commit/push the reviewed changes when authorised. In repository Settings
-   → Pages, select **GitHub Actions** as the build source.
-2. Run Animation catalog → publish on main. Verify the deployment and fetch
-   `https://spandan-kumar.github.io/glyph/catalog-v1.json`; check schema,
-   content revision and the client validation tests against that artifact.
-3. Only then set `RemoteCatalog.defaultUrl` to that verified HTTPS endpoint,
-   update the disabled-default test, and include activation in an app release.
+**Publish.** Merge catalog changes to `main` with a bumped `revision`. The
+workflow validates and tests (`build` job, no secrets), then pauses at the
+`catalog` environment until a reviewer approves; `sign` signs and verifies;
+`deploy` publishes to Pages. Check
+`https://spandan-kumar.github.io/glyph/manifest-v1.json` afterwards. A manual
+run (Actions → Animation catalog → mode **publish**, branch main) does the
+same. Identical reruns keep the existing signed manifest.
 
-Before activation, a test build can opt into a verified staging/Pages URL:
+**Takedown** (infringing or harmful art, bundled or downloaded): add the item
+ids (or `sprite:<id>`) to `assets/catalog/revoked.json`, remove the content if
+it is downloaded-only, bump `revision`, merge, approve. Clients hide the items
+on their next check (within a day if daily checks are on). Bundled art should
+also be removed in the next app release; keep the id revoked until then.
+
+**Rollback.** Actions → Animation catalog → Run workflow on `main` → mode
+**rollback**. No HEAD build or tests run. The job mirrors the live site,
+verifies both sets, and re-signs the previous content with the same `revision`
+and `epoch + 1` (union of both `revoked` lists, so nothing is un-revoked),
+then waits for `catalog` approval and deploys. Clients accept it because the
+epoch is higher; they never accept an older epoch. A second rollback restores
+the other content. The next normal publish needs `revision` above the rolled
+back one. For older recovery, restore a retained Actions artifact
+(`catalog-signed-<run>`, 90 days) through the same process.
+
+**Sequencing with app releases.** Ship the app that contains the verifying
+client and the real public key first; only then publish the first catalog
+(until then nothing consumes it). For content that needs new generators or
+sprite features, release the app first and publish the catalog with a higher
+`minApp` afterwards; older apps then keep their current library and show the
+"needs a newer version" message instead of dropping entries. Never publish
+content that a released app cannot handle without raising `minApp`.
+
+## Staging and tests
+
+A test build can target another deployment and key:
 
 ```sh
 flutter build apk --debug --target-platform android-arm64 \
-  --dart-define=GLYPH_CATALOG_URL=https://spandan-kumar.github.io/glyph/catalog-v1.json
+  --dart-define=GLYPH_CATALOG_URL=https://example.github.io/glyph-staging/ \
+  --dart-define=GLYPH_CATALOG_PUBLIC_KEY=<base64 test public key>
 ```
 
-Ordinary builds stay offline until the endpoint is configured. The override
-is a build setting, not a user-facing arbitrary URL field.
+Tests (`test/library`, `test/tool`) use ephemeral test keys and cover: valid,
+invalid, tampered and placeholder-key signatures; hash and size mismatch;
+revision/epoch ordering and replay; `minApp`; 304 and payload skipping; the
+redirect policy; byte caps including a real gzip bomb; revoked bundled and
+downloaded items; per-entry rejection; no bundled overrides; cache
+re-verification and source binding; publication rules, previous retention and
+rollback; keygen never printing the private key; and a retired favourite used
+in a Glance rotation.
 
-## Bounds and verification
-
-Download: 2 MiB, eight-second total header/body deadline, no redirects;
-timeouts abort the request and cancel body consumption. Validation and sprite expansion run in a
-Dart isolate. The same byte cap applies to cache/artifact reads, with only a
-small allowance for the cache's source binding. Writes use a flushed temp
-file and atomic rename; failed checks/writes keep the prior cache and
-registry. Disposal suppresses late adoption and closes the client.
-
-Schema bounds: 2,000 items, 32 packs, 512 sprites, 8,192 frames overall,
-64 frames per sprite, 256 sequence steps, 2 Mi decoded pixels overall.
-Rows are at most 256×64 and 8,192 pixels per frame; parts, colors, patches,
-metadata and nesting are bounded before sprite expansion. Frame duration
-uses the existing 20–10,000 ms format; device GIF encoding still caps each
-wait at one second. Reject empty sequences, non-finite values, incompatible
-motion/color syntax before adoption. A conflicting drawing or reused item
-identity rejects the whole update, retaining the previous cache across
-restarts. Duplicate sprite IDs are excluded with reasons. Skip unknown
-generators, palettes and unsupported assets with reasons. Retain notices
-and source fields, including nullable historic years.
-
-Tests cover staging without registry mutation, malformed tails, byte/count/
-expansion bounds, body timeout cancellation, durable-write failure, offline
-restart, HTTP/redirect failure, source binding, collisions, attribution,
-daily opt-in/cadence/failure/resume/disposal, UI refresh with active playback,
-remote Send pixel correctness, immutable revisions and artifact rollback.
-The complete 1,209-look initial artifact validates under the bounds.
-
-Local verification on 7 October 2026: `flutter analyze` reports no issues;
-1,114 Flutter tests pass (one live-device test skipped), four native Android
-unit tests pass, and the arm64 debug APK builds. The settings screen was
-rendered with the app fonts and visually checked. The sprite validator
-reports zero errors and 383 warnings from the existing packs. YAML parsing and
-Bash syntax checks pass for the workflow; GitHub execution is pending.
-
-Partial Pixel 8/WLED checks now cover downloads from a local fixture server,
-validation, offline cache reload, rendering and streaming; see
-[device QA](DEVICE_QA_2026_10_07.md) for results and pending Send checks/cleanup.
-Before public activation, execute the workflow on GitHub and verify the live
-HTTPS artifact. Those publication paths remain unverified.
+GitHub execution of the workflow, the environment approval and the live HTTPS
+artifact remain unverified until the maintainer completes setup.

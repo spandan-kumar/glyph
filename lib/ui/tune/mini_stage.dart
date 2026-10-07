@@ -123,11 +123,12 @@ class MiniStage extends StatelessWidget {
                   (scope.devices.caps?.canPlayGifs ?? false) &&
                   !(playback.generator?.liveOnly ?? true))
                 SendButton(
+                  compact: true,
                   state: keepState,
                   accent: AmbientScope.of(context).accent,
                   onTap: keepState == KeepState.checking || keepState == KeepState.beaming ? null : onSend,
                 ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
             ],
           ),
         ),

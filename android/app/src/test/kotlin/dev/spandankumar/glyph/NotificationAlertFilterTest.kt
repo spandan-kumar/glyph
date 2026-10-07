@@ -40,4 +40,29 @@ class NotificationAlertFilterTest {
         f.reset()
         assertTrue(f.accept("chat", "256", 0, null))
     }
+    @Test fun oldOwnerCannotClearNewerSink() {
+        val owners = AlertSinkOwner()
+        val oldBridge = Any(); val newBridge = Any()
+        val got = mutableListOf<Map<String, Any?>>()
+        owners.attach(oldBridge) { }
+        owners.attach(newBridge) { got.add(it) }
+        assertFalse(owners.detach(oldBridge))
+        assertFalse(owners.owns(oldBridge))
+        owners.emit(mapOf("a" to 1))
+        assertEquals(1, got.size)
+        assertTrue(owners.detach(newBridge))
+        assertFalse(owners.active)
+    }
+    @Test fun iconCacheEvictsLeastRecentAndRerendersOnVersionChange() {
+        val cache = IconCache<String>(2)
+        var renders = 0
+        fun get(k: String, v: Long) = cache.get(k, v) { renders++; "$k$v" }
+        get("a", 1); get("b", 1); get("a", 1)
+        assertEquals(2, renders)
+        get("c", 1)           // evicts b
+        get("b", 1)
+        assertEquals(4, renders)
+        get("a", 2)           // updated app
+        assertEquals(5, renders)
+    }
 }

@@ -40,22 +40,23 @@ void main() {
   String playing() => (wled.state['seg'] as List).first['n'] as String;
 
   test(
-    'replacement reuses the preset and preserves original or shared files',
+    'replacement reuses the preset, retires its old file and preserves shared files',
     () async {
       expect(await send(), 42);
       expect(playing(), 'same-00.gif');
-      expect(wled.gifs['/same.gif'], List.filled(10, 1));
       expect((wled.presets['42']['seg'] as List).first['n'], 'same-00.gif');
-      // The next replacement can retire the file this client created.
+      // The file the preset played before is retired once nothing uses it,
+      // even though this client didn't create it (e.g. before an app restart).
+      expect(wled.deleted, ['/same.gif']);
       await send();
-      expect(playing(), 'same-01.gif');
-      expect(wled.deleted, ['/same-00.gif']);
+      expect(playing(), 'same.gif'); // the freed name is reused
+      expect(wled.deleted, ['/same.gif', '/same-00.gif']);
       // A different Saved look now shares that file: it must survive.
       wled.presets['43'] = {...wled.presets['42'] as Map, 'n': 'Shared'};
       await send();
       expect(playing(), 'same-00.gif');
-      expect(wled.gifs.containsKey('/same-01.gif'), isTrue);
-      expect(wled.presets['43']['seg'].first['n'], 'same-01.gif');
+      expect(wled.gifs.containsKey('/same.gif'), isTrue);
+      expect(wled.presets['43']['seg'].first['n'], 'same.gif');
       expect(wled.presets.keys.where((k) => k == '42'), hasLength(1));
     },
   );
@@ -79,33 +80,35 @@ void main() {
   );
 
   test(
-    'replacement needs space for both files before touching playback',
+    'replacement counts the file it retires as free space, but not more',
     () async {
       final detected = await client.capabilities();
-      final caps = DeviceCapabilities(
+      DeviceCapabilities capsWith(int free) => DeviceCapabilities(
         canStream: true,
         canPlayGifs: true,
         imageEffectId: 53,
-        freeFsBytes: DeviceCapabilities.fsSafetyMarginBytes + 19,
+        freeFsBytes: DeviceCapabilities.fsSafetyMarginBytes + free,
         is2D: true,
         width: detected.width,
         height: detected.height,
         ledCount: detected.ledCount,
         isEsp8266: false,
       );
-      await expectLater(
-        client.saveGifToDevice(
-          fileName: 'same.gif',
-          gif: Uint8List(20),
-          presetName: 'Same',
-          caps: caps,
-          presetId: 42,
-        ),
-        throwsA(isA<WledException>()),
+      Future<int> sendWith(DeviceCapabilities caps) => client.saveGifToDevice(
+        fileName: 'same.gif',
+        gif: Uint8List(20),
+        presetName: 'Same',
+        caps: caps,
+        presetId: 42,
       );
+      // 20 B new, 10 B old: 9 B free is short even after the swap.
+      await expectLater(sendWith(capsWith(9)), throwsA(isA<WledException>()));
       expect(wled.uploads, isEmpty);
       expect(wled.posts, isEmpty);
       expect(playing(), 'same.gif');
+      // 10 B free + the 10 B old file fits.
+      expect(await sendWith(capsWith(10)), 42);
+      expect(playing(), 'same-00.gif');
     },
   );
 

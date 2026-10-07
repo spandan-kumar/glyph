@@ -15,7 +15,7 @@ void main() {
   late Map<String, Object> presetsJson;
   late Map<String, Object> stateJson;
 
-  WledClient client() => WledClient('192.168.29.6', client: MockClient((r) async {
+  WledClient client() => WledClient('192.168.29.6', delay: (_) async {}, client: MockClient((r) async {
         requests.add(r);
         return switch (r.url.path) {
           '/presets.json' => http.Response(jsonEncode(presetsJson), 200),
@@ -207,5 +207,57 @@ void main() {
     final c = WledClient('10.0.0.9',
         client: MockClient((_) async => http.Response('nope', 500)));
     await expectLater(c.info(), throwsA(isA<WledException>()));
+  });
+
+  group('preset writes are confirmed by polling, not a fixed sleep', () {
+    late int reads;
+    late List<Duration> waits;
+    late Map<String, Object?> file;
+
+    WledClient pollingClient({int appearsAfter = 3}) => WledClient(
+      '192.168.29.6',
+      delay: (d) async => waits.add(d),
+      client: MockClient((r) async {
+        if (r.method == 'POST') {
+          final body = jsonDecode(r.body) as Map<String, dynamic>;
+          if (body['pdel'] != null) file.remove('${body['pdel']}');
+          return http.Response('{"success":true}', 200);
+        }
+        if (r.url.path == '/presets.json') {
+          reads++;
+          // The device loop lands the write a few polls later.
+          if (reads > appearsAfter) file['7'] = {'n': 'New'};
+          return http.Response(jsonEncode(file), 200);
+        }
+        return http.Response('Not found', 404);
+      }),
+    );
+
+    setUp(() {
+      reads = 0;
+      waits = [];
+      file = {};
+    });
+
+    test('psave returns once the entry shows up', () async {
+      await pollingClient().setState({'psave': 7, 'n': 'New'});
+      expect(waits, isNotEmpty);
+      expect(waits.length, lessThan(5));
+      expect(file['7'], isNotNull);
+    });
+
+    test('a write that never shows stops after the timeout, without sleeping for real', () async {
+      await pollingClient(appearsAfter: 1 << 30).setState({'psave': 7, 'n': 'New'});
+      final total = waits.fold(Duration.zero, (a, b) => a + b);
+      expect(total, greaterThanOrEqualTo(WledClient.presetPollTimeout));
+      expect(total, lessThan(WledClient.presetPollTimeout + WledClient.presetPollInterval * 2));
+    });
+
+    test('pdel returns at once when the entry is already gone', () async {
+      file['7'] = {'n': 'Old'};
+      await pollingClient(appearsAfter: 1 << 30).setState({'pdel': 7});
+      expect(waits, isEmpty);
+      expect(file, isEmpty);
+    });
   });
 }

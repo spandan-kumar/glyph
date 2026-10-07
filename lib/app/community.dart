@@ -17,17 +17,24 @@ abstract final class Community {
   static final showAndTell = discord;
 
   /// The public board (Ideas → Planned → Building → Shipped).
+  static final latestRelease = Uri.parse('$repo/releases/latest');
+
   static final roadmap = Uri.parse('https://github.com/users/spandan-kumar/projects/4');
 
   /// Invite after the first fresh Send, then after ten more and a week.
   /// Stored on the phone so restarting the app doesn't reset the cooldown.
-  static Future<bool> inviteAfterSend({DateTime? now}) async {
+  ///
+  /// The invite is only spent when it is going to be shown: [stillShowing]
+  /// is asked once the stored state has been read, and a `false` keeps the
+  /// invite for the next Send (the send itself still counts).
+  static Future<bool> inviteAfterSend({DateTime? now, bool Function()? stillShowing}) async {
     final prefs = await SharedPreferences.getInstance();
     final count = (prefs.getInt('community.sendsSinceInvite') ?? 0) + 1;
     final last = prefs.getInt('community.lastShareInvite');
     final at = (now ?? DateTime.now()).millisecondsSinceEpoch;
-    final invite = last == null ||
+    final due = last == null ||
         (count >= 10 && at - last >= const Duration(days: 7).inMilliseconds);
+    final invite = due && (stillShowing?.call() ?? true);
     await prefs.setInt('community.sendsSinceInvite', invite ? 0 : count);
     if (invite) await prefs.setInt('community.lastShareInvite', at);
     return invite;

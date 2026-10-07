@@ -115,6 +115,7 @@ void main() {
 
     WledClient client() => WledClient(
       '192.168.29.6',
+      delay: (_) async {},
       client: MockClient((r) async {
         if (r.method == 'POST') posts.add(r);
         return switch (r.url.path) {

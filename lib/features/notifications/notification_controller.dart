@@ -203,10 +203,8 @@ class NotificationController extends ChangeNotifier {
   void _serviceChanged() {
     if (_disposed) return;
     if (!service.connected) _cancel();
-    if (monitoring && (!service.access || service.stopRequested)) {
-      error = service.stopRequested
-          ? null
-          : 'Notification access was turned off.';
+    if (monitoring && !service.access) {
+      error = 'Notification access was turned off.';
       unawaited(setMonitoring(false));
     }
     notifyListeners();
@@ -250,7 +248,11 @@ class NotificationController extends ChangeNotifier {
     unawaited(_drain());
   }
 
-  /// Explicit synthetic test; does not grant access, enable monitoring or read notifications.
+  /// "Test on device": plays [package]'s installed logo now for [alertDuration].
+  /// Uses the normal alert path (device power/live-source checks, playback
+  /// suppression, lor restore and `live:false` afterwards) but works without
+  /// monitoring, never reads notifications and ignores quiet hours. Failures
+  /// set [error]; a new user command cancels it like any alert.
   Future<void> preview(String package) async {
     if (!canShow) {
       error = 'Connect and turn on your device to preview.';
@@ -258,7 +260,12 @@ class NotificationController extends ChangeNotifier {
       return;
     }
     final generation = _generation;
-    final logo = await service.icon(package);
+    final NotificationLogo logo;
+    try {
+      logo = await service.icon(package);
+    } catch (_) {
+      return;
+    }
     if (_disposed || generation != _generation || !canShow) return;
     _cancel();
     _queue.add(LogoAlert(package, 'preview', _now(), logo));
@@ -280,6 +287,7 @@ class NotificationController extends ChangeNotifier {
     final client = devices.client!;
     final info = devices.caps!;
     final c = _AlertContext(a, client, devices, playback);
+    var prepared = false, began = false, shown = false;
     try {
       await _handoff;
       if (_disposed ||
@@ -288,23 +296,29 @@ class NotificationController extends ChangeNotifier {
           !canShow) {
         return;
       }
+      bool stale() =>
+          _disposed ||
+          generation != _generation ||
+          !c.current(devices, playback) ||
+          !canShow;
       // Leave native effects/preset/playlist state intact; only unlock realtime input.
       if (!playback.streamingHosts.contains(client.host)) {
         final state = await client.state();
-        c.liveOverride = (state['lor'] as num?)?.toInt() ?? 0;
-        if (_disposed ||
-            generation != _generation ||
-            !c.current(devices, playback) ||
-            !canShow) {
+        if (stale()) return;
+        // Frames sent to an off device make WLED light up, and a live source
+        // we don't own (e.g. Home Assistant) must not be hijacked.
+        if (state['on'] == false) {
+          if (preview) error = 'Turn your device on to preview.';
           return;
         }
+        if (state['live'] == true) {
+          if (preview) error = 'Something else is controlling your device.';
+          return;
+        }
+        c.liveOverride = (state['lor'] as num?)?.toInt() ?? 0;
+        prepared = true;
         await client.prepareStream();
-      }
-      if (_disposed ||
-          generation != _generation ||
-          !c.current(devices, playback) ||
-          !canShow) {
-        return;
+        if (stale()) return;
       }
       final ok = await playback.beginAlert(
         NotificationLogoGenerator(a.logo),
@@ -312,14 +326,13 @@ class NotificationController extends ChangeNotifier {
         width: info.width,
         height: info.height,
       );
-      if (_disposed ||
-          generation != _generation ||
-          !c.current(devices, playback) ||
-          !canShow) {
+      began = ok;
+      if (stale()) {
         playback.endAlert();
         return;
       }
       if (!ok) return;
+      shown = true;
       _context = c;
       _timer = Timer(alertDuration, () {
         unawaited(_finish());
@@ -332,6 +345,11 @@ class NotificationController extends ChangeNotifier {
         notifyListeners();
       }
     } finally {
+      if (prepared && !shown) {
+        // prepareStream changed lor; put it back when no alert took over.
+        await (began && _shouldRestore(c) ? c.restore() : c.restoreOverride())
+            .catchError((_) {});
+      }
       _busy = false;
       if (!_disposed && _context == null && _queue.isNotEmpty) {
         unawaited(_drain(preview: _queue.first.key == 'preview'));
@@ -348,14 +366,11 @@ class NotificationController extends ChangeNotifier {
     _busy = true;
     playback.endAlert();
     try {
-      // No restoration write when a new user command or another device took over.
-      if (c.current(devices, playback) &&
-          !playback.streamingHosts.contains(c.client.host) &&
-          canShow) {
-        await c.restore();
-      }
+      if (_shouldRestore(c)) await c.restore();
     } catch (_) {
-      if (!_disposed) error = 'The logo ended; your device will return when live playback times out.';
+      if (!_disposed) {
+        error = 'Couldn\'t confirm your device left the logo; it clears itself when live playback times out.';
+      }
     } finally {
       _busy = false;
       if (!_disposed) {
@@ -376,13 +391,19 @@ class NotificationController extends ChangeNotifier {
     _context = null;
     if (c != null) {
       playback.endAlert();
-      if (c.current(devices, playback) &&
-          !playback.streamingHosts.contains(c.client.host) &&
-          canShow) {
-        _handoff = c.restore().catchError((_) {});
-      }
+      if (_shouldRestore(c)) _handoff = c.restore().catchError((_) {});
     }
   }
+
+  /// Leave live mode on the alert's device unless another stream owns it now.
+  /// A user's own preset/Show command on the same device doesn't end realtime
+  /// by itself, so it must not suppress this (else the logo lingers until the
+  /// realtime timeout); a different device is left to WLED's own timeout.
+  bool _shouldRestore(_AlertContext c) =>
+      devices.client?.host == c.client.host &&
+      devices.isOn != false &&
+      !playback.streamHeld &&
+      !playback.streamingHosts.contains(c.client.host);
 
   @override
   void dispose() {
@@ -418,10 +439,11 @@ class _AlertContext {
   final WledClient client;
   final int selection, control, revision, stream, alerts;
   int liveOverride = 0;
-  Future<void> restore() => client.setState({
-    'live': false,
-    if (liveOverride != 0) 'lor': liveOverride,
-  });
+  // WLED clears lor 1 itself when realtime ends; only 2 (until reboot) needs restoring.
+  Future<void> restore() =>
+      client.setState({'live': false, if (liveOverride == 2) 'lor': 2});
+  Future<void> restoreOverride() =>
+      liveOverride == 2 ? client.setState({'lor': 2}) : Future.value();
   bool current(DeviceStore devices, PlaybackController playback) =>
       devices.isCurrent(client, selection) &&
       devices.controlGeneration == control &&

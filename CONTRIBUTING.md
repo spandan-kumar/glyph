@@ -151,12 +151,13 @@ dart run tool/build_catalog.dart    # adds your sprite to assets/catalog/catalog
 flutter test test/engine/sprite_test.dart test/library
 ```
 
-After a published catalog exists, bump `assets/catalog/content_revision.json`
-when changing catalog content. Changed drawings need new sprite **and item**
-IDs; existing IDs must continue to represent the same art. Build and validate
-the remote artifact with `dart run tool/build_remote_catalog.dart`. It goes
-to `build/catalog-site/`, including sprite source/attribution. See
-[delivery and rollback](docs/CATALOG_DELIVERY.md).
+After a published catalog exists, bump `revision` in
+`assets/catalog/content_revision.json` when changing catalog content (also
+for a takedown, which lists ids in `assets/catalog/revoked.json`). Changed
+drawings need new sprite **and item** IDs. `dart run tool/build_remote_catalog.dart`
+builds the unsigned site into `build/catalog-site/`; only the maintainers'
+protected `catalog` workflow environment signs and publishes it. See
+[delivery, rollback and takedown](docs/CATALOG_DELIVERY.md).
 
 Never edit `sprite_data.g.dart` or `catalog.json` by hand. The tests fail if
 either is stale ("compiled data matches the JSON sources") or if your sprite

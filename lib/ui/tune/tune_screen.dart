@@ -280,19 +280,8 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     final request = ++_sendRequest;
     HapticFeedback.lightImpact();
     setState(() => _keep = KeepState.checking);
-    final msg = await GlyphActions.saveToDevice(context, onUpload: () async {
-      await _toTop();
-      if (!mounted) return;
-      setState(() {
-        _keep = KeepState.beaming;
-        _beamPath = _measureBeam();
-      });
-      _beam.repeat();
-      _charge.value = 0;
-      _charge.animateTo(0.88, duration: const Duration(seconds: 5), curve: Curves.easeOutCubic);
-    });
-    if (!mounted) return;
-    if (msg == alreadyOnDeviceMessage || msg == null) {
+    void settle() {
+      if (!mounted || request != _sendRequest) return;
       _beam.stop();
       _charge.stop();
       _charge.value = 0;
@@ -300,33 +289,72 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
         _keep = KeepState.idle;
         _beamPath = null;
       });
-      return;
     }
-    final ok = msg.startsWith('Sent') || msg.startsWith('Kept');
-    _beam.stop();
-    // saveToDevice reports in its own words; ours replace it before it paints.
-    ScaffoldMessenger.of(context).removeCurrentSnackBar();
-    setState(() {
-      _keep = ok ? KeepState.kept : KeepState.failed;
-      _beamPath = null;
-    });
-    if (ok) {
-      _charge.value = 1;
-      HapticFeedback.lightImpact();
-      final invite = await Community.inviteAfterSend();
+
+    try {
+      final result = await GlyphActions.sendToDevice(context, onUpload: () async {
+        // Sent from the pinned mini bar: stay where you are; its key shows
+        // the progress. Otherwise bring the Stage into view for the beam.
+        final collapsed = _morph.t > 0.5;
+        if (!collapsed) await _toTop();
+        if (!mounted || request != _sendRequest) return;
+        setState(() {
+          _keep = KeepState.beaming;
+          _beamPath = collapsed ? null : _measureBeam();
+        });
+        _beam.repeat();
+        _charge.value = 0;
+        _charge.animateTo(0.88, duration: const Duration(seconds: 5), curve: Curves.easeOutCubic);
+      });
       if (!mounted || request != _sendRequest) return;
-      _toast(sendSuccessMessage,
-          action: invite ? SnackBarAction(label: 'Show it off', onPressed: () => openCommunityLink(context, Community.showAndTell)) : null);
-    } else {
+      switch (result) {
+        case AlreadyOnDevice() || Cancelled():
+          // Each said its own piece already (the toast with "Play it", or
+          // "Send stopped — …").
+          settle();
+          return;
+        case Sent():
+          _beam.stop();
+          // GlyphActions reports in its own words; ours replace it before it paints.
+          ScaffoldMessenger.of(context).removeCurrentSnackBar();
+          setState(() {
+            _keep = KeepState.kept;
+            _beamPath = null;
+          });
+          _charge.value = 1;
+          HapticFeedback.lightImpact();
+          var invite = false;
+          try {
+            invite = await Community.inviteAfterSend(stillShowing: () => mounted && request == _sendRequest);
+          } catch (_) {
+            // The invite is a nicety; never let it break a finished Send.
+          }
+          if (!mounted || request != _sendRequest) return;
+          _toast(sendSuccessMessage,
+              action: invite
+                  ? SnackBarAction(label: 'Show it off', onPressed: () => openCommunityLink(context, Community.showAndTell))
+                  : null);
+        case Failed(:final message, :final liveOnly):
+          _beam.stop();
+          ScaffoldMessenger.of(context).removeCurrentSnackBar();
+          setState(() {
+            _keep = KeepState.failed;
+            _beamPath = null;
+          });
+          _charge.value = 0;
+          if (!liveOnly) LastError.record('Send from Display failed: $message');
+          _toast(friendlySendError(message),
+              action: liveOnly ? null : SnackBarAction(label: 'Try again', onPressed: _keepIt));
+      }
+      await _flash.forward(from: 0);
+      if (!mounted || request != _sendRequest) return;
       _charge.value = 0;
-      if (msg != liveOnlyMessage) LastError.record('Send from Display failed: $msg');
-      _toast(friendlySendError(msg),
-          action: msg == liveOnlyMessage ? null : SnackBarAction(label: 'Try again', onPressed: _keepIt));
+      setState(() => _keep = KeepState.idle);
+    } catch (_) {
+      // Whatever went wrong, the key must not stay stuck on "sending".
+      settle();
+      rethrow;
     }
-    await _flash.forward(from: 0);
-    if (!mounted || request != _sendRequest) return;
-    _charge.value = 0;
-    setState(() => _keep = KeepState.idle);
   }
 
   Offset _local(Offset global) {
@@ -736,21 +764,23 @@ class _Header extends StatelessWidget {
     );
   }
 
+  // Short enough to fit beside the three keys on a narrow phone; the glyph
+  // already stands for the device.
   (String, VoidCallback?) _status(BuildContext context) {
     final scope = AppScope.of(context);
     final d = scope.devices, p = scope.playback;
     void connect() => HomeShell.go(context, 2);
     if (d.isConnected) {
-      if (d.isOn == false) return ('Device · off', () => PowerKey.set(context, true));
-      if (p.isStreaming) return ('Device · live', connect);
+      if (d.isOn == false) return ('Off · tap to wake', () => PowerKey.set(context, true));
+      if (p.isStreaming) return ('Live', connect);
       final title = p.item?.title ?? p.generator?.name;
-      if (title != null && d.isPlayingKept(title)) return ('Device · playing on its own', connect);
-      return ('Device · tap to show this', () => GlyphActions.ensureStreaming(context));
+      if (title != null && d.isPlayingKept(title)) return ('Playing on its own', connect);
+      return ('Tap to show this', () => GlyphActions.ensureStreaming(context));
     }
     if (d.selected != null) {
-      return d.isLoading ? ('Looking for ${d.selected!.name}…', null) : ('Device · offline · tap to fix', connect);
+      return d.isLoading ? ('Looking for ${d.selected!.name}…', null) : ('Offline · tap to fix', connect);
     }
-    return ('No device · tap to connect', connect);
+    return ('Tap to connect a device', connect);
   }
 }
 

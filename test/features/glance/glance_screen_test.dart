@@ -104,157 +104,120 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   }
 
+  Future<void> settle(WidgetTester tester) async {
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+
   testWidgets(
-    'Glance is accessible at phone size and does not start weather or device playback on first open',
+    'first open previews a demo, starts nothing, and a countdown is a name and a date',
     (tester) async {
       await pump(tester, const GlanceScreen());
       expect(find.text('Glance'), findsOneWidget);
-      expect(find.text('Add weather'), findsOneWidget);
-      expect(find.text('Add counter'), findsOneWidget);
+      expect(find.text('Add your first card'), findsOneWidget);
+      expect(find.bySemanticsLabel('Add Weather'), findsOneWidget);
+      expect(find.bySemanticsLabel('Add Countdown'), findsOneWidget);
       expect(requests, 0);
       expect(playback.isPlaying, false);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('Add counter'));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.scrollUntilVisible(
-        find.text('DATE · PHONE TIMEZONE'),
-        150,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('DATE · PHONE TIMEZONE'), findsOneWidget);
-      expect(find.text('Until'), findsOneWidget);
-      expect(find.text('Since'), findsOneWidget);
-      expect(find.textContaining('Works offline'), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel('Add Countdown'));
+      await settle(tester);
+      expect(find.text('New countdown'), findsOneWidget);
+      expect(find.text('Counting down to'), findsOneWidget);
+      expect(find.text('Counting up since'), findsOneWidget);
+      expect(find.textContaining('Works without the internet'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.enterText(find.byType(TextField).first, 'Launch day');
-      await tester.scrollUntilVisible(
-        find.text('Save card'),
-        150,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.runAsync(() async {
-        await tester.tap(find.text('Save card'));
-      });
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.scrollUntilVisible(find.text('Save card'), 150, scrollable: find.byType(Scrollable).first);
+      await tester.runAsync(() async => tester.tap(find.text('Save card')));
+      await settle(tester);
       expect(session.store.cards.single.title, 'Launch day');
       expect(session.store.cards.single.valid, true);
       expect(requests, 0);
     },
   );
+
   testWidgets(
-    'weather search is explicit, discloses requests and choosing a place fetches only once',
+    'weather is search-first: typing searches once, picking a city fetches once, no location asked',
     (tester) async {
-      await pump(
-        tester,
-        GlanceCardEditor(session: session, kind: GlanceKind.weather),
-      );
+      await pump(tester, GlanceCardEditor(session: session, kind: GlanceKind.weather));
       expect(requests, 0);
-      expect(
-        find.textContaining('No phone location permission'),
-        findsOneWidget,
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'City or place name'),
-        'Delhi',
-      );
+      expect(find.textContaining('never asks for your location'), findsOneWidget);
+      expect(find.text('Save card'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).first, 'Delhi');
       await tester.pump(const Duration(milliseconds: 100));
-      expect(requests, 0);
-      await tester.scrollUntilVisible(
-        find.text('Search'),
-        150,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.runAsync(() async {
-        await tester.tap(find.text('Search'));
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      });
+      expect(requests, 0, reason: 'waits for typing to pause');
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
       await tester.pump(const Duration(milliseconds: 100));
       expect(requests, 1);
       expect(find.text('Delhi'), findsWidgets);
+
       await tester.runAsync(() async {
-        await tester.tap(
-          find.byWidgetPredicate((w) => w is Text && w.data == 'Delhi'),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await tester.tap(find.byWidgetPredicate((w) => w is Text && w.data == 'Delhi').last);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
       });
       await tester.pump(const Duration(milliseconds: 100));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump(const Duration(milliseconds: 100));
       expect(requests, 2);
-      await tester.scrollUntilVisible(
-        find.text('Refresh weather'),
-        180,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Fahrenheit'), findsOneWidget);
+      expect(find.text('°F'), findsOneWidget);
+      expect(find.text('Change'), findsOneWidget);
       expect(find.textContaining('27°'), findsWidgets);
       expect(tester.takeException(), isNull);
-      await tester.runAsync(() async {
-        await tester.tap(find.text('Refresh weather'));
-      });
-      expect(requests, 2);
+
+      await tester.scrollUntilVisible(find.text('Save card'), 150, scrollable: find.byType(Scrollable).first);
+      await tester.runAsync(() async => tester.tap(find.text('Save card')));
+      await settle(tester);
+      expect(session.store.cards.single.title, 'Delhi', reason: 'the card is named after the city');
     },
   );
+
   testWidgets(
-    'phone Show editor adds library and card entries, reorders and saves durations',
+    'a rotation adds a card and an animation, reorders and changes durations',
     (tester) async {
-      await pump(tester, PhoneShowEditor(session: session));
       await tester.runAsync(
         () => session.store.saveCard(
-          GlanceCard(
-            id: 'c',
-            title: 'Trip',
-            kind: GlanceKind.counter,
-            date: DateTime(2026, 10, 9),
-          ),
+          GlanceCard(id: 'c', title: 'Trip', kind: GlanceKind.counter, date: DateTime(2026, 10, 9)),
         ),
       );
-      await tester.tap(find.text('Add item'));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Add to Show'), findsOneWidget);
-      expect(find.text('Trip'), findsOneWidget);
+      await pump(tester, RotationEditor(session: session));
+      expect(find.text('New rotation'), findsOneWidget);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('Trip'));
+
+      await tester.tap(find.text('Add a card or animation'));
+      await settle(tester);
+      expect(find.text('Add to rotation'), findsOneWidget);
+      await tester.tap(find.text('Trip').last);
+      await settle(tester);
+
+      await tester.tap(find.text('Add a card or animation'));
+      await settle(tester);
+      await tester.tap(find.text('Animations'));
+      await tester.pump(const Duration(milliseconds: 200));
+      final first = session.catalog.search('').first;
+      await tester.tap(find.text(first.title).last);
+      await settle(tester);
+
+      // Move the animation above the card.
+      await tester.tap(find.byTooltip('More').last);
+      await settle(tester);
+      await tester.tap(find.text('Move up'));
+      await settle(tester);
+      // 10 s → 15 s on the first entry.
+      await tester.tap(find.bySemanticsLabel('10 seconds, tap to change').first);
       await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.text('Add item'));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.text('Library'));
-      await tester.pump(const Duration(milliseconds: 100));
-      final first = session.catalog.items.first;
-      await tester.tap(find.text(first.title));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.byTooltip('Move up').last);
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('1. ${first.title}'), findsOneWidget);
-      await tester.tap(find.byTooltip('Duration').first);
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.text('30 seconds'));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.scrollUntilVisible(
-        find.text('Save Show'),
-        150,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.runAsync(() async {
-        await tester.tap(find.text('Save Show'));
-      });
-      await tester.pump(const Duration(milliseconds: 100));
-      final show = session.store.shows.single;
-      expect(show.entries.first.kind, ShowEntryKind.library);
-      expect(show.entries.first.seconds, 30);
-      expect(show.entries.last.id, 'c');
+
+      await tester.scrollUntilVisible(find.text('Save rotation'), 150, scrollable: find.byType(Scrollable).first);
+      await tester.runAsync(() async => tester.tap(find.text('Save rotation')));
+      await settle(tester);
+      final rotation = session.store.shows.single;
+      expect(rotation.entries.first.kind, ShowEntryKind.library);
+      expect(rotation.entries.first.seconds, 15);
+      expect(rotation.entries.last.id, 'c');
       expect(tester.takeException(), isNull);
       expect(requests, 0);
     },

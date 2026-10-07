@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../engine/generators/sprite_library.dart';
 import 'catalog.dart';
+import 'catalog_key.dart';
 import 'remote_catalog.dart';
 
 /// Bundled first paint, an offline overlay, then opt-in foreground checks.
@@ -17,21 +19,31 @@ class CatalogStore extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
   }
 
+  /// `GLYPH_CATALOG_URL` (a directory URL) and `GLYPH_CATALOG_PUBLIC_KEY`
+  /// let a staging build point at a test deployment signed with a test key.
   static CatalogStore forApp(Catalog bundled) {
     const override = String.fromEnvironment('GLYPH_CATALOG_URL');
+    const keyOverride = String.fromEnvironment('GLYPH_CATALOG_PUBLIC_KEY');
     final endpoint = override.isEmpty ? RemoteCatalog.defaultUrl : override;
-    final uri = endpoint == null ? null : Uri.tryParse(endpoint);
+    final uri = Uri.tryParse(endpoint);
+    final key = keyOverride.isEmpty ? catalogPublicKey : keyOverride;
     return CatalogStore(
       bundled: bundled,
       remote:
-          uri != null &&
+          decodeCatalogKey(key) != null &&
+              uri != null &&
               uri.scheme == 'https' &&
               uri.host.isNotEmpty &&
               uri.userInfo.isEmpty &&
               !uri.hasQuery &&
               !uri.hasFragment &&
-              endpoint!.length <= 1024
-          ? RemoteCatalog(url: uri, cacheDir: getApplicationSupportDirectory)
+              endpoint.length <= 1024
+          ? RemoteCatalog(
+              url: uri,
+              cacheDir: getApplicationSupportDirectory,
+              publicKey: key,
+              appVersion: () async => (await PackageInfo.fromPlatform()).version,
+            )
           : null,
     );
   }
@@ -42,7 +54,9 @@ class CatalogStore extends ChangeNotifier with WidgetsBindingObserver {
   final RemoteCatalog? remote;
   final DateTime Function() _now;
   Catalog catalog;
-  int revision = 0;
+  int revision = 0, epoch = 0;
+  Set<String> revoked = const {};
+  bool needsNewerApp = false;
   List<String> dropped = const [];
   bool automatic = false, ready = false, checking = false, failed = false;
   DateTime? lastAttempt;
@@ -52,7 +66,7 @@ class CatalogStore extends ChangeNotifier with WidgetsBindingObserver {
   Future<void>? _loading, _checking;
   SharedPreferences? _prefs;
   String get _attemptKey => 'catalog.attempt.v1.${remote?.url}';
-  bool get enabled => remote != null;
+  bool get enabled => remote?.usable ?? false;
   int get downloaded =>
       catalog.items.where((i) => bundled.byId(i.id) == null).length;
 
@@ -77,8 +91,11 @@ class CatalogStore extends ChangeNotifier with WidgetsBindingObserver {
 
   void _apply(RemoteCatalogResult result) {
     SpriteLibrary.replaceRemote(result.sprites);
-    catalog = bundled.merge(result.catalog);
+    // Bundled items win; only the signed manifest can retire them.
+    catalog = bundled.merge(result.catalog, revoked: result.revoked);
     revision = result.revision;
+    epoch = result.epoch;
+    revoked = result.revoked;
     dropped = result.dropped;
   }
 
@@ -97,7 +114,7 @@ class CatalogStore extends ChangeNotifier with WidgetsBindingObserver {
       _checking ??= _check().whenComplete(() => _checking = null);
   Future<void> _check() async {
     await load();
-    if (_disposed || remote == null) return;
+    if (_disposed || !enabled) return;
     _timer?.cancel();
     checking = true;
     failed = false;
@@ -107,19 +124,23 @@ class CatalogStore extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await _prefs?.setInt(_attemptKey, lastAttempt!.millisecondsSinceEpoch);
     } catch (_) {}
-    final result = await remote!.fetch(bundled: catalog);
+    // One baseline everywhere: the bundled catalog, as on a cold start.
+    final result = await remote!.fetch(bundled: bundled);
     if (_disposed) return;
     checking = false;
     if (result == null) {
       failed = true;
-      message =
-          'Couldn’t check for animations. Your library is still available.';
-    } else {
-      final previous = revision;
+      needsNewerApp = remote!.needsNewerApp;
+      message = needsNewerApp
+          ? 'New animations need a newer version of Glyph. Your library is still available.'
+          : 'Couldn’t check for animations. Your library is still available.';
+    } else if (result.changed) {
+      needsNewerApp = false;
       _apply(result);
-      message = previous == revision
-          ? 'Your library is up to date.'
-          : 'Your library has been updated.';
+      message = 'Your library has been updated.';
+    } else {
+      needsNewerApp = false;
+      message = 'Your library is up to date.';
     }
     notifyListeners();
     _schedule();

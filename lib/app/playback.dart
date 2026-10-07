@@ -214,7 +214,15 @@ class PlaybackController extends ChangeNotifier {
   }
 
   void resume() {
-    if (_instance == null || _timer != null) return;
+    if (_instance == null) return;
+    // An alert's own timer is running: remember the user's intent so ending the
+    // alert doesn't stop playback again.
+    if (_alert != null && !_alert!.wasPlaying) {
+      _alert!.wasPlaying = true;
+      notifyListeners();
+      return;
+    }
+    if (_timer != null) return;
     _revision++;
     _clock.start();
     _timer = Timer.periodic(const Duration(microseconds: 1000000 ~/ fps), (_) => _tick());
@@ -344,7 +352,7 @@ class _PlaybackAlert {
   final EffectInstance effect;
   final Params params;
   final Palette palette;
-  final bool wasPlaying;
+  bool wasPlaying;
   final DdpGroupSender? group;
   double time = 0;
   Duration last = Duration.zero;

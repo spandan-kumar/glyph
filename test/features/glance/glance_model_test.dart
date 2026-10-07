@@ -84,8 +84,21 @@ void main() {
     expect(w.temperature(true), 23);
     expect(w.freshness(now), WeatherFreshness.fresh);
     expect(w.freshness(now, failed: true), WeatherFreshness.stale);
+    // A just-fetched reading never reads OLD because its 15-minute bucket is old.
+    final bucket = WeatherSnapshot(
+      observed: now.subtract(const Duration(minutes: 14)),
+      fetched: now,
+      celsius: 1,
+      code: 0,
+      isDay: true,
+    );
+    expect(bucket.freshness(now), WeatherFreshness.fresh);
     expect(
-      w.freshness(now.add(const Duration(minutes: 30))),
+      w.freshness(now.add(const Duration(minutes: 44))),
+      WeatherFreshness.fresh,
+    );
+    expect(
+      w.freshness(now.add(const Duration(minutes: 45))),
       WeatherFreshness.stale,
     );
     expect(

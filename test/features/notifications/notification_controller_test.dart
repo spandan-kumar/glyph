@@ -209,7 +209,7 @@ void main() {
   });
 
   test(
-    'pause cancels alert and queue without a stale restoration write',
+    'pause cancels alert and queue, and still leaves live mode on the same device',
     () async {
       await start();
       await controller.setApp('b', true);
@@ -220,7 +220,7 @@ void main() {
       await flush(220);
       expect(playback.isAlerting, isFalse);
       expect(controller.queued, 0);
-      expect(fake.posts.any((p) => p.$2.containsKey('live')), isFalse);
+      expect(fake.posts.last.$2, {'live': false});
     },
   );
 
@@ -340,19 +340,70 @@ void main() {
     },
   );
 
-  test(
-    'task removal clears monitoring even while access remains granted',
-    () async {
-      await start();
-      post('chat', 'a');
-      await flush();
-      bridge.add({'stopped': true});
-      await flush();
-      expect(controller.monitoring, isFalse);
-      expect(playback.isAlerting, isFalse);
-      expect(configurations.last, isEmpty);
-    },
-  );
+  test('foreign live source or an off device is never hijacked', () async {
+    await start();
+    fake.state['live'] = true;
+    post('chat', 'a');
+    await flush();
+    expect(playback.isAlerting, isFalse);
+    expect(fake.posts, isEmpty);
+    fake.state['live'] = false;
+    fake.state['on'] = false;
+    post('chat', 'b');
+    await flush();
+    expect(playback.isAlerting, isFalse);
+    expect(fake.posts, isEmpty);
+  });
+
+  test('lor is restored when the alert is abandoned after prepare', () async {
+    fake.state['lor'] = 2;
+    await start();
+    final owner = Object();
+    fake.beforeRequest = (r) async {
+      if (r.method == 'POST' && !playback.alertsBlocked) {
+        playback.blockAlerts(owner); // user tool starts while lor is changed
+      }
+    };
+    post('chat', 'a');
+    await flush();
+    fake.beforeRequest = null;
+    expect(fake.posts.map((p) => p.$2).first, {'lor': 0});
+    expect(fake.posts.map((p) => p.$2).last['lor'], 2);
+    expect(playback.isAlerting, isFalse);
+  });
+
+  test('lor 1 is not rewritten after an alert; WLED clears it itself', () async {
+    fake.state['lor'] = 1;
+    await start();
+    post('chat', 'a');
+    await flush(230);
+    expect(fake.posts.last.$2, {'live': false});
+  });
+
+  test('a user command on the same device still leaves live mode', () async {
+    await start();
+    post('chat', 'a');
+    await flush();
+    expect(playback.isAlerting, isTrue);
+    playback.pause(); // bumps revision like any user command
+    await flush();
+    expect(playback.isAlerting, isFalse);
+    expect(fake.posts.last.$2, {'live': false});
+  });
+
+  test('resume during an alert keeps playback running afterwards', () async {
+    playback.playGenerator(NotificationLogoGenerator(NotificationLogo.fallback));
+    playback.pause();
+    await start();
+    post('chat', 'a');
+    await flush();
+    expect(playback.isAlerting, isTrue);
+    playback.resume();
+    await flush(220);
+    expect(playback.isAlerting, isFalse);
+    expect(playback.isPlaying, isTrue);
+    playback.pause();
+  });
 
   test('stale notifications and future timestamps never play', () async {
     await start();

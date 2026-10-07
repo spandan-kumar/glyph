@@ -34,7 +34,8 @@ Partial foundations, not shipped features:
 
 - Catalog delivery is implemented in this unreleased checkout: bounded
   staging/cache, reactive app integration and a Pages workflow.
-  `defaultUrl` remains null until the Pages deployment is live and verified.
+  `defaultUrl` points at the Pages site, but the client stays off until the
+  maintainer replaces the placeholder signing key (docs/CATALOG_DELIVERY.md).
 - `NowPlayingListener` now also supplies opt-in logo notifications in this
   unreleased checkout. Permission is granted only by the person; physical
   Android/WLED QA remains.

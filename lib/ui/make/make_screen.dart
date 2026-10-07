@@ -4,9 +4,6 @@ import '../../engine/clip.dart';
 import '../../engine/generator.dart';
 import '../../features/audio/audio_screen.dart';
 import '../../features/glance/glance_screen.dart';
-import '../../features/glance/glance_generator.dart';
-import '../../features/glance/glance_model.dart';
-import '../../features/glance/weather.dart';
 import '../../features/editor/editor_screen.dart';
 import '../../features/games/catalog.dart';
 import '../../features/games/games_screen.dart';
@@ -35,7 +32,7 @@ class MakeScreen extends StatefulWidget {
 
 class _MakeScreenState extends State<MakeScreen> {
   // Built once so the previews keep running across rebuilds.
-  final _glance = GlanceCardGenerator(GlanceCard(id: 'demo', title: 'A big day', kind: GlanceKind.counter, date: DateTime(2026, 1, 1), mode: CounterMode.since), const _DemoWeather());
+  final _glance = glanceDemo();
   final _draw = ClipGenerator(drawDemoClip, title: 'Draw');
   final _write = writeDemo();
   final _clock = clockDemo();
@@ -117,16 +114,21 @@ class _MakeScreenState extends State<MakeScreen> {
                       generator: _music,
                       onTap: () => _open(const AudioScreen()),
                     ),
-                    nowPlaying: _StudioBanner(
+                    nowPlaying: _StudioTile(
                       label: 'Now Playing',
-                      line: 'Album art, live',
+                      line: 'Album art',
                       generator: _nowPlaying,
                       onTap: () => _open(const NowPlayingScreen()),
                     ),
-                    glance: _StudioBanner(label: 'Glance', line: 'Weather & days that matter', generator: _glance, onTap: () => _open(const GlanceScreen())),
-                    notifications: _StudioBanner(
-                      label: 'Notifications',
-                      line: 'A little nudge',
+                    glance: _StudioTile(
+                      label: 'Glance',
+                      line: 'Live cards',
+                      generator: _glance,
+                      onTap: () => _open(const GlanceScreen()),
+                    ),
+                    notifications: _StudioTile(
+                      label: 'Alerts',
+                      line: 'App logos',
                       generator: _notifications,
                       onTap: () => _open(const NotificationScreen()),
                     ),
@@ -186,7 +188,7 @@ class _MakeScreenState extends State<MakeScreen> {
   }
 }
 
-/// Eight tools on a three-column grid, read in order:
+/// Ten tools on a three-column grid, read in order:
 ///
 ///     ┌───────────┬─────┐
 ///     │           │Write│
@@ -194,14 +196,17 @@ class _MakeScreenState extends State<MakeScreen> {
 ///     │           │Clock│
 ///     ├─────┬─────┼─────┤
 ///     │Timer│ GIF │Music│
+///     └─────┴─────┴─────┘
+///      LIVE FROM YOUR PHONE
+///     ┌─────┬─────┬─────┐
+///     │ Now │Glanc│Alert│
 ///     ├─────┴─────┴─────┤
-///     │ Now Playing ▸ ░ │   a cover and its song name, wide
-///     ├─────────────────┤
 ///     │ Play ▸ ░░░░░░░░ │   arcade marquee, game running wide
 ///     └─────────────────┘
 ///
 /// Draw is the big one (2×2); the text tools start beside it and spill into
-/// the row below; the live tools and Play close the studio as full-width strips.
+/// the row below. The tools that need the phone to stay connected sit on
+/// their own labelled row; Play closes the studio as a full-width strip.
 class _StudioGrid extends StatelessWidget {
   const _StudioGrid({
     required this.draw,
@@ -254,12 +259,13 @@ class _StudioGrid extends StatelessWidget {
               ),
               const SizedBox(height: _gap),
               row([timer, gif, music]),
-              const SizedBox(height: _gap),
-              SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: nowPlaying),
-              const SizedBox(height: _gap),
-              SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: notifications),
-              const SizedBox(height: _gap),
-              SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: glance),
+              // Tools that stay live from the phone get their own shelf, so
+              // nobody expects them to run with the phone away.
+              const Padding(
+                padding: EdgeInsets.fromLTRB(2, 24, 2, 10),
+                child: Align(alignment: Alignment.centerLeft, child: MonoLabel('Live from your phone')),
+              ),
+              row([nowPlaying, glance, notifications]),
               const SizedBox(height: _gap),
               SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: play),
             ]);
@@ -393,12 +399,4 @@ class _StudioTile extends StatelessWidget {
           ],
         ),
       );
-}
-
-class _DemoWeather implements WeatherFeed {
-  const _DemoWeather();
-  @override
-  WeatherSnapshot? snapshot(WeatherPlace place) => null;
-  @override
-  bool failed(WeatherPlace place) => false;
 }

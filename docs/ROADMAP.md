@@ -81,7 +81,7 @@ Ranked from forum, Reddit and GitHub evidence.
 | 6 | Local, no cloud, no account | Pixoo, LaMetric, Tidbyt | core works locally; future external feeds explicitly optional |
 | 7 | Easy custom pixel art | WLED | yes |
 | 8 | Now Playing album art | Tidbyt, Pixoo | yes |
-| 9 | Content rotation with a UI, not YAML | WLED, Tidbyt | device Shows shipped; phone Shows implemented, unreleased |
+| 9 | Content rotation with a UI, not YAML | WLED, Tidbyt | device Shows shipped; phone Rotations (Glance) implemented, unreleased |
 | 10 | Counters (days until/since) | Tidbyt, AWTRIX | partial → v1.4 |
 | 11 | Busy light, night modes | Tidbyt, AWTRIX | partial (Routines) → notifications |
 | 12 | Stocks/crypto | Tidbyt | after core Glance; provider/usage validation required |

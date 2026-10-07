@@ -49,6 +49,11 @@ class DeviceStore extends ChangeNotifier {
   Timer? _briTimer;
   int _stateGen = 0;
 
+  /// Latest preset/nightlight write; a newer one supersedes an older one's
+  /// optimistic state. Separate from [_stateGen], which polls and brightness
+  /// drags bump without making our own write any less true.
+  int _presetWrite = 0, _nightlightWrite = 0;
+
   Set<String> _mirrorHosts = {};
   final _peerInfo = <String, WledInfo>{};
   final _peerOnline = <String, bool>{};
@@ -392,11 +397,12 @@ class DeviceStore extends ChangeNotifier {
     final c = _client;
     if (c == null) return;
     _controlGen++;
-    final selection = _selectionGen, gen = ++_stateGen;
+    final selection = _selectionGen, write = ++_presetWrite, gen = ++_stateGen;
     await c.applyPreset(id);
-    if (!isCurrent(c, selection) || gen != _stateGen) return;
+    if (!isCurrent(c, selection) || write != _presetWrite) return;
     _presetId = id;
-    _on = true;
+    // Power is only assumed on when nothing else wrote meanwhile.
+    if (gen == _stateGen) _on = true;
     _stateGen++;
     notifyListeners();
     // Presets load asynchronously on the device.
@@ -409,11 +415,11 @@ class DeviceStore extends ChangeNotifier {
     final c = _client;
     if (c == null) return;
     _controlGen++;
-    final selection = _selectionGen, gen = ++_stateGen;
+    final selection = _selectionGen, write = ++_nightlightWrite, gen = ++_stateGen;
     await c.setNightlight(on: on, minutes: minutes, mode: mode, targetBri: targetBri);
-    if (!isCurrent(c, selection) || gen != _stateGen) return;
+    if (!isCurrent(c, selection) || write != _nightlightWrite) return;
     _nightlight = on;
-    if (on) _on = true;
+    if (on && gen == _stateGen) _on = true;
     _stateGen++;
     notifyListeners();
   }
@@ -509,6 +515,14 @@ class DeviceStore extends ChangeNotifier {
 /// → "spooky-swirl.gif"). LittleFS paths on WLED are short, so it's capped.
 String keptFileName(String title) {
   var slug = title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
-  if (slug.length > 24) slug = slug.substring(0, 24);
+  if (slug.length > 24) {
+    // A hash of the whole slug keeps two long titles with the same start
+    // from sharing a file (and so a preset or the "playing" match).
+    var h = 0x811c9dc5;
+    for (final c in slug.codeUnits) {
+      h = ((h ^ c) * 0x01000193) & 0xffffffff;
+    }
+    slug = '${slug.substring(0, 19).replaceAll(RegExp(r'-+$'), '')}-${(h & 0xffff).toRadixString(16).padLeft(4, '0')}';
+  }
   return '$slug.gif';
 }

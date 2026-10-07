@@ -10,6 +10,7 @@ import '../engine/frame.dart';
 import '../app/background.dart';
 import '../app/community.dart';
 import '../app/devices.dart';
+import '../app/playback.dart';
 import '../engine/gif_baker.dart';
 import '../engine/gif_encoder.dart';
 import '../engine/palette.dart';
@@ -24,6 +25,93 @@ const alreadyOnDeviceMessage = 'Already on your device';
 
 /// Why a live-only look (see [Generator.liveOnly]) wasn't sent.
 const liveOnlyMessage = 'This one follows your phone live, so it stays on your phone.';
+
+/// How a Send ended. UI branches on the type, never on message text.
+sealed class SendResult {
+  const SendResult();
+
+  /// The words to show or log; null when the Send was stopped quietly.
+  String? get message;
+}
+
+/// The look is on the device and playing from it.
+final class Sent extends SendResult {
+  const Sent(this.kb);
+  final double kb;
+  @override
+  String get message => 'Sent to your device (${kb.toStringAsFixed(1)} KB). It keeps playing without your phone.';
+}
+
+/// The device already holds exactly these bytes; nothing was uploaded.
+final class AlreadyOnDevice extends SendResult {
+  const AlreadyOnDevice();
+  @override
+  String get message => alreadyOnDeviceMessage;
+}
+
+/// What or where it was sending changed ([reason] reads "you switched
+/// device"); the device was left as it was.
+final class Cancelled extends SendResult {
+  const Cancelled(this.reason);
+  final String reason;
+  @override
+  String? get message => null;
+}
+
+/// It couldn't be sent ([liveOnly]: by design, the look follows the phone).
+final class Failed extends SendResult {
+  const Failed(this.message, {this.liveOnly = false});
+  @override
+  final String message;
+  final bool liveOnly;
+}
+
+/// What a Send is sending and where, taken when it starts. Brightness,
+/// power, pause/resume, tweaks and backgrounding don't change either (the
+/// GIF is already baked from a snapshot) and must not cancel it.
+class _SendGuard {
+  _SendGuard(this.context, this.devices, this.playback, this.client)
+      : selection = devices.selectionGeneration,
+        generator = playback.generator,
+        itemId = playback.item?.id,
+        width = devices.caps?.width,
+        height = devices.caps?.height,
+        layout = _layoutKey(devices);
+
+  final BuildContext context;
+  final DeviceStore devices;
+  final PlaybackController playback;
+  final WledClient client;
+  final int selection;
+  final Generator? generator;
+  final String? itemId;
+  final int? width, height;
+  final String layout;
+
+  static String _layoutKey(DeviceStore d) => '${d.selected?.layout.toJson()}';
+
+  bool get deviceCurrent => devices.isCurrent(client, selection);
+
+  /// Why the Send can't go on ("you switched device"), or null while it can.
+  String? get stopped {
+    if (!context.mounted) return 'the screen was closed';
+    if (!deviceCurrent) return 'you switched device';
+    if (!identical(playback.generator, generator) || playback.item?.id != itemId) {
+      return 'you picked a different look';
+    }
+    final caps = devices.caps;
+    if (caps == null || caps.width != width || caps.height != height || _layoutKey(devices) != layout) {
+      return 'the device layout changed';
+    }
+    return null;
+  }
+
+  bool get ok => stopped == null;
+}
+
+class _SendStopped implements Exception {
+  const _SendStopped();
+}
 
 /// User-level operations that touch both playback and the device.
 abstract final class GlyphActions {
@@ -73,12 +161,16 @@ abstract final class GlyphActions {
   /// frames; anything else (games, audio) is recorded for about 4 s. Effects
   /// are baked as seamless loops (renderLoop), since the matrix replays the
   /// GIF end to start forever.
-  static Future<String?> saveToDevice(BuildContext context, {Future<void> Function()? onUpload}) async {
+  static Future<String?> saveToDevice(BuildContext context, {Future<void> Function()? onUpload}) async =>
+      (await sendToDevice(context, onUpload: onUpload)).message;
+
+  /// [saveToDevice] with a typed outcome.
+  static Future<SendResult> sendToDevice(BuildContext context, {Future<void> Function()? onUpload}) async {
     final s = AppScope.of(context);
     final caps = s.devices.caps;
     final g = s.playback.generator;
-    if (g != null && g.liveOnly) return liveOnlyMessage;
-    if (caps == null || g == null) return null;
+    if (g != null && g.liveOnly) return const Failed(liveOnlyMessage, liveOnly: true);
+    if (caps == null || g == null) return const Cancelled('nothing is playing on a connected device');
     final title = s.playback.item?.title ?? g.name;
     final w = caps.width, h = caps.height;
     // On weak Wi-Fi a shorter, lighter loop uploads far more reliably. Keep
@@ -88,7 +180,7 @@ abstract final class GlyphActions {
     const fps = deviceGifFps;
 
     if (g is ClipGenerator) {
-      return saveClipToDevice(context, g.clip, title, onUpload: onUpload,
+      return sendClipToDevice(context, g.clip, title, onUpload: onUpload,
           speed: s.playback.params['speed'] * s.playback.timeScale);
     }
     final Future<Uint8List> bytes;
@@ -122,10 +214,15 @@ abstract final class GlyphActions {
   }
 
   static Future<String?> saveClipToDevice(
+          BuildContext context, FrameClip clip, String title,
+          {Future<void> Function()? onUpload, double speed = 1}) async =>
+      (await sendClipToDevice(context, clip, title, onUpload: onUpload, speed: speed)).message;
+
+  static Future<SendResult> sendClipToDevice(
       BuildContext context, FrameClip clip, String title,
       {Future<void> Function()? onUpload, double speed = 1}) async {
     final caps = AppScope.of(context).devices.caps;
-    if (caps == null) return null;
+    if (caps == null) return const Cancelled('no device is connected');
     final fitted = clip.fitTo(caps.width, caps.height);
     // Keep each frame's own timing. GIF delays are whole centiseconds (min
     // 2), so round each frame's end time rather than each delay: the loop
@@ -141,7 +238,7 @@ abstract final class GlyphActions {
     return _upload(context, title, compute(_encodeClip, (fitted.frames, delays)), onUpload: onUpload);
   }
 
-  static Future<String?> _upload(
+  static Future<SendResult> _upload(
     BuildContext context,
     String title,
     Future<Uint8List> encoding, {
@@ -150,35 +247,33 @@ abstract final class GlyphActions {
     final s = AppScope.of(context);
     final d = s.devices;
     final caps = d.caps, client = d.client;
-    if (caps == null || client == null) return null;
-    final selection = d.selectionGeneration, control = d.controlGeneration;
-    final playback = s.playback, revision = playback.revision;
-    var stream = playback.streamGeneration;
+    if (caps == null || client == null) return const Cancelled('no device is connected');
+    final playback = s.playback;
+    final guard = _SendGuard(context, d, playback, client);
     final throttle = Object();
     playback.blockAlerts(throttle);
-    bool current() =>
-        context.mounted &&
-        d.isCurrent(client, selection) &&
-        control == d.controlGeneration &&
-        revision == playback.revision &&
-        stream == playback.streamGeneration;
+    bool current() => guard.ok;
+    SendResult stop() {
+      final why = guard.stopped ?? 'something changed';
+      // Said out loud, so a Send never just vanishes.
+      if (context.mounted) _toast(context, 'Send stopped — $why.');
+      return Cancelled(why);
+    }
+
     if (!caps.canPlayGifs) {
       playback.unblockAlerts(throttle);
-      return _fail(
-        context,
-        'This controller can\'t play GIFs. Live streaming still works.',
-      );
+      return Failed(_fail(context, 'This controller can\'t play GIFs. Live streaming still works.'));
     }
     try {
       final bytes = await encoding;
-      if (!current()) return null;
+      if (!current()) return stop();
       // Keep the current look on the matrix while the file uploads (a slow
       // trickle of frames holds live mode); switch only once it's saved.
       var fileName = keptFileName(title);
       if (fileName == BootIntro.fileName) fileName = 'my-$fileName';
       var alreadySaved = false;
       final presetId = await client.withPresetMutation(() async {
-        if (!current()) throw WledException('Send cancelled: playback changed');
+        if (!current()) throw const _SendStopped();
         final existing = await _existingPreset(client, title, fileName);
         if (existing?.gifName != null) {
           try {
@@ -194,10 +289,13 @@ abstract final class GlyphActions {
             // A missing or unreadable old file can be repaired by sending it.
           }
         }
-        if (!current()) throw WledException('Send cancelled: playback changed');
-        if (!caps.fitsFile(bytes.length)) throw WledException('Not enough space on the controller.');
+        if (!current()) throw const _SendStopped();
+        // The file this replaces goes once the switch is done, so it counts
+        // as free space.
+        final credit = await client.reclaimableBytes(existing?.id, fileName);
+        if (!caps.fitsFile(bytes.length - credit)) throw WledException('Not enough space on the controller.');
         await onUpload?.call();
-        if (!current()) throw WledException('Send cancelled: playback changed');
+        if (!current()) throw const _SendStopped();
         playback.throttleStream(throttle);
         return client.saveGifToDevice(
           fileName: fileName,
@@ -211,9 +309,7 @@ abstract final class GlyphActions {
           beforeSwitch: () async {
             if (!current()) return;
             playback.releaseStreamThrottle(throttle);
-            final stopped = playback.stopStreaming();
-            stream = playback.streamGeneration;
-            await stopped;
+            await playback.stopStreaming();
             if (!current()) return;
             await BackgroundStreaming.stop();
             if (!current()) return;
@@ -226,26 +322,32 @@ abstract final class GlyphActions {
           },
         );
       });
-      if (!current()) return null;
-      if (alreadySaved && context.mounted) {
+      // The device is done; only touch app state if it's still the one
+      // the user is looking at.
+      if (!guard.deviceCurrent || !context.mounted) {
+        if (alreadySaved) return const AlreadyOnDevice();
+        return Sent(bytes.length / 1024);
+      }
+      if (alreadySaved) {
         _toast(context, alreadyOnDeviceMessage,
-            action: SnackBarAction(label: 'Play it', onPressed: () => _playSaved(context, client, selection, presetId)));
-        return alreadyOnDeviceMessage;
+            action: SnackBarAction(label: 'Play it', onPressed: () => _playSaved(context, client, guard.selection, presetId)));
+        return const AlreadyOnDevice();
       }
       await d.refresh();
-      if (!current()) return null;
+      if (!guard.deviceCurrent) return Sent(bytes.length / 1024);
       d.noteKept(presetId, title);
-      final kb = (bytes.length / 1024).toStringAsFixed(1);
-      return context.mounted
-          ? _report(
-              context,
-              'Sent to your device ($kb KB). It keeps playing without your phone.',
-            )
-          : null;
+      final sent = Sent(bytes.length / 1024);
+      if (context.mounted) _report(context, sent.message);
+      return sent;
+    } on _SendStopped {
+      return stop();
     } catch (e) {
-      if (!current()) return null;
+      // A failure that follows the user's own change reads as that change.
+      if (guard.stopped != null) return stop();
       final why = e is WledException ? e.message : '$e';
-      return context.mounted ? _fail(context, 'Couldn\'t send it: $why') : null;
+      return Failed(context.mounted
+          ? _fail(context, 'Couldn\'t send it: $why')
+          : 'Couldn\'t send it: $why');
     } finally {
       playback.releaseStreamThrottle(throttle);
       playback.unblockAlerts(throttle);

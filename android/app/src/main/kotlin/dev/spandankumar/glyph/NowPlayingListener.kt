@@ -2,27 +2,37 @@ package dev.spandankumar.glyph
 
 import android.content.ComponentName
 import android.provider.Settings
-import android.content.Intent
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 
 /** Also grants media-session access for Now Playing. No notification extras are read. */
 class NowPlayingListener : NotificationListenerService() {
     companion object {
-        var connected = false
+        @Volatile var connected = false
             private set
-        var emit: ((Map<String, Any?>) -> Unit)? = null
+        private val sink = AlertSinkOwner()
         private val filter = NotificationAlertFilter()
 
-        fun configure(packages: Set<String>) {
-            filter.configure(packages)
+        /** The newest bridge owns the event sink; an older one can't clear it later. */
+        fun attach(owner: Any, emit: (Map<String, Any?>) -> Unit) {
+            sink.attach(owner, emit)
+            filter.configure(emptySet())
+        }
+
+        /** No-op unless [owner] is still the current owner. */
+        fun detach(owner: Any) {
+            if (sink.detach(owner)) filter.configure(emptySet())
+        }
+
+        fun configure(owner: Any, packages: Set<String>) {
+            if (sink.owns(owner)) filter.configure(packages)
         }
     }
 
     override fun onListenerConnected() {
         connected = true
         filter.reset()
-        emit?.invoke(mapOf("access" to true, "connected" to true))
+        sink.emit(mapOf("access" to true, "connected" to true))
         // Never enumerate activeNotifications: granting access must not replay history.
     }
 
@@ -32,25 +42,19 @@ class NowPlayingListener : NotificationListenerService() {
         val enabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
         val component = ComponentName(this, NowPlayingListener::class.java)
         val access = enabled?.split(':')?.any { ComponentName.unflattenFromString(it) == component } == true
-        emit?.invoke(mapOf("access" to access, "connected" to false))
-    }
-
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        configure(emptySet())
-        emit?.invoke(mapOf("stopped" to true))
-        super.onTaskRemoved(rootIntent)
+        sink.emit(mapOf("access" to access, "connected" to false))
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        if (!connected || emit == null || sbn.packageName == packageName) return
+        if (!connected || !sink.active || sbn.packageName == packageName) return
         val n = sbn.notification
         if (!filter.accept(sbn.packageName, sbn.key, n.flags, n.category)) return
-        emit?.invoke(mapOf("package" to sbn.packageName, "key" to sbn.key,
+        sink.emit(mapOf("package" to sbn.packageName, "key" to sbn.key,
             "time" to System.currentTimeMillis(),
             "icon" to NotificationAlertsBridge.appIcon(this, sbn.packageName)))
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        if (filter.remove(sbn.key)) emit?.invoke(mapOf("removed" to sbn.key))
+        if (filter.remove(sbn.key)) sink.emit(mapOf("removed" to sbn.key))
     }
 }

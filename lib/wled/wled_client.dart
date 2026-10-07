@@ -28,13 +28,18 @@ class WledException implements Exception {
 /// WLED JSON/HTTP API. Endpoints verified against wled/WLED v16.0.1 and
 /// v0.14.4 sources (wled00/wled_server.cpp, json.cpp, presets.cpp).
 class WledClient {
-  WledClient(this.host, {http.Client? client})
+  WledClient(this.host, {http.Client? client, Future<void> Function(Duration)? delay})
       : _http = client ?? http.Client(),
+        _delay = delay ?? Future<void>.delayed,
         _base = Uri.parse('http://${_authority(host)}');
 
   static const timeout = Duration(seconds: 4);
   static const uploadTimeout = Duration(seconds: 40);
-  static const presetSaveSettle = Duration(milliseconds: 700);
+
+  /// presets.json writes finish in the device loop after the HTTP reply, so a
+  /// write is confirmed by polling the file instead of sleeping a fixed time.
+  static const presetPollInterval = Duration(milliseconds: 120);
+  static const presetPollTimeout = Duration(seconds: 3);
   static final _presetQueues = <String, Future<void>>{};
   static final _mutationKey = Object();
 
@@ -46,6 +51,7 @@ class WledClient {
   final String host;
   final http.Client _http;
   final Uri _base;
+  final Future<void> Function(Duration) _delay;
   final _createdGifs = <String>{};
 
   /// Boot rewrites and JSON preset saves must share a queue, even when two
@@ -130,12 +136,52 @@ class WledClient {
   Future<void> setState(Map<String, dynamic> s) {
     if (s.containsKey('psave') || s.containsKey('pdel')) {
       return withPresetMutation(() async {
+        final id = (s['psave'] ?? s['pdel']);
+        final before = id is int ? await _presetEntry(id) : null;
         await _setState(s);
         // The HTTP response precedes the device-loop filesystem write.
-        await Future<void>.delayed(presetSaveSettle);
+        if (id is! int) return;
+        if (s.containsKey('pdel')) {
+          await _pollPreset(id, (e) => e == null);
+        } else {
+          final name = s['n'];
+          final old = before == null ? null : jsonEncode(before);
+          await _pollPreset(
+            id,
+            (e) =>
+                e != null &&
+                (old == null || jsonEncode(e) != old) &&
+                (name is! String || e['n'] == name),
+          );
+        }
       });
     }
     return _setState(s);
+  }
+
+  /// The raw presets.json entry for [id]; null when absent or unreadable.
+  Future<Map<String, dynamic>?> _presetEntry(int id) async {
+    try {
+      final all = await _getMap('/presets.json');
+      final e = all['$id'];
+      return e is Map && e.isNotEmpty ? Map<String, dynamic>.from(e) : null;
+    } on WledException {
+      return null;
+    }
+  }
+
+  /// Polls presets.json until [done] accepts entry [id] or
+  /// [presetPollTimeout] passes (then carries on: the write may simply have
+  /// changed nothing). Time is counted in [presetPollInterval] steps through
+  /// the injectable delay, so tests need no real waiting.
+  Future<void> _pollPreset(int id, bool Function(Map<String, dynamic>? entry) done) async {
+    var waited = Duration.zero;
+    while (true) {
+      if (done(await _presetEntry(id))) return;
+      if (waited >= presetPollTimeout) return;
+      await _delay(presetPollInterval);
+      waited += presetPollInterval;
+    }
   }
 
   Future<void> _setState(Map<String, dynamic> s) async {
@@ -337,9 +383,13 @@ class WledClient {
         );
       }
     }
-    if (!caps.fitsFile(gif.length)) {
+    // The file this send replaces is deleted after the switch, so its space
+    // counts as free (see [_replacedFile]).
+    final replaced = _replacedFile(presetId, presets, listing, fileName);
+    final credit = replaced == null ? 0 : listing['/$replaced'] ?? 0;
+    if (!caps.fitsFile(gif.length - credit)) {
       final freeKb =
-          (caps.freeFsBytes - DeviceCapabilities.fsSafetyMarginBytes) ~/ 1024;
+          (caps.freeFsBytes + credit - DeviceCapabilities.fsSafetyMarginBytes) ~/ 1024;
       throw WledException(
         'GIF is ${(gif.length / 1024).ceil()} KB but the device has only '
         '${freeKb < 0 ? 0 : freeKb} KB free',
@@ -366,21 +416,21 @@ class WledClient {
       } on WledException {
         // A lost HTTP reply can follow a successful asynchronous device write.
         // The staged filename is unique, so an older Saved entry cannot match.
-        await Future<void>.delayed(presetSaveSettle);
+        final label = presetName.length > 32 ? presetName.substring(0, 32) : presetName;
+        await _pollPreset(pid, (e) => e != null && e['n'] == label);
         WledPreset? saved;
         try {
           saved = (await presetList()).where((p) => p.id == pid).firstOrNull;
         } on WledException {
           // Keep the original failure when the write cannot be confirmed.
         }
-        final label = presetName.length > 32 ? presetName.substring(0, 32) : presetName;
         if (saved?.name != label || saved?.gifName != name ||
             saved?.effectId != fx || saved?.body['on'] != true) {
           rethrow;
         }
       }
-      // Only retire files this client created, and never shared content.
-      if (previous != null && _createdGifs.contains(previous)) {
+      // Retire the file this look used before, once nothing plays or saves it.
+      if (previous != null && (replaced == previous || _createdGifs.contains(previous))) {
         try {
           final saved = await presetList();
           final segs = (await state())['seg'];
@@ -404,6 +454,30 @@ class WledClient {
       rethrow;
     }
   });
+
+  /// The GIF that preset [presetId] plays today, when this send may retire
+  /// it: no other preset uses it and its name is one Glyph generates for
+  /// [fileName] (never the boot intro or a file the user uploaded). Holds
+  /// across app restarts, unlike [_createdGifs].
+  String? _replacedFile(int? presetId, List<WledPreset> presets, Map<String, int> listing, String fileName) {
+    final old = presets.where((p) => p.id == presetId).firstOrNull?.gifName;
+    if (old == null || old == 'glyph-intro.gif' || !listing.containsKey('/$old')) return null;
+    if (presets.any((p) => p.id != presetId && p.gifName == old)) return null;
+    return matchesGifName(fileName, old) || _createdGifs.contains(old) ? old : null;
+  }
+
+  /// Bytes a send of [fileName] over preset [presetId] gives back once it
+  /// has switched, so a near-full device isn't refused for a swap.
+  Future<int> reclaimableBytes(int? presetId, String fileName) async {
+    if (presetId == null) return 0;
+    try {
+      final listing = await files();
+      final old = _replacedFile(presetId, await presetList(), listing, fileName);
+      return old == null ? 0 : listing['/$old'] ?? 0;
+    } on WledException {
+      return 0;
+    }
+  }
 
   /// Replacement files retain enough of the original name for catalog
   /// matching after restarting the app.

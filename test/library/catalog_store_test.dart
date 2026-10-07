@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/engine/generators/sprite_library.dart';
 import 'package:glyph/engine/registry.dart';
 import 'package:glyph/library/catalog.dart';
+import 'package:glyph/library/catalog_key.dart';
 import 'package:glyph/library/catalog_store.dart';
 import 'package:glyph/library/remote_catalog.dart';
 import 'package:glyph/library/user_library.dart';
@@ -14,12 +15,15 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'catalog_fixture.dart';
 import 'remote_fixture.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory dir;
   late DateTime now;
+  late TestKey key;
+  setUpAll(() async => key = await TestKey.create());
   final base = Catalog.parse(
     File('assets/catalog/starter.json').readAsStringSync(),
   );
@@ -33,15 +37,19 @@ void main() {
     SpriteLibrary.replaceRemote([]);
     await dir.delete(recursive: true);
   });
-  CatalogStore store(http.Client client) {
+  RemoteCatalog remoteFor(http.Client client, {String? version}) =>
+      RemoteCatalog(
+        url: Uri.parse('https://example.com/glyph/'),
+        client: client,
+        cacheDir: () async => dir,
+        publicKey: base64.encode(key.publicKey),
+        appVersion: version == null ? null : () => version,
+      );
+  CatalogStore store(http.Client client, {String? version}) {
     final s = CatalogStore(
       bundled: base,
       now: () => now,
-      remote: RemoteCatalog(
-        url: Uri.parse('https://example.com/catalog.json'),
-        client: client,
-        cacheDir: () async => dir,
-      ),
+      remote: remoteFor(client, version: version),
     );
     addTearDown(s.dispose);
     return s;
@@ -57,34 +65,36 @@ void main() {
     }
   }
 
+  Map<String, dynamic> smaller(int revision) => {
+    ...remoteDocument(revision: revision),
+    'sprites': [],
+    'items': [(remoteDocument()['items'] as List).first],
+  };
+
   test('first paint is bundled, manual-only by default; cache restart is offline and keeps personal IDs', () async {
-    var calls = 0;
-    final s = store(
-      MockClient((_) async {
-        calls++;
-        return http.Response(jsonEncode(remoteDocument()), 200);
-      }),
-    );
+    final host = FakeHost(await signedFixture(key));
+    final s = store(host.client);
     expect(identical(s.catalog, base), isTrue);
     await s.load();
-    expect(calls, 0);
+    expect(host.requests, isEmpty);
     expect(s.automatic, isFalse);
     final library = UserLibrary();
     await library.toggleFavourite('remote-dot-item');
     await library.markPlayed('remote-dot-item');
     await s.check();
-    expect(calls, 1);
+    expect(host.count('manifest-v1.json'), 1);
     expect(s.downloaded, 2);
     expect(s.revision, 4);
+    expect(s.epoch, 0);
     expect(findGenerator('sprite:remote-dot'), isNotNull);
+    final calls = host.requests.length;
     final offline = store(
       MockClient((_) async {
-        calls++;
         throw const SocketException('offline');
       }),
     );
     await offline.load();
-    expect(calls, 1);
+    expect(host.requests.length, calls);
     expect(offline.catalog.byId('remote-dot-item'), isNotNull);
     expect(library.favourites, contains('remote-dot-item'));
     expect(library.recents, ['remote-dot-item']);
@@ -96,31 +106,27 @@ void main() {
   });
 
   test('manual checks share an in-flight request and retire unused downloads without changing held generators', () async {
-    var calls = 0;
-    final gate = Completer<http.Response>();
+    final host = FakeHost(await signedFixture(key), etag: null);
+    final gate = Completer<void>();
+    var first = true;
     final s = store(
-      MockClient((_) async {
-        calls++;
-        return calls == 1
-            ? gate.future
-            : http.Response(
-                jsonEncode({
-                  ...remoteDocument(revision: 5),
-                  'sprites': [],
-                  'items': [(remoteDocument()['items'] as List).first],
-                }),
-                200,
-              );
+      MockClient((req) async {
+        if (first) {
+          first = false;
+          await gate.future;
+        }
+        return host.client.get(req.url);
       }),
     );
     await s.load();
     final a = s.check(), b = s.check();
     expect(identical(a, b), isTrue);
-    gate.complete(http.Response(jsonEncode(remoteDocument()), 200));
+    gate.complete();
     await a;
     final held = findGenerator('sprite:remote-dot')!;
+    host.set = await key.publish(smaller(5));
     await s.check();
-    expect(calls, 2);
+    expect(s.revision, 5);
     expect(s.catalog.byId('remote-dot-item'), isNull);
     expect(findGenerator('sprite:remote-dot'), isNull);
     expect(held.id, 'sprite:remote-dot');
@@ -175,54 +181,117 @@ void main() {
     expect(calls, 2);
   });
 
-  test(
-    'lower revision rollback refreshes library without wiping favourites',
-    () async {
-      var body = jsonEncode(remoteDocument());
-      final s = store(MockClient((_) async => http.Response(body, 200)));
-      await s.check();
-      final library = UserLibrary();
-      await library.toggleFavourite('remote-dot-item');
-      body = jsonEncode({
-        ...remoteDocument(revision: 3),
-        'sprites': [],
-        'items': [(remoteDocument()['items'] as List).first],
-      });
-      await s.check();
-      expect(s.revision, 3);
-      expect(s.catalog.byId('remote-dot-item'), isNull);
-      expect(library.favourites, contains('remote-dot-item'));
-      library.dispose();
-    },
-  );
+  test('an epoch rollback refreshes the library without wiping favourites', () async {
+    final host = FakeHost(await signedFixture(key), etag: null);
+    final s = store(host.client);
+    await s.check();
+    final library = UserLibrary();
+    await library.toggleFavourite('remote-dot-item');
+    // Older content republished at the same revision under a higher epoch.
+    host.set = await key.publish(smaller(3), revision: 4, epoch: 1);
+    await s.check();
+    expect((s.revision, s.epoch), (4, 1));
+    expect(s.message, 'Your library has been updated.');
+    expect(s.catalog.byId('remote-dot-item'), isNull);
+    expect(library.favourites, contains('remote-dot-item'));
+    // A replay of the original is ignored.
+    host.set = await signedFixture(key);
+    await s.check();
+    expect(s.epoch, 1);
+    expect(s.message, 'Your library is up to date.');
+    library.dispose();
+  });
+
+  test('a signed takedown hides bundled and downloaded items, and survives restart', () async {
+    final bundledId = base.items.firstWhere((i) => i.id != 'ocean-plasma').id;
+    final host = FakeHost(await signedFixture(key), etag: null);
+    final s = store(host.client);
+    await s.check();
+    expect(s.catalog.byId(bundledId), isNotNull);
+    host.set = await key.publish(
+      remoteDocument(),
+      revision: 5,
+      revoked: [bundledId, 'remote-plasma'],
+    );
+    await s.check();
+    expect(s.revoked, {bundledId, 'remote-plasma'});
+    expect(s.catalog.byId(bundledId), isNull);
+    expect(s.catalog.byId('remote-plasma'), isNull);
+    expect(s.catalog.byId('remote-dot-item'), isNotNull);
+    final restarted = store(host.client);
+    await restarted.load();
+    expect(restarted.catalog.byId(bundledId), isNull);
+    expect(restarted.catalog.byId('remote-plasma'), isNull);
+    // The bundled catalog itself is untouched, only the overlay hides it.
+    expect(base.byId(bundledId), isNotNull);
+  });
+
+  test('an unsigned or forged catalog never reaches the library', () async {
+    final other = await TestKey.create();
+    final s = store(FakeHost(await signedFixture(other)).client);
+    await s.check();
+    expect(s.failed, isTrue);
+    expect(identical(s.catalog, base), isTrue);
+    expect(findGenerator('sprite:remote-dot'), isNull);
+  });
+
+  test('a minApp gate is reported and leaves the library alone', () async {
+    final s = store(
+      FakeHost(await signedFixture(key, minApp: '9.0.0')).client,
+      version: '1.3.3',
+    );
+    await s.check();
+    expect(s.failed, isTrue);
+    expect(s.needsNewerApp, isTrue);
+    expect(s.message, contains('newer version'));
+    expect(identical(s.catalog, base), isTrue);
+  });
 
   test('disposing while downloading cannot adopt late content', () async {
-    final gate = Completer<http.Response>();
+    final host = FakeHost(await signedFixture(key));
+    final gate = Completer<void>();
     final s = CatalogStore(
       bundled: base,
-      remote: RemoteCatalog(
-        url: Uri.parse('https://example.com/catalog.json'),
-        cacheDir: () async => dir,
-        client: MockClient((_) => gate.future),
+      remote: remoteFor(
+        MockClient((req) async {
+          await gate.future;
+          return host.client.get(req.url);
+        }),
       ),
     );
     await s.load();
     final checking = s.check();
     await Future<void>.delayed(Duration.zero);
     s.dispose();
-    gate.complete(http.Response(jsonEncode(remoteDocument()), 200));
+    gate.complete();
     await checking;
     expect(identical(s.catalog, base), isTrue);
     expect(findGenerator('sprite:remote-dot'), isNull);
   });
 
-  test('an unconfigured build loads without contacting a host', () async {
+  test('a build without a usable key or endpoint loads without contacting a host', () async {
     final s = CatalogStore.forApp(base);
     addTearDown(s.dispose);
     await s.load();
     await s.check();
-    expect(s.enabled, isFalse);
-    expect(s.lastAttempt, isNull);
-    expect(identical(s.catalog, base), isTrue);
+    expect(s.enabled, decodeCatalogKey(catalogPublicKey) != null);
+    if (!s.enabled) {
+      expect(s.lastAttempt, isNull);
+      expect(identical(s.catalog, base), isTrue);
+    }
+    // The placeholder key always means "no remote catalog".
+    final placeholder = CatalogStore(
+      bundled: base,
+      remote: RemoteCatalog(
+        url: Uri.parse('https://example.com/glyph/'),
+        cacheDir: () async => dir,
+        client: MockClient((_) async => fail('must not connect')),
+        publicKey: catalogPublicKeyPlaceholder,
+      ),
+    );
+    addTearDown(placeholder.dispose);
+    await placeholder.check();
+    expect(placeholder.enabled, isFalse);
+    expect(placeholder.lastAttempt, isNull);
   });
 }

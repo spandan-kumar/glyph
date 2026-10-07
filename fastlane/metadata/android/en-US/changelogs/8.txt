@@ -1,0 +1,6 @@
+• Alerts: pick apps from their icons and your device flashes their logo when a notification arrives — never the message.
+• Glance: weather and countdown cards, plus Rotations that cycle cards and animations from your phone.
+• Make opens with a "Live from your phone" row.
+• Send tells you when an animation is already on your device and frees space when you replace one.
+• Feedback goes to Discord first.
+• Fixes for alerts, weather retries and long text.

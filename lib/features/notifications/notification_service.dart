@@ -41,7 +41,7 @@ class NotificationService extends ChangeNotifier {
   final _removed = StreamController<String>.broadcast(sync: true);
   Stream<LogoAlert> get alerts => _alerts.stream;
   Stream<String> get removed => _removed.stream;
-  bool access = false, connected = false, stopRequested = false;
+  bool access = false, connected = false;
   bool _disposed = false;
 
   Future<List<NotificationApp>> apps() async {
@@ -85,7 +85,6 @@ class NotificationService extends ChangeNotifier {
         onError: (_) => _status({'connected': false}),
       );
     }
-    if (packages.isNotEmpty) stopRequested = false;
     final raw = await _invoke('configure', packages.toList());
     if (!_disposed && raw is Map) _status(raw);
     if (packages.isEmpty) {
@@ -101,8 +100,7 @@ class NotificationService extends ChangeNotifier {
   void _event(Object? event) {
     if (_disposed || event is! Map) return;
     if (event.containsKey('access') ||
-        event.containsKey('connected') ||
-        event.containsKey('stopped')) {
+        event.containsKey('connected')) {
       _status(event);
     }
     if (!access || !connected) return;
@@ -126,7 +124,6 @@ class NotificationService extends ChangeNotifier {
     if (_disposed) return;
     if (raw['access'] case final bool value) access = value;
     if (raw['connected'] case final bool value) connected = value;
-    if (raw['stopped'] == true) stopRequested = true;
     if (!access) connected = false;
     notifyListeners();
   }

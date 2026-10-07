@@ -49,7 +49,8 @@ Android-only; iOS shows that other apps' notifications are unavailable.
 Automated: Flutter tests cover default-off consent, app persistence/search,
 quiet hours, icon animation, selected-host pixels, live/native restoration,
 bursts/expiry/removal, power/manual takeover/device switch, access revocation,
-task removal and independent foreground-service ownership. JVM tests cover
+engine teardown stopping the foreground service, and independent
+foreground-service ownership. JVM tests cover
 native allowlist/ongoing/media/summary filtering and bounded key tracking.
 CI runs analyze, the Flutter suite, Android compilation and native tests.
 

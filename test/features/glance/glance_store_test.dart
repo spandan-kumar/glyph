@@ -69,4 +69,86 @@ void main() {
       await expectLater(store.saveCard(card('new')), throwsStateError);
     },
   );
+  test('unreadable entries and unknown fields round-trip unchanged', () async {
+    final future = {'kind': 'hologram', 'id': 'f', 'title': 'Future'};
+    SharedPreferences.setMockInitialValues({
+      GlanceStore.key: jsonEncode({
+        'version': 2,
+        'cards': [future, card('a').toJson()],
+        'shows': [
+          {'id': 'x', 'title': 'x', 'entries': 'later'},
+        ],
+        'theme': {'a': 1},
+      }),
+    });
+    final store = GlanceStore();
+    addTearDown(store.dispose);
+    await store.load();
+    expect(store.cards.single.id, 'a');
+    expect(store.unreadable, 2);
+    await store.saveCard(card('b'));
+    final saved = jsonDecode(
+      (await SharedPreferences.getInstance()).getString(GlanceStore.key)!,
+    ) as Map;
+    expect(saved['version'], 1);
+    expect(saved['theme'], {'a': 1});
+    expect((saved['cards'] as List).last, future);
+    expect((saved['cards'] as List).length, 3);
+    expect((saved['shows'] as List).single['entries'], 'later');
+  });
+  test('a file that cannot be parsed is set aside, not overwritten', () async {
+    SharedPreferences.setMockInitialValues({GlanceStore.key: '{not json'});
+    final store = GlanceStore();
+    addTearDown(store.dispose);
+    await store.load();
+    await store.saveCard(card('a'));
+    final p = await SharedPreferences.getInstance();
+    expect(p.getString('${GlanceStore.key}.unreadable'), '{not json');
+    expect(p.getString(GlanceStore.key), contains('"version":1'));
+  });
+  test('load never truncates; only adding is capped', () async {
+    SharedPreferences.setMockInitialValues({
+      GlanceStore.key: jsonEncode({
+        'cards': [for (var i = 0; i < 30; i++) card('$i').toJson()],
+      }),
+    });
+    final store = GlanceStore();
+    addTearDown(store.dispose);
+    await store.load();
+    expect(store.cards.length, 30);
+    await expectLater(store.saveCard(card('new')), throwsStateError);
+    await store.saveCard(card('3'));
+    expect(
+      (jsonDecode(
+        (await SharedPreferences.getInstance()).getString(GlanceStore.key)!,
+      ) as Map)['cards'],
+      hasLength(30),
+    );
+  });
+  test('a failed write does not notify or change state', () async {
+    var fail = true;
+    final store = GlanceStore(write: (_) async => !fail);
+    addTearDown(store.dispose);
+    await store.load();
+    var notified = 0;
+    store.addListener(() => notified++);
+    await expectLater(store.saveCard(card('a')), throwsStateError);
+    expect(store.cards, isEmpty);
+    expect(notified, 0);
+    fail = false;
+    await store.saveCard(card('a'));
+    expect(store.cards.length, 1);
+    expect(notified, 1);
+  });
+  test('saving before load finishes cannot erase stored data', () async {
+    SharedPreferences.setMockInitialValues({
+      GlanceStore.key: jsonEncode({
+        'cards': [card('old').toJson()],
+      }),
+    });
+    final store = GlanceStore();
+    addTearDown(store.dispose);
+    await store.saveCard(card('new'));
+    expect(store.cards.map((c) => c.id), containsAll(['old', 'new']));
+  });
 }

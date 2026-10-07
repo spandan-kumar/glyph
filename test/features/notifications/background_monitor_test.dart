@@ -11,10 +11,12 @@ void main() {
   const channel = MethodChannel('flutter_foreground_task/methods');
   late bool running;
   late List<String> calls;
+  late List<Object?> startArgs;
   setUp(() {
     BackgroundStreaming.debugReset();
     running = false;
     calls = [];
+    startArgs = [];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           calls.add(call.method);
@@ -22,6 +24,7 @@ void main() {
             case 'isRunningService':
               return running;
             case 'startService':
+              startArgs.add(call.arguments);
               running = true;
               return null;
             case 'stopService':
@@ -129,4 +132,14 @@ void main() {
       expect(BackgroundStreaming.isRunning, isTrue);
     },
   );
+
+  test('microphone type is dropped when the last mic user leaves a monitored service', () async {
+    await BackgroundStreaming.start(title: 'Audio', microphone: true, onStop: () {});
+    expect(startArgs.last.toString(), contains('[1, 7]'));
+    await BackgroundStreaming.retain(Object(), () {});
+    await BackgroundStreaming.stop();
+    expect(startArgs, hasLength(2));
+    expect(startArgs.last.toString(), contains('serviceTypes: [1]'));
+    expect(running, isTrue);
+  });
 }

@@ -10,6 +10,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
@@ -21,12 +23,15 @@ class NotificationAlertsBridge(private val context: Context, messenger: BinaryMe
     private val events = EventChannel(messenger, "glyph/notifications/events")
     private val listener = ComponentName(context, NowPlayingListener::class.java)
     private var sink: EventChannel.EventSink? = null
+    private val main = Handler(Looper.getMainLooper())
+    // Listing every launcher app and its label is slow; keep it off the main thread.
+    private val worker: ExecutorService = Executors.newSingleThreadExecutor()
 
     // Android can disconnect the listener before committing its access setting.
     private val accessObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
             val current = status()
-            if (current["access"] == false) NowPlayingListener.configure(emptySet())
+            if (current["access"] == false) NowPlayingListener.configure(this@NotificationAlertsBridge, emptySet())
             sink?.success(current)
         }
     }
@@ -38,22 +43,28 @@ class NotificationAlertsBridge(private val context: Context, messenger: BinaryMe
         methods.setMethodCallHandler { call, result ->
             try {
                 when (call.method) {
-                    "apps" -> {
-                        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-                        @Suppress("DEPRECATION")
-                        val apps = context.packageManager.queryIntentActivities(intent, 0)
-                            .filter { it.activityInfo.packageName != context.packageName }
-                            .distinctBy { it.activityInfo.packageName }
-                            .map { mapOf("package" to it.activityInfo.packageName,
-                                "name" to it.loadLabel(context.packageManager).toString()) }
-                            .sortedBy { it["name"]?.lowercase() }
-                        result.success(apps)
+                    "apps" -> worker.execute {
+                        val reply = try {
+                            val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                            @Suppress("DEPRECATION")
+                            val apps = context.packageManager.queryIntentActivities(intent, 0)
+                                .filter { it.activityInfo.packageName != context.packageName }
+                                .distinctBy { it.activityInfo.packageName }
+                                .map { mapOf("package" to it.activityInfo.packageName,
+                                    "name" to it.loadLabel(context.packageManager).toString()) }
+                                .sortedBy { it["name"]?.lowercase() }
+                            Result.success(apps)
+                        } catch (e: Exception) { Result.failure(e) }
+                        main.post {
+                            reply.fold({ result.success(it) },
+                                { result.error("notifications", "Couldn't list apps", null) })
+                        }
                     }
                     "icon" -> result.success(appIcon(context, call.arguments as String))
                     "status" -> result.success(status())
                     "configure" -> {
                         val packages = (call.arguments as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-                        NowPlayingListener.configure(if (sink == null) emptySet() else
+                        NowPlayingListener.configure(this, if (sink == null) emptySet() else
                             packages.filter { it != context.packageName }.toSet())
                         result.success(status())
                     }
@@ -87,14 +98,13 @@ class NotificationAlertsBridge(private val context: Context, messenger: BinaryMe
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
         sink = events
-        NowPlayingListener.emit = { event -> sink?.success(event) }
+        NowPlayingListener.attach(this) { event -> sink?.success(event) }
         events.success(status())
     }
 
     override fun onCancel(arguments: Any?) {
         sink = null
-        NowPlayingListener.emit = null
-        NowPlayingListener.configure(emptySet())
+        NowPlayingListener.detach(this)
     }
 
     fun dispose() {
@@ -102,11 +112,22 @@ class NotificationAlertsBridge(private val context: Context, messenger: BinaryMe
         onCancel(null)
         methods.setMethodCallHandler(null)
         events.setStreamHandler(null)
+        worker.shutdownNow()
     }
 
     companion object {
         const val ICON_SIZE = 32
+        private val icons = IconCache<ByteArray>(8)
+
+        /** Rendered 32x32 RGB, cached per package and invalidated when the app is updated. */
         fun appIcon(context: Context, packageName: String): ByteArray? {
+            val version = try {
+                context.packageManager.getPackageInfo(packageName, 0).lastUpdateTime
+            } catch (_: Exception) { return null }
+            return icons.get(packageName, version) { renderIcon(context, packageName) }
+        }
+
+        private fun renderIcon(context: Context, packageName: String): ByteArray? {
             return try {
                 val drawable = context.packageManager.getApplicationIcon(packageName)
                 val bitmap = Bitmap.createBitmap(ICON_SIZE, ICON_SIZE, Bitmap.Config.ARGB_8888)

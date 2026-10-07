@@ -90,30 +90,30 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Send feedback previews exactly what is included before opening GitHub', (tester) async {
+  testWidgets('Send feedback previews what is included; Discord first, GitHub second', (tester) async {
     final playback = await pump(tester);
     LastError.record('Couldn\'t send it: timed out talking to 192.168.1.20');
     await openMenu(tester);
     await tester.tap(find.text('Send feedback'));
     await settle(tester);
     expect(opened, isEmpty, reason: 'nothing opens until the person agrees');
-    expect(find.text('Open GitHub'), findsOneWidget);
-    expect(find.text('Copy instead'), findsOneWidget);
-    expect(find.textContaining('GitHub account'), findsOneWidget);
+    expect(find.text('Ask on Discord'), findsOneWidget);
+    expect(find.text('Report on GitHub'), findsOneWidget);
+    expect(find.text('Just copy the details'), findsOneWidget);
     final preview = tester.widget<SelectableText>(find.byType(SelectableText)).data!;
     expect(preview, contains('Glyph 1.3.0 (5)'));
     expect(preview, contains('Device: not connected'));
     expect(preview, contains('Last error: Couldn\'t send it'));
     expect(preview, isNot(contains('192.168')));
 
-    await tester.ensureVisible(find.text('Open GitHub'));
+    await tester.ensureVisible(find.text('Report on GitHub'));
     await settle(tester, 100);
-    await tester.tap(find.text('Open GitHub'));
+    await tester.tap(find.text('Report on GitHub'));
     await settle(tester);
     expect(opened, hasLength(1));
     expect(opened.single.queryParameters['template'], 'bug.yml');
     expect(opened.single.queryParameters['diagnostics'], preview);
-    expect(find.text('Open GitHub'), findsNothing, reason: 'sheet closed');
+    expect(find.text('Report on GitHub'), findsNothing, reason: 'sheet closed');
     playback.pause();
     await tester.pumpWidget(const SizedBox());
   });

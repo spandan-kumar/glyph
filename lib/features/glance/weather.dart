@@ -29,16 +29,22 @@ class WeatherSnapshot {
 
   double temperature(bool fahrenheit) =>
       fahrenheit ? celsius * 9 / 5 + 32 : celsius;
+
+  /// Fresh readings are 15-minute buckets, so age is measured from when we
+  /// fetched (or from the observation plus one bucket, whichever is later).
+  static const staleAfter = Duration(minutes: 45);
   WeatherFreshness freshness(DateTime now, {bool failed = false}) {
-    final age = now.toUtc().difference(observed.toUtc());
-    final cached = now.toUtc().difference(fetched.toUtc());
-    if (age < const Duration(minutes: -5) ||
-        cached.isNegative ||
-        age >= const Duration(hours: 2) ||
-        cached >= const Duration(hours: 2)) {
+    final observedAge = now.toUtc().difference(observed.toUtc());
+    final fetchAge = now.toUtc().difference(fetched.toUtc());
+    if (observedAge < const Duration(minutes: -5) ||
+        fetchAge.isNegative ||
+        observedAge >= const Duration(hours: 2) ||
+        fetchAge >= const Duration(hours: 2)) {
       return WeatherFreshness.unavailable;
     }
-    return failed || age >= const Duration(minutes: 30)
+    return failed ||
+            fetchAge >= staleAfter ||
+            observedAge >= staleAfter + const Duration(minutes: 15)
         ? WeatherFreshness.stale
         : WeatherFreshness.fresh;
   }

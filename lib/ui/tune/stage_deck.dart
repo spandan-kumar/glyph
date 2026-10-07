@@ -354,12 +354,15 @@ class SquareKey extends StatelessWidget {
 /// SEND → SENDING → ✓ SENT: a rectangular key lit in the room colour when
 /// the device can take it.
 class SendButton extends StatelessWidget {
-  const SendButton({super.key, required this.state, this.onTap, this.accent, this.dim = false});
+  const SendButton({super.key, required this.state, this.onTap, this.accent, this.dim = false, this.compact = false});
 
   final KeepState state;
   final VoidCallback? onTap;
   final Color? accent;
   final bool dim;
+
+  /// A square key with just the sign (for the collapsed mini bar).
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -371,6 +374,41 @@ class SendButton extends StatelessWidget {
       KeepState.failed => 'Retry',
       _ => 'Send',
     };
+    if (compact) {
+      final busy = state == KeepState.beaming || state == KeepState.checking;
+      return Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: Material(
+          color: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: const BorderRadius.all(Radius.circular(Lb.rControl)),
+            side: BorderSide(color: accent ?? Lb.line),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: SizedBox.square(
+              dimension: 40,
+              child: Center(
+                child: busy
+                    ? _Chaser(color: accent ?? Lb.text)
+                    : Icon(
+                        switch (state) {
+                          KeepState.kept => Icons.check_sharp,
+                          KeepState.failed => Icons.refresh_sharp,
+                          _ => Icons.north_sharp,
+                        },
+                        size: 18,
+                        color: state == KeepState.failed ? Lb.danger : (accent ?? fg),
+                      ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return Semantics(
       button: true,
       label: label,

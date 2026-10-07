@@ -286,7 +286,17 @@ void main() {
         playback.playGenerator(newer);
         release.complete();
         final result = await tester.runAsync(() => sent);
+        await tester.pump();
         expect(result, isNull);
+        // Never a silent stop: the toast says why.
+        expect(
+          find.text(
+            switchDevice
+                ? 'Send stopped — you switched device.'
+                : 'Send stopped — you picked a different look.',
+          ),
+          findsOneWidget,
+        );
         expect(playback.generator, same(newer));
         expect(playback.isPlaying, isTrue);
         expect(playback.stops, 0);
@@ -314,4 +324,109 @@ void main() {
       playback.pause();
     },
   );
+
+  testWidgets(
+    'brightness, power, pause/resume, tweaks and palette changes do not cancel a Send',
+    (tester) async {
+      final context = await mount(tester);
+      playback.playGenerator(ClipGenerator(clip, title: 'Original'));
+      late Completer<void> entered, release;
+      alpha.beforeRequest = (r) async {
+        if (r.url.path == '/upload') {
+          if (!entered.isCompleted) entered.complete();
+          await release.future;
+        }
+      };
+      late Future<SendResult> sent;
+      await tester.runAsync(() async {
+        entered = Completer<void>();
+        release = Completer<void>();
+        sent = GlyphActions.sendClipToDevice(context, clip, 'Original');
+        await entered.future.timeout(const Duration(seconds: 10));
+        devices.setBrightness(40);
+        await devices.setPower(true);
+        playback.pause();
+        playback.resume();
+        playback.setParam('speed', 1.5);
+        playback.setPalette(paletteById('lava'));
+      });
+      release.complete();
+      final result = await tester.runAsync(() => sent);
+      expect(result, isA<Sent>());
+      expect(devices.keptTitle, 'Original');
+      expect(alpha.posts.where((p) => p.$2['psave'] != null), hasLength(1));
+      expect(find.textContaining('Send stopped'), findsNothing);
+      playback.pause();
+    },
+  );
+
+  group('re-sending a changed look after an app restart', () {
+    // The fresh client in mount() knows nothing about files from earlier.
+    void seedOldFile(int listedSize) {
+      alpha.presets['12'] = {
+        'n': 'Original',
+        'seg': [
+          {'id': 0, 'n': 'original.gif'},
+        ],
+      };
+      alpha.files.add({
+        'name': 'original.gif',
+        'type': 'file',
+        'size': listedSize,
+      });
+      alpha.gifs['/original.gif'] = [1, 2, 3];
+    }
+
+    void setFreeKb(int kb) {
+      final info = jsonDecode(alpha.info) as Map<String, dynamic>;
+      (info['fs'] as Map)
+        ..['t'] = 1000
+        ..['u'] = 1000 - kb;
+      alpha.info = jsonEncode(info);
+    }
+
+    testWidgets(
+      'retires the previous file and counts it as free space on a nearly full device',
+      (tester) async {
+        // 32 KB free is exactly the safety margin: the new file fits only
+        // because the replaced 6 KB one is given back.
+        setFreeKb(32);
+        seedOldFile(6000);
+        final context = await mount(tester);
+        playback.playGenerator(ClipGenerator(clip, title: 'Original'));
+        final result = await tester.runAsync(
+          () => GlyphActions.sendClipToDevice(context, clip, 'Original'),
+        );
+        expect(result, isA<Sent>());
+        expect(alpha.uploads, ['/original-00.gif']);
+        expect(alpha.deleted, ['/original.gif']);
+        expect(alpha.presets['12']['seg'][0]['n'], 'original-00.gif');
+        playback.pause();
+      },
+    );
+
+    testWidgets('a full device with nothing to give back still says so and stays untouched', (
+      tester,
+    ) async {
+      setFreeKb(32);
+      alpha.presets['12'] = {
+        'n': 'Original',
+        'seg': [
+          {'id': 0, 'n': 'someone-elses.gif'},
+        ],
+      };
+      alpha.files.add({'name': 'someone-elses.gif', 'type': 'file', 'size': 6000});
+      final context = await mount(tester);
+      playback.playGenerator(ClipGenerator(clip, title: 'Original'));
+      final result = await tester.runAsync(
+        () => GlyphActions.sendClipToDevice(context, clip, 'Original'),
+      );
+      expect(result, isA<Failed>());
+      expect((result as Failed).message, contains('space'));
+      expect(alpha.uploads, isEmpty);
+      expect(alpha.deleted, isEmpty);
+      expect(alpha.posts, isEmpty);
+      playback.pause();
+    });
+  });
 }

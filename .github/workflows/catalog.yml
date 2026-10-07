@@ -1,16 +1,25 @@
 name: Animation catalog
 
+# push to main: validate + build, then wait for approval of the protected
+#   `catalog` environment before signing and publishing.
+# workflow_dispatch (main only): `publish` rebuilds from HEAD; `rollback`
+#   re-signs the previously published content under a bumped epoch, without
+#   building or testing HEAD.
 on:
   push:
     branches: [main]
     paths:
       - 'assets/catalog/**'
       - 'tool/build_remote_catalog.dart'
+      - 'tool/catalog_sign.dart'
+      - 'tool/fetch_published_catalog.sh'
+      - 'lib/library/catalog_manifest.dart'
+      - 'lib/library/catalog_key.dart'
       - '.github/workflows/catalog.yml'
   workflow_dispatch:
     inputs:
       mode:
-        description: Publish reviewed content or restore the previous artifact
+        description: Publish reviewed content or restore the previous content
         type: choice
         options: [publish, rollback]
         default: publish
@@ -22,52 +31,78 @@ concurrency:
   group: animation-catalog
   cancel-in-progress: false
 
+env:
+  BASE_URL: https://spandan-kumar.github.io/glyph
+  MODE: ${{ inputs.mode || 'publish' }}
+
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.47.6
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: python3 skills/glyph-animation/scripts/validate_sprite.py --all
-      - run: dart run tool/build_sprites.dart
-      - run: dart run tool/build_catalog.dart
-      - run: git diff --exit-code -- assets/catalog/catalog.json lib/engine/generators/sprite_data.g.dart
-      - run: flutter test test/engine test/library test/tool
-      - name: Retain published artifacts
-        env:
-          BASE_URL: https://spandan-kumar.github.io/glyph
-          MODE: ${{ inputs.mode || 'publish' }}
+      - name: Validate sprites and generated assets
+        if: env.MODE == 'publish'
         run: |
-          mkdir -p build
-          fetch() {
-            local name="$1"
-            local code
-            code=$(curl --silent --show-error --max-time 20 --max-filesize 2097152 \
-              --output "build/$name.json" --write-out '%{http_code}' \
-              "$BASE_URL/$name.json?run=$GITHUB_RUN_ID")
-            if [ "$code" = 404 ]; then
-              rm -f "build/$name.json"
-            elif [ "$code" != 200 ]; then
-              echo "::error::Cannot retain $name (HTTP $code)"
-              exit 1
-            fi
-          }
-          fetch catalog-v1
-          fetch previous
-          args=()
-          if [ -f build/catalog-v1.json ]; then args+=(--current build/catalog-v1.json); fi
-          if [ -f build/previous.json ]; then args+=(--previous build/previous.json); fi
+          python3 skills/glyph-animation/scripts/validate_sprite.py --all
+          dart run tool/build_sprites.dart
+          dart run tool/build_catalog.dart
+          git diff --exit-code -- assets/catalog/catalog.json lib/engine/generators/sprite_data.g.dart
+      - name: Test
+        if: env.MODE == 'publish'
+        run: flutter test test/engine test/library test/tool
+      - name: Retain published artifacts
+        run: tool/fetch_published_catalog.sh build/published
+      - name: Build unsigned site
+        run: |
+          args=(--published build/published --output build/catalog-site)
           if [ "$MODE" = rollback ]; then args+=(--rollback); fi
           dart run tool/build_remote_catalog.dart "${args[@]}"
       - uses: actions/upload-artifact@v4
         with:
-          name: catalog-${{ github.run_id }}
+          name: catalog-unsigned-${{ github.run_id }}
+          path: build/catalog-site
+          include-hidden-files: true
+          retention-days: 90
+
+  # The only job that can read CATALOG_SIGNING_KEY. Configure the `catalog`
+  # environment with required reviewers and a main-only branch policy.
+  sign:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: catalog
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - uses: actions/download-artifact@v4
+        with:
+          name: catalog-unsigned-${{ github.run_id }}
+          path: build/catalog-site
+      - name: Sign and verify against the app's public key
+        env:
+          CATALOG_SIGNING_KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
+        run: dart run tool/catalog_sign.dart --site build/catalog-site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: catalog-signed-${{ github.run_id }}
           path: build/catalog-site
           include-hidden-files: true
           retention-days: 90
@@ -76,8 +111,8 @@ jobs:
           path: build/catalog-site
 
   deploy:
+    needs: sign
     if: github.ref == 'refs/heads/main'
-    needs: build
     runs-on: ubuntu-latest
     permissions:
       pages: write
