@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../engine/clip.dart';
 import '../../engine/generator.dart';
@@ -56,6 +57,7 @@ class _RotationEditorState extends State<RotationEditor> {
       builder: (_) => _ChooseEntry(session: widget.session),
     );
     if (entry != null && mounted) {
+      HapticFeedback.lightImpact();
       setState(() {
         _entries.add(entry);
         _revision++;
@@ -64,6 +66,7 @@ class _RotationEditorState extends State<RotationEditor> {
   }
 
   void _edit(void Function() change) => setState(() {
+        HapticFeedback.selectionClick();
         change();
         _revision++;
       });
@@ -72,6 +75,7 @@ class _RotationEditorState extends State<RotationEditor> {
 
   Future<void> _save() async {
     if (_entries.isEmpty) return setState(() => _error = 'Add at least one thing to rotate.');
+    HapticFeedback.lightImpact();
     setState(() {
       _saving = true;
       _error = null;
@@ -151,7 +155,12 @@ class _RotationEditorState extends State<RotationEditor> {
           const SizedBox(height: 8),
           LbPanel(
             padding: EdgeInsets.zero,
-            child: Column(children: [
+            // So removing a row closes the gap instead of jumping.
+            child: AnimatedSize(
+              duration: Lb.fast,
+              curve: Lb.ease,
+              alignment: Alignment.topCenter,
+              child: Column(children: [
               for (final (i, e) in _entries.indexed) ...[
                 _EntryRow(
                   key: ValueKey('$i-${e.kind.name}-${e.id}'),
@@ -181,6 +190,7 @@ class _RotationEditorState extends State<RotationEditor> {
                 ),
               ),
             ]),
+            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 10),

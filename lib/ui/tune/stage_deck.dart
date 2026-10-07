@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,6 +35,8 @@ class StageDeck extends StatelessWidget {
     required this.keepState,
     required this.showHint,
     this.onLayout,
+    this.morph,
+    this.anchors,
   });
 
   /// On the Stage's home slot, so the screen can measure it.
@@ -46,6 +49,10 @@ class StageDeck extends StatelessWidget {
   /// Called after the home slot changes size (e.g. a wider matrix).
   final VoidCallback? onLayout;
 
+  /// The collapse the caption and Send fly along with the Stage.
+  final StageMorph? morph;
+  final TwinAnchors? anchors;
+
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
@@ -57,6 +64,15 @@ class StageDeck extends StatelessWidget {
         final frame = playback.frame;
         final aspect = frame.width / frame.height;
         final width = stageWidthFor(screen, aspect);
+        // What doesn't fly into the bar dissolves on the way up, so the
+        // section is gone by the time the Stage lands.
+        Widget leaves(Widget child) => morph == null
+            ? child
+            : ListenableBuilder(
+                listenable: morph!,
+                child: child,
+                builder: (context, child) => Opacity(opacity: 1 - morph!.fade(0.08, 0.45), child: child),
+              );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -68,27 +84,28 @@ class StageDeck extends StatelessWidget {
             ),
             if (devices.isConnected) ...[
               const SizedBox(height: 10),
-              _DeviceLine(
+              leaves(_DeviceLine(
                 text: '${devices.info!.name} · ${devices.isOn == false ? 'off' : playback.isStreaming ? 'live' : devices.isPlayingKept(playback.item?.title ?? playback.generator?.name ?? '') ? 'saved' : 'ready'}',
                 lit: playback.isStreaming && devices.isOn != false,
-              ),
+              )),
             ],
-            SizedBox(
+            leaves(SizedBox(
               height: 22,
               child: AnimatedOpacity(
                 opacity: showHint ? 1 : 0,
                 duration: Lb.slow,
                 child: showHint ? const _SwipeHint() : const SizedBox.shrink(),
               ),
-            ),
+            )),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Lb.gutter),
-              child: _Caption(onTweak: onTweak),
+              child: _Caption(onTweak: onTweak, morph: morph, anchors: anchors),
             ),
             const SizedBox(height: 14),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Lb.gutter),
-              child: _Transport(onTweak: onTweak, onKeep: onKeep, keepState: keepState),
+              child: leaves(
+                  _Transport(onTweak: onTweak, onKeep: onKeep, keepState: keepState, morph: morph, anchors: anchors)),
             ),
           ],
         );
@@ -160,9 +177,25 @@ class _SwipeHintState extends State<_SwipeHint> with SingleTickerProviderStateMi
 /// The channel caption: a mono "CH 03 · RIGHT NOW" over the title, sliding
 /// in from the side you surfed toward, like a TV changing channel.
 class _Caption extends StatelessWidget {
-  const _Caption({required this.onTweak});
+  const _Caption({required this.onTweak, this.morph, this.anchors});
 
   final VoidCallback onTweak;
+  final StageMorph? morph;
+  final TwinAnchors? anchors;
+
+  /// What stays behind on the page dissolves as the title lifts off.
+  Widget _staysBehind(Widget child) {
+    final m = morph;
+    if (m == null) return child;
+    return ListenableBuilder(
+      listenable: m,
+      child: child,
+      builder: (context, child) => Opacity(opacity: 1 - m.fade(0.05, 0.4), child: child),
+    );
+  }
+
+  Widget _twin(Twin id, Widget child) =>
+      TwinSlot(morph: morph, id: id, inBar: false, child: TwinAnchor(anchors: anchors, id: id, child: child));
 
   @override
   Widget build(BuildContext context) {
@@ -222,25 +255,27 @@ class _Caption extends StatelessWidget {
               key: ValueKey(key),
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label.toUpperCase(), style: LbType.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                _staysBehind(
+                    Text(label.toUpperCase(), style: LbType.label, maxLines: 1, overflow: TextOverflow.ellipsis)),
                 const SizedBox(height: 4),
                 Row(children: [
                   Flexible(
-                    child: Text(title, style: LbType.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    child: _twin(Twin.title,
+                        Text(title, style: LbType.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ),
                   const SizedBox(width: 6),
-                  const Icon(Icons.keyboard_arrow_up_sharp, size: 20, color: Lb.text3),
+                  _staysBehind(const Icon(Icons.keyboard_arrow_up_sharp, size: 20, color: Lb.text3)),
                 ]),
                 const SizedBox(height: 2),
-                Text(sub, style: LbType.small, maxLines: 1, overflow: TextOverflow.ellipsis),
+                _staysBehind(Text(sub, style: LbType.small, maxLines: 1, overflow: TextOverflow.ellipsis)),
                 if (item?.notice case final notice?)
-                  Padding(
+                  _staysBehind(Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(notice,
                         style: LbType.small.copyWith(fontSize: 11, color: Lb.text3),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis),
-                  ),
+                  )),
               ],
             ),
           ),
@@ -251,10 +286,12 @@ class _Caption extends StatelessWidget {
 }
 
 class _Transport extends StatelessWidget {
-  const _Transport({required this.onTweak, required this.onKeep, required this.keepState});
+  const _Transport({required this.onTweak, required this.onKeep, required this.keepState, this.morph, this.anchors});
 
   final VoidCallback onTweak, onKeep;
   final KeepState keepState;
+  final StageMorph? morph;
+  final TwinAnchors? anchors;
 
   @override
   Widget build(BuildContext context) {
@@ -262,8 +299,7 @@ class _Transport extends StatelessWidget {
     final tune = TuneScope.of(context);
     final accent = AmbientScope.of(context).accent;
     final item = scope.playback.item;
-    final devices = scope.devices;
-    final canSend = devices.isConnected && (devices.caps?.canPlayGifs ?? false) && !(scope.playback.generator?.liveOnly ?? true);
+    final canSend = canSendNow(scope);
     return ListenableBuilder(
       listenable: tune.library,
       builder: (context, _) {
@@ -290,11 +326,20 @@ class _Transport extends StatelessWidget {
             const SizedBox(width: 10),
             SquareKey(icon: Icons.tune_sharp, label: 'Tweak', onTap: onTweak),
             const Spacer(),
-            SendButton(
-              state: keepState,
-              accent: canSend ? accent : null,
-              dim: !canSend,
-              onTap: keepState == KeepState.beaming || keepState == KeepState.checking ? null : onKeep,
+            TwinSlot(
+              morph: morph,
+              id: Twin.send,
+              inBar: false,
+              child: TwinAnchor(
+                anchors: anchors,
+                id: Twin.send,
+                child: SendButton(
+                  state: keepState,
+                  accent: canSend ? accent : null,
+                  dim: !canSend,
+                  onTap: keepState == KeepState.beaming || keepState == KeepState.checking ? null : onKeep,
+                ),
+              ),
             ),
           ],
         );
@@ -351,6 +396,12 @@ class SquareKey extends StatelessWidget {
   }
 }
 
+/// Whether Send can put the playing look on the connected device.
+bool canSendNow(AppScope scope) =>
+    scope.devices.isConnected &&
+    (scope.devices.caps?.canPlayGifs ?? false) &&
+    !(scope.playback.generator?.liveOnly ?? true);
+
 /// SEND → SENDING → ✓ SENT: a rectangular key lit in the room colour when
 /// the device can take it.
 class SendButton extends StatelessWidget {
@@ -367,13 +418,7 @@ class SendButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = dim ? Lb.text3 : Lb.text;
-    final label = switch (state) {
-      KeepState.checking => 'Checking',
-      KeepState.beaming => 'Sending',
-      KeepState.kept => 'Sent',
-      KeepState.failed => 'Retry',
-      _ => 'Send',
-    };
+    final label = sendLabel(state);
     if (compact) {
       final busy = state == KeepState.beaming || state == KeepState.checking;
       return Semantics(
@@ -398,7 +443,7 @@ class SendButton extends StatelessWidget {
                         switch (state) {
                           KeepState.kept => Icons.check_sharp,
                           KeepState.failed => Icons.refresh_sharp,
-                          _ => Icons.north_sharp,
+                          _ => Icons.save_alt_sharp,
                         },
                         size: 18,
                         color: state == KeepState.failed ? Lb.danger : (accent ?? fg),
@@ -432,7 +477,7 @@ class SendButton extends StatelessWidget {
                     _Chaser(color: accent ?? Lb.text),
                     const SizedBox(width: 8),
                   ] else if (state != KeepState.kept) ...[
-                    Icon(Icons.north_sharp, size: 14, color: accent ?? fg),
+                    Icon(Icons.save_alt_sharp, size: 16, color: accent ?? fg),
                     const SizedBox(width: 8),
                   ],
                   // The pixel font, like the dock and the section headers.
@@ -440,6 +485,78 @@ class SendButton extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String sendLabel(KeepState state) => switch (state) {
+      KeepState.checking => 'Checking',
+      KeepState.beaming => 'Sending',
+      KeepState.kept => 'Sent',
+      KeepState.failed => 'Retry',
+      _ => 'Send',
+    };
+
+/// The Send key in flight between the deck's wide key and the bar's square
+/// one: the frame reshapes, the save sign glides to the middle, the word fades.
+class SendInFlight extends StatelessWidget {
+  const SendInFlight({super.key, required this.progress, required this.state, this.accent});
+
+  /// 0 the deck's key, 1 the bar's.
+  final double progress;
+  final KeepState state;
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = progress;
+    final busy = state == KeepState.beaming || state == KeepState.checking;
+    final size = lerpDouble(16, 18, p)!;
+    final iconWidth = busy ? 6.0 : size;
+    final word = (1 - p / 0.45).clamp(0.0, 1.0);
+    final sign = busy
+        ? _Chaser(color: accent ?? Lb.text)
+        : Icon(
+            switch (state) {
+              KeepState.kept => Icons.check_sharp,
+              KeepState.failed => Icons.refresh_sharp,
+              _ => Icons.save_alt_sharp,
+            },
+            size: size,
+            color: state == KeepState.failed ? Lb.danger : (accent ?? Lb.text),
+          );
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.all(Radius.circular(Lb.rControl)),
+        border: Border.all(color: accent ?? Lb.line),
+      ),
+      child: ClipRect(
+        child: LayoutBuilder(
+          builder: (context, c) => Stack(
+            children: [
+              Positioned(
+                left: lerpDouble(14, (c.maxWidth - iconWidth) / 2, p),
+                top: 0,
+                bottom: 0,
+                // The wide "SENT" key has no sign; the square one is only a sign.
+                child: Center(child: Opacity(opacity: state == KeepState.kept ? p : 1, child: sign)),
+              ),
+              if (word > 0)
+                Positioned(
+                  left: state == KeepState.kept ? 14 : 14 + iconWidth + 8,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: Opacity(
+                      opacity: word,
+                      child: LedText(sendLabel(state).toUpperCase(), dot: 2, color: Lb.text),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

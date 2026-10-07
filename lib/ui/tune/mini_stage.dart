@@ -8,6 +8,7 @@ import '../design/type.dart';
 import '../scope.dart';
 import '../widgets/led_matrix_view.dart';
 import 'stage_deck.dart';
+import 'stage_morph.dart';
 import 'tune_controller.dart';
 
 /// The Stage collapsed into a slim pinned bar: a live panel, the channel
@@ -19,13 +20,15 @@ import 'tune_controller.dart';
 /// its own small panel.
 class MiniStage extends StatelessWidget {
   const MiniStage({super.key, this.onTap, this.panelKey, this.livePanel = true,
-      this.onSend, this.keepState = KeepState.idle});
+      this.onSend, this.keepState = KeepState.idle, this.morph, this.anchors});
 
   /// Height of the bar, below the status-bar inset.
   static const height = 60.0;
 
   /// The square slot the panel sits in.
   static const panel = 44.0;
+
+  static final _labelStyle = LbType.label.copyWith(fontSize: 10);
 
   /// Where the panel sits, in the coordinates of whatever the bar's top-left
   /// is laid out at, with the bar pushed down by [top] (the status bar). A
@@ -45,6 +48,13 @@ class MiniStage extends StatelessWidget {
 
   /// Draw the small live panel (false when the Stage morphs into the slot).
   final bool livePanel;
+
+  /// On Display: the caption and Send fly in from the deck along [morph].
+  final StageMorph? morph;
+  final TwinAnchors? anchors;
+
+  Widget _twin(Twin id, Widget child) =>
+      TwinSlot(morph: morph, id: id, inBar: true, child: TwinAnchor(anchors: anchors, id: id, child: child));
 
   @override
   Widget build(BuildContext context) {
@@ -87,18 +97,42 @@ class MiniStage extends StatelessWidget {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(captionLabel(tune).toUpperCase(),
-                                  style: LbType.label.copyWith(fontSize: 10),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 2),
-                              Text(captionTitle(tune),
-                                  style: LbType.heading, maxLines: 1, overflow: TextOverflow.ellipsis),
-                            ],
+                          // Surfing from the bar changes channel like the
+                          // deck's caption does: in from the side you went.
+                          child: AnimatedSwitcher(
+                            duration: Lb.medium,
+                            switchInCurve: Lb.ease,
+                            switchOutCurve: Curves.easeInCubic,
+                            layoutBuilder: (current, previous) => Stack(
+                              alignment: Alignment.centerLeft,
+                              children: [...previous, ?current],
+                            ),
+                            transitionBuilder: (child, anim) {
+                              final incoming = child.key == ValueKey(captionTitle(tune));
+                              final dir = tune.direction.toDouble();
+                              return FadeTransition(
+                                opacity: anim,
+                                child: SlideTransition(
+                                  position: Tween(begin: Offset((incoming ? 0.15 : -0.15) * dir, 0), end: Offset.zero)
+                                      .animate(anim),
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: Column(
+                              key: ValueKey(captionTitle(tune)),
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(captionLabel(tune).toUpperCase(),
+                                    style: _labelStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                const SizedBox(height: 2),
+                                _twin(
+                                    Twin.title,
+                                    Text(captionTitle(tune),
+                                        style: LbType.heading, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              ],
+                            ),
                           ),
                         ),
                       ]),
@@ -119,14 +153,15 @@ class MiniStage extends StatelessWidget {
                 outlined: false,
                 onTap: () => tune.surf(context, 1),
               ),
-              if (onSend != null && scope.devices.isConnected &&
-                  (scope.devices.caps?.canPlayGifs ?? false) &&
-                  !(playback.generator?.liveOnly ?? true))
-                SendButton(
-                  compact: true,
-                  state: keepState,
-                  accent: AmbientScope.of(context).accent,
-                  onTap: keepState == KeepState.checking || keepState == KeepState.beaming ? null : onSend,
+              if (onSend != null && canSendNow(scope))
+                _twin(
+                  Twin.send,
+                  SendButton(
+                    compact: true,
+                    state: keepState,
+                    accent: AmbientScope.of(context).accent,
+                    onTap: keepState == KeepState.checking || keepState == KeepState.beaming ? null : onSend,
+                  ),
                 ),
               const SizedBox(width: 12),
             ],

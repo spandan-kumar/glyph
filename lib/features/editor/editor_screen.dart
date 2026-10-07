@@ -413,7 +413,7 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
                   value: 'matrix',
                   enabled: !_saving,
                   child: const ListTile(
-                      leading: Icon(Icons.push_pin_sharp), title: Text('Send to device')),
+                      leading: Icon(Icons.save_alt_sharp), title: Text('Send to device')),
                 ),
                 const PopupMenuItem(
                     value: 'rename',

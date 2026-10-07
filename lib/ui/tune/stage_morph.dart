@@ -1,5 +1,7 @@
 import 'dart:math';
+import 'dart:ui' show lerpDouble;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -53,17 +55,156 @@ class StageMorph extends ChangeNotifier {
   /// 0 → 1 as [t] runs from [from] to [to]; for fading things in.
   double fade(double from, double to) => ((_t - from) / (to - from)).clamp(0.0, 1.0);
 
+  Map<Twin, (Rect, Rect)> _twins = const {};
+
+  /// Whether [id] flies between the deck and the bar (both ends measured).
+  bool flies(Twin id) => _twins.containsKey(id);
+
+  /// 0 → 1 as the twin travels; each lands just before the bar takes over
+  /// ([collapsed]), the ones nearer the Stage leaving first.
+  double twinProgress(Twin id) => Curves.easeInOutCubic.transform(fade(id.leaves, 0.98));
+
+  /// Where the flying copy of [id] is drawn: riding the page with its home,
+  /// pulled into its slot in the bar.
+  Rect? twinRect(Twin id) {
+    final (home, slot) = _twins[id] ?? (null, null);
+    if (home == null || slot == null) return null;
+    final page = home.translate(0, -_t * _travel);
+    if (!id.ridesStage) return Rect.lerp(page, slot, twinProgress(id));
+    // A straight line would cross the Stage shrinking into the same corner,
+    // so the title tucks in under it, rides along, then steps right and up
+    // into its slot once the Stage is small (sideways first, then up).
+    final stage = rect;
+    final ride = Offset.lerp(
+        page.topLeft, Offset(stage.left, stage.bottom + 6), Curves.easeInOut.transform(fade(id.leaves, 0.5)))!;
+    final at = Offset(lerpDouble(ride.dx, slot.left, Curves.easeOutCubic.transform(fade(0.72, 0.9)))!,
+        lerpDouble(ride.dy, slot.top, Curves.easeOutCubic.transform(fade(0.86, 0.98)))!);
+    return at & Size.lerp(home.size, slot.size, twinProgress(id))!;
+  }
+
+  /// Both ends of [id], page at the top and slot in the bar.
+  (Rect, Rect)? twinEnds(Twin id) => _twins[id];
+
   /// [barBottom] is where the pinned bar ends; the morph completes when the
-  /// Stage's home would have scrolled up to it.
-  void update({required Rect home, required Rect mini, required double barBottom, required double offset}) {
-    final travel = max(1.0, home.bottom - barBottom);
+  /// whole deck under the Stage ([deckBottom], else the Stage's home) has
+  /// scrolled up to it, so nothing of it is left behind. [twins] pairs each deck
+  /// element's home (page at the top) with its slot in the bar.
+  void update({
+    required Rect home,
+    required Rect mini,
+    required double barBottom,
+    required double offset,
+    double? deckBottom,
+    Map<Twin, (Rect, Rect)> twins = const {},
+  }) {
+    final travel = max(1.0, (deckBottom ?? home.bottom) - barBottom);
     _travel = travel;
     final t = (offset / travel).clamp(0.0, 1.0);
-    if (home == _home && mini == _mini && t == _t) return;
+    if (home == _home && mini == _mini && t == _t && mapEquals(twins, _twins)) return;
     _home = home;
     _mini = mini;
     _t = t;
+    _twins = twins;
     notifyListeners();
+  }
+}
+
+/// Deck elements with a twin in the mini bar. As the Stage collapses, a copy
+/// flies from one to the other so there's never two of them on screen.
+///
+/// The small channel line doesn't fly: its path would cross the shrinking
+/// Stage, so it fades out with the page and in with the bar.
+enum Twin {
+  title(0.2, ridesStage: true),
+  send(0.28);
+
+  const Twin(this.leaves, {this.ridesStage = false});
+
+  /// Collapse progress at which it starts pulling away from the page.
+  final double leaves;
+
+  /// Travels tucked under the Stage rather than in a straight line.
+  final bool ridesStage;
+}
+
+/// Lets the screen find a deck or bar element to measure it. The newest
+/// attached one wins, so a caption mid-crossfade measures the incoming copy.
+class TwinAnchors {
+  final _boxes = <Twin, RenderBox>{};
+
+  RenderBox? operator [](Twin id) {
+    final b = _boxes[id];
+    return b != null && b.attached && b.hasSize ? b : null;
+  }
+}
+
+class TwinAnchor extends SingleChildRenderObjectWidget {
+  const TwinAnchor({super.key, required this.anchors, required this.id, super.child});
+
+  final TwinAnchors? anchors;
+  final Twin id;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => RenderTwinAnchor(anchors, id);
+
+  @override
+  void updateRenderObject(BuildContext context, RenderTwinAnchor renderObject) => renderObject
+    ..release()
+    ..anchors = anchors
+    ..id = id
+    ..claim();
+}
+
+class RenderTwinAnchor extends RenderProxyBox {
+  RenderTwinAnchor(this.anchors, this.id);
+
+  TwinAnchors? anchors;
+  Twin id;
+
+  void claim() {
+    if (attached) anchors?._boxes[id] = this;
+  }
+
+  void release() {
+    if (identical(anchors?._boxes[id], this)) anchors?._boxes.remove(id);
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    claim();
+  }
+
+  @override
+  void detach() {
+    release();
+    super.detach();
+  }
+}
+
+/// Hides a deck or bar element while its flying twin stands in for it.
+class TwinSlot extends StatelessWidget {
+  const TwinSlot({super.key, required this.morph, required this.id, required this.inBar, required this.child});
+
+  final StageMorph? morph;
+  final Twin id;
+
+  /// The bar's copy shows once collapsed; the deck's only at the top.
+  final bool inBar;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = morph;
+    if (m == null) return child;
+    return ListenableBuilder(
+      listenable: m,
+      child: child,
+      builder: (context, child) {
+        final hidden = m.flies(id) && (inBar ? !m.collapsed : m.t > 0);
+        return Opacity(opacity: hidden ? 0 : 1, child: IgnorePointer(ignoring: hidden, child: child));
+      },
+    );
   }
 }
 

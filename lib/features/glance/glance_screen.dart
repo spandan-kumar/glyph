@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/background.dart';
@@ -153,6 +154,7 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
   Future<void> _play(Generator g) async {
     final s = _session!;
     if (!s.devices.isConnected) return goToMatrix(context);
+    HapticFeedback.mediumImpact(); // changes what the device shows
     setState(() => _starting = true);
     _owned.add(g);
     final ok = await s.start(g);
@@ -314,7 +316,10 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
                   else
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: s.stop,
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          s.stop();
+                        },
                         icon: const Icon(Icons.stop_sharp, size: 18),
                         label: const Text('Stop'),
                       ),
@@ -426,7 +431,10 @@ class _CardGrid extends StatelessWidget {
           accent: accent,
           label: c.title,
           line: cardShortLine(session, c),
-          onTap: () => onFocus(c.id),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onFocus(c.id);
+          },
           onLongPress: () => onActions(c.id),
           child: LedLoop(generator: session.cardGenerator(c), resetKey: c, borderRadius: Lb.rTile),
         ),
@@ -817,6 +825,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
   }
 
   void _pick(WeatherPlace place) {
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
     setState(() {
       _choose(place);
@@ -855,6 +864,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
       setState(() => _error = _weather ? 'Search for a city first.' : 'Pick a date.');
       return;
     }
+    HapticFeedback.lightImpact();
     setState(() {
       _saving = true;
       _error = null;
@@ -970,7 +980,10 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
               ButtonSegment(value: true, label: Text('°F')),
             ],
             selected: {_fahrenheit},
-            onSelectionChanged: (v) => setState(() => _fahrenheit = v.first),
+            onSelectionChanged: (v) {
+              HapticFeedback.selectionClick();
+              setState(() => _fahrenheit = v.first);
+            },
           ),
           const SizedBox(height: 18),
           const MonoLabel('Name on the card'),

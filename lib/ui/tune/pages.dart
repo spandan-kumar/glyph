@@ -9,6 +9,7 @@ import '../design/type.dart';
 import '../scope.dart';
 import 'channels.dart';
 import 'mini_stage.dart';
+import 'page_keys.dart';
 import 'tiles.dart';
 import 'tune_controller.dart';
 
@@ -34,10 +35,23 @@ Route<T> _route<T>(TuneController tune, Widget page) => PageRouteBuilder<T>(
 Future<void> openChannelPage(BuildContext context, Channel channel) =>
     Navigator.of(context).push(_route(TuneScope.read(context), _ChannelPage(channel: channel.expanded())));
 
-class _ChannelPage extends StatelessWidget {
+class _ChannelPage extends StatefulWidget {
   const _ChannelPage({required this.channel});
 
   final Channel channel;
+
+  @override
+  State<_ChannelPage> createState() => _ChannelPageState();
+}
+
+class _ChannelPageState extends State<_ChannelPage> with PageSend {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,10 +59,11 @@ class _ChannelPage extends StatelessWidget {
     final base = CatalogChannels(scope.catalog, DateTime.now());
     final channels = assembleChannels(base: base, favourites: library.favourites,
         recents: library.recents, creations: scope.creations.items);
-    final id = this.channel.id.endsWith('/all') ? this.channel.id.substring(0, this.channel.id.length - 4) : this.channel.id;
+    final given = widget.channel;
+    final id = given.id.endsWith('/all') ? given.id.substring(0, given.id.length - 4) : given.id;
     final current = channels.where((c) => c.id == id).firstOrNull;
-    final channel = current?.expanded() ?? this.channel.withCatalog(scope.catalog);
-    return SafeArea(
+    final channel = current?.expanded() ?? given.withCatalog(scope.catalog);
+    final page = SafeArea(
       bottom: false,
       child: Column(
         children: [
@@ -71,9 +86,10 @@ class _ChannelPage extends StatelessWidget {
               Text('${channel.all.length}', style: LbType.label),
             ]),
           ),
-          const MiniStage(),
+          MiniStage(onSend: send, keepState: keep),
           Expanded(
             child: CustomScrollView(
+              controller: _scroll,
               slivers: [
                 TileGrid(channel: channel, entries: channel.all),
                 SliverToBoxAdapter(
@@ -93,6 +109,14 @@ class _ChannelPage extends StatelessWidget {
         ],
       ),
     );
+    return Stack(children: [
+      Positioned.fill(child: page),
+      Positioned(
+        right: Lb.gutter,
+        bottom: MediaQuery.paddingOf(context).bottom + 16,
+        child: BackToTopKey(scroll: _scroll, showAfter: 200),
+      ),
+    ]);
   }
 }
 

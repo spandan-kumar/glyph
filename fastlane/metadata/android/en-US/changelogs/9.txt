@@ -1,0 +1,6 @@
+• Display: the matrix, title and Send glide into the top bar in one smooth motion, and back.
+• Knobs turn like real knobs — circle your finger — with ticks, and no longer scroll the page.
+• A back-to-top key on Display and on every category page; category pages get Send too.
+• A clearer save icon on every Send.
+• Haptics and small touches in Alerts, Glance, Rotations and Now Playing.
+• Draw no longer asks to save after you undo everything.

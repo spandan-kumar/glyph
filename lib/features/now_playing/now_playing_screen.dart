@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/background.dart';
 import '../../app/playback.dart';
@@ -87,6 +88,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
 
   Future<void> _play() async {
     final s = AppScope.of(context);
+    HapticFeedback.mediumImpact(); // starts changing the device's display
     s.playback.playGenerator(_generator);
     toolPlays(_generator);
     _CoverFollower.bind(_service, s.playback);
@@ -95,6 +97,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
   }
 
   Future<void> _stop() async {
+    HapticFeedback.selectionClick();
     AppScope.of(context).playback.pause();
     await GlyphActions.stopStreaming(context);
   }

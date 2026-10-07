@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../engine/frame.dart';
 import '../../ui/design/parts.dart';
@@ -123,6 +124,7 @@ class _NotificationScreenState extends State<NotificationScreen> with WidgetsBin
   Future<void> _test(String package) async {
     final c = _controller!;
     if (!c.devices.isConnected) return goToMatrix(context);
+    HapticFeedback.lightImpact();
     setState(() => _testing = true);
     try {
       await c.preview(package);
@@ -250,11 +252,15 @@ class _NotificationScreenState extends State<NotificationScreen> with WidgetsBin
                     focus: focus?.package,
                     enabled: c.loaded,
                     onTap: (a) {
+                      HapticFeedback.selectionClick();
                       final on = c.settings.packages.contains(a.package);
                       if (on && _focus != a.package) return setState(() => _focus = a.package);
                       _toggleApp(a.package, !on);
                     },
-                    onLongPress: (a) => _toggleApp(a.package, !c.settings.packages.contains(a.package)),
+                    onLongPress: (a) {
+                      HapticFeedback.selectionClick();
+                      _toggleApp(a.package, !c.settings.packages.contains(a.package));
+                    },
                   ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
@@ -332,12 +338,21 @@ class _StatusLine extends StatelessWidget {
                             : c.settings.isQuiet(DateTime.now())
                                 ? ('On · quiet hours', false)
                                 : ('On · listening', true);
-    if (live) return LivePulse(label: text);
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      StatusDot(on: c.monitoring, size: 7),
-      const SizedBox(width: 8),
-      MonoLabel(text),
-    ]);
+    // Off → On fades rather than snapping; the key changes with the wording.
+    return AnimatedSwitcher(
+      duration: Lb.medium,
+      switchInCurve: Lb.ease,
+      child: KeyedSubtree(
+        key: ValueKey(text),
+        child: live
+            ? LivePulse(label: text)
+            : Row(mainAxisSize: MainAxisSize.min, children: [
+                StatusDot(on: c.monitoring, size: 7),
+                const SizedBox(width: 8),
+                MonoLabel(text),
+              ]),
+      ),
+    );
   }
 }
 
@@ -374,14 +389,25 @@ class _PrimaryAction extends StatelessWidget {
     if (c.monitoring || c.starting) {
       return OutlinedButton.icon(
         style: OutlinedButton.styleFrom(minimumSize: tall),
-        onPressed: c.loaded && !c.starting ? () => c.setMonitoring(false) : null,
+        onPressed: c.loaded && !c.starting
+            ? () {
+                HapticFeedback.selectionClick();
+                c.setMonitoring(false);
+              }
+            : null,
         icon: const Icon(Icons.stop_sharp, size: 18),
         label: const Text('Turn off alerts'),
       );
     }
     return FilledButton(
       style: FilledButton.styleFrom(minimumSize: tall),
-      onPressed: chosen == 0 || !c.loaded ? null : () => c.setMonitoring(true),
+      onPressed: chosen == 0 || !c.loaded
+          ? null
+          : () {
+              // Medium: from here the device reacts to notifications.
+              HapticFeedback.mediumImpact();
+              c.setMonitoring(true);
+            },
       child: Text(chosen == 0 ? 'Pick an app below first' : 'Turn on alerts'),
     );
   }
@@ -428,7 +454,7 @@ class _AppGrid extends StatelessWidget {
           selected: on,
           label: '${a.name}${on ? ', chosen' : ''}',
           excludeSemantics: true,
-          child: GestureDetector(
+          child: _PressIn(
             onTap: enabled ? () => onTap(a) : null,
             onLongPress: enabled ? () => onLongPress(a) : null,
             child: Column(children: [
@@ -469,6 +495,36 @@ class _AppGrid extends StatelessWidget {
       },
     );
   }
+}
+
+/// Tiles sink a hair while held, so a long-press toggle feels like pressing
+/// a key rather than waiting on nothing.
+class _PressIn extends StatefulWidget {
+  const _PressIn({required this.child, this.onTap, this.onLongPress});
+  final Widget child;
+  final VoidCallback? onTap, onLongPress;
+  @override
+  State<_PressIn> createState() => _PressInState();
+}
+
+class _PressInState extends State<_PressIn> {
+  bool _down = false;
+  void _set(bool v) => setState(() => _down = v);
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
+        onTapDown: widget.onTap == null ? null : (_) => _set(true),
+        onTapUp: (_) => _set(false),
+        onTapCancel: () => _set(false),
+        child: AnimatedScale(
+          scale: _down ? 0.96 : 1,
+          duration: Lb.fast,
+          curve: Lb.ease,
+          child: widget.child,
+        ),
+      );
 }
 
 class _AllAppsSheet extends StatefulWidget {

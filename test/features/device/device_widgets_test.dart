@@ -17,6 +17,7 @@ import 'package:glyph/wled/schedule.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_wled.dart';
+import '../../ui/design/turn_knob.dart';
 
 void main() {
   late FakeWled wled;
@@ -161,7 +162,7 @@ void main() {
     await settle(tester);
     expect(wled.posts.last.$2, {'on': false});
 
-    await tester.drag(find.byType(Knob), const Offset(0, -60));
+    await turnKnob(tester, find.byType(Knob));
     await settle(tester);
     expect(store.brightness, greaterThan(128));
     expect(wled.posts.last.$2.keys, contains('bri'));

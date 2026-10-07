@@ -17,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../ui/make/ambient_host.dart';
 import 'fakes.dart';
+import '../../ui/design/turn_knob.dart';
 
 void main() {
   late Catalog catalog;
@@ -109,7 +110,7 @@ void main() {
     await tester.ensureVisible(find.byType(Knob).first);
     await tester.pump(const Duration(milliseconds: 100));
     // Knobs turn up when dragged upwards.
-    await tester.drag(find.byType(Knob).first, const Offset(0, -60));
+    await turnKnob(tester, find.byType(Knob).first);
     await tester.pump(const Duration(milliseconds: 200));
     expect(engine.sensitivity, greaterThan(0.5));
 

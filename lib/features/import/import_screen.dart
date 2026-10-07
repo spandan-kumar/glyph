@@ -995,7 +995,7 @@ class _ImportScreenState extends State<ImportScreen>
                 onPressed: caps != null && !_uploading ? _upload : null,
                 icon: _uploading
                     ? const LedSpinner(size: 16)
-                    : const Icon(Icons.push_pin_sharp, size: 18),
+                    : const Icon(Icons.save_alt_sharp, size: 18),
                 label: const FittedBox(child: Text('Send to device')),
               ),
             ),

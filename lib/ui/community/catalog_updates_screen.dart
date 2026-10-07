@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/community.dart';
 import '../../library/catalog_store.dart';
@@ -42,7 +43,24 @@ class CatalogUpdatesScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(Lb.gutter, 8, Lb.gutter, 40),
         children: [
-          Center(child: LedText('${store.catalog.items.length}', dot: 7, color: accent)),
+          Center(
+            // Odometer: a new count slides up in place of the old one.
+            child: AnimatedSwitcher(
+              duration: Lb.medium,
+              switchInCurve: Lb.ease,
+              transitionBuilder: (child, animation) {
+                final incoming = child.key == ValueKey('${store.catalog.items.length}');
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween(begin: Offset(0, incoming ? 0.4 : -0.4), end: Offset.zero).animate(animation),
+                    child: child,
+                  ),
+                );
+              },
+              child: LedText('${store.catalog.items.length}', key: ValueKey('${store.catalog.items.length}'), dot: 7, color: accent),
+            ),
+          ),
           const SizedBox(height: 10),
           Center(child: MonoLabel('animations on this phone')),
           if (store.downloaded > 0) ...[
@@ -66,7 +84,7 @@ class CatalogUpdatesScreen extends StatelessWidget {
           else
             FilledButton.icon(
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-              onPressed: store.enabled && store.ready && !store.checking ? store.check : null,
+              onPressed: store.enabled && store.ready && !store.checking ? () => _check(context, store) : null,
               icon: store.checking ? const LedSpinner(size: 16) : const Icon(Icons.refresh_sharp, size: 18),
               label: Text(store.checking ? 'Checking…' : 'Check now'),
             ),
@@ -93,6 +111,13 @@ class CatalogUpdatesScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static Future<void> _check(BuildContext context, CatalogStore store) async {
+    HapticFeedback.selectionClick();
+    final before = store.downloaded;
+    await store.check();
+    if (store.downloaded > before) HapticFeedback.lightImpact(); // something new arrived
   }
 
   static String _ago(DateTime t) {

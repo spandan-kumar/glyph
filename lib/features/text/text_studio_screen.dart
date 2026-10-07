@@ -560,7 +560,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                 : null,
             icon: _busy
                 ? const LedSpinner(size: 16)
-                : const Icon(Icons.push_pin_sharp, size: 18),
+                : const Icon(Icons.save_alt_sharp, size: 18),
             label: FittedBox(child: Text(_busy ? 'Sending…' : 'Send to device')),
           ),
         ),

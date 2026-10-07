@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -29,6 +30,7 @@ import 'package:glyph/wled/device.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/device/fake_wled.dart';
+import '../design/turn_knob.dart';
 
 /// Pumps [ms] of time as a run of frames, so animations that start on the
 /// next frame actually progress (never pumpAndSettle: previews tick forever).
@@ -172,7 +174,7 @@ void main() {
     // Knobs turn live, too.
     final spec = playback.generator!.params.first;
     final v = playback.params[spec.key];
-    await tester.drag(find.byType(Knob).first, const Offset(0, -60));
+    await turnKnob(tester, find.byType(Knob).first);
     await step(tester, 100);
     expect(playback.params[spec.key], isNot(v));
 
@@ -476,23 +478,112 @@ void main() {
     playback.pause();
   });
 
-  testWidgets('letting go mid-collapse settles the Stage at the nearer end', (tester) async {
+  testWidgets('the title and Send ride into the bar with the Stage, never shown twice', (tester) async {
+    final wled = FakeWled();
+    BootIntro.autoInstall = false;
+    addTearDown(BootIntro.resetForTest);
+    final devices = DeviceStore(clientFactory: wled.client);
+    addTearDown(devices.dispose);
+    await tester.runAsync(() => devices.addAndSelect('fake', 'Test device'));
+    final playback = await pumpApp(tester, size: const Size(360, 740),
+        devices: devices, controller: _NoStreamPlayback());
+    final pos = pagePosition(tester);
+    final title = playingTitle(playback)!;
+    final send = find.byType(SendButton).hitTestable();
+    final flying = find.byType(SendInFlight);
+
+    // At the top: the deck's own Send, nothing in flight.
+    expect(send, findsOneWidget);
+    expect(flying, findsNothing);
+    final deckSend = tester.getRect(send);
+    final deckTitle = tester.getRect(find.text(title).hitTestable());
+
+    // Partway: one Send and one title, both in flight between the two ends.
+    final tops = <double>[];
+    for (final at in [120.0, 240.0]) {
+      pos.jumpTo(at);
+      await step(tester, 50);
+      expect(send, findsNothing, reason: 'the real keys hide while their twin flies');
+      expect(flying, findsOneWidget);
+      final r = tester.getRect(flying);
+      expect(r.top, lessThan(deckSend.top));
+      tops.add(r.top);
+      final titles = tester.widgetList<Text>(find.text(title)).length;
+      expect(titles, greaterThanOrEqualTo(1));
+    }
+    expect(tops.last, lessThan(tops.first), reason: 'still climbing toward the bar');
+
+    // Collapsed: the bar's square Send, nothing in flight.
+    pos.jumpTo(900);
+    await step(tester, 50);
+    expect(flying, findsNothing);
+    expect(send, findsOneWidget);
+    final barSend = tester.getRect(send);
+    expect(barSend.width, closeTo(40, 0.5));
+    expect(barSend.top, lessThan(MiniStage.height + 1));
+    expect(tester.getRect(find.text(title).hitTestable()).top, lessThan(deckTitle.top));
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('the Stage has two states: any drag in the zone runs the whole morph', (tester) async {
     final playback = await pumpApp(tester, size: const Size(360, 740));
     final pos = pagePosition(tester);
     final full = tester.getRect(find.byType(Stage)).width;
-
-    // A short drag: back to the full Stage.
-    await tester.timedDrag(find.text('SEE ALL').first, const Offset(0, -60), const Duration(milliseconds: 600));
-    await step(tester, 900);
-    expect(pos.pixels, 0);
-    expect(tester.getRect(find.byType(Stage)).width, closeTo(full, 0.5));
-
-    // Most of the way: on to the thumbnail.
-    await tester.timedDrag(find.text('SEE ALL').first, const Offset(0, -260), const Duration(milliseconds: 900));
-    await step(tester, 900);
     final f = playback.frame;
     final mini = MiniStage.panelRect(top: 0, aspect: f.width / f.height);
+
+    // A short nudge down: it doesn't stop halfway, it lands in the bar.
+    await tester.timedDrag(find.text('SEE ALL').first, const Offset(0, -40), const Duration(milliseconds: 400));
+    await step(tester, 100);
+    final mid = tester.getRect(find.byType(Stage)).width;
+    expect(mid, lessThan(full));
+    await step(tester, 600);
     expect(tester.getRect(find.byType(Stage)).width, closeTo(mini.width, 0.5));
+
+    // A short nudge back up: all the way back to the full Stage.
+    await tester.timedDrag(find.text('SEE ALL').first, const Offset(0, 40), const Duration(milliseconds: 400));
+    await step(tester, 700);
+    expect(pos.pixels, 0);
+    expect(tester.getRect(find.byType(Stage)).width, closeTo(full, 0.5));
+    playback.pause();
+  });
+
+  testWidgets('back to the top: on Display once past the Stage, and on a channel page with its own Send', (tester) async {
+    final wled = FakeWled();
+    BootIntro.autoInstall = false;
+    addTearDown(BootIntro.resetForTest);
+    final devices = DeviceStore(clientFactory: wled.client);
+    addTearDown(devices.dispose);
+    await tester.runAsync(() => devices.addAndSelect('fake', 'Test device'));
+    final playback = await pumpApp(tester, size: const Size(360, 740),
+        devices: devices, controller: _NoStreamPlayback());
+    final pos = pagePosition(tester);
+    final top = find.bySemanticsLabel('Back to the top').hitTestable();
+    expect(top, findsNothing);
+
+    pos.jumpTo(1400);
+    await step(tester, 400);
+    expect(top, findsOneWidget);
+    await tester.tap(top);
+    await step(tester, 900);
+    expect(pos.pixels, 0);
+    await step(tester, 400);
+    expect(top, findsNothing);
+
+    // A channel's See all: the bar carries Send, and the page its own key.
+    await tester.tap(find.text('SEE ALL').first);
+    await step(tester, 600);
+    expect(find.bySemanticsLabel('Send').hitTestable(), findsOneWidget);
+    final grid = tester.state<ScrollableState>(find.byType(Scrollable).hitTestable().last).position;
+    grid.jumpTo(min(grid.maxScrollExtent, 900.0));
+    await step(tester, 400);
+    if (grid.pixels > 240) {
+      await tester.tap(top);
+      await step(tester, 900);
+      expect(grid.pixels, 0);
+    }
+    expect(tester.takeException(), isNull);
     playback.pause();
   });
 

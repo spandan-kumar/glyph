@@ -111,7 +111,7 @@ Future<void> showCreationActions(BuildContext context, Creation c) {
       StudioAction(Icons.play_arrow_sharp, 'Play',
           () => GlyphActions.playClip(context, c.clip, c.title)),
       if (editable) StudioAction(Icons.edit_sharp, 'Edit', () => openCreation(context, c)),
-      StudioAction(Icons.push_pin_sharp, 'Send to device', () => keepOnMatrix(context, c),
+      StudioAction(Icons.save_alt_sharp, 'Send to device', () => keepOnMatrix(context, c),
           subtitle: 'Plays without your phone'),
       StudioAction(Icons.gif_box_sharp, 'Share as GIF', () => shareCreationAsGif(context, c)),
       StudioAction(Icons.ios_share_sharp, 'Share Glyph file', () => shareCreationFile(context, c),
