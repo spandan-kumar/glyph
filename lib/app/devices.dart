@@ -35,6 +35,11 @@ class DeviceStore extends ChangeNotifier {
   String? _error;
   bool _loading = false;
 
+  bool _disposed = false;
+  int _selectionGen = 0;
+  int _refreshGen = 0;
+  int _controlGen = 0;
+
   bool? _on;
   int? _bri;
   int? _presetId;
@@ -52,6 +57,10 @@ class DeviceStore extends ChangeNotifier {
   List<SavedDevice> get saved => List.unmodifiable(_saved);
   SavedDevice? get selected => _selected;
   WledClient? get client => _client;
+  int get selectionGeneration => _selectionGen;
+  int get controlGeneration => _controlGen;
+  bool isCurrent(WledClient c, int generation) =>
+      !_disposed && generation == _selectionGen && identical(c, _client);
   WledInfo? get info => _info;
   DeviceCapabilities? get caps => _caps;
   String? get error => _error;
@@ -83,7 +92,8 @@ class DeviceStore extends ChangeNotifier {
   /// Whether the matrix is playing [title] on its own as something Glyph
   /// kept. Survives app restarts because it's read from the matrix's state.
   bool isPlayingKept(String title) =>
-      keptTitle == title || (_playingGif != null && _playingGif == keptFileName(title));
+      keptTitle == title || (_playingGif != null &&
+          WledClient.matchesGifName(keptFileName(title), _playingGif!));
   String? _keptTitle;
   int? _keptPresetId;
 
@@ -156,6 +166,9 @@ class DeviceStore extends ChangeNotifier {
   }
 
   Future<void> select(SavedDevice d) async {
+    final gen = ++_selectionGen;
+    _stateGen++;
+    _refreshGen++;
     if (_selected?.host != d.host) {
       _briTimer?.cancel();
       _clearState();
@@ -163,8 +176,12 @@ class DeviceStore extends ChangeNotifier {
       _caps = null;
     }
     _selected = d;
-    _client = _factory(d.host);
+    _client = _peer(d.host);
+    _loading = false;
+    _error = null;
+    notifyListeners();
     await _persist();
+    if (_disposed || gen != _selectionGen) return;
     await refresh();
   }
 
@@ -175,6 +192,11 @@ class DeviceStore extends ChangeNotifier {
     _peerOnline.remove(d.host);
     _peerClients.remove(d.host)?.close();
     if (_selected?.host == d.host) {
+      _selectionGen++;
+      _refreshGen++;
+      _stateGen++;
+      _loading = false;
+      _error = null;
       _selected = null;
       _client = null;
       _info = null;
@@ -193,6 +215,9 @@ class DeviceStore extends ChangeNotifier {
 
   /// Replaces the saved entry with the same host (name, layout, …).
   Future<void> updateSaved(SavedDevice updated) async {
+    if (_selected?.host == updated.host && _selected?.layout != updated.layout) {
+      _controlGen++;
+    }
     _saved = [for (final x in _saved) x.host == updated.host ? updated : x];
     if (_selected?.host == updated.host) _selected = updated;
     await _persist();
@@ -213,14 +238,21 @@ class DeviceStore extends ChangeNotifier {
   Future<void> refresh() async {
     final c = _client;
     if (c == null) return;
+    final selection = _selectionGen, request = ++_refreshGen;
+    final host = _selected!.host;
+    bool current() => isCurrent(c, selection) && request == _refreshGen;
     _loading = true;
     _error = null;
     notifyListeners();
     try {
       final info = await c.info();
-      _caps = await c.capabilities();
+      if (!current()) return;
+      final caps = await c.capabilities();
+      if (!current()) return;
+      await _readLedColor(host, c);
+      if (!current()) return;
+      _caps = caps;
       _info = info;
-      await _readLedColor(_selected?.host, c);
       // The name stored on the matrix is the one people set and recognise;
       // keep the saved entry in step with it (and the MAC, for re-finding).
       // The factory default "WLED" is less useful than the network name.
@@ -238,12 +270,15 @@ class DeviceStore extends ChangeNotifier {
       }
       await _readState(c);
     } catch (e) {
+      if (!current()) return;
       _info = null;
       _caps = null;
       _error = 'Can\'t reach ${_selected?.host}: $e';
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (current()) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -275,7 +310,7 @@ class DeviceStore extends ChangeNotifier {
     final gen = ++_stateGen;
     final s = await c.state();
     // A write issued meanwhile wins over this (older) read.
-    if (gen != _stateGen || c != _client) return;
+    if (_disposed || gen != _stateGen || c != _client) return;
     _applyState(s);
   }
 
@@ -311,15 +346,18 @@ class DeviceStore extends ChangeNotifier {
   Future<void> setPower(bool on) async {
     final c = _client;
     if (c == null) return;
+    _controlGen++;
     final before = _on;
     _on = on;
-    _stateGen++;
+    final gen = ++_stateGen, selection = _selectionGen;
     notifyListeners();
     try {
       await c.power(on);
     } catch (e) {
-      _on = before;
-      notifyListeners();
+      if (isCurrent(c, selection) && gen == _stateGen) {
+        _on = before;
+        notifyListeners();
+      }
       rethrow;
     }
   }
@@ -331,6 +369,7 @@ class DeviceStore extends ChangeNotifier {
   void setBrightness(int bri) {
     final c = _client;
     if (c == null) return;
+    _controlGen++;
     _bri = bri.clamp(0, 255);
     _stateGen++;
     notifyListeners();
@@ -352,20 +391,27 @@ class DeviceStore extends ChangeNotifier {
   Future<void> applyPreset(int id) async {
     final c = _client;
     if (c == null) return;
+    _controlGen++;
+    final selection = _selectionGen, gen = ++_stateGen;
     await c.applyPreset(id);
+    if (!isCurrent(c, selection) || gen != _stateGen) return;
     _presetId = id;
     _on = true;
     _stateGen++;
     notifyListeners();
     // Presets load asynchronously on the device.
     await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!isCurrent(c, selection)) return;
     await refreshState();
   }
 
   Future<void> setNightlight(bool on, {int? minutes, int? mode, int? targetBri}) async {
     final c = _client;
     if (c == null) return;
+    _controlGen++;
+    final selection = _selectionGen, gen = ++_stateGen;
     await c.setNightlight(on: on, minutes: minutes, mode: mode, targetBri: targetBri);
+    if (!isCurrent(c, selection) || gen != _stateGen) return;
     _nightlight = on;
     if (on) _on = true;
     _stateGen++;
@@ -441,7 +487,16 @@ class DeviceStore extends ChangeNotifier {
   Future<void> exitLiveOn(String host) => _peer(host).exitLive();
 
   @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
   void dispose() {
+    _disposed = true;
+    _selectionGen++;
+    _refreshGen++;
+    _stateGen++;
     _briTimer?.cancel();
     for (final c in _peerClients.values) {
       c.close();

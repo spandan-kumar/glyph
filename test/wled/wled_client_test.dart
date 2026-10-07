@@ -69,7 +69,8 @@ void main() {
     expect(body, contains('filename="/glyph_test.gif"'));
   });
 
-  test('saveGifToDevice: release, upload, then switch (leave live, play, save)', () async {
+  test(
+    'saveGifToDevice stages a playing file before switching and saving', () async {
     final caps = DeviceCapabilities.detect(
         WledInfo.fromJson(jsonDecode(infoEsp32V16)), effectsEsp32V16);
     var switched = false;
@@ -85,18 +86,19 @@ void main() {
       for (final r in requests)
         if (r.url.path == '/json/state' && r.method == 'POST') jsonDecode(r.body)
     ];
-    expect(posts[0], {
-      'tt': 0,
-      'seg': {'id': 0, 'fx': 0}
-    });
-    // The GIF is loaded while still live, then live mode ends: no flash.
-    expect(posts[1]['seg'], containsPair('n', 'glyph_test.gif'));
-    expect(posts[1]['seg'], containsPair('fx', 53));
-    expect(posts[2], {'live': false});
-    expect(posts[3], {'psave': 2, 'n': 'Glyph test', 'ib': true, 'sb': true});
+      // The GIF is loaded while still live, then live mode ends: no flash.
+      expect(posts, hasLength(3));
+    expect(posts[0]['seg'], containsPair('n', 'glyph_test-00.gif'));
+    expect(posts[0]['seg'], containsPair('fx', 53));
+    expect(posts[1], {'live': false});
+    expect(posts[2], {'psave': 2, 'n': 'Glyph test', 'ib': true, 'sb': true});
     expect(requests.where((r) => r.url.path == '/upload'), hasLength(1));
     // The matrix only leaves live mode after the file is safely uploaded.
     final upload = requests.indexWhere((r) => r.url.path == '/upload');
+      final switchEffect = requests.indexWhere(
+        (r) => r.url.path == '/json/state' && r.method == 'POST',
+      );
+      expect(upload, lessThan(switchEffect));
     final leave = requests.indexWhere((r) => r.method == 'POST' && r.body == '{"live":false}');
     expect(upload, lessThan(leave));
   });
@@ -131,6 +133,12 @@ void main() {
     expect(switched, isFalse);
     expect(requests.any((r) => r.method == 'POST' && r.body.contains('"live"')), isFalse);
     expect(requests.any((r) => r.method == 'POST' && r.body.contains('psave')), isFalse);
+      expect(
+        requests.where(
+          (r) => r.method == 'POST' && r.url.path == '/json/state',
+        ),
+        isEmpty,
+      );
   });
 
   test('saveGifToDevice refuses devices without GIF support or space', () async {

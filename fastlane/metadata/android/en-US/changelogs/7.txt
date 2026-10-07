@@ -1,0 +1,5 @@
+• Send stays reachable while browsing.
+• Already-saved looks offer Play it without another upload. Changed looks reuse their Saved entry; tweaked clip speed is preserved.
+• Sharing opens Discord, with fewer invitations.
+• Routines hides the built-in intro and keeps your power-on look editable.
+• Safer Sends when switching devices or replacing animations; boot and Saved writes no longer race.

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,6 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
+import 'package:glyph/engine/clip.dart';
+import 'package:glyph/engine/frame.dart';
+import 'package:glyph/engine/gif_encoder.dart';
+import 'package:glyph/features/device/boot_intro.dart';
+import 'package:glyph/ui/tune/beam.dart';
+import 'package:glyph/wled/layout.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/library/user_library.dart';
 import 'package:glyph/main.dart';
@@ -31,17 +38,28 @@ Future<void> step(WidgetTester tester, int ms) async {
   }
 }
 
+class _NoStreamPlayback extends PlaybackController {
+  @override
+  Future<void> startStreaming(String host, MatrixLayout layout) async {}
+}
+
+class _LiveClip extends ClipGenerator {
+  _LiveClip(super.clip);
+  @override
+  bool get liveOnly => true;
+}
+
 void main() {
   final catalog = Catalog.parse(File('assets/catalog/catalog.json').readAsStringSync());
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   Future<PlaybackController> pumpApp(WidgetTester tester,
-      {Size size = const Size(412, 915), DeviceStore? devices}) async {
+      {Size size = const Size(412, 915), DeviceStore? devices, PlaybackController? controller}) async {
     tester.view.physicalSize = size * 2.625;
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
-    final playback = PlaybackController();
+    final playback = controller ?? PlaybackController();
     addTearDown(playback.dispose);
     await tester.pumpWidget(GlyphApp(
       catalog: catalog,
@@ -239,6 +257,127 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Send'));
     await step(tester, 300);
     expect(find.text('Connect a device to send this to it.'), findsOneWidget);
+    playback.pause();
+  });
+
+  testWidgets('collapsed Send checks saved content without a beam or scrolling, and hides for live-only looks', (tester) async {
+    final wled = FakeWled();
+    BootIntro.autoInstall = false;
+    addTearDown(BootIntro.resetForTest);
+    final devices = DeviceStore(clientFactory: wled.client);
+    addTearDown(devices.dispose);
+    await tester.runAsync(() => devices.addAndSelect('fake', 'Test device'));
+    final playback = await pumpApp(tester, size: const Size(360, 740),
+        devices: devices, controller: _NoStreamPlayback());
+    final clip = FrameClip(width: 1, height: 1, delaysMs: [100],
+        frames: [Frame(1, 1)..set(0, 0, 0xFF0000)]);
+    playback.playGenerator(ClipGenerator(clip, title: 'Original'));
+    final fitted = clip.fitTo(devices.caps!.width, devices.caps!.height);
+    final bytes = encodeGif(fitted.frames, [10], forLeds: true);
+    wled.presets['12'] = {'n': 'Original', 'seg': [{'id': 0, 'n': 'original.gif'}]};
+    wled.files.add({'name': 'original.gif', 'type': 'file', 'size': bytes.length});
+    wled.gifs['/original.gif'] = bytes;
+    final pos = pagePosition(tester)..jumpTo(900);
+    await step(tester, 100);
+    expect(find.bySemanticsLabel('Send').hitTestable(), findsOneWidget);
+    final uploads = wled.uploads.length;
+    late Completer<void> entered, release;
+    wled.beforeRequest = (r) async {
+      if (r.url.path == '/original.gif') {
+        if (!entered.isCompleted) entered.complete();
+        await release.future;
+      }
+    };
+    await tester.runAsync(() async {
+      entered = Completer<void>();
+      release = Completer<void>();
+      await tester.tap(find.bySemanticsLabel('Send').hitTestable());
+      await entered.future.timeout(const Duration(seconds: 10));
+    });
+    await step(tester, 100);
+    expect(find.bySemanticsLabel('Checking').hitTestable(), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is BeamPainter), findsNothing);
+    await tester.runAsync(() async {
+      release.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
+    await step(tester, 300);
+    expect(pos.pixels, 900);
+    expect(wled.uploads.length, uploads);
+    expect(find.text('Already on your device'), findsOneWidget);
+    expect(find.text('Play it'), findsOneWidget);
+    expect(find.text('Show it off'), findsNothing);
+    expect(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is BeamPainter), findsNothing);
+    playback.playGenerator(_LiveClip(clip));
+    await step(tester, 100);
+    expect(find.bySemanticsLabel('Send').hitTestable(), findsNothing);
+    final info = jsonDecode(wled.info) as Map<String, dynamic>..['arch'] = 'esp8266';
+    wled.info = jsonEncode(info);
+    await tester.runAsync(devices.refresh);
+    playback.playGenerator(ClipGenerator(clip));
+    await step(tester, 100);
+    expect(devices.caps!.canPlayGifs, isFalse);
+    expect(find.bySemanticsLabel('Send').hitTestable(), findsNothing);
+    await tester.runAsync(() => devices.remove(devices.selected!));
+    playback.playGenerator(ClipGenerator(clip));
+    await step(tester, 100);
+    expect(find.bySemanticsLabel('Send').hitTestable(), findsNothing);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('a previous Sent flash cannot clear the next Send checking state', (tester) async {
+    BootIntro.autoInstall = false;
+    addTearDown(BootIntro.resetForTest);
+    final wled = FakeWled();
+    final devices = DeviceStore(clientFactory: wled.client);
+    addTearDown(devices.dispose);
+    await tester.runAsync(() => devices.addAndSelect('fake', 'Test device'));
+    final playback = await pumpApp(tester, size: const Size(360, 740),
+        devices: devices, controller: _NoStreamPlayback());
+    final clip = FrameClip(width: 1, height: 1, delaysMs: [100],
+        frames: [Frame(1, 1)..set(0, 0, 0xFF0000)]);
+    playback.playGenerator(ClipGenerator(clip, title: 'Original'));
+    await step(tester, 100);
+    await tester.runAsync(() async {
+      await tester.tap(find.bySemanticsLabel('Send').hitTestable());
+      await Future<void>(() async {
+        while (devices.keptTitle != 'Original') {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+      }).timeout(const Duration(seconds: 10));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await step(tester, 100);
+    expect(find.bySemanticsLabel('Sent').hitTestable(), findsOneWidget);
+    expect(find.text('Show it off'), findsOneWidget);
+    late Completer<void> entered, release;
+    wled.beforeRequest = (r) async {
+      if (r.url.path == '/original.gif') {
+        if (!entered.isCompleted) entered.complete();
+        await release.future;
+      }
+    };
+    await tester.runAsync(() async {
+      entered = Completer<void>();
+      release = Completer<void>();
+      await tester.tap(find.bySemanticsLabel('Sent').hitTestable());
+      await entered.future.timeout(const Duration(seconds: 10));
+    });
+    await step(tester, 2000);
+    expect(tester.widget<SendButton>(find.byType(SendButton)).state, KeepState.checking);
+    await tester.runAsync(() async {
+      release.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
+    await step(tester, 700);
+    expect(find.text('Already on your device'), findsOneWidget);
+    expect(find.text('Show it off'), findsNothing);
+    expect(wled.uploads, ['/original.gif']);
+    await tester.runAsync(() async {
+      await Future<void>.delayed(Duration.zero);
+    });
+    expect(tester.takeException(), isNull);
     playback.pause();
   });
 

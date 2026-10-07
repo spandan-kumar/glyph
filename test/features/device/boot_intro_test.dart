@@ -14,6 +14,7 @@ import 'package:glyph/engine/palette.dart';
 import 'package:glyph/features/device/boot_intro.dart';
 import 'package:glyph/features/device/device_manager.dart';
 import 'package:glyph/features/device/widgets/common.dart';
+import 'package:glyph/features/device/widgets/routines.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/matrix/matrix_screen.dart';
 import 'package:glyph/ui/onboarding/onboarding_flow.dart';
@@ -198,7 +199,32 @@ void main() {
     });
   });
 
-  testWidgets('installs on connect; Device tab hides it and reads "Glyph intro, then …"', (tester) async {
+  testWidgets('intro-only power-on is hidden and Routines has a useful empty state', (tester) async {
+    (wled.cfg['def'] as Map)['ps'] = 0;
+    wled.cfg['timers'] = {'ins': []};
+    final devices = DeviceStore(clientFactory: wled.client);
+    addTearDown(devices.dispose);
+    late DeviceManager manager;
+    await tester.runAsync(() async {
+      await devices.addAndSelect('fake', 'Test device');
+      await BootIntro.ensure(devices.client!, devices.caps!);
+      manager = DeviceManager(devices);
+      await manager.load();
+    });
+    addTearDown(manager.dispose);
+    await tester.pumpWidget(MaterialApp(theme: buildTheme(), home: Scaffold(
+        body: RoutinesSection(manager: manager))));
+    expect(find.textContaining('When it powers on'), findsNothing);
+    expect(find.textContaining('Glyph intro'), findsNothing);
+    expect(find.textContaining('No routines yet.'), findsOneWidget);
+    expect(find.text('Choose a power-on look'), findsOneWidget);
+    expect(find.text('New routine'), findsOneWidget);
+    expect(manager.bootIntro.installed, isTrue);
+    expect(wled.bootPreset, 249);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('installs on connect; Device tab hides the system intro and shows only the chosen look', (tester) async {
     tester.view.physicalSize = const Size(360, 740) * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -223,7 +249,7 @@ void main() {
     expect(wled.bootPreset, 249);
     expect(WledPreset.parseAll(wled.presets).map((p) => p.name), containsAll(['Glyph intro', 'Power-on']));
 
-    final row = find.text('When it powers on → Glyph intro, then Pipplee');
+    final row = find.text('When it powers on → Pipplee');
     await tester.scrollUntilVisible(row, 200, scrollable: find.byType(Scrollable).first);
     await settle(tester);
     expect(find.text('Glyph intro'), findsNothing, reason: 'not a Saved tile');
@@ -233,12 +259,12 @@ void main() {
     await tester.tap(row);
     await settle(tester, 600);
     expect(find.text('Glyph intro'), findsNothing, reason: 'not offered in the picker');
-    expect(find.text('Just the Glyph logo'), findsOneWidget);
+    expect(find.text('No saved look'), findsOneWidget);
     await tester.tap(find.text('Ocean Plasma').last);
     await settle(tester, 1600);
     expect(wled.bootPreset, 249);
     expect((presetBody(249)['playlist'] as Map)['end'], 1);
-    expect(find.text('When it powers on → Glyph intro, then Ocean Plasma'), findsOneWidget);
+    expect(find.text('When it powers on → Ocean Plasma'), findsOneWidget);
 
     // Storage doesn't list the intro's file.
     await tester.scrollUntilVisible(find.textContaining('KB used'), 200, scrollable: find.byType(Scrollable).first);

@@ -3,7 +3,7 @@ Glyph brings your WLED LED matrix to life. Swipe through more than a thousand an
 Your matrix lives at the top of the screen as a glowing live panel. Swipe it to flip through animations, roll the dice for a surprise, and tap Send to put an animation on the device so it keeps playing with your phone off.
 
 DISPLAY
-• 1,163 animations in 22 categories: 62 procedural effects (plasma, fire, aurora, reaction–diffusion, falling sand…), 313 original pixel-art sprites, and Famous Classics: public-domain characters and paintings such as the 1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night.
+• 1,209 animations in 22 categories: 62 procedural effects (plasma, fire, aurora, reaction–diffusion, falling sand…), 329 original pixel-art sprites, and Famous Classics: public-domain characters and paintings such as the 1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night.
 • Tweak colours and motion with a palette reel and rotary knobs.
 • Seamless loops on the device and accurate colours: device gamma, true blacks and stable hues at low brightness.
 

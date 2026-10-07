@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Your matrix, alive.</b><br>
-  A fast, beautiful app for WLED LED matrices — 1,163 animations, a pixel
+  A fast, beautiful app for WLED LED matrices — 1,209 animations, a pixel
   editor, text and clocks, GIF import, a music visualiser and games.
 </p>
 
@@ -50,8 +50,8 @@ for a surprise, and tap **Send** to put an animation on the device. Tweak
 colours and motion with a palette reel and rotary knobs; the whole app glows
 with whatever is on your matrix.
 
-- **1,163 animations** in 22 categories: 62 procedural effects (plasma, fire,
-  aurora, reaction–diffusion, falling sand…), 313 original pixel-art sprites,
+- **1,209 animations** in 22 categories: 62 procedural effects (plasma, fire,
+  aurora, reaction–diffusion, falling sand…), 329 original pixel-art sprites,
   and **Famous Classics** — public-domain characters and paintings such as the
   1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night.
 - Seamless loops on the device, accurate colours (device gamma, true blacks,
@@ -144,7 +144,7 @@ an animation or send a pull request. Glyph is released under the
 - **Chat** — the [Glyph Discord](https://discord.gg/9EeCFZAFvk): help, ideas, beta builds
 - **Questions and help** — [Discussions](https://github.com/spandan-kumar/glyph/discussions)
 - **Show your setup** — photos and clips of your matrix in
-  [Show and tell](https://github.com/spandan-kumar/glyph/discussions/categories/show-and-tell)
+  [Discord’s #show-your-setup](https://discord.gg/9EeCFZAFvk)
 - **Bugs, animation and display requests** — use **Send feedback** in the
   app, or the [issue forms](https://github.com/spandan-kumar/glyph/issues/new/choose);
   👍 the requests you want most

@@ -15,8 +15,11 @@ import '../engine/palette.dart';
 import '../engine/registry.dart';
 import '../library/catalog.dart';
 import '../wled/wled_client.dart';
+import '../wled/presets.dart';
 import 'community/glyph_menu.dart';
 import 'scope.dart';
+
+const alreadyOnDeviceMessage = 'Already on your device';
 
 /// Why a live-only look (see [Generator.liveOnly]) wasn't sent.
 const liveOnlyMessage = 'This one follows your phone live, so it stays on your phone.';
@@ -38,7 +41,9 @@ abstract final class GlyphActions {
     s.playback.resize(caps.width, caps.height);
     try {
       // Clears a leftover realtime override, which would make WLED ignore DDP.
-      await d.client!.prepareStream();
+      final client = d.client!, selection = d.selectionGeneration;
+      await client.prepareStream();
+      if (!d.isCurrent(client, selection) || !context.mounted) return;
       await s.playback.startStreaming(d.selected!.host, d.selected!.layout);
     } catch (e) {
       if (context.mounted) _fail(context, 'Couldn\'t start streaming: $e');
@@ -67,7 +72,7 @@ abstract final class GlyphActions {
   /// frames; anything else (games, audio) is recorded for about 4 s. Effects
   /// are baked as seamless loops (renderLoop), since the matrix replays the
   /// GIF end to start forever.
-  static Future<String?> saveToDevice(BuildContext context) async {
+  static Future<String?> saveToDevice(BuildContext context, {Future<void> Function()? onUpload}) async {
     final s = AppScope.of(context);
     final caps = s.devices.caps;
     final g = s.playback.generator;
@@ -82,7 +87,8 @@ abstract final class GlyphActions {
     const fps = deviceGifFps;
 
     if (g is ClipGenerator) {
-      return saveClipToDevice(context, g.clip, title);
+      return saveClipToDevice(context, g.clip, title, onUpload: onUpload,
+          speed: s.playback.params['speed'] * s.playback.timeScale);
     }
     final Future<Uint8List> bytes;
     if (findGenerator(g.id) != null) {
@@ -110,11 +116,12 @@ abstract final class GlyphActions {
       );
       bytes = compute(_encodeLoop, loop);
     }
-    return _upload(context, title, bytes);
+    return _upload(context, title, bytes, onUpload: onUpload);
   }
 
   static Future<String?> saveClipToDevice(
-      BuildContext context, FrameClip clip, String title) async {
+      BuildContext context, FrameClip clip, String title,
+      {Future<void> Function()? onUpload, double speed = 1}) async {
     final caps = AppScope.of(context).devices.caps;
     if (caps == null) return null;
     final fitted = clip.fitTo(caps.width, caps.height);
@@ -125,74 +132,159 @@ abstract final class GlyphActions {
     var elapsedMs = 0, totalCs = 0;
     for (final ms in fitted.delaysMs) {
       elapsedMs += ms;
-      final d = ((elapsedMs / 10).round() - totalCs).clamp(2, 65535);
+      final d = ((elapsedMs / (10 * speed)).round() - totalCs).clamp(2, 65535);
       delays.add(d);
       totalCs += d;
     }
-    return _upload(context, title, compute(_encodeClip, (fitted.frames, delays)));
+    return _upload(context, title, compute(_encodeClip, (fitted.frames, delays)), onUpload: onUpload);
   }
 
   static Future<String?> _upload(
-      BuildContext context, String title, Future<Uint8List> encoding) async {
+    BuildContext context,
+    String title,
+    Future<Uint8List> encoding, {
+    Future<void> Function()? onUpload,
+  }) async {
     final s = AppScope.of(context);
     final d = s.devices;
     final caps = d.caps, client = d.client;
     if (caps == null || client == null) return null;
+    final selection = d.selectionGeneration, control = d.controlGeneration;
+    final playback = s.playback, revision = playback.revision;
+    var stream = playback.streamGeneration;
+    final throttle = Object();
+    bool current() =>
+        context.mounted &&
+        d.isCurrent(client, selection) &&
+        control == d.controlGeneration &&
+        revision == playback.revision &&
+        stream == playback.streamGeneration;
     if (!caps.canPlayGifs) {
-      return _fail(context, 'This controller can\'t play GIFs. Live streaming still works.');
+      return _fail(
+        context,
+        'This controller can\'t play GIFs. Live streaming still works.',
+      );
     }
     try {
       final bytes = await encoding;
-      if (!caps.fitsFile(bytes.length)) {
-        return context.mounted ? _fail(context, 'Not enough space on the controller.') : null;
-      }
-      if (!context.mounted) return null;
+      if (!current()) return null;
       // Keep the current look on the matrix while the file uploads (a slow
       // trickle of frames holds live mode); switch only once it's saved.
-      s.playback.streamThrottled = true;
       var fileName = keptFileName(title);
       if (fileName == BootIntro.fileName) fileName = 'my-$fileName';
-      final presetId = await client.saveGifToDevice(
-        fileName: fileName,
-        gif: bytes,
-        presetName: title,
-        caps: caps,
-        // Sending the same animation again replaces it rather than adding a
-        // duplicate entry.
-        presetId: await _existingPreset(client, title, fileName),
-        beforeSwitch: () async {
-          s.playback.streamThrottled = false;
-          await s.playback.stopStreaming();
-          await BackgroundStreaming.stop();
-          await d.exitLiveMirrors();
-        },
-        onRetry: (a) {
-          if (context.mounted) _toast(context, 'Weak Wi-Fi — trying again ($a of 3)…');
-        },
-      );
+      var alreadySaved = false;
+      final presetId = await client.withPresetMutation(() async {
+        if (!current()) throw WledException('Send cancelled: playback changed');
+        final existing = await _existingPreset(client, title, fileName);
+        if (existing?.gifName != null) {
+          try {
+            final name = existing!.gifName!;
+            final path = name.startsWith('/') ? name : '/$name';
+            final files = await client.files();
+            final saved = files[path] == bytes.length ? await client.fileBytes(name) : null;
+            if (saved != null && listEquals(saved, bytes)) {
+              alreadySaved = true;
+              return existing.id;
+            }
+          } on WledException {
+            // A missing or unreadable old file can be repaired by sending it.
+          }
+        }
+        if (!current()) throw WledException('Send cancelled: playback changed');
+        if (!caps.fitsFile(bytes.length)) throw WledException('Not enough space on the controller.');
+        await onUpload?.call();
+        if (!current()) throw WledException('Send cancelled: playback changed');
+        playback.throttleStream(throttle);
+        return client.saveGifToDevice(
+          fileName: fileName,
+          gif: bytes,
+          presetName: title,
+          caps: caps,
+          // Sending the same animation again replaces it rather than adding a
+          // duplicate entry.
+          presetId: existing?.id,
+          canSwitch: current,
+          beforeSwitch: () async {
+            if (!current()) return;
+            playback.releaseStreamThrottle(throttle);
+            final stopped = playback.stopStreaming();
+            stream = playback.streamGeneration;
+            await stopped;
+            if (!current()) return;
+            await BackgroundStreaming.stop();
+            if (!current()) return;
+            await d.exitLiveMirrors();
+          },
+          onRetry: (a) {
+            if (current()) {
+              _toast(context, 'Weak Wi-Fi — trying again ($a of 3)…');
+            }
+          },
+        );
+      });
+      if (!current()) return null;
+      if (alreadySaved && context.mounted) {
+        _toast(context, alreadyOnDeviceMessage,
+            action: SnackBarAction(label: 'Play it', onPressed: () => _playSaved(context, client, selection, presetId)));
+        return alreadyOnDeviceMessage;
+      }
       await d.refresh();
+      if (!current()) return null;
       d.noteKept(presetId, title);
       final kb = (bytes.length / 1024).toStringAsFixed(1);
       return context.mounted
-          ? _report(context, 'Sent to your device ($kb KB). It keeps playing without your phone.')
+          ? _report(
+              context,
+              'Sent to your device ($kb KB). It keeps playing without your phone.',
+            )
           : null;
     } catch (e) {
-      // Nothing changed on the matrix: carry on streaming at full rate.
-      s.playback.streamThrottled = false;
+      if (!current()) return null;
       final why = e is WledException ? e.message : '$e';
       return context.mounted ? _fail(context, 'Couldn\'t send it: $why') : null;
+    } finally {
+      playback.releaseStreamThrottle(throttle);
+    }
+  }
+
+  static Future<void> _playSaved(BuildContext context, WledClient client, int selection, int id) async {
+    if (!context.mounted) return;
+    final s = AppScope.of(context);
+    final d = s.devices;
+    final revision = s.playback.revision;
+    var control = d.controlGeneration;
+    bool current() => context.mounted && d.isCurrent(client, selection) &&
+        s.playback.revision == revision && d.controlGeneration == control;
+    if (!current()) return;
+    try {
+      await s.playback.stopStreaming();
+      if (!current()) return;
+      await BackgroundStreaming.stop();
+      if (!current()) return;
+      await client.exitLive();
+      if (!current()) return;
+      await d.exitLiveMirrors();
+      if (!current()) return;
+      final applied = d.applyPreset(id);
+      control = d.controlGeneration;
+      await applied;
+    } catch (e) {
+      if (context.mounted && current()) _fail(context, 'Couldn’t play it: $e');
     }
   }
 
   /// The preset that already holds [title] (same name or same GIF file), so
   /// a re-send overwrites it. Null when it's new or the list can't be read.
-  static Future<int?> _existingPreset(WledClient client, String title, String fileName) async {
+  static Future<WledPreset?> _existingPreset(WledClient client, String title, String fileName) async {
     try {
       final presets = await client.presetList();
       for (final p in presets) {
         // Never overwrite the protected boot intro.
         if (p.name == BootIntro.presetName || p.gifName == BootIntro.fileName) continue;
-        if (!p.isPlaylist && (p.gifName?.toLowerCase() == fileName.toLowerCase() || p.name == title)) return p.id;
+        if (!p.isPlaylist && ((p.gifName != null &&
+                    WledClient.matchesGifName(fileName, p.gifName!)) || p.name == title)) {
+          return p;
+        }
       }
     } on WledException {
       // Fall back to a new slot; a duplicate beats a failed send.

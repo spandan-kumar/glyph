@@ -67,8 +67,23 @@ void main() {
     final anim = Community.animationRequest(connected).queryParameters;
     expect(anim, {'template': 'animation_request.yml', 'labels': 'animation-request,community', 'panel': '16×16'});
     expect(Community.displayRequest().queryParameters, {'template': 'display_request.yml'});
-    expect('${Community.showAndTell}', 'https://github.com/spandan-kumar/glyph/discussions/categories/show-and-tell');
+    expect('${Community.showAndTell}', 'https://discord.gg/9EeCFZAFvk');
     expect('${Community.roadmap}', 'https://github.com/users/spandan-kumar/projects/4');
+  });
+
+  test('sharing invite survives restarts and waits for ten sends and a week', () async {
+    SharedPreferences.setMockInitialValues({});
+    final start = DateTime.utc(2026, 10, 7);
+    expect(await Community.inviteAfterSend(now: start), isTrue);
+    for (var i = 0; i < 10; i++) {
+      expect(await Community.inviteAfterSend(now: start.add(const Duration(days: 1))), isFalse);
+    }
+    Community.resetForTest();
+    expect(await Community.inviteAfterSend(now: start.add(const Duration(days: 7))), isTrue);
+    for (var i = 0; i < 9; i++) {
+      expect(await Community.inviteAfterSend(now: start.add(const Duration(days: 14))), isFalse);
+    }
+    expect(await Community.inviteAfterSend(now: start.add(const Duration(days: 14))), isTrue);
   });
 
   test('a huge last error is cut so the URL stays under the limit', () {

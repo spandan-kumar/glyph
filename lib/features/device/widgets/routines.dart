@@ -101,42 +101,49 @@ class RoutinesSection extends StatelessWidget {
             text: 'Sunrise and sunset need your device to know where it is — set its location in '
                 'WLED firmware settings → Time & Macros.',
           ),
-        RowGroup(
-          children: [
-            Row1(
-              leading: const Icon(Icons.power_sharp, color: Lb.text2, size: 20),
-              title: 'When it powers on → ${_powerOn(manager)}',
-              trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
-              onTap: () => _pickBoot(context, s),
-            ),
-            for (final (i, t) in s.timers.indexed)
-              Row1(
-                leading: Icon(
-                  _icon(t.trigger),
-                  size: 20,
-                  color: t.enabled ? accent : Lb.text3,
+        if (!manager.bootIntro.installed || manager.powerOnLook != 0 || s.timers.isNotEmpty)
+          RowGroup(
+            children: [
+              if (!manager.bootIntro.installed || manager.powerOnLook != 0)
+                Row1(
+                  leading: const Icon(Icons.power_sharp, color: Lb.text2, size: 20),
+                  title: 'When it powers on → ${_powerOn(manager)}',
+                  trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
+                  onTap: () => _pickBoot(context, s),
                 ),
-                title: describeRoutine(t, keptName(manager, t.presetId)),
-                onTap: s.isEditable ? () => _edit(context, s, i) : null,
-                trailing: LbToggle(
-                  value: t.enabled,
-                  onChanged: s.isEditable
-                      ? (v) => guarded(context, () {
-                          final list = [...s.timers]..[i] = t.copyWith(enabled: v);
-                          return manager.saveTimers(list);
-                        })
-                      : null,
+              for (final (i, t) in s.timers.indexed)
+                Row1(
+                  leading: Icon(
+                    _icon(t.trigger),
+                    size: 20,
+                    color: t.enabled ? accent : Lb.text3,
+                  ),
+                  title: describeRoutine(t, keptName(manager, t.presetId)),
+                  onTap: s.isEditable ? () => _edit(context, s, i) : null,
+                  trailing: LbToggle(
+                    value: t.enabled,
+                    onChanged: s.isEditable
+                        ? (v) => guarded(context, () {
+                            final list = [...s.timers]..[i] = t.copyWith(enabled: v);
+                            return manager.saveTimers(list);
+                          })
+                        : null,
+                  ),
                 ),
-              ),
-          ],
-        ),
+            ],
+          ),
         if (s.timers.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 10),
             child: Text(
-              'For example: “Every day at sunset → something calm”.',
+              'No routines yet. For example: “Every day at sunset → something calm”.',
               style: LbType.small,
             ),
+          ),
+        if (manager.bootIntro.installed && manager.powerOnLook == 0 && pickable(manager).isNotEmpty)
+          TextButton(
+            onPressed: () => _pickBoot(context, s),
+            child: const Text('Choose a power-on look'),
           ),
         if (canAdd)
           Padding(
@@ -151,12 +158,8 @@ class RoutinesSection extends StatelessWidget {
     );
   }
 
-  /// "Glyph intro, then Sunrise", "its usual light", "Sunrise".
-  static String _powerOn(DeviceManager m) {
-    final look = m.powerOnLook;
-    if (m.bootIntro.installed) return look == 0 ? 'Glyph intro' : 'Glyph intro, then ${keptName(m, look)}';
-    return look == 0 ? 'its usual light' : keptName(m, look);
-  }
+  static String _powerOn(DeviceManager m) =>
+      m.powerOnLook == 0 ? 'its usual light' : keptName(m, m.powerOnLook);
 
   static IconData _icon(TimerTrigger t) => switch (t) {
     TimerTrigger.sunrise => Icons.wb_sunny_sharp,
@@ -175,7 +178,7 @@ class RoutinesSection extends StatelessWidget {
         title: 'When it powers on',
         selected: id,
         allowNone: true,
-        noneLabel: manager.bootIntro.installed ? 'Just the Glyph logo' : 'Its usual light',
+        noneLabel: manager.bootIntro.installed ? 'No saved look' : 'Its usual light',
       ),
     );
     if (choice == null || choice == id || !context.mounted) return;

@@ -27,6 +27,13 @@ class PlaybackController extends ChangeNotifier {
   LibraryItem? _item;
   double _timeScale = 1;
   double _t = 0;
+  int _revision = 0;
+  int _streamGen = 0;
+  bool _disposed = false;
+
+  /// User playback changes invalidate an in-flight Send's handoff.
+  int get revision => _revision;
+  int get streamGeneration => _streamGen;
 
   Timer? _timer;
   final _clock = Stopwatch();
@@ -79,6 +86,7 @@ class PlaybackController extends ChangeNotifier {
   }
 
   void _play(Generator g, Map<String, double> params, Palette pal) {
+    _revision++;
     _generator = g;
     _params = Params.defaultsFor(g, params);
     _palette = pal;
@@ -89,12 +97,14 @@ class PlaybackController extends ChangeNotifier {
   }
 
   void setParam(String key, double value) {
+    _revision++;
     final m = _params.toMap()..[key] = value;
     _params = Params(m);
     notifyListeners();
   }
 
   void setPalette(Palette p) {
+    _revision++;
     _palette = p;
     notifyListeners();
   }
@@ -102,6 +112,7 @@ class PlaybackController extends ChangeNotifier {
   /// Matches the render size to the device; restarts the effect state.
   void resize(int width, int height) {
     if (width == _frame.width && height == _frame.height) return;
+    _revision++;
     _frame = Frame(width, height);
     final g = _generator;
     if (g != null) _instance = g.create(width, height, 1);
@@ -118,6 +129,7 @@ class PlaybackController extends ChangeNotifier {
   }
 
   void pause() {
+    _revision++;
     _timer?.cancel();
     _timer = null;
     _clock.stop();
@@ -127,6 +139,7 @@ class PlaybackController extends ChangeNotifier {
   /// Stops the render loop and forgets what was playing, leaving nothing on
   /// the phone. Streaming is separate (see [stopStreaming]).
   void stop() {
+    _revision++;
     _timer?.cancel();
     _timer = null;
     _clock.stop();
@@ -140,6 +153,7 @@ class PlaybackController extends ChangeNotifier {
 
   void resume() {
     if (_instance == null || _timer != null) return;
+    _revision++;
     _clock.start();
     _timer = Timer.periodic(const Duration(microseconds: 1000000 ~/ fps), (_) => _tick());
     notifyListeners();
@@ -159,6 +173,7 @@ class PlaybackController extends ChangeNotifier {
 
   int _ticks = 0;
   int _sendEvery = 1;
+  Object? _throttleOwner;
   bool _held = false;
 
   /// While true, the stream stays open but no frames go out — the device is
@@ -178,6 +193,17 @@ class PlaybackController extends ChangeNotifier {
   bool get streamThrottled => _sendEvery > 1;
   set streamThrottled(bool on) => _sendEvery = on ? 16 : 1;
 
+  void throttleStream(Object owner) {
+    _throttleOwner = owner;
+    streamThrottled = true;
+  }
+
+  void releaseStreamThrottle(Object owner) {
+    if (!identical(_throttleOwner, owner)) return;
+    _throttleOwner = null;
+    streamThrottled = false;
+  }
+
   /// Streams to [host] plus the current [mirrors].
   Future<void> startStreaming(String host, MatrixLayout layout) =>
       startStreamingTo([DdpTarget(host, layout: layout), ..._mirrors]);
@@ -186,10 +212,17 @@ class PlaybackController extends ChangeNotifier {
   /// current frame size. Throws if the primary can't be opened; unreachable
   /// others are skipped (see [failedHosts]).
   Future<void> startStreamingTo(List<DdpTarget> targets) async {
-    await stopStreaming(notify: false);
+    final stopped = stopStreaming(notify: false);
+    final gen = _streamGen;
+    await stopped;
+    if (_disposed || gen != _streamGen) return;
     if (targets.isEmpty) return notifyListeners();
     final g = DdpGroupSender(targets);
     await g.open();
+    if (_disposed || gen != _streamGen) {
+      g.close();
+      return;
+    }
     _group = g;
     notifyListeners();
   }
@@ -208,14 +241,19 @@ class PlaybackController extends ChangeNotifier {
   }
 
   Future<void> stopStreaming({bool notify = true}) async {
+    _streamGen++;
     _group?.close();
     _group = null;
+    _throttleOwner = null;
     _sendEvery = 1;
     if (notify) notifyListeners();
   }
 
   @override
   void dispose() {
+    _disposed = true;
+    _streamGen++;
+    _revision++;
     _timer?.cancel();
     _group?.close();
     frameTick.dispose();

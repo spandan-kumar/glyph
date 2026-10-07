@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -102,11 +103,10 @@ void main() {
   test('overlay returns cached data immediately and reports fresh data later', () async {
     final rc = remote(MockClient((_) async => http.Response(jsonEncode(_doc), 200)));
     final bundled = Catalog.parse(File('assets/catalog/starter.json').readAsStringSync());
-    Catalog? updated;
-    final first = await rc.overlay(bundled, onUpdate: (c) => updated = c);
+    final refreshed = Completer<Catalog>();
+    final first = await rc.overlay(bundled, onUpdate: refreshed.complete);
     expect(first.items.length, bundled.items.length, reason: 'nothing cached yet');
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(updated, isNotNull);
-    expect(updated!.byId('remote-plasma'), isNotNull);
+    final updated = await refreshed.future.timeout(const Duration(seconds: 5));
+    expect(updated.byId('remote-plasma'), isNotNull);
   });
 }

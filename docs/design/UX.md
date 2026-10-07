@@ -1,9 +1,12 @@
 # Glyph UX — "Lightbox"
 
-The current app is a tabbed catalogue: grid of cards → bottom "now playing"
-bar → sheet. That is Pipplee's shape and every streaming app's shape. Glyph is
-different because there is a **physical object** in the room. The UI should
-feel like a remote for a beautiful lamp, not a store.
+Before Lightbox, the app was a tabbed catalogue: grid of cards → bottom
+"now playing" bar → sheet. The current app uses the Stage, channels and
+studio described here because there is a **physical object** in the room.
+It should feel like a remote for a beautiful lamp. Reconciled for v1.3.1 on
+7 October 2026; these journeys express intent, not proof that every gesture
+or animation below is implemented. See [the engineering plan](../PLAN.md)
+for shipped scope and upcoming live information work.
 
 > **v1.2 naming:** the destinations are **Display** (was Tune), **Make** and
 > **Device** (was Matrix). User-facing copy says *device*, not *matrix*;
@@ -25,31 +28,30 @@ the app's own light comes from what the matrix is showing.
 | Evening user | On the sofa | Flip through looks until one fits the mood. |
 | Maker | Has an idea | Draw / write / bring a GIF and see it live. |
 | Host | Friends over | Party mode, music reacting, a game. |
-| Set-and-forget | Wants it to just run | Keep favourites on the matrix, routines by time of day. |
+| Set-and-forget | Wants it to just run | Send favourites to the device, routines by time of day. |
 
 ## 2. Journeys and aha moments
 
 ### J1 — First run (target: something on the matrix in < 30 s)
 1. **Welcome.** Full-black screen; the word *glyph* assembles itself out of
    LED dots (our pixel font), one line: "Your matrix, alive." → **Find my
-   matrix**. Secondary: *Just looking around* (browse without hardware).
-2. **Searching.** A slow radar sweep drawn in LED dots. Found matrices appear
+   device**. Secondary: *Just looking around* (browse without hardware).
+2. **Searching.** A slow radar sweep drawn in LED dots. Found devices appear
    as small glowing panels with their names. If none in ~6 s: "Can't see it?"
    → enter address / scan / help copy (same Wi-Fi, WLED 0.14+).
-3. **Connect → AHA #1 "Hello".** The moment we connect, the real matrix waves:
-   a pixel hand + "HI" animation streamed live, mirrored on the phone.
-   Copy: **"Look up. That's you saying hi."** Buttons: *It's waving* /
+3. **Connect → AHA #1 "Hello".** The device plays the Glyph intro,
+   mirrored on the phone. Copy: **"Look up."** Buttons: *Looks right* /
    *Something looks off*.
 4. *Something looks off* → **Guided fix**, no jargon: show a big arrow on the
    matrix and ask "Which way is the arrow pointing?" (4 big arrow buttons) then
    "Is it mirrored?" — we set rotation/flip from the answers and re-test.
 5. **Pick a first vibe.** Three big live tiles: *Calm*, *Party*, *Classic*.
-   Tapping plays it immediately on the matrix → lands on Tune with that
+   Tapping plays it immediately on the matrix → lands on Display with that
    channel first. Onboarding is never shown again (stored flag); reachable
-   from Matrix → "Set up a new matrix".
+   from Device → "Add a device" (search and orientation check).
 
 ### J2 — Evening flip-through (core loop)
-- Home = **Tune**. The **Stage** (a faithful live mirror of the matrix, with
+- Home = **Display**. The **Stage** (a faithful live mirror of the matrix, with
   LED bloom) sits at the top.
 - **AHA #2 "Channel surf":** swipe left/right on the Stage → next/previous
   animation in the current channel, instantly on the matrix, with a haptic
@@ -80,13 +82,24 @@ the app's own light comes from what the matrix is showing.
   - **Brightness**: one fader.
 - Changes stream live. No "apply" buttons.
 
-### J4 — Keep it (set-and-forget)
-- **Keep** button (under the Stage) → **AHA #5 "Beam":** dots stream from the
-  phone Stage up into a small matrix glyph; it lights; toast: **"Kept on your
-  matrix. Unplug your phone — it keeps playing."**
-- Matrix tab shows what lives on the matrix as **"Kept"** tiles, groups them
+### J4 — Send it (set-and-forget)
+- **Send** stays reachable in the collapsed Stage while browsing. The compact
+  control shares the full Stage's status and is hidden when disconnected,
+  unsupported or playing a live-only look.
+- Sending checks the baked GIF first. Identical content already saved on the
+  device says **“Already on your device”** with **Play it**; it leaves playback
+  alone and has no upload or beam. Changed content still sends.
+- **Send** button (under the Stage) → **AHA #5 "Beam":** dots stream from the
+  phone Stage up into a small device glyph; it lights; toast: **"Sent to your
+  device. It keeps playing without your phone."**
+- **Show it off** opens Discord after the first new Send, then only after both
+  ten more new Sends and a week. This policy survives app restarts; unchanged
+  re-sends never invite.
+- Device tab shows what lives on the matrix as **"Saved"** tiles, groups them
   into **Shows** (playlists: "plays one after another") and **Routines**
   (schedules written as sentences: *"Weekdays at 7:00 → Sunrise"*).
+  The system intro stays hidden. A chosen power-on look remains editable and
+  runs after the intro; devices without one offer “Choose a power-on look”.
 - Never say preset, segment, DDP, realtime, FS, effect id in primary UI.
   (Advanced details can live behind "Details".)
 
@@ -96,8 +109,8 @@ the app's own light comes from what the matrix is showing.
   ticks, Music bars bounce, Play shows Snake…).
 - **AHA #6 "Draw live":** when a matrix is connected, live mirror is ON by
   default — the first stroke appears on the matrix immediately, with a tiny
-  "on your matrix" pulse next to the canvas.
-- *Made by you* appears as a rail on Tune too.
+  "on your device" pulse next to the canvas.
+- *Made by you* appears as a rail on Display too.
 
 ### J6 — Party
 - *Party* channel, Music (visualiser), Play (games) are one tap away from
@@ -108,12 +121,13 @@ the app's own light comes from what the matrix is showing.
 
 ```
 Onboarding (first run only)
-└─ Shell: floating Dock — [ Tune ] [ Make ] [ Matrix ]
-   ├─ Tune     Stage + transport + Channels; Search; Tweak panel
-   ├─ Make     Studio tiles (Draw, Write, Clock, Bring a GIF, Music, Play)
+└─ Shell: floating Dock — [ Display ] [ Make ] [ Device ]
+   ├─ Display  Stage + transport + Channels; Search; Tweak panel
+   ├─ Make     Studio tiles (Draw, Write, Clock, Timer, Bring a GIF, Music,
+   │           Now Playing, Play)
    │           + Made by you
-   └─ Matrix   Device hub: the panel, power, brightness, Kept / Shows /
-               Routines / Storage, switch matrix, layout fix, rename, group
+   └─ Device   Device hub: the panel, power, brightness, Saved / Shows /
+               Routines / Storage, switch device, layout fix, rename, group
 ```
 
 The Dock is a small floating island: a centred, sharp-cornered panel with
@@ -152,7 +166,7 @@ active controls = current ambient colour (falls back to phosphor).
 - **Body:** Bricolage Grotesque opsz 14, weight 400–500.
 - **Labels/metadata:** DM Mono, 11–12 px, UPPERCASE, +8% tracking, `text3`.
 - **LED headings:** channel names and big numbers rendered as lit dots with
-  our bitmap fonts (`LedText`), e.g. section titles on Tune.
+  our bitmap fonts (`LedText`), e.g. section titles on Display.
 
 ### Shape, depth, motion
 - Radii: 2 (controls, panels), 3 (sheets), 1 (LED tiles). Everything reads
@@ -163,11 +177,11 @@ active controls = current ambient colour (falls back to phosphor).
 - Motion: 180–260 ms, `Curves.easeOutCubic` / emphasized; Stage transitions
   feel physical (tile flies to Stage; channel captions slide).
 - Haptics: `selectionClick` on channel change & knob detents,
-  `lightImpact` on Keep, `mediumImpact` on Surprise landing.
+  `lightImpact` on Send, `mediumImpact` on Surprise landing.
 
 ### Voice
-Short, warm, second person. "Look up." "Kept on your matrix." "Can't see it?"
-Labels are verbs: Tune, Make, Keep, Draw, Write, Bring a GIF, Play.
+Short, warm, second person. "Look up." "Sent to your device." "Can't see it?"
+Labels are verbs: Display, Make, Send, Draw, Write, Bring a GIF, Play.
 
 ## 5. Component kit (`lib/ui/design/`)
 - `tokens.dart`, `type.dart` (text styles), theme in `lib/ui/theme.dart`.
@@ -182,7 +196,11 @@ Labels are verbs: Tune, Make, Keep, Draw, Write, Bring a GIF, Play.
 - `MonoLabel`, `GlyphButton` (primary = filled `text` on `ink` or ambient
   outline; secondary = hairline), `Hairline`.
 
-## 6. Non-goals for this revamp
+## 6. Original Lightbox revamp boundaries
+
+These bounded the original UI work. The upcoming playback, notification
+and Glance changes are scoped in [PLAN.md](../PLAN.md).
+
 - No changes to engine, WLED, playback or storage logic beyond small hooks.
 - Feature internals (editor tools, games, etc.) keep working; they are
   restyled to the new kit, not rebuilt.

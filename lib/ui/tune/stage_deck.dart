@@ -13,7 +13,7 @@ import '../scope.dart';
 import 'stage_morph.dart';
 import 'tune_controller.dart';
 
-enum KeepState { idle, beaming, kept, failed }
+enum KeepState { idle, checking, beaming, kept, failed }
 
 /// Stage width that leaves room for the caption and a peek of the rails.
 double stageWidthFor(Size screen, double aspect) {
@@ -290,11 +290,11 @@ class _Transport extends StatelessWidget {
             const SizedBox(width: 10),
             SquareKey(icon: Icons.tune_sharp, label: 'Tweak', onTap: onTweak),
             const Spacer(),
-            _SendButton(
+            SendButton(
               state: keepState,
               accent: canSend ? accent : null,
               dim: !canSend,
-              onTap: keepState == KeepState.beaming ? null : onKeep,
+              onTap: keepState == KeepState.beaming || keepState == KeepState.checking ? null : onKeep,
             ),
           ],
         );
@@ -353,8 +353,8 @@ class SquareKey extends StatelessWidget {
 
 /// SEND → SENDING → ✓ SENT: a rectangular key lit in the room colour when
 /// the device can take it.
-class _SendButton extends StatelessWidget {
-  const _SendButton({required this.state, this.onTap, this.accent, this.dim = false});
+class SendButton extends StatelessWidget {
+  const SendButton({super.key, required this.state, this.onTap, this.accent, this.dim = false});
 
   final KeepState state;
   final VoidCallback? onTap;
@@ -365,8 +365,10 @@ class _SendButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = dim ? Lb.text3 : Lb.text;
     final label = switch (state) {
+      KeepState.checking => 'Checking',
       KeepState.beaming => 'Sending',
       KeepState.kept => 'Sent',
+      KeepState.failed => 'Retry',
       _ => 'Send',
     };
     return Semantics(
@@ -388,7 +390,7 @@ class _SendButton extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (state == KeepState.beaming) ...[
+                  if (state == KeepState.beaming || state == KeepState.checking) ...[
                     _Chaser(color: accent ?? Lb.text),
                     const SizedBox(width: 8),
                   ] else if (state != KeepState.kept) ...[

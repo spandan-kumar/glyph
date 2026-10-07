@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -7,6 +8,12 @@ import 'package:http/http.dart' as http;
 import 'device.dart';
 import 'presets.dart';
 import 'schedule.dart';
+
+class _PresetMutation {
+  _PresetMutation(this.host);
+  final String host;
+  bool active = true;
+}
 
 class WledException implements Exception {
   WledException(this.message, [this.cause]);
@@ -27,6 +34,9 @@ class WledClient {
 
   static const timeout = Duration(seconds: 4);
   static const uploadTimeout = Duration(seconds: 40);
+  static const presetSaveSettle = Duration(milliseconds: 700);
+  static final _presetQueues = <String, Future<void>>{};
+  static final _mutationKey = Object();
 
   /// Longest GIF file name (without the leading slash) accepted by
   /// [gifSegmentName]: ESP8266 builds cap segment names at 32 chars
@@ -36,6 +46,36 @@ class WledClient {
   final String host;
   final http.Client _http;
   final Uri _base;
+  final _createdGifs = <String>{};
+
+  /// Boot rewrites and JSON preset saves must share a queue, even when two
+  /// clients address the same host. Nested calls retain the operation's lock.
+  Future<T> withPresetMutation<T>(Future<T> Function() operation) {
+    final key = host.toLowerCase();
+    final held = Zone.current[_mutationKey];
+    if (held is _PresetMutation && held.host == key && held.active) {
+      return operation();
+    }
+    final next = (_presetQueues[key] ?? Future<void>.value()).then((_) {
+      final lease = _PresetMutation(key);
+      return runZoned(() async {
+        try {
+          return await operation();
+        } finally {
+          lease.active = false;
+        }
+      }, zoneValues: {_mutationKey: lease});
+    });
+    final settled = next.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    _presetQueues[key] = settled;
+    settled.then((_) {
+      if (identical(_presetQueues[key], settled)) _presetQueues.remove(key);
+    });
+    return next;
+  }
 
   Future<WledInfo> info() async => WledInfo.fromJson(await _getMap('/json/info'));
 
@@ -87,7 +127,18 @@ class WledClient {
     }
   }
 
-  Future<void> setState(Map<String, dynamic> s) async {
+  Future<void> setState(Map<String, dynamic> s) {
+    if (s.containsKey('psave') || s.containsKey('pdel')) {
+      return withPresetMutation(() async {
+        await _setState(s);
+        // The HTTP response precedes the device-loop filesystem write.
+        await Future<void>.delayed(presetSaveSettle);
+      });
+    }
+    return _setState(s);
+  }
+
+  Future<void> _setState(Map<String, dynamic> s) async {
     final res = await _send(() => _http.post(_uri('/json/state'),
         headers: const {'Content-Type': 'application/json'},
         body: jsonEncode(s)));
@@ -220,17 +271,19 @@ class WledClient {
   /// Without an "o" key WLED snapshots the live state; "ib" includes
   /// brightness, "sb" segment bounds. The write happens asynchronously in the
   /// device loop (presets.cpp savePreset). Names are capped at 32 chars.
-  Future<int> saveCurrentAsPreset(String name, {int? id}) async {
-    id ??= await firstFreePresetId();
-    if (id < 1 || id > 250) throw WledException('Preset id must be 1..250');
-    await setState({
-      'psave': id,
-      'n': name.length > 32 ? name.substring(0, 32) : name,
-      'ib': true,
-      'sb': true,
-    });
-    return id;
-  }
+  Future<int> saveCurrentAsPreset(String name, {int? id}) => withPresetMutation(
+    () async {
+      final pid = id ?? await firstFreePresetId();
+      if (pid < 1 || pid > 250) throw WledException('Preset id must be 1..250');
+      await setState({
+        'psave': pid,
+        'n': name.length > 32 ? name.substring(0, 32) : name,
+        'ib': true,
+        'sb': true,
+      });
+      return pid;
+    },
+  );
 
   /// Uploads [gif], plays it on segment 0 and saves that as a preset.
   /// Returns the preset id.
@@ -242,36 +295,110 @@ class WledClient {
     int? presetId,
     Future<void> Function()? beforeSwitch,
     void Function(int attempt)? onRetry,
-  }) async {
+    bool Function()? canSwitch,
+  }) => withPresetMutation(() async {
     final fx = caps.imageEffectId;
     if (!caps.canPlayGifs || fx == null) {
       throw WledException(
-          'This device cannot play GIFs (needs WLED 16+ on an ESP32-family chip)');
+        'This device cannot play GIFs (needs WLED 16+ on an ESP32-family chip)',
+      );
     }
-    final name = gifSegmentName(fileName);
-    var existing = 0;
-    try {
-      existing = (await files())['/$name'] ?? 0;
-    } on WledException {
-      // listing is best-effort; assume a new file
+    final baseName = gifSegmentName(fileName);
+    final listing = await files();
+    final presets = await presetList();
+    final previous = presets
+        .where((p) => p.id == presetId)
+        .firstOrNull
+        ?.gifName;
+    final segments = (await state())['seg'];
+    final used = {
+      for (final path in listing.keys) path.substring(1).toLowerCase(),
+      for (final p in presets)
+        if (p.gifName != null) p.gifName!.toLowerCase(),
+      if (segments is List)
+        for (final s in segments.whereType<Map>())
+          if (s['n'] is String) (s['n'] as String).toLowerCase(),
+    };
+    var name = baseName;
+    if (used.contains(name.toLowerCase())) {
+      final stem = baseName.substring(0, baseName.length - 4);
+      for (var revision = 0; revision < 256; revision++) {
+        final suffix = revision.toRadixString(16).padLeft(2, '0');
+        final candidate =
+            '${stem.substring(0, min(stem.length, 24))}-$suffix.gif';
+        if (!used.contains(candidate.toLowerCase())) {
+          name = candidate;
+          break;
+        }
+      }
+      if (name == baseName) {
+        throw WledException(
+          'Remove unused versions of this animation before sending again',
+        );
+      }
     }
-    if (!caps.fitsFile(gif.length - existing)) {
+    if (!caps.fitsFile(gif.length)) {
       final freeKb =
           (caps.freeFsBytes - DeviceCapabilities.fsSafetyMarginBytes) ~/ 1024;
       throw WledException(
-          'GIF is ${(gif.length / 1024).ceil()} KB but the device has only '
-          '${freeKb < 0 ? 0 : freeKb} KB free');
+        'GIF is ${(gif.length / 1024).ceil()} KB but the device has only '
+        '${freeKb < 0 ? 0 : freeKb} KB free',
+      );
     }
-    // Upload first, without touching what the matrix shows, so a failed
-    // upload leaves it exactly as it was. Once the file is verified, load
-    // the GIF while live frames still cover it, then leave live mode so the
-    // switch is instant (no flash of whatever played before).
-    await _releaseFile(name);
-    await uploadFileReliably('/$name', gif, onRetry: onRetry);
-    await playGif(name, imageEffectId: fx);
-    await beforeSwitch?.call();
-    await exitLive();
-    return saveCurrentAsPreset(presetName, id: presetId);
+    final pid = presetId ?? await firstFreePresetId();
+    if (canSwitch != null && !canSwitch()) {
+      throw WledException('Send cancelled: playback changed');
+    }
+    var committed = false;
+    try {
+      // Never overwrite a file the device or a Saved look still uses.
+      await uploadFileReliably('/$name', gif, onRetry: onRetry);
+      _createdGifs.add(name);
+      if (canSwitch != null && !canSwitch()) {
+        throw WledException('Send cancelled: playback changed');
+      }
+      committed = true;
+      await playGif(name, imageEffectId: fx);
+      await beforeSwitch?.call();
+      await exitLive();
+      await saveCurrentAsPreset(presetName, id: pid);
+      // Only retire files this client created, and never shared content.
+      if (previous != null && _createdGifs.contains(previous)) {
+        try {
+          final saved = await presetList();
+          final segs = (await state())['seg'];
+          final playing =
+              segs is List &&
+              segs.whereType<Map>().any((s) => s['n'] == previous);
+          if (!playing && saved.every((p) => p.gifName != previous)) {
+            await deleteFile('/$previous');
+            _createdGifs.remove(previous);
+          }
+        } catch (_) {}
+      }
+      return pid;
+    } catch (_) {
+      if (!committed) {
+        try {
+          await deleteFile('/$name');
+          _createdGifs.remove(name);
+        } catch (_) {}
+      }
+      rethrow;
+    }
+  });
+
+  /// Replacement files retain enough of the original name for catalog
+  /// matching after restarting the app.
+  static bool matchesGifName(String baseName, String fileName) {
+    final base = (baseName.startsWith('/') ? baseName.substring(1) : baseName).toLowerCase();
+    if (base.length <= 4 || !base.endsWith('.gif')) return false;
+    final file = fileName.toLowerCase();
+    if (base == file) return true;
+    final stem = base.substring(0, base.length - 4);
+    final prefix = '${stem.substring(0, min(stem.length, 24))}-';
+    return file.startsWith(prefix) &&
+        RegExp(r'^[0-9a-f]{2}\.gif$').hasMatch(file.substring(prefix.length));
   }
 
   /// Uploads [bytes] to [path] and checks the stored size, retrying up to
@@ -433,25 +560,26 @@ class WledClient {
   /// re-saved as an API call (`"o": true`), which savePreset writes verbatim
   /// minus o/v/time/error/psave; WLED also applies the body, so the preset
   /// starts playing. Playlists are re-saved (and so restarted).
-  Future<void> renamePreset(int id, String name) async {
-    final n = name.trim();
-    if (n.isEmpty) throw WledException('Name can\'t be empty');
-    final body = _mapOf((await _getMap('/presets.json'))['$id']);
-    if (body.isEmpty) throw WledException('Preset $id no longer exists');
-    final preset = WledPreset(id: id, name: n, body: body);
-    final pl = preset.playlist;
-    if (pl != null) return savePlaylist(id: id, name: n, playlist: pl);
-    await setState({
-      ...Map<String, dynamic>.of(body)
-        ..remove('psave')
-        ..remove('pdel')
-        ..remove('rb')
-        ..remove('np'),
-      'psave': id,
-      'n': n.length > 32 ? n.substring(0, 32) : n,
-      'o': true,
-    });
-  }
+  Future<void> renamePreset(int id, String name) =>
+      withPresetMutation(() async {
+        final n = name.trim();
+        if (n.isEmpty) throw WledException('Name can\'t be empty');
+        final body = _mapOf((await _getMap('/presets.json'))['$id']);
+        if (body.isEmpty) throw WledException('Preset $id no longer exists');
+        final preset = WledPreset(id: id, name: n, body: body);
+        final pl = preset.playlist;
+        if (pl != null) return savePlaylist(id: id, name: n, playlist: pl);
+        await setState({
+          ...Map<String, dynamic>.of(body)
+            ..remove('psave')
+            ..remove('pdel')
+            ..remove('rb')
+            ..remove('np'),
+          'psave': id,
+          'n': n.length > 32 ? n.substring(0, 32) : n,
+          'o': true,
+        });
+      });
 
   /// Advances a running device playlist (json.cpp "np").
   Future<void> nextInPlaylist() => setState({'np': true});

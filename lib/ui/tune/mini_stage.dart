@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../design/ambient.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 import '../scope.dart';
@@ -17,7 +18,8 @@ import 'tune_controller.dart';
 /// ([livePanel] false leaves its slot empty); on pushed pages the bar draws
 /// its own small panel.
 class MiniStage extends StatelessWidget {
-  const MiniStage({super.key, this.onTap, this.panelKey, this.livePanel = true});
+  const MiniStage({super.key, this.onTap, this.panelKey, this.livePanel = true,
+      this.onSend, this.keepState = KeepState.idle});
 
   /// Height of the bar, below the status-bar inset.
   static const height = 60.0;
@@ -35,7 +37,8 @@ class MiniStage extends StatelessWidget {
     return Rect.fromCenter(center: slot.center, width: max(1, w), height: max(1, h));
   }
 
-  final VoidCallback? onTap;
+  final VoidCallback? onTap, onSend;
+  final KeepState keepState;
 
   /// Lets the screen fly tiles into the mini panel.
   final GlobalKey? panelKey;
@@ -45,10 +48,11 @@ class MiniStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final playback = AppScope.of(context).playback;
+    final scope = AppScope.of(context);
+    final playback = scope.playback;
     final tune = TuneScope.of(context);
     return ListenableBuilder(
-      listenable: playback,
+      listenable: Listenable.merge([playback, scope.devices]),
       builder: (context, _) => DecoratedBox(
         decoration: BoxDecoration(
           color: Lb.panel.withValues(alpha: 0.96),
@@ -115,6 +119,14 @@ class MiniStage extends StatelessWidget {
                 outlined: false,
                 onTap: () => tune.surf(context, 1),
               ),
+              if (onSend != null && scope.devices.isConnected &&
+                  (scope.devices.caps?.canPlayGifs ?? false) &&
+                  !(playback.generator?.liveOnly ?? true))
+                SendButton(
+                  state: keepState,
+                  accent: AmbientScope.of(context).accent,
+                  onTap: keepState == KeepState.checking || keepState == KeepState.beaming ? null : onSend,
+                ),
               const SizedBox(width: 8),
             ],
           ),

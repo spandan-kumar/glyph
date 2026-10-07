@@ -111,41 +111,46 @@ abstract final class BootIntro {
     if (!caps.canPlayGifs || fx == null) return false;
     final gif = await _gif(caps.width, caps.height);
     if (gif.isEmpty) return false;
-    var changed = false;
+    return c.withPresetMutation(() async {
+      var changed = false;
 
-    final files = await c.files();
-    // Same size isn't enough: a fix to frame timing keeps the size. The
-    // file is tiny, so compare its bytes when the sizes match.
-    var stale = files['/$fileName'] != gif.length;
-    if (!stale) {
-      try {
-        stale = !listEquals(await c.fileBytes('/$fileName'), gif);
-      } catch (_) {
-        stale = true;
+      final files = await c.files();
+      // Same size isn't enough: a fix to frame timing keeps the size. The
+      // file is tiny, so compare its bytes when the sizes match.
+      var stale = files['/$fileName'] != gif.length;
+      if (!stale) {
+        try {
+          stale = !listEquals(await c.fileBytes('/$fileName'), gif);
+        } catch (_) {
+          stale = true;
+        }
       }
-    }
-    if (stale) {
-      await c.uploadFileReliably('/$fileName', gif);
-      changed = true;
-    }
+      if (stale) {
+        await c.uploadFileReliably('/$fileName', gif);
+        changed = true;
+      }
 
-    final raw = await _readPresets(c);
-    final boot = (await c.schedule()).bootPreset;
-    final plan = planInstall(raw, bootPreset: boot, imageEffectId: fx);
-    if (plan == null) return changed;
-    if (plan.presets != null) {
-      await _writePresets(c, plan.presets!);
-      changed = true;
-    }
-    if (boot != plan.playlistId) {
-      await c.setBootPreset(plan.playlistId);
-      changed = true;
-    }
-    return changed;
+      final raw = await _readPresets(c);
+      final boot = (await c.schedule()).bootPreset;
+      final plan = planInstall(raw, bootPreset: boot, imageEffectId: fx);
+      if (plan == null) return changed;
+      if (plan.presets != null) {
+        await _writePresets(c, plan.presets!);
+        changed = true;
+      }
+      if (boot != plan.playlistId) {
+        await c.setBootPreset(plan.playlistId);
+        changed = true;
+      }
+      return changed;
+    });
   }
 
   /// Sets what plays after the intro (0 = rest on the Glyph logo).
-  static Future<void> setPowerOnLook(WledClient c, int presetId) async {
+  static Future<void> setPowerOnLook(
+    WledClient c,
+    int presetId,
+  ) => c.withPresetMutation(() async {
     final raw = await _readPresets(c);
     final layout = BootIntroLayout.of(WledPreset.parseAll(raw), 0);
     final intro = layout.intro, playlist = layout.playlist;
@@ -153,8 +158,11 @@ abstract final class BootIntro {
       throw WledException('The Glyph intro isn\'t set up on this device yet');
     }
     final end = presetId == 0 || presetId == playlist.id ? intro.id : presetId;
-    await _writePresets(c, {...raw, '${playlist.id}': playlistBody(intro.id, end)});
-  }
+    await _writePresets(c, {
+      ...raw,
+      '${playlist.id}': playlistBody(intro.id, end),
+    });
+  });
 
   static Future<Map<String, dynamic>> _readPresets(WledClient c) async {
     try {

@@ -4,6 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.3.2': [
+    'Send stays reachable while you browse, even with the Stage collapsed.',
+    'Already on your device? Play it without uploading again. Tweaked clips keep their speed.',
+    'Sharing opens Discord; Show it off appears less often.',
+    'Routines hides the built-in intro and keeps your power-on look editable.',
+    'Safer Sends when switching devices or replacing an animation, and safer Saved writes.',
+  ],
   '1.3.1': [
     'Halloween and Diwali packs: 16 new animations, from a haunted house to sky lanterns.',
     'A Glyph menu (⋯ on every tab): Discord, share your setup, the roadmap, feedback.',

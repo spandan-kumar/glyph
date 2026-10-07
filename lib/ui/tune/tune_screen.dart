@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../app/community.dart';
 import '../../app/devices.dart';
 import '../../library/user_library.dart';
+import '../../wled/wled_client.dart';
 import '../actions.dart';
 import '../community/glyph_menu.dart';
 import '../design/ambient.dart';
@@ -70,6 +71,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
   bool _tweakOpen = false;
   bool _hint = false;
   KeepState _keep = KeepState.idle;
+  int _sendRequest = 0;
   (Rect, Offset)? _beamPath;
   String? _autoId, _lastMarked;
   double _pull = 0;
@@ -150,7 +152,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     if (!mounted || scope == null) return;
     final p = scope.playback, gif = scope.devices.playingGif;
     if (gif == null || p.isStreaming || p.item?.id != _autoId) return;
-    final match = scope.catalog.items.where((i) => keptFileName(i.title) == gif).firstOrNull;
+    final match = scope.catalog.items.where((i) => WledClient.matchesGifName(keptFileName(i.title), gif)).firstOrNull;
     if (match == null || match.id == p.item?.id) return;
     _autoId = match.id;
     p.playItem(match);
@@ -263,21 +265,33 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     if (!(d.caps?.canPlayGifs ?? false)) {
       return _toast('This device can only show looks live from your phone — it can’t save them.');
     }
-    if (s.playback.generator == null || _keep == KeepState.beaming) return;
+    if (s.playback.generator == null || _keep == KeepState.beaming || _keep == KeepState.checking) return;
+    final request = ++_sendRequest;
     HapticFeedback.lightImpact();
-    await _toTop();
-    if (!mounted) return;
-    setState(() {
-      _keep = KeepState.beaming;
-      _beamPath = _measureBeam();
+    setState(() => _keep = KeepState.checking);
+    final msg = await GlyphActions.saveToDevice(context, onUpload: () async {
+      await _toTop();
+      if (!mounted) return;
+      setState(() {
+        _keep = KeepState.beaming;
+        _beamPath = _measureBeam();
+      });
+      _beam.repeat();
+      _charge.value = 0;
+      _charge.animateTo(0.88, duration: const Duration(seconds: 5), curve: Curves.easeOutCubic);
     });
-    _beam.repeat();
-    _charge.value = 0;
-    _charge.animateTo(0.88, duration: const Duration(seconds: 5), curve: Curves.easeOutCubic);
-
-    final msg = await GlyphActions.saveToDevice(context);
     if (!mounted) return;
-    final ok = msg != null && (msg.startsWith('Sent') || msg.startsWith('Kept'));
+    if (msg == alreadyOnDeviceMessage || msg == null) {
+      _beam.stop();
+      _charge.stop();
+      _charge.value = 0;
+      setState(() {
+        _keep = KeepState.idle;
+        _beamPath = null;
+      });
+      return;
+    }
+    final ok = msg.startsWith('Sent') || msg.startsWith('Kept');
     _beam.stop();
     // saveToDevice reports in its own words; ours replace it before it paints.
     ScaffoldMessenger.of(context).removeCurrentSnackBar();
@@ -288,16 +302,18 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     if (ok) {
       _charge.value = 1;
       HapticFeedback.lightImpact();
+      final invite = await Community.inviteAfterSend();
+      if (!mounted || request != _sendRequest) return;
       _toast(sendSuccessMessage,
-          action: SnackBarAction(label: 'Show it off', onPressed: () => openCommunityLink(context, Community.showAndTell)));
+          action: invite ? SnackBarAction(label: 'Show it off', onPressed: () => openCommunityLink(context, Community.showAndTell)) : null);
     } else {
       _charge.value = 0;
-      if (msg != liveOnlyMessage) LastError.record('Send from Display failed: ${msg ?? 'no device details'}');
+      if (msg != liveOnlyMessage) LastError.record('Send from Display failed: $msg');
       _toast(friendlySendError(msg),
           action: msg == liveOnlyMessage ? null : SnackBarAction(label: 'Try again', onPressed: _keepIt));
     }
     await _flash.forward(from: 0);
-    if (!mounted) return;
+    if (!mounted || request != _sendRequest) return;
     _charge.value = 0;
     setState(() => _keep = KeepState.idle);
   }
@@ -426,7 +442,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
         color: Lb.panel.withValues(alpha: 0.96),
         child: Padding(
           padding: EdgeInsets.only(top: top),
-          child: MiniStage(onTap: _toTop, livePanel: false),
+          child: MiniStage(onTap: _toTop, livePanel: false, onSend: _keepIt, keepState: _keep),
         ),
       ),
     );

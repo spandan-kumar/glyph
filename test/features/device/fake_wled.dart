@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:glyph/wled/wled_client.dart';
@@ -53,6 +54,9 @@ class FakeWled {
   /// Files removed through /edit?func=delete.
   final deleted = <String>[];
   bool offline = false;
+  String info = infoEsp32V16;
+  Future<void> Function(http.Request)? beforeRequest;
+  Duration presetWriteDelay = Duration.zero;
 
   /// 1×1 GIF.
   static final gif = base64Decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
@@ -60,6 +64,7 @@ class FakeWled {
   WledClient client(String host) => WledClient(host, client: MockClient(_handle));
 
   Future<http.Response> _handle(http.Request r) async {
+    await beforeRequest?.call(r);
     if (offline) throw http.ClientException('offline');
     final path = r.url.path;
     if (r.method == 'POST' && path == '/upload') {
@@ -86,6 +91,27 @@ class FakeWled {
           if (body.containsKey(k)) state[k] = body[k];
         }
         if (body['ps'] is int) state['ps'] = body['ps'];
+        if (body['seg'] is Map) {
+          state['seg'] = [
+            {...(state['seg'] as List).first as Map, ...(body['seg'] as Map)},
+          ];
+        }
+        final psave = body['psave'];
+        if (psave is int) {
+          void save() {
+            presets['$psave'] = body['o'] == true
+                ? (Map<String, dynamic>.of(body)
+                    ..remove('o')
+                    ..remove('psave'))
+                : {...state, 'n': body['n']};
+          }
+
+          if (presetWriteDelay == Duration.zero) {
+            save();
+          } else {
+            Timer(presetWriteDelay, save);
+          }
+        }
         final pdel = body['pdel'];
         if (pdel is int) presets.remove('$pdel');
       }
@@ -99,7 +125,7 @@ class FakeWled {
       return http.Response('deleted', 200);
     }
     return switch (path) {
-      '/json/info' => http.Response(infoEsp32V16, 200),
+      '/json/info' => http.Response(info, 200),
       '/json/eff' => http.Response(jsonEncode(effectsEsp32V16), 200),
       '/json/state' => http.Response(jsonEncode(state), 200),
       '/json/cfg' || '/cfg.json' => http.Response(jsonEncode(cfg), 200),
