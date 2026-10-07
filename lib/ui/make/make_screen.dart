@@ -3,11 +3,17 @@ import 'package:flutter/material.dart';
 import '../../engine/clip.dart';
 import '../../engine/generator.dart';
 import '../../features/audio/audio_screen.dart';
+import '../../features/glance/glance_screen.dart';
+import '../../features/glance/glance_generator.dart';
+import '../../features/glance/glance_model.dart';
+import '../../features/glance/weather.dart';
 import '../../features/editor/editor_screen.dart';
 import '../../features/games/catalog.dart';
 import '../../features/games/games_screen.dart';
 import '../../features/import/import_screen.dart';
 import '../../features/now_playing/now_playing_screen.dart';
+import '../../features/notifications/notification_screen.dart';
+import '../../features/notifications/notification_logo.dart';
 import '../../features/text/text_studio_screen.dart';
 import '../design/parts.dart';
 import '../design/tokens.dart';
@@ -29,6 +35,7 @@ class MakeScreen extends StatefulWidget {
 
 class _MakeScreenState extends State<MakeScreen> {
   // Built once so the previews keep running across rebuilds.
+  final _glance = GlanceCardGenerator(GlanceCard(id: 'demo', title: 'A big day', kind: GlanceKind.counter, date: DateTime(2026, 1, 1), mode: CounterMode.since), const _DemoWeather());
   final _draw = ClipGenerator(drawDemoClip, title: 'Draw');
   final _write = writeDemo();
   final _clock = clockDemo();
@@ -37,6 +44,7 @@ class _MakeScreenState extends State<MakeScreen> {
   final _music = musicDemo();
   final _play = playDemo();
   final _nowPlaying = nowPlayingDemo();
+  final _notifications = NotificationLogoGenerator(NotificationLogo.fallback);
 
   void _open(Widget page) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
@@ -115,6 +123,13 @@ class _MakeScreenState extends State<MakeScreen> {
                       generator: _nowPlaying,
                       onTap: () => _open(const NowPlayingScreen()),
                     ),
+                    glance: _StudioBanner(label: 'Glance', line: 'Weather & days that matter', generator: _glance, onTap: () => _open(const GlanceScreen())),
+                    notifications: _StudioBanner(
+                      label: 'Notifications',
+                      line: 'A little nudge',
+                      generator: _notifications,
+                      onTap: () => _open(const NotificationScreen()),
+                    ),
                     play: _StudioBanner(
                       label: 'Play',
                       line: '${gameDefs.length} games',
@@ -186,7 +201,7 @@ class _MakeScreenState extends State<MakeScreen> {
 ///     └─────────────────┘
 ///
 /// Draw is the big one (2×2); the text tools start beside it and spill into
-/// the row below; Now Playing and Play close the studio as full-width strips.
+/// the row below; the live tools and Play close the studio as full-width strips.
 class _StudioGrid extends StatelessWidget {
   const _StudioGrid({
     required this.draw,
@@ -196,10 +211,12 @@ class _StudioGrid extends StatelessWidget {
     required this.gif,
     required this.music,
     required this.nowPlaying,
+    required this.notifications,
+    required this.glance,
     required this.play,
   });
 
-  final Widget draw, write, clock, timer, gif, music, nowPlaying, play;
+  final Widget draw, write, clock, timer, gif, music, nowPlaying, notifications, glance, play;
 
   static const _gap = 10.0;
 
@@ -239,6 +256,10 @@ class _StudioGrid extends StatelessWidget {
               row([timer, gif, music]),
               const SizedBox(height: _gap),
               SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: nowPlaying),
+              const SizedBox(height: _gap),
+              SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: notifications),
+              const SizedBox(height: _gap),
+              SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: glance),
               const SizedBox(height: _gap),
               SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: play),
             ]);
@@ -300,17 +321,18 @@ class _StudioBanner extends StatelessWidget {
         onTap: onTap,
         padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
         child: Row(children: [
-          Column(
+          Expanded(flex: 3, child: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, maxLines: 1, style: LbType.title),
+              FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+                  child: Text(label, maxLines: 1, style: LbType.title)),
               const SizedBox(height: 3),
               _toolLine(line),
             ],
-          ),
+          )),
           const SizedBox(width: 14),
-          Expanded(
+          Expanded(flex: 2,
             child: Align(
               alignment: Alignment.centerRight,
               child: LedLoop(
@@ -371,4 +393,12 @@ class _StudioTile extends StatelessWidget {
           ],
         ),
       );
+}
+
+class _DemoWeather implements WeatherFeed {
+  const _DemoWeather();
+  @override
+  WeatherSnapshot? snapshot(WeatherPlace place) => null;
+  @override
+  bool failed(WeatherPlace place) => false;
 }

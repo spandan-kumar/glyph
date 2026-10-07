@@ -60,7 +60,7 @@ void main() {
     final (playback, _) = await pumpMake(tester);
     expect(tester.takeException(), isNull);
     expect(find.text('Make'), findsOneWidget);
-    for (final verb in ['Draw', 'Write', 'Clock', 'Timer', 'Bring a GIF', 'Music', 'Now Playing', 'Play']) {
+    for (final verb in ['Draw', 'Write', 'Clock', 'Timer', 'Bring a GIF', 'Music', 'Now Playing', 'Notifications', 'Glance', 'Play']) {
       expect(find.text(verb), findsOneWidget, reason: verb);
     }
     await tester.scrollUntilVisible(find.text('MADE BY YOU'), 200);
@@ -84,17 +84,18 @@ void main() {
     playback.pause();
   });
 
-  testWidgets('the grid fits seven tools at 360 px with no overflow', (tester) async {
+  testWidgets('the studio tools fit at 360 px with no overflow', (tester) async {
     final (playback, _) = await pumpMake(tester);
     // The tool's own panel (the nearest Material around its name).
     Rect tile(String verb) =>
         tester.getRect(find.ancestor(of: find.text(verb), matching: find.byType(Material)).first);
     // Every tool sits inside the 20 px gutters.
-    for (final verb in ['Draw', 'Write', 'Clock', 'Timer', 'Bring a GIF', 'Music', 'Play']) {
+    for (final verb in ['Draw', 'Write', 'Clock', 'Timer', 'Bring a GIF', 'Music', 'Now Playing', 'Notifications', 'Glance', 'Play']) {
       final r = tile(verb);
       expect(r.left, greaterThanOrEqualTo(20 - 0.01), reason: verb);
       expect(r.right, lessThanOrEqualTo(340 + 0.01), reason: verb);
     }
+    expect(tile('Notifications').top, greaterThan(tile('Now Playing').bottom));
     // Draw leads; the text tools follow it in order; Play closes the studio.
     final draw = tile('Draw');
     final write = tile('Write');

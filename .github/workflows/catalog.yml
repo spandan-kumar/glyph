@@ -1,0 +1,91 @@
+name: Animation catalog
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/catalog/**'
+      - 'tool/build_remote_catalog.dart'
+      - '.github/workflows/catalog.yml'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Publish reviewed content or restore the previous artifact
+        type: choice
+        options: [publish, rollback]
+        default: publish
+
+permissions:
+  contents: read
+
+concurrency:
+  group: animation-catalog
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: python3 skills/glyph-animation/scripts/validate_sprite.py --all
+      - run: dart run tool/build_sprites.dart
+      - run: dart run tool/build_catalog.dart
+      - run: git diff --exit-code -- assets/catalog/catalog.json lib/engine/generators/sprite_data.g.dart
+      - run: flutter test test/engine test/library test/tool
+      - name: Retain published artifacts
+        env:
+          BASE_URL: https://spandan-kumar.github.io/glyph
+          MODE: ${{ inputs.mode || 'publish' }}
+        run: |
+          mkdir -p build
+          fetch() {
+            local name="$1"
+            local code
+            code=$(curl --silent --show-error --max-time 20 --max-filesize 2097152 \
+              --output "build/$name.json" --write-out '%{http_code}' \
+              "$BASE_URL/$name.json?run=$GITHUB_RUN_ID")
+            if [ "$code" = 404 ]; then
+              rm -f "build/$name.json"
+            elif [ "$code" != 200 ]; then
+              echo "::error::Cannot retain $name (HTTP $code)"
+              exit 1
+            fi
+          }
+          fetch catalog-v1
+          fetch previous
+          args=()
+          if [ -f build/catalog-v1.json ]; then args+=(--current build/catalog-v1.json); fi
+          if [ -f build/previous.json ]; then args+=(--previous build/previous.json); fi
+          if [ "$MODE" = rollback ]; then args+=(--rollback); fi
+          dart run tool/build_remote_catalog.dart "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: catalog-${{ github.run_id }}
+          path: build/catalog-site
+          include-hidden-files: true
+          retention-days: 90
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/catalog-site
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - uses: actions/deploy-pages@v4
+        id: deployment

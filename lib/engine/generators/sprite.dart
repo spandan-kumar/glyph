@@ -144,6 +144,33 @@ class Sprite {
   /// Raw ink grid, for tests and tools.
   List<int> frameAt(int f) => _frames[f];
 
+  /// Rendering identity, independent of editorial titles and attribution.
+  bool sameDrawing(Sprite other) {
+    if (width != other.width || height != other.height ||
+        palette != other.palette || motion != other.motion ||
+        backdrop != other.backdrop || _frames.length != other._frames.length ||
+        _inks.length != other._inks.length || seq.length != other.seq.length ||
+        ms.length != other.ms.length) {
+      return false;
+    }
+    for (var i = 0; i < _inks.length; i++) {
+      final a = _inks[i], b = other._inks[i];
+      if (a.kind != b.kind || a.rgb != b.rgb || a.v != b.v || a.k != b.k ||
+          a.vivid != b.vivid) {
+        return false;
+      }
+    }
+    for (var i = 0; i < seq.length; i++) {
+      if (seq[i] != other.seq[i] || ms[i] != other.ms[i]) return false;
+    }
+    for (var f = 0; f < _frames.length; f++) {
+      for (var p = 0; p < _frames[f].length; p++) {
+        if (_frames[f][p] != other._frames[f][p]) return false;
+      }
+    }
+    return true;
+  }
+
   static List<Sprite> parsePack(String json) =>
       parsePackJson(jsonDecode(json) as Map<String, dynamic>);
 

@@ -81,7 +81,7 @@ Ranked from forum, Reddit and GitHub evidence.
 | 6 | Local, no cloud, no account | Pixoo, LaMetric, Tidbyt | core works locally; future external feeds explicitly optional |
 | 7 | Easy custom pixel art | WLED | yes |
 | 8 | Now Playing album art | Tidbyt, Pixoo | yes |
-| 9 | Content rotation with a UI, not YAML | WLED, Tidbyt | device Shows shipped; separate phone-owned live Shows planned |
+| 9 | Content rotation with a UI, not YAML | WLED, Tidbyt | device Shows shipped; phone Shows implemented, unreleased |
 | 10 | Counters (days until/since) | Tidbyt, AWTRIX | partial → v1.4 |
 | 11 | Busy light, night modes | Tidbyt, AWTRIX | partial (Routines) → notifications |
 | 12 | Stocks/crypto | Tidbyt | after core Glance; provider/usage validation required |
@@ -180,21 +180,28 @@ Remaining launch assets:
 
 ### Weeks 2–3 — Build v1.4 "glance" (19 Oct – 1 Nov target)
 
-Scope is proposed, pending the product answers in [PLAN.md](PLAN.md).
+Confirmed product answers and remaining proposals are recorded in [PLAN.md](PLAN.md).
 Implementation order follows dependencies, not the appeal of a demo clip:
 
 1. **Playback ownership and restoration** — prove temporary alerts can
    interrupt a live look or device-owned playback, then return safely;
    power off, Stop and a new user choice always win.
 2. **Notifications** — extend the existing media-access listener, which
-   currently does not read notifications. Feature opt-in, chosen apps,
-   message visibility, quiet hours, bounded alerts and Android background QA.
+   now supplies the opt-in logo feed in this unreleased checkout. Chosen apps,
+   logo-only bounce/pulse alerts with no message text, an in-app app picker,
+   quiet hours, bounded alerts and Android background QA. Uses the same
+   phone-on-Wi-Fi/background model as Now Playing. Implemented; physical
+   Android/WLED QA remains before release (see [QA notes](NOTIFICATIONS.md)).
 3. **First Glance slice** — weather (Open-Meteo) and days-until/since;
    timestamped/stale/offline states, then phone-owned Shows with clear
-   phone requirements. Existing device Shows keep working autonomously.
+   phone requirements. Implemented in this unreleased checkout; counters use
+   the phone timezone only. Existing device Shows keep working autonomously.
+   Physical QA remains before release (see [QA notes](GLANCE.md)).
 4. **Remote catalog track** — validated static artifact, cache and reactive
-   app integration. Hosting/check policy is proposed; this is independent
-   of Glance and does not block the bug bundle.
+   app integration, implemented in this unreleased checkout. GitHub Pages
+   with manual checks and optional daily checks (off by default) is confirmed.
+   Publishing/activation remains pending; independent of Glance and the bug
+   bundle (see [delivery and QA](CATALOG_DELIVERY.md)).
 
 Independent work, ship when verified:
 

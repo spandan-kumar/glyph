@@ -40,6 +40,9 @@ mixin ToolSession<T extends StatefulWidget> on State<T> {
   /// (e.g. "Keep running in background" is on and running). Read on leaving.
   bool get keepAfterLeaving => false;
 
+  /// Only Now Playing allows brief alerts while its screen is open.
+  bool get allowsNotificationAlerts => false;
+
   /// Whether something was sent to the device since this tool last started
   /// playing.
   bool get sentFromTool => _toolSent;
@@ -50,6 +53,7 @@ mixin ToolSession<T extends StatefulWidget> on State<T> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _toolScope = context.dependOnInheritedWidgetOfExactType<AppScope>();
+    if (!allowsNotificationAlerts) _toolScope?.playback.blockAlerts(this);
     // Outlives this screen, so the cleanup can still reach the app's actions.
     _toolRoot = Navigator.maybeOf(context, rootNavigator: true)?.context;
   }
@@ -86,6 +90,7 @@ mixin ToolSession<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
+    _toolScope?.playback.unblockAlerts(this);
     _endToolSession();
     super.dispose();
   }

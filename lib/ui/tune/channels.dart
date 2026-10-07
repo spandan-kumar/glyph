@@ -99,6 +99,18 @@ class Channel {
   Channel expanded() =>
       identical(all, items) ? this : Channel(id: '$id/all', name: name, items: all, all: all, note: note);
 
+  /// Custom runs retain their order; retired library IDs cannot be tuned
+  /// through a registry fallback after a catalog rollback.
+  Channel withCatalog(Catalog catalog) {
+    List<TuneEntry> refresh(List<TuneEntry> entries) => [
+      for (final entry in entries)
+        if (entry is ItemEntry) ...[
+          if (catalog.byId(entry.item.id) case final item?) ItemEntry(item),
+        ] else entry,
+    ];
+    return Channel(id: id, name: name, note: note, items: refresh(items), all: refresh(all));
+  }
+
   int indexOfPlaying(PlaybackController p) => items.indexWhere((e) => e.isPlaying(p));
 }
 

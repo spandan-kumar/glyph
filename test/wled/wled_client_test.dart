@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -140,6 +141,47 @@ void main() {
         isEmpty,
       );
   });
+
+  for (final persisted in [true, false]) {
+    test('Send with a lost save acknowledgement confirms only the new GIF ($persisted)', () async {
+      final caps = DeviceCapabilities.detect(
+          WledInfo.fromJson(jsonDecode(infoEsp32V16)), effectsEsp32V16);
+      var writes = 0;
+      final c = WledClient('192.168.29.6', client: MockClient((r) async {
+        requests.add(r);
+        if (r.url.path == '/json/state' && r.method == 'POST') {
+          final body = jsonDecode(r.body) as Map;
+          if (body.containsKey('psave')) {
+            writes++;
+            presetsJson['2'] = {
+              'n': 'Glyph test',
+              'on': true,
+              'seg': [{'id': 0, 'fx': 53, 'n': persisted ? 'new-test.gif' : 'old-test.gif'}],
+            };
+            throw TimeoutException('Save response lost after device write');
+          }
+          return http.Response('{"success":true}', 200);
+        }
+        return switch (r.url.path) {
+          '/presets.json' => http.Response(jsonEncode(presetsJson), 200),
+          '/json/state' => http.Response(jsonEncode(stateJson), 200),
+          '/upload' => http.Response('File Uploaded!', 200),
+          '/edit' => http.Response('[]', 200),
+          _ => http.Response('{}', 200),
+        };
+      }));
+      final sending = c.saveGifToDevice(
+        fileName: 'new-test.gif', gif: Uint8List(2048),
+        presetName: 'Glyph test', caps: caps, presetId: 2,
+      );
+      if (persisted) {
+        expect(await sending, 2);
+      } else {
+        await expectLater(sending, throwsA(isA<WledException>()));
+      }
+      expect(writes, 1);
+    });
+  }
 
   test('saveGifToDevice refuses devices without GIF support or space', () async {
     final esp8266 = DeviceCapabilities.detect(

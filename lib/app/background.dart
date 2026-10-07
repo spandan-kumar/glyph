@@ -25,9 +25,19 @@ abstract final class BackgroundStreaming {
 
   static VoidCallback? _onStop;
   static bool _ready = false;
+  static Future<void> _operations = Future.value();
+  static int _pendingOperations = 0;
+  static final _retainers = <Object, ({VoidCallback stop, String title, String text})>{};
   static PlaybackController? _watched;
 
   static bool get supported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  static Future<T> _serial<T>(Future<T> Function() operation) {
+    _pendingOperations++;
+    final result = _operations.then((_) => operation()).whenComplete(() => _pendingOperations--);
+    _operations = result.then<void>((_) {}, onError: (Object e, StackTrace s) {});
+    return result;
+  }
 
   static const _stopId = 'stop';
 
@@ -40,9 +50,12 @@ abstract final class BackgroundStreaming {
     String text = 'Tap to open Glyph',
     bool microphone = false,
     VoidCallback? onStop,
-  }) async {
+  }) => _serial(() => _start(title: title, text: text, microphone: microphone, onStop: onStop));
+
+  static Future<bool> _start({required String title, required String text,
+    required bool microphone, VoidCallback? onStop}) async {
     if (!supported) return false;
-    _onStop = onStop;
+    if (onStop != null) _onStop = onStop;
     _init();
     if (await FlutterForegroundTask.checkNotificationPermission() !=
         NotificationPermission.granted) {
@@ -70,20 +83,51 @@ abstract final class BackgroundStreaming {
     return running.value;
   }
 
+  /// A live feature can own the service independently of other streaming tools.
+  static Future<bool> retain(Object owner, VoidCallback onStop, {
+    String title = 'Glyph notification alerts',
+    String text = 'Listening for your selected apps',
+  }) async {
+    _retainers[owner] = (stop: onStop, title: title, text: text);
+    if (isRunning) { await update(title: title, text: text); return true; }
+    final ok = await start(title: title, text: text);
+    if (!ok) _retainers.remove(owner);
+    return ok;
+  }
+
+  static Future<void> release(Object owner) async {
+    _retainers.remove(owner);
+    final p = _watched;
+    if (_retainers.isEmpty && (_onStop == null || p == null || !p.isPlaying || !p.isStreaming)) await stop();
+  }
+
   static Future<void> update({String? title, String? text}) async {
     if (!isRunning) return;
     await FlutterForegroundTask.updateService(notificationTitle: title, notificationText: text);
   }
 
-  static Future<void> stop() async {
+  static Future<void> stop() {
+    if (_pendingOperations == 0 && !isRunning) {
+      _onStop = null;
+      return Future.value();
+    }
+    return _serial(_stop);
+  }
+
+  static Future<void> _stop() async {
     _onStop = null;
+    if (_retainers.isNotEmpty) {
+      final owner = _retainers.values.last;
+      await update(title: owner.title, text: owner.text);
+      return;
+    }
     if (!running.value) return;
     running.value = false;
     await FlutterForegroundTask.stopService();
   }
 
-  /// Stops the service once [playback] pauses or stops streaming, so the
-  /// notification never outlives what it describes.
+  /// Releases streaming ownership when playback ends. A notification monitor
+  /// may still need the service while the device plays on its own.
   static void watch(PlaybackController playback) {
     if (identical(_watched, playback)) return;
     _watched?.removeListener(_check);
@@ -105,7 +149,7 @@ abstract final class BackgroundStreaming {
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'glyph_streaming',
         channelName: 'Streaming',
-        channelDescription: 'Shown while Glyph streams to a matrix in the background.',
+        channelDescription: 'Shown while Glyph streams or listens for logo alerts.',
         onlyAlertOnce: true,
       ),
       iosNotificationOptions: const IOSNotificationOptions(showNotification: false),
@@ -125,7 +169,16 @@ abstract final class BackgroundStreaming {
     final cb = _onStop;
     running.value = false;
     _onStop = null;
+    final monitors = _retainers.values.toList();
+    _retainers.clear();
     cb?.call();
+    for (final stopMonitor in monitors) { stopMonitor.stop(); }
+    // Monitoring can keep a regular animation alive without a tool callback.
+    final p = _watched;
+    if (p != null && (p.isPlaying || p.isStreaming)) {
+      p.pause();
+      p.stopStreaming();
+    }
   }
 
   @visibleForTesting
@@ -133,6 +186,7 @@ abstract final class BackgroundStreaming {
     _watched?.removeListener(_check);
     _watched = null;
     _onStop = null;
+    _retainers.clear();
     running.value = false;
   }
 }

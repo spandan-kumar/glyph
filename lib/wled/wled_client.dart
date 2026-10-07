@@ -361,7 +361,24 @@ class WledClient {
       await playGif(name, imageEffectId: fx);
       await beforeSwitch?.call();
       await exitLive();
-      await saveCurrentAsPreset(presetName, id: pid);
+      try {
+        await saveCurrentAsPreset(presetName, id: pid);
+      } on WledException {
+        // A lost HTTP reply can follow a successful asynchronous device write.
+        // The staged filename is unique, so an older Saved entry cannot match.
+        await Future<void>.delayed(presetSaveSettle);
+        WledPreset? saved;
+        try {
+          saved = (await presetList()).where((p) => p.id == pid).firstOrNull;
+        } on WledException {
+          // Keep the original failure when the write cannot be confirmed.
+        }
+        final label = presetName.length > 32 ? presetName.substring(0, 32) : presetName;
+        if (saved?.name != label || saved?.gifName != name ||
+            saved?.effectId != fx || saved?.body['on'] != true) {
+          rethrow;
+        }
+      }
       // Only retire files this client created, and never shared content.
       if (previous != null && _createdGifs.contains(previous)) {
         try {

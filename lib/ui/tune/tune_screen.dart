@@ -107,6 +107,17 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
       _scope = scope;
       return;
     }
+    if (identical(scope.playback, _scope?.playback) && _tune != null) {
+      _scope = scope;
+      _base = CatalogChannels(scope.catalog, widget.now ?? DateTime.now());
+      _rebuildChannels();
+      final previous = tune.channel;
+      final expanded = previous.id.endsWith('/all');
+      final id = expanded ? previous.id.substring(0, previous.id.length - 4) : previous.id;
+      final next = _channels.where((c) => c.id == id).firstOrNull;
+      tune.refresh(next == null ? previous.withCatalog(scope.catalog) : expanded ? next.expanded() : next);
+      return;
+    }
     _scope?.playback.removeListener(_onPlayback);
     _scope?.creations.removeListener(_rebuildChannels);
     _scope?.devices.removeListener(_mirrorMatrix);

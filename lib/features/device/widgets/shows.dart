@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/devices.dart';
+import '../../glance/glance_screen.dart';
+import '../../../ui/scope.dart';
 import '../../../ui/design/parts.dart';
 import '../../../ui/design/toggle.dart';
 import '../../../ui/design/tokens.dart';
@@ -25,6 +27,7 @@ class ShowsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Padding(padding: const EdgeInsets.only(bottom: 10), child: Text('Runs on your device', style: LbType.small)),
         if (shows.isEmpty)
           EmptyNote(
             text: canCreate
@@ -54,6 +57,10 @@ class ShowsSection extends StatelessWidget {
               label: const Text('New show'),
             ),
           ),
+        if (context.getInheritedWidgetOfExactType<AppScope>()?.glance != null) ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GlanceScreen())), icon: const Icon(Icons.smartphone_sharp), label: const Text('Phone Shows · needs your phone')),
+        ],
       ],
     );
   }

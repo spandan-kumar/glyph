@@ -80,7 +80,10 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
   // Background on: the cover keeps following songs after the screen closes,
   // until it's stopped from the notification or something else plays.
   @override
-  bool get keepAfterLeaving => BackgroundStreaming.isRunning;
+  bool get keepAfterLeaving => _wantBackground && BackgroundStreaming.isRunning;
+
+  @override
+  bool get allowsNotificationAlerts => true;
 
   Future<void> _play() async {
     final s = AppScope.of(context);
@@ -239,12 +242,12 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                   padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
                   child: LbToggleTile(
                     title: 'Keep running in background',
-                    subtitle: BackgroundStreaming.isRunning
+                    subtitle: _wantBackground && BackgroundStreaming.isRunning
                         ? 'Running · stop it from the notification'
                         : devices.isConnected
                             ? 'Keeps following your songs while you\'re in your music app'
                             : 'Connect a device to use this',
-                    value: BackgroundStreaming.isRunning || _wantBackground,
+                    value: _wantBackground,
                     onChanged: devices.isConnected ? _toggleBackground : null,
                   ),
                 ),

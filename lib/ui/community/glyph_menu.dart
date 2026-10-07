@@ -10,6 +10,7 @@ import '../design/tokens.dart';
 import '../design/type.dart';
 import '../scope.dart';
 import 'whats_new_sheet.dart';
+import 'catalog_updates_screen.dart';
 
 /// The Glyph menu: community, help and the app itself, one tap from every
 /// tab (top-right of each header). The same links also appear where they're
@@ -86,6 +87,8 @@ class _GlyphMenu extends StatelessWidget {
             const MonoLabel('Glyph'),
             const SizedBox(height: 8),
             RowGroup(children: [
+              row(Icons.download_sharp, 'New animations', 'Catalog updates & daily checks', _more,
+                  (c) => Navigator.of(c).push(MaterialPageRoute<void>(builder: (_) => const CatalogUpdatesScreen()))),
               row(Icons.new_releases_sharp, 'What\'s new', null, _more, showWhatsNew),
               row(Icons.code_sharp, 'Source code', 'MIT licence · GitHub', _out,
                   (c) => openCommunityLink(c, Uri.parse(Community.repo))),

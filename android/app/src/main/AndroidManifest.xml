@@ -51,8 +51,7 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/glyph_widget_info" />
         </receiver>
-        <!-- Now Playing: lets the person grant Notification access, which is how
-             Android shares other apps' media sessions (NowPlayingBridge.kt). -->
+        <!-- Shared notification access for Now Playing and opt-in logo alerts. -->
         <service
             android:name=".NowPlayingListener"
             android:label="@string/now_playing_label"
@@ -81,6 +80,11 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- The notification app picker only lists launchable apps. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
         <!-- Community links (feedback, roadmap) open in the browser; Android 11+
              needs this to see that a browser can handle them (url_launcher). -->
         <intent>

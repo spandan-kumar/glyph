@@ -27,8 +27,8 @@ class _Receiver {
     });
   }
 
-  static Future<_Receiver> bind() async =>
-      _Receiver._(await RawDatagramSocket.bind(InternetAddress.loopbackIPv4, 0));
+  static Future<_Receiver> bind({InternetAddress? address}) async =>
+      _Receiver._(await RawDatagramSocket.bind(address ?? InternetAddress.loopbackIPv4, 0));
 
   final RawDatagramSocket socket;
   final frames = <Uint8List>[];
@@ -77,6 +77,21 @@ Frame _coordsFrame(int w, int h) {
 }
 
 void main() {
+  test('temporary logo goes only to selected host, mirrors retain base pixels', () async {
+    final a = await _Receiver.bind(), b = await _Receiver.bind(address: InternetAddress.loopbackIPv6);
+    const raw = LedColorConfig(gamma: 1, balance: neutralWhiteBalance);
+    final group = DdpGroupSender([
+      DdpTarget('127.0.0.1', port: a.port, color: raw),
+      DdpTarget('::1', port: b.port, color: raw),
+    ]);
+    addTearDown(() { group.close(); a.close(); b.close(); });
+    await group.open();
+    group.send(Frame(2, 2)..fill(0xff0000), overrideFrame: Frame(2, 2)..fill(0x00ff00), overrideHost: '127.0.0.1');
+    await a.waitFor(1); await b.waitFor(1);
+    expect(a.frames.single, [for (var i = 0; i < 4; i++) ...[0, 255, 0]]);
+    expect(b.frames.single, [for (var i = 0; i < 4; i++) ...[255, 0, 0]]);
+  });
+
   test('nearest scaling duplicates on 2x and samples centres on downscale', () {
     final src = _coordsFrame(4, 4);
     final up = scaleFrameNearest(src, 8, 8);

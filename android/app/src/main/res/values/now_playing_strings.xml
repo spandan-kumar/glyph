@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Shown in Android's Notification access list. -->
-    <string name="now_playing_label">Glyph Now Playing</string>
+    <string name="now_playing_label">Glyph · music and logo alerts</string>
 </resources>

@@ -41,6 +41,13 @@ class _ChannelPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scope = AppScope.of(context), library = TuneScope.of(context).library;
+    final base = CatalogChannels(scope.catalog, DateTime.now());
+    final channels = assembleChannels(base: base, favourites: library.favourites,
+        recents: library.recents, creations: scope.creations.items);
+    final id = this.channel.id.endsWith('/all') ? this.channel.id.substring(0, this.channel.id.length - 4) : this.channel.id;
+    final current = channels.where((c) => c.id == id).firstOrNull;
+    final channel = current?.expanded() ?? this.channel.withCatalog(scope.catalog);
     return SafeArea(
       bottom: false,
       child: Column(

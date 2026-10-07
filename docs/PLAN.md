@@ -32,12 +32,14 @@ physical panels or Android background lifecycle behaviour.
 
 Partial foundations, not shipped features:
 
-- `RemoteCatalog` validates, caches and merges data, but `defaultUrl` is
-  null and `main()` loads only the bundled catalog.
-- `NowPlayingListener` provides media-session access; it has no notification
-  event handlers. Permission is granted only by the person.
-- Shows are WLED playlists of Saved items, with no live data refresh or
-  phone-owned sequences.
+- Catalog delivery is implemented in this unreleased checkout: bounded
+  staging/cache, reactive app integration and a Pages workflow.
+  `defaultUrl` remains null until the Pages deployment is live and verified.
+- `NowPlayingListener` now also supplies opt-in logo notifications in this
+  unreleased checkout. Permission is granted only by the person; physical
+  Android/WLED QA remains.
+- Device Shows run autonomously from Saved items. Glance adds separate
+  phone-owned Shows in this unreleased checkout; physical QA remains.
 - The orientation fix transforms Glyph frames; it does not configure panel
   wiring, tiling or WLED's 2D configuration.
 - iOS scaffolding exists; an iOS product release remains future work.
@@ -123,6 +125,17 @@ flow. This scope is provisional pending the release decision below.
 
 ### 1. Playback ownership and temporary alerts
 
+Implementation status (7 October, unreleased): notification overlays and
+monitor ownership are implemented. The live base generator/instance/feed
+continue underneath; only the selected host receives the alert frame.
+Native playback is left intact while realtime input is used, then live mode
+and any prior realtime override are restored. No preset or Show is rewritten;
+exact Show position is left to WLED, not promised. This is the first temporary
+alert path, not the phone-owned Show coordinator needed by Glance below.
+Automated coverage is in `test/features/notifications` and Android bridge
+filter tests. Physical screen-off/locked-phone/WLED QA remains a release gate.
+
+
 Add a small app-level coordinator around `PlaybackController`,
 `GlyphActions`, `DeviceStore` and `BackgroundStreaming`. Keep the renderer
 and DDP sender focused on their jobs; do not build a generic display
@@ -150,8 +163,8 @@ with a session generation and target host for every interruption.
   while WLED plays a native look and no stream is open. The current
   `BackgroundStreaming.watch` stops the service when streaming stops;
   update that policy to account for monitoring and live Shows. Keep idle
-  monitoring free of frame traffic. Stop ends monitoring as well as live
-  playback; do not resurrect a terminated Dart session from an alert.
+  monitoring free of frame traffic. The foreground notification's Stop
+  ends monitoring as well as live playback; do not resurrect a terminated Dart session from an alert.
 
 Acceptance: fake-clock tests cover live/native/Show restoration, feed
 continuity, bursts, manual takeover, power off, switching/disconnect,
@@ -160,31 +173,58 @@ state/presets/config restored and test-owned files removed afterwards.
 
 ### 2. Notifications
 
+Implemented in this checkout, not yet released: Make entry, searchable app
+picker with installed icons, local app/quiet-hour preferences, explicit
+session start, synthetic logo preview, four-second bounce, bounded/coalesced
+queue, native filtering and guarded live/native restoration. Now Playing
+continues independently. See [notification implementation and QA](NOTIFICATIONS.md).
+
+
 Extend the existing Android listener with posted/removed/connected/
 disconnected handling and a separate Dart event feed. Now Playing remains
 usable without enabling alerts. Wait for listener connection before using
 listener operations, following Android's lifecycle contract.
 
-- Add Notifications under Make: opt-in, choose apps, preview, toggle and
-  quiet hours. Explain the change from media-session access to processing
-  selected alerts. Default message visibility awaits the decision below.
-- Filter allowed packages before extracting text. Ignore Glyph's own
-  notifications, media controls, ongoing service/status notifications and
-  group summaries. Updates replace the same queued notification; removal
-  cancels a queued alert. Do not replay history when enabling.
-- Keep bounded payloads/queues in memory only: no text in diagnostics,
-  files, network requests or catalog. Proposed UX limits: one scroll with
-  an 8-second cap, three queued alerts, 30-second expiry; validate on panels.
+Confirmed product scope (7 October): logo-only alerts, with no message text
+or app-name text on the display. Use the originating app's installed icon,
+fitted for the device, in a short bounce/pulse animation, then restore the
+previous playback. A roughly 4-second alert is the initial tuning target;
+validate legibility and motion on small and wide panels.
+
+- Add Notifications under Make: opt-in, a searchable app picker with each
+  app's icon/name and an independent enabled switch, preview, master toggle
+  and quiet hours. Persist the selected packages locally. Start with no apps
+  selected. App names appear in settings, not on the display.
+- Reuse the existing Android notification-access permission and foreground
+  service; granting access for Now Playing does not enable alerts. The phone
+  stays on the same network with Glyph running in the background. No silent
+  boot auto-start or historical notification replay.
+- Filter selected packages natively before obtaining icon/event payloads.
+  Do not extract notification title, body, sender, conversation, images or
+  other message contents. Ignore Glyph itself, media controls, ongoing
+  service/status notifications and group summaries. Coalesce repeated
+  updates to the same notification; removal cancels a queued alert.
+- Use installed app icons rather than notification attachments. Keep icon
+  pixels and bounded event/queue data in memory only; no notification
+  contents in diagnostics, storage, network requests or the catalog. If an
+  icon cannot be loaded, use a neutral Glyph alert symbol, with no text.
+  Start with at most three queued alerts and a 30-second expiry; discard
+  stale alerts and suppress them during protected interactive sessions.
 - Live-only: no Send. Handle denied/revoked access and inactive sessions
   visibly; never claim delivery after the OS stops Glyph. Provide a
-  synthetic test alert without needing another app to send a message.
+  synthetic preview using a selected app's icon without needing another app
+  to send a notification.
 
 Acceptance: native filtering/update/removal/lifecycle tests; Dart/widget
-consent, per-app settings, midnight-spanning quiet hours, expiry and
-restoration tests. Android QA includes screen off, locked phone, permission
+consent, persisted app selection, icon conversion/animation, midnight-spanning
+quiet hours, expiry and restoration tests. Android QA includes screen off, locked phone, permission
 revocation and process termination, alongside existing Now Playing.
 
 ### 3. Glance cards and phone-owned Shows
+
+Implemented in this unreleased checkout; physical Android/WLED QA remains
+before release. See [implementation and QA notes](GLANCE.md). Counters follow
+the phone timezone only, per the product decision on 7 October 2026.
 
 Separate persisted card configuration from timestamped feed snapshots.
 Services fetch outside the render loop; pure Dart generators consume data.
@@ -194,12 +234,11 @@ checking 8×8, 32×8, 16×16 and 32×32.
 - Glance under Make configures/previews a card and shows it live. Start with
   a manually chosen place/coordinates, local timezone/units, no prerequisite
   for continuous GPS or a location permission.
-- Weather: request needed current/daily Open-Meteo fields only. Proposed
-  cadence: every 15 minutes while used, sharing requests across previews/
+- Weather: request needed current/daily Open-Meteo fields only. Cadence: every 15 minutes while used, sharing requests across previews/
   Shows and backing off on failure. Cache the last good result with its
-  timestamp/stale indicator. Proposed 2-hour expiry: show unavailable and
+  timestamp/stale indicator. 2-hour expiry: show unavailable and
   skip in a Show rather than inventing zeros. Validate thresholds in QA.
-- Days-until/since uses a local date/timezone and updates at midnight, with
+- Days-until/since uses a civil date in the phone timezone and updates at midnight, with
   defined reached/past-date states. A baked GIF is not a live counter.
 - Persist phone-owned Show definitions separately: entries for library
   looks, creations and cards, duration/order. Existing WLED Shows remain
@@ -219,10 +258,12 @@ No feed polls per frame; counters require no network.
 
 ### 4. Remote catalog: finish the dormant path
 
-Separate delivery track, not a Glance prerequisite. Proposed first version:
-a static catalog on GitHub Pages and an explicit Check for new animations
-action. Hosting and optional automatic checks remain decisions for later;
-no accounts, upload service or per-user endpoints are needed.
+Separate delivery track, not a Glance prerequisite. Confirmed: a static
+catalog on GitHub Pages, an explicit Check for new animations action, and
+optional daily automatic checks (off by default). Checks run only while the
+app is open, including on resume when due. No accounts, upload service or
+per-user endpoints. Implemented in this unreleased checkout; publishing and
+production activation remain pending. See [delivery and QA](CATALOG_DELIVERY.md).
 
 - Build a remote JSON artifact from reviewed packs, including sprite data
   and attribution/notices. Separate content revision from schema version.
@@ -267,19 +308,22 @@ patterns, verified write/reconnect and an accessible restore path. The HA
 blueprint uses existing Saved IDs and can ship independently. Before AWTRIX,
 extract only the adapter boundary needed by WLED and that second device.
 
-## Product decisions awaiting answers
+## Product decisions
 
 Confirmed on 7 October: ship the bug bundle separately as v1.3.2, then start
 v1.4 with playback ownership/restoration. The user authorised the release.
 
-1. Can live cards/alerts require the Android phone on the same network with
-   Glyph running in the background? Autonomous live data needs a different
-   architecture, to be planned before promising it.
-2. Notification default: app icon/name with per-app text opt-in, or icon
-   plus short message text after enabling that app?
+Confirmed on 7 October: phone-present background streaming is acceptable,
+using the same model as Now Playing. Notifications show only a briefly
+animated app logo, with no message text. The person chooses enabled apps
+inside Glyph; notification access alone does not enable the feature.
 
-Other proposals to resolve before implementation: catalog hosting/automatic
-checks and provider refresh limits. Existing user power-on choices continue
+Confirmed on 7 October: GitHub Pages catalog hosting, manual checks and
+optional daily automatic checks. Automatic checks start off. Days counters
+follow the phone timezone only.
+
+Other proposals to resolve before implementation: remaining provider refresh
+limits. Existing user power-on choices continue
 after the system intro; #23 only changes how that is presented.
 Record answers here and keep the product roadmap consistent.
 

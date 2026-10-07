@@ -5,6 +5,7 @@ import '../../ui/scope.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
 import '../../ui/make/studio_kit.dart';
+import '../../ui/make/tool_session.dart';
 import 'catalog.dart';
 import 'core/game.dart';
 import 'game_page.dart';
@@ -27,7 +28,7 @@ class GamesScreen extends StatefulWidget {
   State<GamesScreen> createState() => _GamesScreenState();
 }
 
-class _GamesScreenState extends State<GamesScreen> {
+class _GamesScreenState extends State<GamesScreen> with ToolSession<GamesScreen> {
   final _best = <String, int>{};
 
   @override

@@ -46,7 +46,63 @@ class PlaybackController extends ChangeNotifier {
   /// rebuilding the whole widget tree.
   final frameTick = ValueNotifier<int>(0);
 
-  Frame get frame => _frame;
+  Frame get frame => _alert?.frame ?? _frame;
+  bool get isAlerting => _alert != null;
+  final _alertBlocks = <Object>{};
+  bool get alertsBlocked => _alertBlocks.isNotEmpty;
+  int _alertGeneration = 0;
+  int get alertGeneration => _alertGeneration;
+
+  /// Interactive tools and Send discard incoming alerts instead of queueing them.
+  void blockAlerts(Object owner) {
+    if (!_alertBlocks.add(owner)) return;
+    _alertGeneration++;
+    endAlert(notify: false);
+    scheduleMicrotask(() { if (!_disposed) notifyListeners(); });
+  }
+
+  void unblockAlerts(Object owner) {
+    if (_alertBlocks.remove(owner)) {
+      scheduleMicrotask(() { if (!_disposed) notifyListeners(); });
+    }
+  }
+
+  _PlaybackAlert? _alert;
+
+  /// Draws temporarily without replacing the user's generator or its instance.
+  /// Media followers keep their subscriptions and mirrors keep the base look.
+  Future<bool> beginAlert(Generator generator, DdpTarget target, {required int width, required int height}) async {
+    if (_disposed || alertsBlocked || _held || _alert != null) return false;
+    final revision = _revision, stream = _streamGen, alerts = _alertGeneration;
+    final group = streamingHosts.contains(target.host) ? null : DdpGroupSender([target]);
+    try {
+      await group?.open();
+    } catch (_) {
+      group?.close();
+      rethrow;
+    }
+    if (_disposed || revision != _revision || stream != _streamGen || alerts != _alertGeneration || alertsBlocked || _held || _alert != null) {
+      group?.close();
+      return false;
+    }
+    _alert = _PlaybackAlert(generator, target.host, width, height, isPlaying, group);
+    if (!isPlaying) _start();
+    notifyListeners();
+    return true;
+  }
+
+  void endAlert({bool notify = true}) {
+    final alert = _alert;
+    if (alert == null) return;
+    _alert = null;
+    alert.group?.close();
+    if (!alert.wasPlaying) {
+      _timer?.cancel();
+      _timer = null;
+      _clock.stop();
+    }
+    if (notify && !_disposed) notifyListeners();
+  }
   Generator? get generator => _generator;
   Params get params => _params;
   Palette get palette => _palette;
@@ -86,6 +142,7 @@ class PlaybackController extends ChangeNotifier {
   }
 
   void _play(Generator g, Map<String, double> params, Palette pal) {
+    endAlert(notify: false);
     _revision++;
     _generator = g;
     _params = Params.defaultsFor(g, params);
@@ -97,6 +154,7 @@ class PlaybackController extends ChangeNotifier {
   }
 
   void setParam(String key, double value) {
+    endAlert(notify: false);
     _revision++;
     final m = _params.toMap()..[key] = value;
     _params = Params(m);
@@ -104,6 +162,7 @@ class PlaybackController extends ChangeNotifier {
   }
 
   void setPalette(Palette p) {
+    endAlert(notify: false);
     _revision++;
     _palette = p;
     notifyListeners();
@@ -112,6 +171,7 @@ class PlaybackController extends ChangeNotifier {
   /// Matches the render size to the device; restarts the effect state.
   void resize(int width, int height) {
     if (width == _frame.width && height == _frame.height) return;
+    endAlert(notify: false);
     _revision++;
     _frame = Frame(width, height);
     final g = _generator;
@@ -129,6 +189,7 @@ class PlaybackController extends ChangeNotifier {
   }
 
   void pause() {
+    endAlert(notify: false);
     _revision++;
     _timer?.cancel();
     _timer = null;
@@ -139,6 +200,7 @@ class PlaybackController extends ChangeNotifier {
   /// Stops the render loop and forgets what was playing, leaving nothing on
   /// the phone. Streaming is separate (see [stopStreaming]).
   void stop() {
+    endAlert(notify: false);
     _revision++;
     _timer?.cancel();
     _timer = null;
@@ -164,10 +226,19 @@ class PlaybackController extends ChangeNotifier {
     // Clamp dt so a stalled frame (app switch, GC) doesn't make physics jump.
     final dt = ((now - _last).inMicroseconds / 1e6).clamp(0.0, 0.1) * _timeScale;
     _last = now;
-    _t += dt;
-    _instance?.render(_frame, _t, dt, _params, _palette);
+    final alert = _alert;
+    if (alert == null || (alert.wasPlaying && !(_generator?.pauseDuringAlert ?? false))) {
+      _t += dt;
+      _instance?.render(_frame, _t, dt, _params, _palette);
+    }
+    if (alert != null) {
+      alert.time += ((now - alert.last).inMicroseconds / 1e6).clamp(0.0, 0.1);
+      alert.last = now;
+      alert.effect.render(alert.frame, alert.time, 1 / fps, alert.params, alert.palette);
+      if (!_held) alert.group?.send(alert.frame);
+    }
     final g = _group;
-    if (g != null && g.isOpen && !_held && _ticks++ % _sendEvery == 0) g.send(_frame);
+    if (g != null && g.isOpen && !_held && _ticks++ % _sendEvery == 0) g.send(_frame, overrideFrame: alert?.frame, overrideHost: alert?.host);
     frameTick.value++;
   }
 
@@ -183,6 +254,7 @@ class PlaybackController extends ChangeNotifier {
   bool get streamHeld => _held;
   set streamHeld(bool on) {
     if (on == _held) return;
+    if (on) endAlert(notify: false);
     _held = on;
     notifyListeners();
   }
@@ -241,6 +313,7 @@ class PlaybackController extends ChangeNotifier {
   }
 
   Future<void> stopStreaming({bool notify = true}) async {
+    endAlert(notify: false);
     _streamGen++;
     _group?.close();
     _group = null;
@@ -252,6 +325,7 @@ class PlaybackController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    endAlert(notify: false);
     _streamGen++;
     _revision++;
     _timer?.cancel();
@@ -259,4 +333,19 @@ class PlaybackController extends ChangeNotifier {
     frameTick.dispose();
     super.dispose();
   }
+}
+
+class _PlaybackAlert {
+  _PlaybackAlert(Generator generator, this.host, int width, int height, this.wasPlaying, this.group)
+      : frame = Frame(width, height), effect = generator.create(width, height, 1),
+        params = Params.defaultsFor(generator), palette = paletteById(generator.defaultPalette);
+  final String host;
+  final Frame frame;
+  final EffectInstance effect;
+  final Params params;
+  final Palette palette;
+  final bool wasPlaying;
+  final DdpGroupSender? group;
+  double time = 0;
+  Duration last = Duration.zero;
 }

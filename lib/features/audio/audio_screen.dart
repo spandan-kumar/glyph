@@ -85,7 +85,7 @@ class _AudioScreenState extends State<AudioScreen>
   // Background on: the visualiser keeps dancing after the screen closes,
   // until it's stopped from the notification or something else plays.
   @override
-  bool get keepAfterLeaving => BackgroundStreaming.isRunning;
+  bool get keepAfterLeaving => _wantBackground && BackgroundStreaming.isRunning;
 
   bool _isOurs(PlaybackController p) {
     final g = p.generator;
@@ -332,12 +332,12 @@ class _AudioScreenState extends State<AudioScreen>
                     if (BackgroundStreaming.supported)
                       LbToggleTile(
                         title: 'Keep running in background',
-                        subtitle: BackgroundStreaming.isRunning
+                        subtitle: _wantBackground && BackgroundStreaming.isRunning
                             ? 'Running · stop it from the notification'
                             : devices.isConnected
                             ? 'Keeps the device dancing with the screen off'
                             : 'Connect a device to use this',
-                        value: BackgroundStreaming.isRunning || _wantBackground,
+                        value: _wantBackground,
                         onChanged: devices.isConnected ? _toggleBackground : null,
                       ),
                   ],

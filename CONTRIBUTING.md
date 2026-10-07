@@ -151,6 +151,13 @@ dart run tool/build_catalog.dart    # adds your sprite to assets/catalog/catalog
 flutter test test/engine/sprite_test.dart test/library
 ```
 
+After a published catalog exists, bump `assets/catalog/content_revision.json`
+when changing catalog content. Changed drawings need new sprite **and item**
+IDs; existing IDs must continue to represent the same art. Build and validate
+the remote artifact with `dart run tool/build_remote_catalog.dart`. It goes
+to `build/catalog-site/`, including sprite source/attribution. See
+[delivery and rollback](docs/CATALOG_DELIVERY.md).
+
 Never edit `sprite_data.g.dart` or `catalog.json` by hand. The tests fail if
 either is stale ("compiled data matches the JSON sources") or if your sprite
 has a problem (unknown colour letter, frames of different sizes, duplicate
@@ -222,7 +229,10 @@ design. In your PR, explain why the work is public domain.
 commands, testing rules and WLED quirks. The short version:
 
 - `flutter analyze` must report no issues and `flutter test` must pass; CI
-  runs both on every pull request.
+  runs both on every pull request. Android CI also compiles the app and runs
+  bridge unit tests. For native changes, build with
+  `flutter build apk --debug --target-platform android-arm64`, then run
+  `cd android && ./gradlew :app:testDebugUnitTest`.
 - The engine (`lib/engine`) stays pure Dart; the UI uses the design kit in
   `lib/ui/design`.
 - In the app's words it's a **device**, you **Send** an animation, and the

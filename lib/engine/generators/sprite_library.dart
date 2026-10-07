@@ -6,6 +6,8 @@ import 'sprite_data.g.dart';
 /// at runtime, e.g. from a remote catalog. Decoded lazily, once.
 abstract final class SpriteLibrary {
   static final _byId = <String, SpriteGenerator>{};
+  static final _bundled = <String>{};
+  static final _remote = <String>{};
   static var _loaded = false;
 
   static void _ensure() {
@@ -15,6 +17,7 @@ abstract final class SpriteLibrary {
       for (final s in Sprite.parsePack(src)) {
         final g = SpriteGenerator(s);
         _byId[g.id] = g;
+        _bundled.add(g.id);
       }
     }
   }
@@ -28,6 +31,26 @@ abstract final class SpriteLibrary {
     if (!generatorId.startsWith(SpriteGenerator.prefix)) return null;
     _ensure();
     return _byId[generatorId];
+  }
+
+  static bool isBundled(String id) {
+    _ensure();
+    return _bundled.contains(id);
+  }
+
+  /// Installs a prevalidated snapshot in one synchronous step. Existing
+  /// playback holds its generator; retired downloads leave the lookup table.
+  static void replaceRemote(List<SpriteGenerator> sprites) {
+    _ensure();
+    for (final id in _remote) {
+      _byId.remove(id);
+    }
+    _remote.clear();
+    for (final g in sprites) {
+      if (_bundled.contains(g.id)) continue;
+      _byId[g.id] = g;
+      _remote.add(g.id);
+    }
   }
 
   /// Adds sprites from a pack JSON object; existing ids are kept, so a

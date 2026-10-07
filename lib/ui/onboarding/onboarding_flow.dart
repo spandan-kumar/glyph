@@ -12,6 +12,7 @@ import '../design/stage.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 import '../scope.dart';
+import '../make/tool_session.dart';
 import '../widgets/live_preview.dart';
 import 'orientation_fix.dart';
 import 'search_step.dart';
@@ -90,7 +91,7 @@ class SetupFlow extends StatefulWidget {
   State<SetupFlow> createState() => _SetupFlowState();
 }
 
-class _SetupFlowState extends State<SetupFlow> {
+class _SetupFlowState extends State<SetupFlow> with ToolSession<SetupFlow> {
   late SetupStep _step = widget.start;
   int _dir = 1;
 

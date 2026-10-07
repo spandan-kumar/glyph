@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../engine/generator.dart';
+import '../engine/generators/sprite.dart';
 import '../features/device/boot_intro.dart';
 
 import '../engine/clip.dart';
@@ -102,6 +103,7 @@ abstract final class GlyphActions {
         s.playback.timeScale,
         seconds,
         fps,
+        g is SpriteGenerator ? g : null,
       ));
     } else {
       final loop = renderLoop(
@@ -153,6 +155,7 @@ abstract final class GlyphActions {
     final playback = s.playback, revision = playback.revision;
     var stream = playback.streamGeneration;
     final throttle = Object();
+    playback.blockAlerts(throttle);
     bool current() =>
         context.mounted &&
         d.isCurrent(client, selection) &&
@@ -160,6 +163,7 @@ abstract final class GlyphActions {
         revision == playback.revision &&
         stream == playback.streamGeneration;
     if (!caps.canPlayGifs) {
+      playback.unblockAlerts(throttle);
       return _fail(
         context,
         'This controller can\'t play GIFs. Live streaming still works.',
@@ -244,6 +248,7 @@ abstract final class GlyphActions {
       return context.mounted ? _fail(context, 'Couldn\'t send it: $why') : null;
     } finally {
       playback.releaseStreamThrottle(throttle);
+      playback.unblockAlerts(throttle);
     }
   }
 
@@ -311,10 +316,11 @@ abstract final class GlyphActions {
   }
 }
 
-Uint8List _bake((String, Map<String, double>, String, int, int, double, double, int) a) {
-  final (genId, params, paletteId, w, h, speed, seconds, fps) = a;
+Uint8List _bake((String, Map<String, double>, String, int, int, double, double, int, SpriteGenerator?) a) {
+  final (genId, params, paletteId, w, h, speed, seconds, fps, sprite) = a;
   return bakeGif(
-    generator: generatorById(genId),
+    // Downloaded sprites aren't registered in the worker isolate.
+    generator: sprite ?? generatorById(genId),
     params: Params(params),
     palette: paletteById(paletteId),
     width: w,
