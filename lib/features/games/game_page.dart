@@ -122,7 +122,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
       case GameEvent.hit || GameEvent.clear:
         HapticFeedback.mediumImpact();
       case GameEvent.level:
-        HapticFeedback.heavyImpact();
+        HapticFeedback.mediumImpact();
       case GameEvent.over:
         HapticFeedback.heavyImpact();
         _submit();
@@ -199,7 +199,10 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
               icon: const Icon(Icons.tune_sharp),
               shape: studioMenuShape,
               style: studioIconStyle,
-              onSelected: _toggleOption,
+              onSelected: (k) {
+                HapticFeedback.selectionClick();
+                _toggleOption(k);
+              },
               itemBuilder: (_) => [
                 for (final (key, label) in def.options)
                   CheckedPopupMenuItem(
@@ -209,7 +212,12 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
           IconButton(
             style: studioIconStyle,
             tooltip: _paused ? 'Resume' : 'Pause',
-            onPressed: _over ? null : () => _setPaused(!_paused),
+            onPressed: _over
+                ? null
+                : () {
+                    HapticFeedback.selectionClick();
+                    _setPaused(!_paused);
+                  },
             icon: Icon(_paused ? Icons.play_arrow_sharp : Icons.pause_sharp),
           ),
       ],
@@ -360,7 +368,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
               width: unit * 1.6,
               height: unit * 1.6,
               label: 'fire',
-              color: Color.lerp(Lb.raised, Lb.danger, 0.22)!,
+              color: Lb.raised,
               onDown: () => _press(GameKey.a),
               child: const Text('FIRE'),
             ),
@@ -383,7 +391,7 @@ class _Hud extends StatelessWidget {
     return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const MonoLabel('Score'),
-        Text('$score', style: LbType.display.copyWith(fontSize: 34, fontFeatures: _figures)),
+        Text('$score', style: LbType.display.copyWith(fontFeatures: _figures)),
       ]),
       const SizedBox(width: 16),
       Expanded(
@@ -395,7 +403,7 @@ class _Hud extends StatelessWidget {
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
         const MonoLabel('Best'),
         Text('$best',
-            style: LbType.title.copyWith(color: readAccent(context), fontFeatures: _figures)),
+            style: LbType.title.copyWith(fontFeatures: _figures)),
       ]),
     ]);
   }
@@ -417,14 +425,13 @@ class _Panel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = readAccent(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Lb.panel,
         borderRadius: BorderRadius.circular(Lb.rPanel),
-        border: Border.all(color: highlight ? accent : Lb.line),
+        border: Border.all(color: highlight ? Lb.text : Lb.line),
       ),
       child: SingleChildScrollView(
         child: Column(children: [
@@ -434,16 +441,29 @@ class _Panel extends StatelessWidget {
             Text(l,
                 textAlign: TextAlign.center,
                 style: l == 'New best!'
-                    ? LbType.bodyStrong.copyWith(color: accent)
+                    ? LbType.bodyStrong.copyWith(color: Lb.text)
                     : LbType.body.copyWith(color: Lb.text2)),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            height: 52,
-            child: FilledButton(onPressed: primary.$2, child: Text(primary.$1)),
+            height: Lb.cta,
+            child: FilledButton(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                primary.$2();
+              },
+              child: Text(primary.$1),
+            ),
           ),
           const SizedBox(height: 8),
-          TextButton(onPressed: secondary.$2, child: Text(secondary.$1)),
+          TextButton(
+            style: TextButton.styleFrom(minimumSize: const Size(0, Lb.touch)),
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              secondary.$2();
+            },
+            child: Text(secondary.$1),
+          ),
         ]),
       ),
     );

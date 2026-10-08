@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../ui/design/tokens.dart';
+import '../../ui/make/studio_kit.dart';
 import 'processing.dart';
 
 /// Shows the oriented source with the area that reaches the matrix. In fill
@@ -74,7 +75,16 @@ class _CropEditorState extends State<CropEditor> {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, c) {
       final box = Size(c.maxWidth, c.maxHeight);
-      return GestureDetector(
+      final outline = readAccent(context);
+      return Semantics(
+        label: 'Crop window',
+        hint: _fill
+            ? 'Drag to move, pinch to zoom'
+            : widget.settings.fit == FitMode.fit
+                ? 'The whole image fits the device'
+                : 'The whole image is stretched to the device',
+        value: _fill ? 'Zoom ${widget.settings.zoom.toStringAsFixed(1)} times' : null,
+        child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onScaleStart: _fill
             ? (d) {
@@ -101,7 +111,9 @@ class _CropEditorState extends State<CropEditor> {
             grid: (widget.targetWidth, widget.targetHeight),
             showGrid: _fill || widget.settings.fit == FitMode.stretch,
             smooth: !widget.settings.pixelArt,
+            outline: outline,
           ),
+        ),
         ),
       );
     });
@@ -117,6 +129,7 @@ class _CropPainter extends CustomPainter {
     required this.grid,
     required this.showGrid,
     required this.smooth,
+    required this.outline,
   });
 
   final ui.Image? image;
@@ -124,6 +137,9 @@ class _CropPainter extends CustomPainter {
   final double scale;
   final (int, int) grid;
   final bool showGrid, smooth;
+
+  /// The room colour: the window is live chrome.
+  final Color outline;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -144,11 +160,11 @@ class _CropPainter extends CustomPainter {
       ..fillType = PathFillType.evenOdd
       ..addRect(imageRect)
       ..addRect(w);
-    canvas.drawPath(shade, Paint()..color = const Color(0xA6000000));
+    canvas.drawPath(shade, Paint()..color = Lb.bezel.withValues(alpha: 0.65));
     final (gw, gh) = grid;
     if (showGrid && gw <= 64 && gh <= 64 && w.width / gw >= 4) {
       final line = Paint()
-        ..color = const Color(0x33FFFFFF)
+        ..color = Lb.text.withValues(alpha: 0.2)
         ..strokeWidth = 1;
       for (var i = 1; i < gw; i++) {
         final x = w.left + w.width * i / gw;
@@ -164,7 +180,7 @@ class _CropPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
-          ..color = Lb.phosphor);
+          ..color = outline);
   }
 
   @override
@@ -174,5 +190,6 @@ class _CropPainter extends CustomPainter {
       old.window != window ||
       old.grid != grid ||
       old.showGrid != showGrid ||
-      old.smooth != smooth;
+      old.smooth != smooth ||
+      old.outline != outline;
 }

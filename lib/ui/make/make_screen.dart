@@ -21,6 +21,7 @@ import 'creation_tile.dart';
 import 'demos.dart';
 import 'led_loop.dart';
 import 'studio_kit.dart';
+import '../design/route.dart';
 
 /// Make: a studio of tools that demo themselves, then everything you've made.
 class MakeScreen extends StatefulWidget {
@@ -44,7 +45,7 @@ class _MakeScreenState extends State<MakeScreen> {
   final _notifications = NotificationLogoGenerator(NotificationLogo.fallback);
 
   void _open(Widget page) =>
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+      Navigator.of(context).push(lbRoute((_) => page));
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +68,7 @@ class _MakeScreenState extends State<MakeScreen> {
                       const GlyphMenuKey(),
                     ]),
                     const SizedBox(height: 8),
-                    Text('Draw it, write it, bring it — it shows up on your device.',
+                    Text('Draw it, write it or bring it in. It shows up on your device.',
                         style: LbType.body.copyWith(color: Lb.text2)),
                   ]),
                 ),

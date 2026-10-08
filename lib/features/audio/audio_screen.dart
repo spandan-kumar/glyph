@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../app/background.dart';
 import '../../app/playback.dart';
-import '../../engine/frame.dart';
-import '../../engine/generator.dart';
 import '../../engine/palette.dart';
 import '../../ui/actions.dart';
 import '../../ui/scope.dart';
@@ -13,6 +11,7 @@ import '../../ui/design/parts.dart';
 import '../../ui/design/toggle.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
+import '../../ui/make/led_loop.dart';
 import '../../ui/make/studio_kit.dart';
 import '../../ui/make/tool_session.dart';
 import '../../ui/widgets/led_matrix_view.dart';
@@ -96,6 +95,7 @@ class _AudioScreenState extends State<AudioScreen>
       _isOurs(p) && p.isPlaying && p.generator!.id == _selected.id;
 
   void _select(AudioVisualizer v) {
+    HapticFeedback.selectionClick();
     final playback = AppScope.of(context).playback;
     final wasPlaying = _isOurs(playback) && playback.isPlaying;
     setState(() {
@@ -110,6 +110,7 @@ class _AudioScreenState extends State<AudioScreen>
   }
 
   void _setPalette(Palette p) {
+    // The swatch clicks itself.
     setState(() => _palette = p);
     final playback = AppScope.of(context).playback;
     if (_isOurs(playback)) playback.setPalette(p);
@@ -117,6 +118,8 @@ class _AudioScreenState extends State<AudioScreen>
 
   Future<void> _play() async {
     final s = AppScope.of(context);
+    // Starting to stream changes the device; a local preview is just a commit.
+    s.devices.isConnected ? HapticFeedback.mediumImpact() : HapticFeedback.lightImpact();
     s.playback.playGenerator(_selected);
     toolPlays(_selected);
     s.playback.setPalette(_palette);
@@ -127,6 +130,7 @@ class _AudioScreenState extends State<AudioScreen>
   }
 
   Future<void> _stop() async {
+    HapticFeedback.selectionClick();
     AppScope.of(context).playback.pause();
     await GlyphActions.stopStreaming(context);
   }
@@ -145,14 +149,7 @@ class _AudioScreenState extends State<AudioScreen>
       },
     );
     BackgroundStreaming.watch(playback);
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Couldn\'t keep running in the background.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+    if (!ok && mounted) studioToast(context, 'Couldn\'t keep running in the background.');
   }
 
   Future<void> _toggleBackground(bool on) async {
@@ -199,10 +196,11 @@ class _AudioScreenState extends State<AudioScreen>
                           bezel: true,
                           borderRadius: Lb.rControl,
                         )
-                      : _VisualPreview(
+                      : LedLoop(
                           key: ValueKey('big-${_selected.id}'),
                           generator: _selected,
                           palette: _palette,
+                          seed: _selected.id.hashCode,
                           width: playback.frame.width,
                           height: playback.frame.height,
                           glow: true,
@@ -218,14 +216,15 @@ class _AudioScreenState extends State<AudioScreen>
                 children: [
                   Expanded(
                     child: FilledButton.icon(
+                      style: studioCtaStyle,
                       onPressed: live && playback.isStreaming ? null : _play,
                       icon: const Icon(Icons.play_arrow_sharp),
                       label: Text(
                         live
-                            ? (playback.isStreaming ? 'Playing on device' : 'Playing (preview)')
+                            ? (playback.isStreaming ? 'Showing on device' : 'Showing here')
                             : devices.isConnected
-                            ? 'Play on device'
-                            : 'Play',
+                            ? 'Show on device'
+                            : 'Show here',
                       ),
                     ),
                   ),
@@ -234,7 +233,9 @@ class _AudioScreenState extends State<AudioScreen>
                     IconButton.outlined(
                       tooltip: 'Stop',
                       style: IconButton.styleFrom(
-                          side: Lb.hairline, minimumSize: const Size(48, 48), shape: studioShape),
+                          side: Lb.hairline,
+                          minimumSize: const Size(Lb.cta, Lb.cta),
+                          shape: studioShape),
                       onPressed: _stop,
                       icon: const Icon(Icons.stop_sharp),
                     ),
@@ -281,9 +282,11 @@ class _AudioScreenState extends State<AudioScreen>
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     children: [
                       for (final p in palettes)
-                        _Swatch(
-                          palette: p,
+                        StudioSwatch(
+                          label: p.name,
+                          gradient: LinearGradient(colors: [for (final c in p.swatch) Color(0xFF000000 | c)]),
                           selected: p.id == _palette.id,
+                          size: 40,
                           onTap: () => _setPalette(p),
                         ),
                     ],
@@ -441,7 +444,7 @@ class _PermissionCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.mic_none_sharp, color: readAccent(context)),
+                const Icon(Icons.mic_none_sharp, color: Lb.text),
                 const SizedBox(width: 10),
                 Expanded(child: Text(title, style: LbType.heading)),
               ],
@@ -449,7 +452,7 @@ class _PermissionCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(body, style: LbType.small),
             const SizedBox(height: 14),
-            FilledButton(onPressed: onPressed, child: Text(action)),
+            FilledButton(style: studioCtaStyle, onPressed: onPressed, child: Text(action)),
           ],
         ),
       ),
@@ -467,6 +470,7 @@ class _Listening extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = readAccent(context);
+    final still = Lb.reduceMotion(context);
     return ValueListenableBuilder<AudioFeatures>(
       valueListenable: engine.features,
       builder: (context, f, _) {
@@ -482,13 +486,15 @@ class _Listening extends StatelessWidget {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Restarts on every beat, so it flashes in time.
+            // Restarts on every beat, so it flashes in time; still under
+            // reduced motion.
             TweenAnimationBuilder<double>(
               key: ValueKey(f.beatCount),
-              tween: Tween(begin: f.beatCount > 0 ? 1 : 0, end: 0),
+              tween: Tween(begin: f.beatCount > 0 && !still ? 1 : 0, end: 0),
               duration: const Duration(milliseconds: 260),
               builder: (context, beat, _) => CustomPaint(
-                size: const Size(46, 10),
+                // The painter draws the beat LED, a gap, then _meter LEDs.
+                size: const Size(_LevelLeds.cells * 10.0, 10),
                 painter: _LevelLeds(level, beat, on ? accent : Lb.text3),
               ),
             ),
@@ -514,6 +520,9 @@ class _LevelLeds extends CustomPainter {
 
   static const _meter = 5;
 
+  /// Beat LED, a gap and the meter, in cells.
+  static const cells = _meter + 2;
+
   @override
   void paint(Canvas canvas, Size size) {
     final cell = size.height, r = cell * 0.36, y = size.height / 2;
@@ -528,88 +537,6 @@ class _LevelLeds extends CustomPainter {
 
   @override
   bool shouldRepaint(_LevelLeds old) => old.level != level || old.beat != beat || old.color != color;
-}
-
-/// Runs a visualiser locally for the picker and the big preview.
-class _VisualPreview extends StatefulWidget {
-  const _VisualPreview({
-    super.key,
-    required this.generator,
-    required this.palette,
-    this.width = 16,
-    this.height = 16,
-    this.glow = false,
-    this.bezel = false,
-    this.borderRadius = Lb.rTile,
-  });
-
-  final Generator generator;
-  final Palette palette;
-  final int width, height;
-  final bool glow, bezel;
-  final double borderRadius;
-
-  @override
-  State<_VisualPreview> createState() => _VisualPreviewState();
-}
-
-class _VisualPreviewState extends State<_VisualPreview> with SingleTickerProviderStateMixin {
-  late Frame _frame;
-  late EffectInstance _fx;
-  late Params _params;
-  late final Ticker _ticker;
-  final _tick = ValueNotifier(0);
-  Duration _last = Duration.zero;
-  double _t = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _setup();
-    _ticker = createTicker(_onTick)..start();
-  }
-
-  void _setup() {
-    final w = widget.width.clamp(1, 128), h = widget.height.clamp(1, 128);
-    _frame = Frame(w, h);
-    _fx = widget.generator.create(w, h, widget.generator.id.hashCode);
-    _params = Params.defaultsFor(widget.generator);
-  }
-
-  @override
-  void didUpdateWidget(_VisualPreview old) {
-    super.didUpdateWidget(old);
-    if (old.generator.id != widget.generator.id ||
-        old.width != widget.width ||
-        old.height != widget.height) {
-      _setup();
-    }
-  }
-
-  void _onTick(Duration elapsed) {
-    if ((elapsed - _last).inMilliseconds < 33) return;
-    final dt = ((elapsed - _last).inMicroseconds / 1e6).clamp(0.0, 0.1);
-    _last = elapsed;
-    _t += dt;
-    _fx.render(_frame, _t, dt, _params, widget.palette);
-    _tick.value++;
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    _tick.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => LedMatrixView(
-    frame: _frame,
-    repaint: _tick,
-    glow: widget.glow,
-    bezel: widget.bezel,
-    borderRadius: widget.borderRadius,
-  );
 }
 
 class _VisualTile extends StatelessWidget {
@@ -635,13 +562,14 @@ class _VisualTile extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(Lb.rControl),
                 border: Border.all(
-                  color: selected ? readAccent(context) : Colors.transparent,
+                  color: selected ? Lb.text : Colors.transparent,
                   width: 1.5,
                 ),
               ),
               child: Center(
-                child: _VisualPreview(
+                child: LedLoop(
                   generator: visual,
+                  seed: visual.id.hashCode,
                   palette: paletteById(visual.defaultPalette),
                 ),
               ),
@@ -655,37 +583,6 @@ class _VisualTile extends StatelessWidget {
             style: LbType.small.copyWith(color: selected ? Lb.text : Lb.text2),
           ),
         ],
-      ),
-    ),
-  );
-}
-
-class _Swatch extends StatelessWidget {
-  const _Swatch({required this.palette, required this.selected, required this.onTap});
-
-  final Palette palette;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(right: 10),
-    child: Tooltip(
-      message: palette.name,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: Lb.fast,
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(Lb.rTile),
-            gradient: LinearGradient(
-              colors: [for (final c in palette.swatch) Color(0xFF000000 | c)],
-            ),
-            border: Border.all(color: selected ? Lb.text : Lb.line, width: selected ? 2.5 : 1),
-          ),
-        ),
       ),
     ),
   );

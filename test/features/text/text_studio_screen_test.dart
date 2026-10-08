@@ -72,7 +72,6 @@ void main() {
     final (playback, creations) = await pump(tester, const TextStudioScreen());
     expect(find.text('Write'), findsOneWidget);
     // Write is its own tool: no switch across to Clock or Timer.
-    expect(find.byType(SegmentedButton<String>), findsNothing);
     expect(find.text('Clock'), findsNothing);
     expect(find.text('Timer'), findsNothing);
     await tester.enterText(find.byType(TextField), 'Hello device');
@@ -84,7 +83,7 @@ void main() {
     await tapVisible(tester, find.text('32×8'));
     await tester.pump(const Duration(milliseconds: 200));
 
-    await tapVisible(tester, find.text('Play on device'));
+    await tapVisible(tester, find.text('Show on device'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(playback.generator?.id, '_text');
 
@@ -113,16 +112,28 @@ void main() {
     playback.pause();
   });
 
+  testWidgets('Send with no device stays tappable and offers Connect', (tester) async {
+    final (playback, _) = await pump(tester, const TextStudioScreen());
+    await tapVisible(tester, find.text('Send to device'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Connect a device to send this to it.'), findsOneWidget);
+    expect(find.text('Connect'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+    // Let the toast's timer finish before the scaffold goes away.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 5));
+  });
+
   testWidgets('Clock opens with only clock controls', (tester) async {
     final (playback, _) = await pump(tester, const TextStudioScreen(mode: 'clock'));
     expect(find.text('Clock'), findsOneWidget);
-    expect(find.byType(SegmentedButton<String>), findsNothing);
     expect(find.text('24-hour'), findsOneWidget);
     expect(find.text('Type your message'), findsNothing);
     expect(find.text('COUNT DOWN TO'), findsNothing);
     await tapVisible(tester, find.text('Analog face'));
     await tester.pump(const Duration(milliseconds: 200));
-    await tapVisible(tester, find.text('Play on device'));
+    await tapVisible(tester, find.text('Show on device'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(playback.generator?.id, '_clock');
     expect(tester.takeException(), isNull);
@@ -132,13 +143,12 @@ void main() {
   testWidgets('Timer opens with only countdown controls', (tester) async {
     final (playback, _) = await pump(tester, const TextStudioScreen(mode: 'countdown'));
     expect(find.text('Timer'), findsOneWidget);
-    expect(find.byType(SegmentedButton<String>), findsNothing);
     expect(find.text('COUNT DOWN TO'), findsOneWidget);
     expect(find.text('24-hour'), findsNothing);
     expect(find.text('Type your message'), findsNothing);
     await tapVisible(tester, find.text('1 min'));
     await tester.pump(const Duration(milliseconds: 200));
-    await tapVisible(tester, find.text('Play on device'));
+    await tapVisible(tester, find.text('Show on device'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(playback.generator?.id, '_countdown');
     expect(playback.generator?.name, 'Timer');
@@ -163,7 +173,6 @@ void main() {
     expect(find.text('Timer'), findsOneWidget);
     expect(find.text('COUNT DOWN TO'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Lift off'), findsOneWidget);
-    expect(find.byType(SegmentedButton<String>), findsNothing);
     expect(tester.takeException(), isNull);
     playback.pause();
   });
@@ -195,7 +204,7 @@ void main() {
       await openTool(tester);
       await tester.enterText(find.byType(TextField), 'Hello');
       await tester.pump(const Duration(milliseconds: 200));
-      await tapVisible(tester, find.text('Play on device'));
+      await tapVisible(tester, find.text('Show on device'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(playback.generator?.id, '_text');
       expect(playback.isPlaying, isTrue);
@@ -222,7 +231,7 @@ void main() {
       await openTool(tester);
       await tester.enterText(find.byType(TextField), 'Hello');
       await tester.pump(const Duration(milliseconds: 200));
-      await tapVisible(tester, find.text('Play on device'));
+      await tapVisible(tester, find.text('Show on device'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(playback.generator?.id, '_text');
 

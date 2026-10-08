@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../app/background.dart';
@@ -79,8 +80,12 @@ mixin ToolSession<T extends StatefulWidget> on State<T> {
   }
 
   /// Sends [clip] to the device and remembers whether it got there.
-  Future<String?> sendClipFromTool(FrameClip clip, String title) async =>
-      noteSent(await clipSender(context, clip, title));
+  Future<String?> sendClipFromTool(FrameClip clip, String title) async {
+    HapticFeedback.lightImpact(); // Send pressed
+    final message = noteSent(await clipSender(context, clip, title));
+    if (_toolSent && message != null && message.startsWith('Sent')) HapticFeedback.lightImpact(); // Send done
+    return message;
+  }
 
   /// Records a send's outcome: success messages start with "Sent".
   String? noteSent(String? message) {

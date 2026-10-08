@@ -73,7 +73,7 @@ class _HsvPickerState extends State<HsvPicker> {
             ),
             const SizedBox(height: 16),
             SizedBox(
-              height: 32,
+              height: Lb.touch,
               child: _HueBar(hue: _hsv.hue, onChanged: (h) => _update(_hsv.withHue(h))),
             ),
             const SizedBox(height: 16),
@@ -92,7 +92,7 @@ class _HsvPickerState extends State<HsvPicker> {
                 child: TextField(
                   controller: _hex,
                   decoration: const InputDecoration(prefixText: '#  ', isDense: true),
-                  style: LbType.mono.copyWith(fontSize: 15, color: Lb.text, letterSpacing: 1.5),
+                  style: LbType.mono.copyWith(color: Lb.text, letterSpacing: 1.5),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp('[0-9a-fA-F]')),
                     LengthLimitingTextInputFormatter(6),
@@ -125,12 +125,17 @@ class _Pad extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
         void at(Offset p) => onChanged(
             (p.dx / c.maxWidth).clamp(0.0, 1.0), 1 - (p.dy / c.maxHeight).clamp(0.0, 1.0));
-        return GestureDetector(
-          onPanDown: (d) => at(d.localPosition),
-          onPanUpdate: (d) => at(d.localPosition),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(Lb.rTile),
-            child: CustomPaint(painter: _PadPainter(hsv), size: Size.infinite),
+        return Semantics(
+          label: 'Colour pad',
+          hint: 'Left to right is saturation, bottom to top is brightness',
+          value: 'Saturation ${(hsv.saturation * 100).round()}%, brightness ${(hsv.value * 100).round()}%',
+          child: GestureDetector(
+            onPanDown: (d) => at(d.localPosition),
+            onPanUpdate: (d) => at(d.localPosition),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(Lb.rTile),
+              child: CustomPaint(painter: _PadPainter(hsv), size: Size.infinite),
+            ),
           ),
         );
       });
@@ -148,7 +153,8 @@ class _PadPainter extends CustomPainter {
     canvas.drawRect(
         r,
         Paint()
-          ..shader = const LinearGradient(colors: [Colors.white, Color(0x00FFFFFF)])
+          // Saturation and value ramps are colour data, not chrome.
+          ..shader = const LinearGradient(colors: [Color(0xFFFFFFFF), Color(0x00FFFFFF)])
               .createShader(r));
     canvas.drawRect(
         r,
@@ -156,7 +162,7 @@ class _PadPainter extends CustomPainter {
           ..shader = const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0x00000000), Colors.black],
+            colors: [Color(0x00000000), Color(0xFF000000)],
           ).createShader(r));
     final p = Offset(hsv.saturation * size.width, (1 - hsv.value) * size.height);
     canvas.drawRect(
@@ -164,12 +170,12 @@ class _PadPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3
-          ..color = Colors.white);
+          ..color = Lb.text);
     canvas.drawRect(
         Rect.fromCenter(center: p, width: 22, height: 22),
         Paint()
           ..style = PaintingStyle.stroke
-          ..color = Colors.black54);
+          ..color = Lb.bezel.withValues(alpha: 0.7));
   }
 
   @override
@@ -185,10 +191,20 @@ class _HueBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
         void at(Offset p) => onChanged((p.dx / c.maxWidth).clamp(0.0, 1.0) * 359.9);
-        return GestureDetector(
-          onPanDown: (d) => at(d.localPosition),
-          onPanUpdate: (d) => at(d.localPosition),
-          child: CustomPaint(painter: _HuePainter(hue), size: Size.infinite),
+        void nudge(double by) => onChanged((hue + by).clamp(0.0, 359.9));
+        return Semantics(
+          slider: true,
+          label: 'Hue',
+          value: '${hue.round()} degrees',
+          increasedValue: '${((hue + 10).clamp(0.0, 359.9)).round()} degrees',
+          decreasedValue: '${((hue - 10).clamp(0.0, 359.9)).round()} degrees',
+          onIncrease: () => nudge(10),
+          onDecrease: () => nudge(-10),
+          child: GestureDetector(
+            onPanDown: (d) => at(d.localPosition),
+            onPanUpdate: (d) => at(d.localPosition),
+            child: CustomPaint(painter: _HuePainter(hue), size: Size.infinite),
+          ),
         );
       });
 }
@@ -220,7 +236,7 @@ class _HuePainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3
-          ..color = Colors.white);
+          ..color = Lb.text);
   }
 
   @override

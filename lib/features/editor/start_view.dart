@@ -54,7 +54,7 @@ class _EditorStartViewState extends State<EditorStartView> {
                 if (x < 1 || y < 1) return;
                 Navigator.pop(ctx, (x.clamp(1, 128), y.clamp(1, 128)));
               },
-              child: const Text('OK'),
+              child: const Text('Use size'),
             ),
           ],
         );
@@ -84,19 +84,28 @@ class _EditorStartViewState extends State<EditorStartView> {
               avatar: const Icon(Icons.grid_view_sharp, size: 16),
               label: Text('My device · ${dev.$1}×${dev.$2}'),
               selected: _size == dev,
-              onSelected: (_) => setState(() => _size = dev),
+              onSelected: (_) {
+                HapticFeedback.selectionClick();
+                setState(() => _size = dev);
+              },
             ),
           for (final s in matrixSizes)
             if (s != dev)
               ChoiceChip(
                 label: Text('${s.$1}×${s.$2}'),
                 selected: _size == s,
-                onSelected: (_) => setState(() => _size = s),
+                onSelected: (_) {
+                  HapticFeedback.selectionClick();
+                  setState(() => _size = s);
+                },
               ),
           ChoiceChip(
             label: Text(_isCustom ? 'Custom · $w×$h' : 'Custom…'),
             selected: _isCustom,
-            onSelected: (_) => _custom(),
+            onSelected: (_) {
+              HapticFeedback.selectionClick();
+              _custom();
+            },
           ),
         ]),
         const SizedBox(height: 24),
@@ -153,7 +162,10 @@ class _Tile extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: onTap,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Column(children: [

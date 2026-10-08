@@ -178,6 +178,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
               Row(children: [
                 Expanded(
                   child: FilledButton.icon(
+                    style: studioCtaStyle,
                     onPressed: playing && playback.isStreaming ? null : _play,
                     icon: const Icon(Icons.play_arrow_sharp),
                     label: Text(
@@ -194,7 +195,9 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                   IconButton.outlined(
                     tooltip: 'Stop',
                     style: IconButton.styleFrom(
-                        side: Lb.hairline, minimumSize: const Size(48, 48), shape: studioShape),
+                        side: Lb.hairline,
+                        minimumSize: const Size(Lb.cta, Lb.cta),
+                        shape: studioShape),
                     onPressed: _stop,
                     icon: const Icon(Icons.stop_sharp),
                   ),
@@ -337,20 +340,20 @@ class _AccessCard extends StatelessWidget {
         child: LbPanel(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Icon(Icons.album_sharp, color: readAccent(context)),
+              const Icon(Icons.album_sharp, color: Lb.text),
               const SizedBox(width: 10),
               Expanded(child: Text('Let Glyph see what\'s playing', style: LbType.heading)),
             ]),
             const SizedBox(height: 8),
             Text(
-              'Glyph shows the cover of whatever your phone is playing — Spotify, '
-              'YouTube Music, podcasts, any player. Android calls this '
+              'Glyph shows the cover of whatever your phone is playing, from Spotify, '
+              'YouTube Music, podcasts or any player. Android calls this '
               'Notification access: turn on Glyph Now Playing, then come back. '
               'Glyph only reads what\'s playing; nothing is saved or sent anywhere.',
               style: LbType.small,
             ),
             const SizedBox(height: 14),
-            FilledButton(onPressed: onAllow, child: const Text('Allow access')),
+            FilledButton(style: studioCtaStyle, onPressed: onAllow, child: const Text('Allow access')),
           ]),
         ),
       );
@@ -433,7 +436,7 @@ class _TrackInfoState extends State<_TrackInfo> {
       if (progress != null) ...[
         const SizedBox(height: 10),
         Row(children: [
-          Text(formatTrackTime(np.positionAt(now)), style: LbType.mono.copyWith(fontSize: 11)),
+          Text(formatTrackTime(np.positionAt(now)), style: LbType.mono),
           const SizedBox(width: 10),
           Expanded(
             child: ClipRRect(
@@ -447,7 +450,7 @@ class _TrackInfoState extends State<_TrackInfo> {
             ),
           ),
           const SizedBox(width: 10),
-          Text(formatTrackTime(np.durationMs), style: LbType.mono.copyWith(fontSize: 11)),
+          Text(formatTrackTime(np.durationMs), style: LbType.mono),
         ]),
       ],
       if (!np.playing) ...[

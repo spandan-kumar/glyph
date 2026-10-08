@@ -203,9 +203,13 @@ class _EditorCanvasState extends State<EditorCanvas> {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, c) {
       _size = c.biggest;
+      final accent = readAccent(context);
       return Stack(children: [
         Positioned.fill(
-          child: Listener(
+          child: Semantics(
+            label: 'Drawing canvas, ${_m.width} by ${_m.height}',
+            hint: 'One finger draws, two fingers zoom and move',
+            child: Listener(
             behavior: HitTestBehavior.opaque,
             onPointerDown: _down,
             onPointerMove: _move,
@@ -218,8 +222,10 @@ class _EditorCanvasState extends State<EditorCanvas> {
                 preview: widget.preview,
                 led: widget.led,
                 view: _view,
+                guide: accent,
               ),
             ),
+          ),
           ),
         ),
         Positioned(
@@ -244,13 +250,16 @@ class _EditorCanvasState extends State<EditorCanvas> {
 }
 
 class _CanvasPainter extends CustomPainter {
-  _CanvasPainter({required this.model, required this.preview, required this.led, required this.view})
+  _CanvasPainter({required this.model, required this.preview, required this.led, required this.view, required this.guide})
       : super(repaint: Listenable.merge([model, model.pixels, preview, view]));
 
   final EditorModel model;
   final ValueListenable<int?> preview;
   final bool led;
   final CanvasView view;
+
+  /// The room colour: the mirror guide is live chrome.
+  final Color guide;
 
   static const _panel = Lb.bezel;
   static const _off = Lb.ledOff;
@@ -297,16 +306,16 @@ class _CanvasPainter extends CustomPainter {
     }
 
     if (p == null && (model.mirrorX || model.mirrorY)) {
-      final guide = Paint()
-        ..color = Lb.phosphor.withValues(alpha: 0.55)
+      final line = Paint()
+        ..color = guide.withValues(alpha: 0.55)
         ..strokeWidth = 1.5 / view.scale;
       if (model.mirrorX) {
         canvas.drawLine(Offset(g.content.width / 2, 0),
-            Offset(g.content.width / 2, g.content.height), guide);
+            Offset(g.content.width / 2, g.content.height), line);
       }
       if (model.mirrorY) {
         canvas.drawLine(Offset(0, g.content.height / 2),
-            Offset(g.content.width, g.content.height / 2), guide);
+            Offset(g.content.width, g.content.height / 2), line);
       }
     }
     canvas.restore();
@@ -323,7 +332,7 @@ class _CanvasPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CanvasPainter old) =>
-      old.model != model || old.led != led || old.preview != preview || old.view != view;
+      old.model != model || old.led != led || old.preview != preview || old.view != view || old.guide != guide;
 }
 
 /// Small square-pixel rendering of a frame for the timeline and template
