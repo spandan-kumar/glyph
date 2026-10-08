@@ -61,7 +61,7 @@ void main() {
     var done = 0;
     final (devices, playback) = await pump(tester, onDone: () => done++);
     await settle(tester, 1800); // the wordmark sweep
-    expect(find.text('Your matrix, alive.'), findsOneWidget);
+    expect(find.text('Your device, alive.'), findsOneWidget);
     expect(find.text('Find my device'), findsOneWidget);
     expect(tester.takeException(), isNull);
 

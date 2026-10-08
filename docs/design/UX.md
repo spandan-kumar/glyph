@@ -34,7 +34,7 @@ the app's own light comes from what the matrix is showing.
 
 ### J1 — First run (target: something on the matrix in < 30 s)
 1. **Welcome.** Full-black screen; the word *glyph* assembles itself out of
-   LED dots (our pixel font), one line: "Your matrix, alive." → **Find my
+   LED dots (our pixel font), one line: "Your device, alive." → **Find my
    device**. Secondary: *Just looking around* (browse without hardware).
 2. **Searching.** A slow radar sweep drawn in LED dots. Found devices appear
    as small glowing panels with their names. If none in ~6 s: "Can't see it?"

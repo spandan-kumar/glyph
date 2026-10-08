@@ -10,6 +10,7 @@ import '../../features/text/fonts.dart';
 import '../../wled/layout.dart';
 import '../actions.dart';
 import '../design/led_text.dart';
+import '../design/route.dart';
 import '../design/stage.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
@@ -188,8 +189,8 @@ class _ArrowQuestion extends StatelessWidget {
               b(ArrowSeen.left, Icons.arrow_back_sharp, 'Left'),
               const SizedBox(width: 12),
               Container(
-                width: 84,
-                height: 84,
+                width: Lb.keyLarge,
+                height: Lb.keyLarge,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: Lb.bezel,
@@ -230,7 +231,7 @@ class _ArrowButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(Lb.rPanel),
-        child: SizedBox.square(dimension: 84, child: Icon(icon, size: 40, color: Lb.text)),
+        child: SizedBox.square(dimension: Lb.keyLarge, child: Icon(icon, size: 40, color: Lb.text)),
       ),
     ),
   );
@@ -261,13 +262,13 @@ class _MirrorQuestion extends StatelessWidget {
           Center(child: LedText('L', dot: 4, font: boldFont, color: Lb.text2)),
           const SizedBox(height: 28),
           FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(Lb.cta)),
             onPressed: () => onAnswer(false),
             child: const Text('No, it looks right'),
           ),
           const SizedBox(height: 10),
           OutlinedButton(
-            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(Lb.touch)),
             onPressed: () => onAnswer(true),
             child: const Text('Yes, it\'s backwards'),
           ),
@@ -295,14 +296,14 @@ class _Sideways extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(Lb.cta)),
             onPressed: onDone,
             child: const Text('Got it'),
           ),
           if (store.isConnected) ...[
             const SizedBox(height: 10),
             OutlinedButton(
-              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(Lb.touch)),
               onPressed: () => DeviceSettingsPage.open(context, store),
               child: const Text('Open WLED firmware settings'),
             ),
@@ -318,7 +319,7 @@ class OrientationFixPage extends StatelessWidget {
   const OrientationFixPage({super.key});
 
   static Future<void> open(BuildContext context) => Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => const OrientationFixPage()),
+    lbRoute<void>((_) => const OrientationFixPage()),
   );
 
   @override

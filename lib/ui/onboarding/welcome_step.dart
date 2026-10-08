@@ -22,17 +22,17 @@ class WelcomeStep extends StatelessWidget {
         const Spacer(flex: 3),
         const Center(child: LedWordmark()),
         const SizedBox(height: 28),
-        Text('Your matrix, alive.', textAlign: TextAlign.center, style: LbType.title),
+        Text('Your device, alive.', textAlign: TextAlign.center, style: LbType.title),
         const Spacer(flex: 4),
         FilledButton(
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(Lb.cta)),
           onPressed: onFind,
           child: const Text('Find my device'),
         ),
         const SizedBox(height: 8),
         TextButton(
           style: TextButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
+            minimumSize: const Size.fromHeight(Lb.touch),
             foregroundColor: Lb.text2,
           ),
           onPressed: onBrowse,
@@ -42,6 +42,10 @@ class WelcomeStep extends StatelessWidget {
     ),
   );
 }
+
+/// Signature moment: a long, decorative assembly, deliberately outside the
+/// duration tokens. Holds the finished wordmark under reduced motion.
+const wordmarkDuration = Duration(milliseconds: 1700);
 
 /// "GLYPH" assembling itself out of LED dots in a left-to-right sweep.
 class LedWordmark extends StatefulWidget {
@@ -55,8 +59,20 @@ class LedWordmark extends StatefulWidget {
 }
 
 class _LedWordmarkState extends State<LedWordmark> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1700))
-    ..forward();
+  late final _c = AnimationController(vsync: this, duration: wordmarkDuration);
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (Lb.reduceMotion(context)) {
+      _c.value = 1;
+    } else {
+      _c.forward();
+    }
+  }
 
   @override
   void dispose() {

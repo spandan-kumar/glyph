@@ -71,6 +71,11 @@ Stream<DiscoveredDevice> subnetDevices() async* {
   if (ip != null) yield* scanSubnet(ip);
 }
 
+/// Signature moment: one slow decorative turn, deliberately outside the
+/// duration tokens. Under reduced motion the radar holds [_stillSweep].
+const radarSweepDuration = Duration(milliseconds: 2600);
+const _stillSweep = 0.62;
+
 /// Step 2: a radar sweep while we look; found devices glow as tiles.
 class SearchStep extends StatefulWidget {
   const SearchStep({
@@ -95,8 +100,8 @@ class SearchStep extends StatefulWidget {
 enum _Phase { listening, scanning, done }
 
 class _SearchStepState extends State<SearchStep> with SingleTickerProviderStateMixin {
-  late final _sweep = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))
-    ..repeat();
+  late final _sweep = AnimationController(vsync: this, duration: radarSweepDuration);
+  bool _swept = false;
   final _found = <String, DiscoveredDevice>{};
   final _subs = <StreamSubscription<DiscoveredDevice>>[];
   Timer? _scanTimer, _helpTimer;
@@ -104,6 +109,18 @@ class _SearchStepState extends State<SearchStep> with SingleTickerProviderStateM
   bool _help = false;
   String? _connecting;
   String? _error;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_swept) return;
+    _swept = true;
+    if (Lb.reduceMotion(context)) {
+      _sweep.value = _stillSweep;
+    } else {
+      _sweep.repeat();
+    }
+  }
 
   @override
   void initState() {
@@ -195,10 +212,13 @@ class _SearchStepState extends State<SearchStep> with SingleTickerProviderStateM
         Text('Plug it in and keep your phone on the same Wi-Fi.', style: LbType.small),
         const SizedBox(height: 28),
         Center(
-          child: SizedBox.square(
-            dimension: 200,
-            child: RepaintBoundary(
-              child: CustomPaint(painter: RadarPainter(_sweep, blips: _found.keys.toList())),
+          child: Semantics(
+            label: 'Looking for devices',
+            child: SizedBox.square(
+              dimension: 200,
+              child: RepaintBoundary(
+                child: CustomPaint(painter: RadarPainter(_sweep, blips: _found.keys.toList())),
+              ),
             ),
           ),
         ),
@@ -206,7 +226,7 @@ class _SearchStepState extends State<SearchStep> with SingleTickerProviderStateM
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            StatusDot(on: _phase != _Phase.done, color: Lb.phosphor),
+            StatusDot(on: _phase != _Phase.done, color: Lb.phosphor, size: Lb.statusDot),
             const SizedBox(width: 8),
             Flexible(child: MonoLabel(status)),
           ],
@@ -231,6 +251,8 @@ class _SearchStepState extends State<SearchStep> with SingleTickerProviderStateM
         const SizedBox(height: 8),
         AnimatedSwitcher(
           duration: Lb.medium,
+          switchInCurve: Lb.ease,
+          switchOutCurve: Lb.easeLeave,
           child: _help && _found.isEmpty
               ? _HelpPanel(key: const ValueKey('help'), onAddress: _manual)
               : Center(
@@ -393,7 +415,7 @@ class _AddressSheetState extends State<AddressSheet> {
               ),
             const SizedBox(height: 14),
             FilledButton(
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(Lb.cta)),
               onPressed: _busy ? null : _go,
               child: Text(_busy ? 'Checking…' : 'Connect'),
             ),
