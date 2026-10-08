@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../app/community.dart';
 import '../../app/creations.dart';
 import '../../engine/clip.dart';
 import '../../engine/frame.dart';
@@ -170,10 +171,10 @@ Future<void> _share(
     final file = await write();
     await shareFile(file, mime, title: title, origin: origin);
   } catch (e) {
+    LastError.record('Sharing failed: $e');
     messenger
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-          content: Text('Couldn\'t share: $e'), behavior: SnackBarBehavior.floating));
+      ..showSnackBar(SnackBar(content: const Text('Couldn\'t share that. Try again.')));
   }
 }
 

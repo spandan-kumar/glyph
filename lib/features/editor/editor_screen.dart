@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/creations.dart';
 import '../../engine/clip.dart';
@@ -202,20 +203,14 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
 
   // Saving --------------------------------------------------------------------
 
-  Future<String?> _askTitle({String? initial}) async {
-    final t = await showDialog<String>(
-      context: context,
-      builder: (_) => _TitleDialog(initial: initial),
-    );
-    if (t == null) return null;
-    final trimmed = t.trim();
-    return trimmed.isEmpty ? 'My drawing' : trimmed;
-  }
+  Future<String?> _askTitle({String? initial}) =>
+      showTitleDialog(context, initial: initial, fallback: 'My drawing');
 
   Future<bool> _save() async {
     final m = _model!;
     final title = _title ?? await _askTitle();
     if (title == null || !mounted) return false;
+    HapticFeedback.lightImpact(); // Save is a commit
     final saved = await _scope.creations
         .save(id: _id, title: title, kind: 'drawing', clip: m.toClip(), meta: m.meta);
     _id = saved.id;
@@ -229,7 +224,7 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
   }
 
   Future<void> _rename() async {
-    final t = await _askTitle(initial: _title ?? '');
+    final t = await _askTitle(initial: _title);
     if (t == null || !mounted) return;
     setState(() => _title = t);
     if (_id != null) await _save();
@@ -238,8 +233,7 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
   Future<void> _keepOnMatrix() async {
     final caps = _scope.devices.caps;
     if (caps == null) {
-      studioToast(context, 'Connect a device to send this to it.',
-          action: SnackBarAction(label: 'Connect', onPressed: _connect));
+      studioNoDevice(context, onConnect: _connect);
       return;
     }
     final title = _title ?? await _askTitle();
@@ -340,6 +334,7 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
   }
 
   Future<void> _openPicker() async {
+    HapticFeedback.selectionClick();
     final m = _model!;
     final c = await showColorPickerSheet(context, initial: m.color, onChanged: (c) => m.color = c);
     if (c != 0) m.remember(c);
@@ -375,9 +370,23 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
         },
         child: StudioScaffold(
           titleSpacing: 0,
-          titleWidget: GestureDetector(
-            onTap: _rename,
-            child: Text(_title ?? 'Untitled', overflow: TextOverflow.ellipsis, style: LbType.heading),
+          titleWidget: Semantics(
+            button: true,
+            label: 'Name: ${_title ?? 'Untitled'}',
+            hint: 'Tap to rename',
+            excludeSemantics: true,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _rename,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: Lb.touch),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child:
+                      Text(_title ?? 'Untitled', overflow: TextOverflow.ellipsis, style: LbType.heading),
+                ),
+              ),
+            ),
           ),
           actions: [
             IconButton(
@@ -443,10 +452,14 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
                     mirroring: _mirroring,
                     streaming: _scope.playback.isStreaming,
                     onStart: () {
+                      HapticFeedback.mediumImpact(); // the device starts showing it
                       _mirrorOptOut = false;
                       _startMirror();
                     },
-                    onStop: _stopMirror,
+                    onStop: () {
+                      HapticFeedback.selectionClick();
+                      _stopMirror();
+                    },
                     onConnect: _connect,
                   ),
                 ),
@@ -498,7 +511,6 @@ class _CanvasHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = readAccent(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 4, 0),
       child: Row(children: [
@@ -513,25 +525,31 @@ class _CanvasHeader extends StatelessWidget {
           tooltip: 'Mirror left/right',
           style: studioIconStyle,
           isSelected: model.mirrorX,
-          visualDensity: VisualDensity.compact,
-          onPressed: () => model.mirrorX = !model.mirrorX,
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            model.mirrorX = !model.mirrorX;
+          },
           icon: const Icon(Icons.flip_sharp, color: Lb.text3),
-          selectedIcon: Icon(Icons.flip_sharp, color: accent),
+          selectedIcon: const Icon(Icons.flip_sharp, color: Lb.text),
         ),
         IconButton(
           tooltip: 'Mirror top/bottom',
           style: studioIconStyle,
           isSelected: model.mirrorY,
-          visualDensity: VisualDensity.compact,
-          onPressed: () => model.mirrorY = !model.mirrorY,
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            model.mirrorY = !model.mirrorY;
+          },
           icon: const RotatedBox(quarterTurns: 1, child: Icon(Icons.flip_sharp, color: Lb.text3)),
-          selectedIcon: RotatedBox(quarterTurns: 1, child: Icon(Icons.flip_sharp, color: accent)),
+          selectedIcon: const RotatedBox(quarterTurns: 1, child: Icon(Icons.flip_sharp, color: Lb.text)),
         ),
         IconButton(
           tooltip: led ? 'Square pixels' : 'LED dots',
           style: studioIconStyle,
-          visualDensity: VisualDensity.compact,
-          onPressed: onLed,
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            onLed();
+          },
           icon: Icon(led ? Icons.grid_on_sharp : Icons.blur_on_sharp, color: Lb.text2),
         ),
       ]),
@@ -604,41 +622,4 @@ class _Quiet extends StatelessWidget {
               maxLines: 1, overflow: TextOverflow.ellipsis, style: LbType.label),
         ),
       ]);
-}
-
-/// Names a drawing. Owns its text field's controller, so the controller
-/// outlives the dialog's closing animation.
-class _TitleDialog extends StatefulWidget {
-  const _TitleDialog({this.initial});
-
-  final String? initial;
-
-  @override
-  State<_TitleDialog> createState() => _TitleDialogState();
-}
-
-class _TitleDialogState extends State<_TitleDialog> {
-  late final _c = TextEditingController(text: widget.initial ?? '');
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-        title: Text(widget.initial == null ? 'Name your drawing' : 'Rename', style: LbType.title),
-        content: TextField(
-          controller: _c,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(hintText: 'My drawing'),
-          onSubmitted: (v) => Navigator.pop(context, v),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, _c.text), child: const Text('Save')),
-        ],
-      );
 }

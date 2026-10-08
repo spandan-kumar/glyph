@@ -5,7 +5,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 
+import '../../app/community.dart';
 import '../../app/creations.dart';
 import '../../engine/clip.dart';
 import '../../engine/frame.dart';
@@ -68,6 +70,9 @@ class _ImportScreenState extends State<ImportScreen>
   Timer? _debounce;
 
   String? _savedId;
+
+  /// What's on screen is what was last saved (Save shows a check).
+  bool _clean = false;
   bool _uploading = false;
 
   // Preview playback.
@@ -127,7 +132,8 @@ class _ImportScreenState extends State<ImportScreen>
         ),
       );
     } catch (e) {
-      setState(() => _error = 'Couldn\'t open the file picker: $e');
+      LastError.record('Bring a GIF: file picker failed: $e');
+      setState(() => _error = 'Couldn\'t open the file picker. Try again.');
       return;
     }
     if (f == null || !mounted) return;
@@ -151,7 +157,11 @@ class _ImportScreenState extends State<ImportScreen>
       _fileName = f.name;
       _load(src, _stripExt(f.name));
     } catch (e) {
-      if (mounted) setState(() => _error = e is ImportException ? e.message : '$e');
+      if (e is! ImportException) LastError.record('Bring a GIF: opening a file failed: $e');
+      if (mounted) {
+        setState(() => _error =
+            e is ImportException ? e.message : 'Couldn\'t open that file. Try a GIF or a picture.');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -163,12 +173,9 @@ class _ImportScreenState extends State<ImportScreen>
     final nav = Navigator.of(context);
     try {
       final c = await importGlyphFile(store, bytes);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Added “${c.title}” to Made by you'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('Added “${c.title}” to Made by you')));
       if (nav.canPop()) nav.pop();
     } on FormatException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -215,6 +222,7 @@ class _ImportScreenState extends State<ImportScreen>
     setState(() {
       _s = s;
       _gen++;
+      _clean = false;
     });
     if (orientChanged) _refreshCropImage();
     _scheduleJob();
@@ -225,6 +233,7 @@ class _ImportScreenState extends State<ImportScreen>
     setState(() {
       _manualSize = size;
       _gen++;
+      _clean = false;
     });
     _scheduleJob();
     _updatePreview();
@@ -251,7 +260,8 @@ class _ImportScreenState extends State<ImportScreen>
       });
       _updatePreview();
     } catch (e) {
-      if (mounted) setState(() => _error = 'Processing failed: $e');
+      LastError.record('Bring a GIF: processing failed: $e');
+      if (mounted) setState(() => _error = 'Couldn\'t prepare that picture. Try another one.');
     } finally {
       _jobRunning = false;
     }
@@ -365,9 +375,7 @@ class _ImportScreenState extends State<ImportScreen>
   // ---------------------------------------------------------------------------
   // Actions
 
-  void _toast(String msg) => ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
+  void _toast(String msg) => studioToast(context, msg);
 
   Map<String, dynamic> _meta() {
     final src = _src!;
@@ -384,13 +392,17 @@ class _ImportScreenState extends State<ImportScreen>
   }
 
   Future<void> _play() async {
+    // Streaming changes what the device shows; a local preview is a commit.
+    AppScope.of(context).devices.isConnected
+        ? HapticFeedback.mediumImpact()
+        : HapticFeedback.lightImpact();
     final clip = await _finalClip();
     if (clip == null || !mounted) return;
     await playClipInTool(clip, _name);
     if (!mounted) return;
     _toast(
       AppScope.of(context).devices.isConnected
-          ? 'Playing on your device'
+          ? 'Showing on your device'
           : 'Playing here on your phone. Connect a device to see it big.',
     );
   }
@@ -398,6 +410,7 @@ class _ImportScreenState extends State<ImportScreen>
   Future<void> _save() async {
     final title = await _askTitle();
     if (title == null || !mounted) return;
+    HapticFeedback.lightImpact(); // Save is a commit
     final clip = await _finalClip();
     if (clip == null || !mounted) return;
     final c = await AppScope.of(context).creations
@@ -406,20 +419,18 @@ class _ImportScreenState extends State<ImportScreen>
     setState(() {
       _savedId = c.id;
       _name = title;
+      _clean = true;
     });
     _toast('Saved to Made by you');
   }
 
-  Future<String?> _askTitle() => showDialog<String>(
-    context: context,
-    builder: (_) => _TitleDialog(initial: _name),
-  );
+  Future<String?> _askTitle() => showTitleDialog(context, initial: _name, fallback: _name);
 
   Future<void> _upload() async {
     final caps = AppScope.of(context).devices.caps;
-    if (caps == null) return _toast('Connect a device to send this to it.');
+    if (caps == null) return studioNoDevice(context);
     if (!caps.canPlayGifs) {
-      return _toast('This device can\'t store GIFs. Use Play to show it from your phone.');
+      return _toast('This device can\'t store GIFs. Use Show on device to show it from your phone.');
     }
     setState(() => _uploading = true);
     try {
@@ -528,6 +539,7 @@ class _ImportScreenState extends State<ImportScreen>
             SizedBox(
               width: 260,
               child: FilledButton.icon(
+                style: studioCtaStyle,
                 onPressed: () => _pick(anyFile: false),
                 icon: const Icon(Icons.photo_library_sharp),
                 label: const Text('Choose a picture'),
@@ -537,6 +549,7 @@ class _ImportScreenState extends State<ImportScreen>
             SizedBox(
               width: 260,
               child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, Lb.touch)),
                 onPressed: () => _pick(anyFile: true),
                 icon: const Icon(Icons.folder_open_sharp),
                 label: const Text('Open a file'),
@@ -548,7 +561,7 @@ class _ImportScreenState extends State<ImportScreen>
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: LbType.small.copyWith(color: Lb.phosphor),
+              style: LbType.small.copyWith(color: Lb.danger),
             ),
           ],
         ],
@@ -581,7 +594,7 @@ class _ImportScreenState extends State<ImportScreen>
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text(_error!, style: LbType.small.copyWith(color: Lb.phosphor)),
+            child: Text(_error!, style: LbType.small.copyWith(color: Lb.danger)),
           ),
         const SizedBox(height: 16),
         StudioGroup(
@@ -612,16 +625,14 @@ class _ImportScreenState extends State<ImportScreen>
                 style: LbType.small,
               ),
               const SizedBox(height: 10),
-              SegmentedButton<FitMode>(
-                style: studioSegmentStyle,
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: FitMode.fill, label: Text('Fill')),
-                  ButtonSegment(value: FitMode.fit, label: Text('Fit')),
-                  ButtonSegment(value: FitMode.stretch, label: Text('Stretch')),
+              StudioSegments<FitMode>(
+                options: const [
+                  (FitMode.fill, 'Fill'),
+                  (FitMode.fit, 'Fit'),
+                  (FitMode.stretch, 'Stretch'),
                 ],
-                selected: {s.fit},
-                onSelectionChanged: (v) => _set(s.copyWith(fit: v.first)),
+                selected: s.fit,
+                onChanged: (v) => _set(s.copyWith(fit: v)),
               ),
               const SizedBox(height: 6),
               Wrap(
@@ -632,26 +643,38 @@ class _ImportScreenState extends State<ImportScreen>
                     style: studioIconStyle,
                     tooltip: 'Rotate',
                     icon: const Icon(Icons.rotate_90_degrees_cw_sharp),
-                    onPressed: () => _set(s.copyWith(quarterTurns: s.quarterTurns + 1)),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      _set(s.copyWith(quarterTurns: s.quarterTurns + 1));
+                    },
                   ),
                   IconButton(
                     style: studioIconStyle,
                     tooltip: 'Flip horizontally',
                     isSelected: s.flipH,
                     icon: const Icon(Icons.flip_sharp),
-                    onPressed: () => _set(s.copyWith(flipH: !s.flipH)),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      _set(s.copyWith(flipH: !s.flipH));
+                    },
                   ),
                   IconButton(
                     style: studioIconStyle,
                     tooltip: 'Flip vertically',
                     isSelected: s.flipV,
                     icon: const RotatedBox(quarterTurns: 1, child: Icon(Icons.flip_sharp)),
-                    onPressed: () => _set(s.copyWith(flipV: !s.flipV)),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      _set(s.copyWith(flipV: !s.flipV));
+                    },
                   ),
                   FilterChip(
                     label: const Text('Pixel art'),
                     selected: s.pixelArt,
-                    onSelected: (v) => _set(s.copyWith(pixelArt: v)),
+                    onSelected: (v) {
+                      HapticFeedback.selectionClick();
+                      _set(s.copyWith(pixelArt: v));
+                    },
                   ),
                 ],
               ),
@@ -725,36 +748,29 @@ class _ImportScreenState extends State<ImportScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               LbToggleTile(
-                title: 'Turn background off',
+                title: 'Remove background',
                 subtitle: 'Dark or one colour becomes unlit LEDs',
                 value: s.background != BackgroundMode.off,
                 onChanged: (v) =>
                     _set(s.copyWith(background: v ? BackgroundMode.dark : BackgroundMode.off)),
               ),
               if (s.background != BackgroundMode.off) ...[
-                SegmentedButton<BackgroundMode>(
-                  style: studioSegmentStyle,
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: BackgroundMode.dark, label: Text('Near-black')),
-                    ButtonSegment(value: BackgroundMode.colour, label: Text('A colour')),
+                StudioSegments<BackgroundMode>(
+                  options: const [
+                    (BackgroundMode.dark, 'Near-black'),
+                    (BackgroundMode.colour, 'A colour'),
                   ],
-                  selected: {s.background},
-                  onSelectionChanged: (v) => _set(s.copyWith(background: v.first)),
+                  selected: s.background,
+                  onChanged: (v) => _set(s.copyWith(background: v)),
                 ),
                 if (s.background == BackgroundMode.colour)
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
                     child: Row(
                       children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: Color(0xFF000000 | s.bgColor),
-                            borderRadius: BorderRadius.circular(Lb.rTile),
-                            border: Border.all(color: Lb.line, width: 2),
-                          ),
+                        StudioSwatch(
+                          color: Color(0xFF000000 | s.bgColor),
+                          label: 'Background colour',
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -871,7 +887,7 @@ class _ImportScreenState extends State<ImportScreen>
         ? _line('GIF ≈ $kb · fits on your device ($free)', Lb.ok, notes)
         : _line(
             'GIF ≈ $kb · too big ($free). Trim, skip frames or use fewer colours.',
-            Lb.phosphor,
+            Lb.danger,
             notes,
           );
   }
@@ -880,7 +896,7 @@ class _ImportScreenState extends State<ImportScreen>
     padding: const EdgeInsets.only(left: 4, bottom: 4),
     child: Text(
       [text, ...notes].join(' · '),
-      style: LbType.mono.copyWith(fontSize: 11, color: color),
+      style: LbType.mono.copyWith(color: color),
     ),
   );
 
@@ -916,7 +932,7 @@ class _ImportScreenState extends State<ImportScreen>
             label: '${_speeds[speedIdx]}×',
           ),
           _slider(
-            'Keep',
+            'Frames',
             s.frameStep.toDouble(),
             1,
             6,
@@ -961,7 +977,7 @@ class _ImportScreenState extends State<ImportScreen>
   );
 
   Widget _actionBar() {
-    final caps = AppScope.of(context).devices.caps;
+    final secondary = OutlinedButton.styleFrom(minimumSize: const Size(0, Lb.touch));
     return SafeArea(
       top: false,
       child: Container(
@@ -973,11 +989,11 @@ class _ImportScreenState extends State<ImportScreen>
         child: Row(
           children: [
             Tooltip(
-              message: 'Play on device',
+              message: 'Show on device',
               child: FilledButton(
                 onPressed: _play,
                 style: FilledButton.styleFrom(
-                  minimumSize: const Size(52, 48),
+                  minimumSize: const Size(Lb.cta, Lb.cta),
                   padding: EdgeInsets.zero,
                 ),
                 child: const Icon(Icons.play_arrow_sharp),
@@ -986,13 +1002,20 @@ class _ImportScreenState extends State<ImportScreen>
             const SizedBox(width: 10),
             Expanded(
               flex: 2,
-              child: OutlinedButton(onPressed: _save, child: const Text('Save')),
+              child: OutlinedButton.icon(
+                style: secondary,
+                onPressed: _save,
+                icon: Icon(_clean ? Icons.check_circle_sharp : Icons.save_sharp, size: 18),
+                label: const Text('Save'),
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
               flex: 3,
               child: OutlinedButton.icon(
-                onPressed: caps != null && !_uploading ? _upload : null,
+                style: secondary,
+                // With no device it stays tappable: the toast offers Connect.
+                onPressed: !_uploading ? _upload : null,
                 icon: _uploading
                     ? const LedSpinner(size: 16)
                     : const Icon(Icons.save_alt_sharp, size: 18),
@@ -1013,43 +1036,4 @@ class _ImportScreenState extends State<ImportScreen>
     final i = (py * src.width + px) * 3;
     _set(_s.copyWith(bgColor: (f[i] << 16) | (f[i + 1] << 8) | f[i + 2]));
   }
-}
-
-class _TitleDialog extends StatefulWidget {
-  const _TitleDialog({required this.initial});
-  final String initial;
-
-  @override
-  State<_TitleDialog> createState() => _TitleDialogState();
-}
-
-class _TitleDialogState extends State<_TitleDialog> {
-  late final _ctrl = TextEditingController(text: widget.initial);
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  void _done() {
-    final t = _ctrl.text.trim();
-    Navigator.pop(context, t.isEmpty ? widget.initial : t);
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text('Name it', style: LbType.title),
-    content: TextField(
-      controller: _ctrl,
-      autofocus: true,
-      maxLength: 40,
-      decoration: const InputDecoration(hintText: 'Title'),
-      onSubmitted: (_) => _done(),
-    ),
-    actions: [
-      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-      FilledButton(onPressed: _done, child: const Text('Save')),
-    ],
-  );
 }
