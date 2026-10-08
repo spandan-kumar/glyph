@@ -8,6 +8,7 @@ import '../../library/catalog.dart';
 import '../../wled/discovery.dart';
 import '../actions.dart';
 import '../design/parts.dart';
+import '../design/route.dart';
 import '../design/stage.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
@@ -59,7 +60,7 @@ class MatrixSetupPage extends StatelessWidget {
 
   static Future<void> open(BuildContext context, {SetupServices services = const SetupServices()}) =>
       Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => MatrixSetupPage(services: services)),
+        lbRoute<void>((_) => MatrixSetupPage(services: services)),
       );
 
   @override
@@ -252,18 +253,19 @@ class HelloStep extends StatelessWidget {
           const Center(child: MonoLabel('Turned the right way')),
           const SizedBox(height: 10),
         ],
+        // The one hero line of the flow; display type is otherwise a tab title.
         Text('Look up.', textAlign: TextAlign.center, style: LbType.display),
         const SizedBox(height: 8),
         Text('That\'s your device saying hi.', textAlign: TextAlign.center, style: LbType.title.copyWith(color: Lb.text2)),
         const SizedBox(height: 36),
         FilledButton(
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(Lb.cta)),
           onPressed: onWaving,
           child: const Text('Looks right'),
         ),
         const SizedBox(height: 10),
         OutlinedButton(
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(Lb.touch)),
           onPressed: onOff,
           child: const Text('Something looks off'),
         ),
@@ -334,7 +336,8 @@ class VibeStep extends StatelessWidget {
               label: label,
               item: item,
               onTap: () {
-                HapticFeedback.lightImpact();
+                // It starts playing on the device.
+                HapticFeedback.mediumImpact();
                 unawaited(GlyphActions.play(context, item));
                 onDone();
               },

@@ -122,6 +122,8 @@ class _GlyphAppState extends State<GlyphApp> {
           theme: buildTheme(),
           home: AnimatedSwitcher(
             duration: Lb.slow,
+            switchInCurve: Lb.ease,
+            switchOutCurve: Lb.ease,
             child: _splash
                 ? IntroSplash(
                     key: const ValueKey('splash'),
