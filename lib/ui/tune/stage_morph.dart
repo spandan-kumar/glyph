@@ -315,7 +315,7 @@ class _MorphingStageState extends State<MorphingStage> {
           // Switched off from the power key: the Stage dims like the room.
           final off = devices.isConnected && devices.isOn == false;
           return AnimatedOpacity(
-            opacity: off ? 0.28 : 1,
+            opacity: off ? Lb.opacityDeviceOff : 1,
             duration: Lb.medium,
             curve: Lb.ease,
             child: Stack(

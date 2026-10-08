@@ -135,7 +135,12 @@ abstract final class GlyphActions {
       if (!d.isCurrent(client, selection) || !context.mounted) return;
       await s.playback.startStreaming(d.selected!.host, d.selected!.layout);
     } catch (e) {
-      if (context.mounted) _fail(context, 'Couldn\'t start streaming: $e');
+      // The raw error goes to the feedback report, not on screen.
+      LastError.record('Couldn\'t start streaming: $e');
+      if (context.mounted) {
+        _toast(context, 'Couldn’t show this on your device. Check it’s on and on the same Wi-Fi.',
+            action: reportAction(context));
+      }
     }
   }
 
@@ -262,7 +267,7 @@ abstract final class GlyphActions {
 
     if (!caps.canPlayGifs) {
       playback.unblockAlerts(throttle);
-      return Failed(_fail(context, 'This controller can\'t play GIFs. Live streaming still works.'));
+      return Failed(_fail(context, 'This device can’t save animations. It can still show them live from your phone.'));
     }
     try {
       final bytes = await encoding;

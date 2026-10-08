@@ -52,6 +52,10 @@ abstract final class Lb {
   static const touch = 48.0;
   static const keyLarge = 76.0;
 
+  /// The Stage and the Device mirror when the device is switched off: it
+  /// dims like the room.
+  static const opacityDeviceOff = 0.28;
+
   /// Whether the system asks for less motion. Decorative loops (pulses,
   /// radar, demo animations) hold still; moves that carry meaning still run.
   static bool reduceMotion(BuildContext context) => MediaQuery.maybeDisableAnimationsOf(context) ?? false;

@@ -28,10 +28,6 @@ import '../scope.dart';
 import '../widgets/led_matrix_view.dart';
 import 'your_matrices.dart';
 
-/// The Stage's dim while the device is off (token `opacity-device-off`; `Lb`
-/// has no constant for it yet).
-const _opacityDeviceOff = 0.28;
-
 /// The Device hub (UX.md J4): the panel, its controls, and what lives on it —
 /// Saved, Shows, Routines, Storage — plus switching and setting up devices.
 class MatrixScreen extends StatefulWidget {
@@ -237,7 +233,7 @@ class _NowShowing extends StatelessWidget {
       kind = 'Resting';
       title = 'Off';
       stage = Opacity(
-        opacity: _opacityDeviceOff,
+        opacity: Lb.opacityDeviceOff,
         child: Stage(frame: Frame(w, h), maxWidth: 300),
       );
     } else {
