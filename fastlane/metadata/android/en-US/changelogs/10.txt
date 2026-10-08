@@ -1,0 +1,5 @@
+• Lower resource use: hidden previews pause; LED drawing and Music analysis do less work.
+• Alerts release CPU and Wi-Fi locks when idle and keep handoffs awake.
+• Lightbox polish across Display, Make, Device and setup: larger touch targets, clearer controls, haptics and accessible labels.
+• Decorative motion respects your phone’s reduced-motion setting.
+• More consistent Music previews, swatches, dialogs and messages.

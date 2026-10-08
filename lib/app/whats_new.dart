@@ -4,6 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.3.5': [
+    'Hidden previews pause, and LED drawing and Music analysis do less work.',
+    'Alerts let your phone sleep when idle and keep playback handoffs awake.',
+    'Lightbox polish across Display, Make, Device and setup: clearer controls, larger touch targets and accessible labels.',
+    'Decorative motion respects your phone’s reduced-motion setting.',
+  ],
   '1.3.2': [
     'Send stays reachable while you browse, even with the Stage collapsed.',
     'Already on your device? Play it without uploading again. Tweaked clips keep their speed.',
