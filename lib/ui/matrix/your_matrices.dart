@@ -270,6 +270,7 @@ class _AdvancedState extends State<_Advanced> {
           trailing: AnimatedRotation(
             turns: _open ? 0.25 : 0,
             duration: Lb.fast,
+            curve: Lb.ease,
             child: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
           ),
           onTap: () => setState(() => _open = !_open),
@@ -287,12 +288,24 @@ class _AdvancedState extends State<_Advanced> {
                     children: [
                       _kv('Address', d.host),
                       if (info != null) ...[
-                        _kv('Firmware', 'WLED ${info.version} · ${info.arch.toUpperCase()}'),
-                        _kv('Size', info.hasMatrix
-                            ? '${info.matrixWidth} × ${info.matrixHeight} · ${info.ledCount} lights'
-                            : '${info.ledCount} lights in a line'),
-                        if (info.signal != null) _kv('Wi-Fi', '${info.signal}% (${info.rssi} dBm)'),
-                        _kv('Saving', caps?.canPlayGifs == true ? 'Works on this device' : 'Not on this device'),
+                        _kv(
+                          'Firmware',
+                          'WLED ${info.version} · ${info.arch.toUpperCase()}',
+                        ),
+                        _kv(
+                          'Size',
+                          info.hasMatrix
+                              ? '${info.matrixWidth} × ${info.matrixHeight} · ${info.ledCount} lights'
+                              : '${info.ledCount} lights in a line',
+                        ),
+                        if (info.signal != null)
+                          _kv('Wi-Fi', '${info.signal}% (${info.rssi} dBm)'),
+                        _kv(
+                          'Send',
+                          caps?.canPlayGifs == true
+                              ? 'Works on this device'
+                              : 'Not on this device',
+                        ),
                         if (!info.versionAtLeast(16))
                           const Padding(
                             padding: EdgeInsets.only(top: 6),

@@ -109,10 +109,14 @@ class Row1 extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.danger = false,
+    this.detail,
   });
 
   final String title;
   final String? subtitle;
+
+  /// A raw identifier (a file name) in small mono, under the subtitle.
+  final String? detail;
   final Widget? leading, trailing;
   final VoidCallback? onTap;
   final bool danger;
@@ -120,36 +124,54 @@ class Row1 extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          if (leading != null) ...[leading!, const SizedBox(width: 12)],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: LbType.bodyStrong.copyWith(color: danger ? Lb.danger : null),
-                ),
-                if (subtitle != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      subtitle!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: LbType.small,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: Lb.touch),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            if (leading != null) ...[leading!, const SizedBox(width: 12)],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: LbType.bodyStrong.copyWith(
+                      color: danger ? Lb.danger : null,
                     ),
                   ),
-              ],
+                  if (subtitle != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        subtitle!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: LbType.small,
+                      ),
+                    ),
+                  if (detail != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        detail!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: LbType.mono.copyWith(
+                          fontSize: 11,
+                          color: Lb.text3,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-        ],
+            if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+          ],
+        ),
       ),
     ),
   );
@@ -211,26 +233,39 @@ Future<String?> showActions(
   required List<ActionItem> actions,
 }) {
   HapticFeedback.selectionClick();
+  // Same metrics as showStudioActions in Make: header, divider, 8 x 12 rows.
   return showModalBottomSheet<String>(
     context: context,
+    isScrollControlled: true,
     builder: (ctx) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(Lb.gutter, 0, Lb.gutter, 16),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SheetTitle(title, subtitle: subtitle),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+              child: SheetTitle(title, subtitle: subtitle),
+            ),
+            const Divider(),
             for (final a in actions)
               InkWell(
                 borderRadius: BorderRadius.circular(Lb.rControl),
                 onTap: () => Navigator.pop(ctx, a.value),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
-                      Icon(a.icon, size: 20, color: a.danger ? Lb.danger : Lb.text2),
-                      const SizedBox(width: 14),
+                      Icon(
+                        a.icon,
+                        size: 20,
+                        color: a.danger ? Lb.danger : Lb.text2,
+                      ),
+                      const SizedBox(width: 16),
                       Expanded(
                         child: Text(
                           a.label,
@@ -353,15 +388,22 @@ Future<bool> guarded(BuildContext context, Future<void> Function() task, {String
 
 /// Error text without library prefixes or device jargon.
 String friendlyError(Object e) {
-  final s = '$e'.replaceFirst('WledException: ', '').replaceFirst('ClientException: ', '');
-  if (s.contains('preset slots')) return 'Your device is full. Remove something first.';
-  if (s.contains('SocketException') || s.contains('TimeoutException') || s.contains('offline')) {
+  final s = '$e'
+      .replaceFirst('WledException: ', '')
+      .replaceFirst('ClientException: ', '');
+  if (s.contains('preset slots')) {
+    return 'Your device is full. Make room in Device → Storage.';
+  }
+  if (s.contains('SocketException') ||
+      s.contains('TimeoutException') ||
+      s.contains('offline')) {
     return 'Couldn\'t reach your device. Is it on?';
   }
   return s;
 }
 
-/// An LED tile frame: a dark bezel with a hairline, lit border when active.
+/// An LED tile frame: a dark bezel with a hairline. [active] (playing on the
+/// device) draws a 1.5px frame in [accent] and an on-air dot at the top right.
 class LedBezel extends StatelessWidget {
   const LedBezel({super.key, required this.child, this.active = false, this.accent = Lb.phosphor});
 
@@ -372,14 +414,91 @@ class LedBezel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AnimatedContainer(
     duration: Lb.fast,
+    curve: Lb.ease,
     padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
       color: Lb.bezel,
       borderRadius: BorderRadius.circular(Lb.rControl),
-      border: Border.all(color: active ? accent.withValues(alpha: 0.8) : Lb.line),
-      boxShadow: active ? [BoxShadow(color: accent.withValues(alpha: 0.25), blurRadius: 14)] : null,
+      border: Border.all(
+        color: active ? accent : Lb.line,
+        width: active ? 1.5 : 1,
+      ),
     ),
-    child: ClipRRect(borderRadius: BorderRadius.circular(Lb.rTile), child: child),
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        ClipRRect(borderRadius: BorderRadius.circular(Lb.rTile), child: child),
+        if (active)
+          Positioned(
+            top: 4,
+            right: 4,
+            child: Container(
+              width: Lb.statusDot + 2,
+              height: Lb.statusDot + 2,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accent,
+                border: Border.all(color: Lb.ink),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+/// Pull to refresh with an LED spinner instead of Material's round one.
+class LedRefresh extends StatefulWidget {
+  const LedRefresh({super.key, required this.onRefresh, required this.child});
+
+  final Future<void> Function() onRefresh;
+  final Widget child;
+
+  @override
+  State<LedRefresh> createState() => _LedRefreshState();
+}
+
+class _LedRefreshState extends State<LedRefresh> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      RefreshIndicator.noSpinner(
+        onRefresh: widget.onRefresh,
+        onStatusChange: (s) {
+          final busy =
+              s == RefreshIndicatorStatus.armed ||
+              s == RefreshIndicatorStatus.snap ||
+              s == RefreshIndicatorStatus.refresh;
+          if (busy != _busy && mounted) setState(() => _busy = busy);
+        },
+        child: widget.child,
+      ),
+      Positioned(
+        top: 8,
+        left: 0,
+        right: 0,
+        child: IgnorePointer(
+          child: AnimatedOpacity(
+            opacity: _busy ? 1 : 0,
+            duration: Lb.fast,
+            curve: Lb.ease,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Lb.panel,
+                  borderRadius: BorderRadius.circular(Lb.rControl),
+                  border: Border.all(color: Lb.line),
+                ),
+                child: const LedSpinner(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
   );
 }
 

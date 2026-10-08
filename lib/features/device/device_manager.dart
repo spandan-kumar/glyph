@@ -214,28 +214,10 @@ class DeviceManager extends ChangeNotifier {
     return null;
   }
 
-  String presetName(int id) => preset(id)?.name ?? 'Preset $id';
+  String presetName(int id) => preset(id)?.name ?? 'Saved animation';
 
   String? effectName(int? id) =>
       id != null && id >= 0 && id < _effects.length ? _effects[id] : null;
-
-  /// One-line description: what the preset shows.
-  String describe(WledPreset p) {
-    switch (p.kind) {
-      case PresetKind.playlist:
-        final pl = p.playlist!;
-        final n = pl.entries.length;
-        return 'Playlist · $n preset${n == 1 ? '' : 's'}';
-      case PresetKind.api:
-        return 'API command';
-      case PresetKind.state:
-        if (p.turnsOff) return 'Turns the device off';
-        final gif = p.gifName;
-        if (gif != null) return 'GIF · $gif';
-        final fx = effectName(p.effectId);
-        return fx != null ? 'Effect · $fx' : 'Saved state';
-    }
-  }
 
   /// Presets whose Image effect plays [file] ("duck.gif" or "/duck.gif").
   List<WledPreset> presetsUsingFile(String file) {
