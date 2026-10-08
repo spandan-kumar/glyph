@@ -10,6 +10,13 @@ import '../widgets/live_preview.dart';
 import 'channels.dart';
 import 'tune_controller.dart';
 
+/// How long the popped heart stays up, from a Stage double-tap or a tile hold.
+const heartHold = Duration(milliseconds: 750);
+
+/// Signature overshoot for the heart pop (scale in over `Lb.medium`). The one
+/// ease-out-back in the app; ordinary UI motion uses the `Lb` curves.
+const heartPopCurve = Curves.easeOutBack;
+
 /// Space under a tile's panel for its title and category.
 const tileTextHeight = 46.0;
 
@@ -49,13 +56,13 @@ class _LedTileState extends State<LedTile> {
       HapticFeedback.selectionClick();
       return;
     }
-    HapticFeedback.mediumImpact();
     final lib = TuneScope.read(context).library;
     final adding = !lib.isFavourite(e.item.id);
+    if (adding) HapticFeedback.lightImpact(); // hearting commits; un-hearing is quiet
     lib.toggleFavourite(e.item.id);
     setState(() => _pop = adding);
     if (adding) {
-      Future.delayed(const Duration(milliseconds: 700), () {
+      Future.delayed(heartHold, () {
         if (mounted) setState(() => _pop = false);
       });
     }
@@ -103,7 +110,7 @@ class _LedTileState extends State<LedTile> {
                         child: AnimatedScale(
                           scale: _pop ? 1 : 0.4,
                           duration: Lb.medium,
-                          curve: Curves.easeOutBack,
+                          curve: heartPopCurve,
                           child: AnimatedOpacity(
                             opacity: _pop ? 1 : 0,
                             duration: Lb.fast,
@@ -133,7 +140,8 @@ class _LedTileState extends State<LedTile> {
   }
 }
 
-/// The lit dot that marks the tile currently on the Stage.
+/// The dot that marks the tile playing on the Stage: room colour, ringed in
+/// ink, no glow (the dock is the only shadow).
 class _OnAirDot extends StatelessWidget {
   const _OnAirDot();
 
@@ -146,13 +154,12 @@ class _OnAirDot extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         child: Container(
           key: const ValueKey('on-air'),
-          width: 7,
-          height: 7,
+          width: Lb.statusDot,
+          height: Lb.statusDot,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: accent,
             border: Border.all(color: Lb.ink, width: 1),
-            boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.9), blurRadius: 8)],
           ),
         ),
       ),

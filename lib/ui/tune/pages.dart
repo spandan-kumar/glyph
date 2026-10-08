@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../community/glyph_menu.dart';
 
@@ -89,7 +90,7 @@ class _ChannelPageState extends State<_ChannelPage> with PageSend {
                     child: Center(
                       child: TextButton(
                         onPressed: () => suggestAnimation(context),
-                        child: const Text('Can\'t find it? Suggest an animation'),
+                        child: const Text('Can’t find it? Suggest an animation'),
                       ),
                     ),
                   ),
@@ -178,15 +179,18 @@ class _SearchPageState extends State<_SearchPage> {
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 52,
+              height: 58,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(Lb.gutter, 12, Lb.gutter, 4),
+                padding: const EdgeInsets.fromLTRB(Lb.gutter, 6, Lb.gutter, 4),
                 children: [
                   for (final m in moods)
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
-                      child: _MoodChip(label: m, selected: _query.toLowerCase() == m, onTap: () => _set(m)),
+                      child: _MoodChip(label: m, selected: _query.toLowerCase() == m, onTap: () {
+                        HapticFeedback.selectionClick();
+                        _set(m);
+                      }),
                     ),
                 ],
               ),
@@ -242,18 +246,28 @@ class _MoodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? Lb.raised : Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.all(Radius.circular(Lb.rControl)),
-        side: BorderSide(color: selected ? Lb.text2 : Lb.line),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          child: Text(label, style: LbType.small.copyWith(color: selected ? Lb.text : Lb.text2)),
+    // The token stays small; the hit area is padded out to the touch minimum.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: Lb.touch,
+        child: Center(
+          child: Material(
+            color: selected ? Lb.raised : Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: const BorderRadius.all(Radius.circular(Lb.rControl)),
+              side: BorderSide(color: selected ? Lb.text2 : Lb.line),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Text(label, style: LbType.small.copyWith(color: selected ? Lb.text : Lb.text2)),
+              ),
+            ),
+          ),
         ),
       ),
     );

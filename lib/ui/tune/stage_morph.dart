@@ -25,7 +25,7 @@ import 'tune_controller.dart';
 class StageMorph extends ChangeNotifier {
   /// Eases the travel so the Stage shrinks a little ahead of the content
   /// scrolling under it (it never overlaps the caption below it).
-  static const curve = Curves.easeOut;
+  static const curve = Lb.ease;
 
   Rect? _home;
   Rect _mini = Rect.zero;
@@ -76,9 +76,9 @@ class StageMorph extends ChangeNotifier {
     // into its slot once the Stage is small (sideways first, then up).
     final stage = rect;
     final ride = Offset.lerp(
-        page.topLeft, Offset(stage.left, stage.bottom + 6), Curves.easeInOut.transform(fade(id.leaves, 0.5)))!;
-    final at = Offset(lerpDouble(ride.dx, slot.left, Curves.easeOutCubic.transform(fade(0.72, 0.9)))!,
-        lerpDouble(ride.dy, slot.top, Curves.easeOutCubic.transform(fade(0.86, 0.98)))!);
+        page.topLeft, Offset(stage.left, stage.bottom + 6), Lb.easeInOut.transform(fade(id.leaves, 0.5)))!;
+    final at = Offset(lerpDouble(ride.dx, slot.left, Lb.ease.transform(fade(0.72, 0.9)))!,
+        lerpDouble(ride.dy, slot.top, Lb.ease.transform(fade(0.86, 0.98)))!);
     return at & Size.lerp(home.size, slot.size, twinProgress(id))!;
   }
 
@@ -279,10 +279,10 @@ class _MorphingStageState extends State<MorphingStage> {
     final tune = TuneScope.read(context);
     if (tune.playback.item == null) return;
     final on = tune.toggleFavourite();
-    HapticFeedback.mediumImpact();
     if (!on) return;
+    HapticFeedback.lightImpact();
     setState(() => _heart = true);
-    Future.delayed(const Duration(milliseconds: 750), () {
+    Future.delayed(heartHold, () {
       if (mounted) setState(() => _heart = false);
     });
   }
@@ -342,7 +342,7 @@ class _MorphingStageState extends State<MorphingStage> {
                       child: AnimatedScale(
                         scale: _heart ? 1 : 0.3,
                         duration: Lb.medium,
-                        curve: Curves.easeOutBack,
+                        curve: heartPopCurve,
                         child: AnimatedOpacity(
                           opacity: _heart ? 1 : 0,
                           duration: Lb.fast,

@@ -178,7 +178,7 @@ void main() {
     await step(tester, 100);
     expect(playback.params[spec.key], isNot(v));
 
-    await tester.tap(find.text('DONE'));
+    await tester.tap(find.text('Done'));
     await step(tester, 400);
     expect(find.byType(TweakPanel), findsNothing);
     expect(tester.takeException(), isNull);
@@ -519,7 +519,7 @@ void main() {
     expect(flying, findsNothing);
     expect(send, findsOneWidget);
     final barSend = tester.getRect(send);
-    expect(barSend.width, closeTo(40, 0.5));
+    expect(barSend.width, closeTo(Lb.touch, 0.5));
     expect(barSend.top, lessThan(MiniStage.height + 1));
     expect(tester.getRect(find.text(title).hitTestable()).top, lessThan(deckTitle.top));
     expect(tester.takeException(), isNull);

@@ -137,7 +137,7 @@ class BeamPainter extends CustomPainter {
       final a = (t < 0.15 ? t / 0.15 : 1.0) * (1 - pow(t, 6).toDouble());
       final r = 2.6 * (1 - 0.55 * e);
       canvas.drawCircle(pos, r * 2.4, glow..color = color.withValues(alpha: 0.5 * a));
-      canvas.drawCircle(pos, r, dot..color = Color.lerp(color, Colors.white, 0.35)!.withValues(alpha: a));
+      canvas.drawCircle(pos, r, dot..color = Color.lerp(color, Lb.text, 0.35)!.withValues(alpha: a));
     }
   }
 

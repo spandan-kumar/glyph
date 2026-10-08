@@ -145,7 +145,19 @@ class _SwipeHint extends StatefulWidget {
 }
 
 class _SwipeHintState extends State<_SwipeHint> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))..repeat();
+  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A decorative nudge: under reduced motion the hint holds still.
+    if (Lb.reduceMotion(context)) {
+      _c.stop();
+      _c.value = 0;
+    } else if (!_c.isAnimating) {
+      _c.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -209,7 +221,7 @@ class _Caption extends StatelessWidget {
         : at >= 0
             ? 'CH ${(at + 1).toString().padLeft(2, '0')} · ${tune.channel.name}'
             : g == null
-                ? 'Tuning…'
+                ? 'Starting…'
                 : 'Now playing';
     final title = item?.title ?? g?.name ?? ' ';
     final sub = item != null
@@ -313,7 +325,7 @@ class _Transport extends StatelessWidget {
               onTap: item == null
                   ? null
                   : () {
-                      HapticFeedback.selectionClick();
+                      if (!fav) HapticFeedback.lightImpact(); // hearting commits; un-hearing is quiet
                       tune.toggleFavourite();
                     },
             ),
@@ -348,7 +360,7 @@ class _Transport extends StatelessWidget {
   }
 }
 
-/// A square hardware key: 44 px, hairline, 2 px corners.
+/// A square hardware key: 48 px (the touch minimum), hairline, 2 px corners.
 class SquareKey extends StatelessWidget {
   const SquareKey({
     super.key,
@@ -357,7 +369,7 @@ class SquareKey extends StatelessWidget {
     this.onTap,
     this.color = Lb.text,
     this.outlined = true,
-    this.size = 44,
+    this.size = Lb.touch,
   });
 
   final IconData icon;
@@ -435,7 +447,7 @@ class SendButton extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             child: SizedBox.square(
-              dimension: 40,
+              dimension: Lb.touch,
               child: Center(
                 child: busy
                     ? _Chaser(color: accent ?? Lb.text)
@@ -469,7 +481,7 @@ class SendButton extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: SizedBox(
-              height: 34,
+              height: Lb.touch,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -574,8 +586,12 @@ class _Chaser extends StatefulWidget {
   State<_Chaser> createState() => _ChaserState();
 }
 
+/// Send chaser: three LEDs, one lap. It means busy, so it keeps running under
+/// reduced motion.
+const _chaserLoop = Duration(milliseconds: 600);
+
 class _ChaserState extends State<_Chaser> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat();
+  late final _c = AnimationController(vsync: this, duration: _chaserLoop)..repeat();
 
   @override
   void dispose() {

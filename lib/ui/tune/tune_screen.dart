@@ -268,9 +268,14 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
 
   void _tapStage() => _morph.t > 0.5 ? _toTop() : _openTweak();
 
+  /// Back to the top from the mini bar or a tuned-in tile: one page-scale
+  /// move, shorter than the BackToTopKey's distance-scaled run.
+  static const _toTopDuration = Lb.slow;
+  static const _toTopCurve = Lb.ease;
+
   Future<void> _toTop() async {
     if (!_scroll.hasClients || _scroll.offset <= 0) return;
-    await _scroll.animateTo(0, duration: Lb.slow, curve: Lb.ease);
+    await _scroll.animateTo(0, duration: _toTopDuration, curve: _toTopCurve);
   }
 
   // ---- Tweak ---------------------------------------------------------------
@@ -337,7 +342,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
         });
         _beam.repeat();
         _charge.value = 0;
-        _charge.animateTo(0.88, duration: const Duration(seconds: 5), curve: Curves.easeOutCubic);
+        _charge.animateTo(0.88, duration: const Duration(seconds: 5), curve: Lb.ease);
       });
       if (!mounted || request != _sendRequest) return;
       switch (result) {
@@ -924,14 +929,14 @@ class PowerKey extends StatelessWidget {
                 child: InkWell(
                   onTap: connected ? () => set(context, !on) : null,
                   child: SizedBox.square(
-                    dimension: 44,
+                    dimension: Lb.touch,
                     child: Stack(
                       children: [
                         Center(
                           child: Icon(Icons.power_settings_new_sharp,
                               size: 20, color: on ? Lb.text : Lb.text3),
                         ),
-                        Positioned(top: 6, right: 6, child: StatusDot(on: on, size: 5)),
+                        Positioned(top: 6, right: 6, child: StatusDot(on: on)),
                       ],
                     ),
                   ),
@@ -1003,6 +1008,10 @@ class _TwinFlight extends StatelessWidget {
   }
 }
 
+/// Signature move: a tapped tile flies into the Stage in 340ms, ease-in-out,
+/// fading as it lands. Not a general UI duration.
+const tileFlight = Duration(milliseconds: 340);
+
 /// A tile's panel flying up into the Stage (or the mini-stage).
 class _Flight extends StatefulWidget {
   const _Flight({required this.from, required this.to, required this.entry, required this.onDone});
@@ -1016,7 +1025,7 @@ class _Flight extends StatefulWidget {
 }
 
 class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 340))
+  late final _c = AnimationController(vsync: this, duration: tileFlight)
     ..forward().whenComplete(widget.onDone);
 
   @override
@@ -1041,7 +1050,7 @@ class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
           return Stack(children: [
             Positioned.fromRect(
               rect: r,
-              child: Opacity(opacity: (1 - Curves.easeInExpo.transform(_c.value)).clamp(0.0, 1.0), child: child),
+              child: Opacity(opacity: (1 - Lb.easeLeave.transform(_c.value)).clamp(0.0, 1.0), child: child),
             ),
           ]);
         },
