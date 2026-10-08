@@ -28,6 +28,10 @@ import '../scope.dart';
 import '../widgets/led_matrix_view.dart';
 import 'your_matrices.dart';
 
+/// The Stage's dim while the device is off (token `opacity-device-off`; `Lb`
+/// has no constant for it yet).
+const _opacityDeviceOff = 0.28;
+
 /// The Device hub (UX.md J4): the panel, its controls, and what lives on it —
 /// Saved, Shows, Routines, Storage — plus switching and setting up devices.
 class MatrixScreen extends StatefulWidget {
@@ -91,7 +95,7 @@ class _MatrixScreenState extends State<MatrixScreen> {
           }
           final connected = devices.isConnected;
           if (connected) manager.syncHost();
-          return RefreshIndicator(
+          return LedRefresh(
             onRefresh: () async {
               await devices.refresh();
               if (devices.isConnected) await manager.load();
@@ -173,7 +177,7 @@ class _Header extends StatelessWidget {
           Row(
             children: [
               const Expanded(child: MonoLabel('Device')),
-              StatusDot(on: connected, size: 7),
+              StatusDot(on: connected, size: Lb.statusDot),
               const SizedBox(width: 8),
               MonoLabel(connected ? 'Connected' : (store.isLoading ? 'Connecting…' : 'Not reachable')),
             ],
@@ -232,7 +236,10 @@ class _NowShowing extends StatelessWidget {
     } else if (!on) {
       kind = 'Resting';
       title = 'Off';
-      stage = Opacity(opacity: 0.5, child: Stage(frame: Frame(w, h), maxWidth: 300));
+      stage = Opacity(
+        opacity: _opacityDeviceOff,
+        child: Stage(frame: Frame(w, h), maxWidth: 300),
+      );
     } else {
       final intro = manager.bootIntro;
       final startingUp = (store.playlistRunning && store.playlistId != null && intro.isSystem(store.playlistId!)) ||
@@ -397,7 +404,9 @@ class _EmptyState extends StatelessWidget {
       ),
       const SizedBox(height: 28),
       FilledButton(
-        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(Lb.cta),
+        ),
         onPressed: onConnect,
         child: const Text('Connect your device'),
       ),
@@ -421,9 +430,21 @@ class _BusyLed extends StatefulWidget {
   State<_BusyLed> createState() => _BusyLedState();
 }
 
-class _BusyLedState extends State<_BusyLed> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 700))
-    ..repeat(reverse: true);
+class _BusyLedState extends State<_BusyLed>
+    with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(vsync: this, duration: Lb.slow);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced motion holds a lit, still dot.
+    if (Lb.reduceMotion(context)) {
+      _c.stop();
+      _c.value = 1;
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -433,7 +454,7 @@ class _BusyLedState extends State<_BusyLed> with SingleTickerProviderStateMixin 
 
   @override
   Widget build(BuildContext context) => FadeTransition(
-    opacity: CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+    opacity: CurvedAnimation(parent: _c, curve: Lb.easeInOut),
     child: StatusDot(on: true, color: accentOf(context)),
   );
 }

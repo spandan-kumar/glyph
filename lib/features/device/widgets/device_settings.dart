@@ -5,6 +5,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../app/devices.dart';
 import '../../../ui/design/parts.dart';
+import '../../../ui/design/route.dart';
 import '../../../ui/design/tokens.dart';
 import '../../../ui/design/type.dart';
 
@@ -35,7 +36,9 @@ class DeviceSettingsPage extends StatefulWidget {
     final host = store.selected?.host;
     if (host == null) return;
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => DeviceSettingsPage(host: host, viewBuilder: viewBuilder)),
+      lbRoute<void>(
+        (_) => DeviceSettingsPage(host: host, viewBuilder: viewBuilder),
+      ),
     );
     await store.refresh();
     for (var i = 0; i < 3 && !store.isConnected && store.selected?.host == host; i++) {

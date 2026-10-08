@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/devices.dart';
 import '../../glance/glance_screen.dart';
 import '../../../ui/scope.dart';
 import '../../../ui/design/parts.dart';
+import '../../../ui/design/route.dart';
 import '../../../ui/design/toggle.dart';
 import '../../../ui/design/tokens.dart';
 import '../../../ui/design/type.dart';
@@ -42,8 +44,14 @@ class ShowsSection extends StatelessWidget {
               manager: manager,
               show: p,
               accent: accent,
-              playing: store.playlistRunning && store.playlistId == p.id && store.isOn == true,
-              onTap: () => guarded(context, () => onPlay(p.id)),
+              playing:
+                  store.playlistRunning &&
+                  store.playlistId == p.id &&
+                  store.isOn == true,
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                guarded(context, () => onPlay(p.id));
+              },
               onEdit: () => openShowEditor(context, manager, existing: p),
               onDelete: () => _delete(context, p),
             ),
@@ -62,7 +70,9 @@ class ShowsSection extends StatelessWidget {
           // Shows run on the device; live cards can't, so point at Glance
           // Rotations instead of pretending they're the same thing.
           TextButton.icon(
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GlanceScreen())),
+            onPressed: () =>
+                Navigator.of(context)
+                    .push(lbRoute<void>((_) => const GlanceScreen())),
             icon: const Icon(Icons.smartphone_sharp, size: 18),
             label: const Text('Weather or a countdown in the mix? Make a Rotation in Glance'),
           ),
@@ -206,10 +216,13 @@ class _MiniTile extends StatelessWidget {
   }
 }
 
-Future<void> openShowEditor(BuildContext context, DeviceManager manager, {WledPreset? existing}) =>
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => ShowEditor(manager: manager, existing: existing)),
-    );
+Future<void> openShowEditor(
+  BuildContext context,
+  DeviceManager manager, {
+  WledPreset? existing,
+}) => Navigator.of(
+  context,
+).push(lbRoute<void>((_) => ShowEditor(manager: manager, existing: existing)));
 
 /// Picks saved items for a show and how long each one plays.
 class ShowEditor extends StatefulWidget {
@@ -246,6 +259,7 @@ class _ShowEditorState extends State<ShowEditor> {
   Future<void> _add() async {
     final id = await _pick(context, title: 'Add to the show');
     if (id == null) return;
+    HapticFeedback.lightImpact();
     final last = _pl.entries.isEmpty ? null : _pl.entries.last;
     _setEntries(
       [
@@ -305,11 +319,12 @@ class _ShowEditorState extends State<ShowEditor> {
 
   Future<void> _save() async {
     if (_pl.entries.isEmpty) return;
+    HapticFeedback.lightImpact();
     setState(() => _saving = true);
     final name = _name.text.trim().isEmpty ? 'My show' : _name.text.trim();
     final ok = await guarded(context, () async {
       await m.savePlaylist(id: widget.existing?.id, name: name, playlist: _pl);
-    }, done: 'Show saved — it\'s playing on your device');
+    }, done: 'Show sent. It\'s playing on your device.');
     if (!mounted) return;
     setState(() => _saving = false);
     if (ok) Navigator.pop(context);
@@ -334,6 +349,9 @@ class _ShowEditorState extends State<ShowEditor> {
       body: ReorderableListView.builder(
         padding: const EdgeInsets.fromLTRB(Lb.gutter, 4, Lb.gutter, 32),
         buildDefaultDragHandles: false,
+        // Flat, like the frame strip in the editor: no Material lift shadow.
+        proxyDecorator: (child, _, _) =>
+            Material(color: Colors.transparent, child: child),
         header: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -401,7 +419,10 @@ class _ShowEditorState extends State<ShowEditor> {
                   ButtonSegment(value: false, label: Text('Times')),
                 ],
                 selected: {_pl.repeat == 0},
-                onSelectionChanged: (s) => setState(() => _pl = _pl.copyWith(repeat: s.first ? 0 : 1)),
+                onSelectionChanged: (s) {
+                  HapticFeedback.selectionClick();
+                  setState(() => _pl = _pl.copyWith(repeat: s.first ? 0 : 1));
+                },
               ),
             ],
           ),
@@ -500,7 +521,7 @@ class _EntryRow extends StatelessWidget {
             ReorderableDragStartListener(
               index: index,
               child: const Padding(
-                padding: EdgeInsets.all(8),
+                padding: EdgeInsets.all(12),
                 child: Icon(Icons.drag_indicator_sharp, color: Lb.text3),
               ),
             ),
@@ -582,10 +603,19 @@ class _ChipMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) => PopupMenuButton<int>(
     shape: squareMenu,
-    onSelected: onSelected,
-    itemBuilder: (_) => [for (final v in values) PopupMenuItem(value: v, child: Text(format(v)))],
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    onSelected: (v) {
+      HapticFeedback.selectionClick();
+      onSelected(v);
+    },
+    itemBuilder: (_) => [
+      for (final v in values) PopupMenuItem(value: v, child: Text(format(v))),
+    ],
+    // The glyph stays small; the hit area is a full touch target.
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(
+        minHeight: Lb.touch,
+        minWidth: Lb.touch,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

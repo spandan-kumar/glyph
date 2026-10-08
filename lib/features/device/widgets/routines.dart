@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../ui/design/parts.dart';
 import '../../../ui/design/toggle.dart';
@@ -85,8 +86,9 @@ class RoutinesSection extends StatelessWidget {
           const Note(
             color: Lb.phosphor,
             lit: true,
-            text: 'Your device doesn\'t know the time yet. Turn on internet time in Device '
-                'settings → Time & Macros so routines start on time.',
+            text:
+                'Your device doesn\'t know the time yet. Turn on internet time in WLED '
+                'firmware settings → Time & Macros so routines start on time.',
           ),
         if (!s.isEditable)
           const Note(
@@ -219,7 +221,7 @@ class RoutinesSection extends StatelessWidget {
     await guarded(
       context,
       () => manager.saveTimers(list),
-      done: result.delete ? 'Routine removed' : 'Routine saved to your device',
+      done: result.delete ? 'Routine removed' : 'Routine sent to your device',
     );
   }
 }
@@ -355,7 +357,10 @@ class _RoutineEditorState extends State<RoutineEditor> {
                 ChoiceChip(
                   label: Text(label),
                   selected: _t.trigger == tr,
-                  onSelected: (_) => _setTrigger(tr),
+                  onSelected: (_) {
+                    HapticFeedback.selectionClick();
+                    _setTrigger(tr);
+                  },
                 ),
             ],
           ),
@@ -380,9 +385,16 @@ class _RoutineEditorState extends State<RoutineEditor> {
                   label: Text(_dayLetters[d - 1]),
                   tooltip: _dayNames[d - 1],
                   selected: _t.runsOn(d),
-                  onSelected: (on) => _set(
-                    _t.copyWith(weekdays: on ? _t.weekdays | (1 << (d - 1)) : _t.weekdays & ~(1 << (d - 1))),
-                  ),
+                  onSelected: (on) {
+                    HapticFeedback.selectionClick();
+                    _set(
+                      _t.copyWith(
+                        weekdays: on
+                            ? _t.weekdays | (1 << (d - 1))
+                            : _t.weekdays & ~(1 << (d - 1)),
+                      ),
+                    );
+                  },
                 ),
             ],
           ),
@@ -437,7 +449,7 @@ class _RoutineEditorState extends State<RoutineEditor> {
           if (err != null)
             Padding(
               padding: const EdgeInsets.only(top: 10),
-              child: Text(err, style: LbType.small.copyWith(color: Lb.phosphor)),
+              child: Text(err, style: LbType.small.copyWith(color: Lb.danger)),
             ),
           const SizedBox(height: 16),
           Row(
@@ -452,8 +464,13 @@ class _RoutineEditorState extends State<RoutineEditor> {
               ],
               Expanded(
                 child: FilledButton(
-                  onPressed: err == null ? () => Navigator.pop(context, RoutineEdit.save(_t)) : null,
-                  child: const Text('Save to device'),
+                  onPressed: err == null
+                      ? () {
+                          HapticFeedback.lightImpact();
+                          Navigator.pop(context, RoutineEdit.save(_t));
+                        }
+                      : null,
+                  child: const Text('Send to device'),
                 ),
               ),
             ],
