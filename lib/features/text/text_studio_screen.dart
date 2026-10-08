@@ -199,7 +199,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     var seconds = 4.0;
     if (_mode == 'text') {
       final loop = (g.create(w, h, 1) as TextInstance).loopSeconds;
-      if (loop != null) seconds = loop.clamp(2.0, 12.0);
+      if (loop != null) seconds = loop;
     }
     final fps = min(20, max(8, (240 / seconds).floor()));
     final frames = renderFrames(

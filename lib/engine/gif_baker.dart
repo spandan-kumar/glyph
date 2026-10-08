@@ -21,6 +21,57 @@ const deviceGifFps = 20;
 /// length.
 const maxNaturalSeconds = 20.0;
 
+/// Procedural effects evolve indefinitely; Send records a substantial loop
+/// rather than silently shortening their content to suit the Wi-Fi signal.
+const deviceLoopSeconds = 30.0;
+
+/// Content for Send. Authored sprites keep a complete sequence and motion
+/// pass, with no cross-fade covering their frames. Clips use their own frames
+/// and timing in the Send action.
+LoopFrames renderDeviceLoop({
+  required Generator generator,
+  required Params params,
+  required Palette palette,
+  required int width,
+  required int height,
+  double timeScale = 1,
+}) {
+  if (generator is SpriteGenerator) {
+    final content = generator.contentSeconds(params, width, height);
+    final period = generator.loopSeconds(params, width, height,
+            maxSeconds: max(maxNaturalSeconds * timeScale, content)) ??
+        content;
+    final seconds = period / timeScale;
+    // Fast sprites still need every authored step. GIF delays have a 20 ms
+    // floor, so WLED may play these more slowly than the phone preview.
+    final shortestStep = generator.sprite.ms.reduce(min) / 1000 /
+        params['speed'].clamp(0.05, 10) / timeScale;
+    final fps = max(deviceGifFps.toDouble(), 1 / shortestStep);
+    final n = max(1, (seconds * fps).ceil());
+    final dt = period / n;
+    final effect = generator.create(width, height, 1);
+    final frames = <Frame>[];
+    for (var i = 0; i < n; i++) {
+      final frame = Frame(width, height);
+      // Sample inside each step, so floating-point boundaries cannot drop
+      // a sequence step on the final pass.
+      effect.render(frame, (i + 0.5) * dt, i == 0 ? dt / 2 : dt, params, palette);
+      frames.add(frame);
+    }
+    return LoopFrames(frames, seconds);
+  }
+  return renderLoop(
+    generator: generator,
+    params: params,
+    palette: palette,
+    width: width,
+    height: height,
+    timeScale: timeScale,
+    seconds: deviceLoopSeconds,
+    minimumSeconds: deviceLoopSeconds,
+  );
+}
+
 class BakeResult {
   const BakeResult(this.bytes, this.frameCount, this.duration);
 
@@ -100,6 +151,7 @@ BakeResult bakeGif({
 /// best matches what follows its end is picked, and its last [fade] seconds
 /// cross-fade into what the first frames continue from. Where the two
 /// already match (a periodic effect) the fade changes nothing.
+/// [minimumSeconds] prevents the seam search from shortening a recording.
 LoopFrames renderLoop({
   required Generator generator,
   required Params params,
@@ -112,6 +164,7 @@ LoopFrames renderLoop({
   int seed = 1,
   double timeScale = 1,
   double fade = 0.8,
+  double minimumSeconds = 0,
 }) {
   if (fps <= 0) throw ArgumentError.value(fps, 'fps', 'must be positive');
   final effect = generator.create(width, height, seed);
@@ -141,7 +194,10 @@ LoopFrames renderLoop({
   if (natural != null) {
     final (effectSeconds, blend) = natural;
     final period = effectSeconds / timeScale;
-    final total = max(1, (seconds / period).round()) * period;
+    final passes = minimumSeconds > 0
+        ? (max(seconds, minimumSeconds) / period).ceil()
+        : (seconds / period).round();
+    final total = max(1, passes) * period;
     final n = max(1, (total * fps).round());
     final dt = total * timeScale / n;
     // Sample between, not on, the sprite's step boundaries, so rounding
@@ -152,7 +208,8 @@ LoopFrames renderLoop({
   }
 
   final target = max(1, (seconds * fps).round());
-  final lo = max(1, (target * 0.75).round()), hi = max(lo, (target * 1.25).round());
+  final lo = max(max(1, (minimumSeconds * fps).ceil()), (target * 0.75).round());
+  final hi = max(lo, (target * 1.25).round());
   final m0 = min((fade * fps).round(), lo ~/ 2);
   final s = take(hi + max(hi ~/ 2, 1), baseDt);
   double mismatch(int n, int m) {

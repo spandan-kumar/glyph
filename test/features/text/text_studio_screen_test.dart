@@ -9,6 +9,7 @@ import 'package:glyph/app/playback.dart';
 import 'package:glyph/engine/clip.dart';
 import 'package:glyph/engine/frame.dart';
 import 'package:glyph/features/text/text_settings.dart';
+import 'package:glyph/features/text/text_generators.dart';
 import 'package:glyph/features/text/text_studio_screen.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/scope.dart';
@@ -109,6 +110,29 @@ void main() {
     expect(find.text('Send to device'), findsOneWidget);
     expect(find.text('Keep on matrix'), findsNothing);
     expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('saving long scrolling words retains a complete pass beyond 12 seconds', (tester) async {
+    final (playback, creations) = await pump(tester, const TextStudioScreen());
+    final text = List.filled(12, 'Complete message').join(' ');
+    await tester.enterText(find.byType(TextField), text);
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.runAsync(() async {
+      await tapVisible(tester, find.text('Save'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    for (var i = 0; i < 40 && creations.items.isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(creations.items, hasLength(1));
+    final c = creations.items.single;
+    final settings = TextSettings.fromJson(c.meta);
+    final loop = (ScrollingText(settings).create(c.clip.width, c.clip.height, 1) as TextInstance).loopSeconds!;
+    expect(loop, greaterThan(12));
+    expect(c.clip.totalMs, closeTo(loop * 1000, 125));
     playback.pause();
   });
 

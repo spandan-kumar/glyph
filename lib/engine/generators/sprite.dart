@@ -337,23 +337,8 @@ class SpriteGenerator extends Generator {
   /// no practical period and are ignored.
   double? loopSeconds(Params p, int width, int height, {double maxSeconds = 12}) {
     final speed = p['speed'].clamp(0.05, 10).toDouble();
-    final motion = SpriteMotion.values[p['motion'].round().clamp(0, 6)];
-    // Periods as exact fractions of a second (numerator, denominator).
-    // A sequence that shows one frame throughout (scrolling text) has no
-    // period of its own.
     final seq = {...sprite.seq}.length > 1 ? _Ratio(sprite.loopMs, 1000) : null;
-    final move = switch (motion) {
-      SpriteMotion.bounce => _Ratio(7, 10), // |sin(t·π/0.7)|
-      SpriteMotion.float => _Ratio(13, 5),
-      SpriteMotion.sway => _Ratio(11, 5),
-      SpriteMotion.pulse => _Ratio(11, 10),
-      SpriteMotion.scroll => () {
-          // travel px at max(4, 0.45·w) px/s, as in render().
-          final travel = width + _fit(sprite, width, height).$2 + 2;
-          return width * 0.45 > 4 ? _Ratio(20 * travel, 9 * width) : _Ratio(travel, 4);
-        }(),
-      SpriteMotion.still || SpriteMotion.shake => null,
-    };
+    final move = _motionPeriod(p, width, height);
     final cycles = sprite._inks.any((i) => i.kind == 2); // pal.at(v + t/4)
     for (final parts in [
       [?seq, ?move, if (cycles) _Ratio(4, 1)],
@@ -365,6 +350,28 @@ class SpriteGenerator extends Generator {
       if (s.isFinite && s <= maxSeconds) return s;
     }
     return null;
+  }
+
+  /// Enough effect time to show every authored step and a complete motion
+  /// pass, even when their common multiple would make an impractical GIF.
+  double contentSeconds(Params p, int width, int height) =>
+      max(sprite.loopMs / 1000, _motionPeriod(p, width, height)?.seconds ?? 0) /
+      p['speed'].clamp(0.05, 10);
+
+  _Ratio? _motionPeriod(Params p, int width, int height) {
+    final motion = SpriteMotion.values[p['motion'].round().clamp(0, 6)];
+    return switch (motion) {
+      SpriteMotion.bounce => _Ratio(7, 10), // |sin(t·π/0.7)|
+      SpriteMotion.float => _Ratio(13, 5),
+      SpriteMotion.sway => _Ratio(11, 5),
+      SpriteMotion.pulse => _Ratio(11, 10),
+      SpriteMotion.scroll => () {
+          // travel px at max(4, 0.45·w) px/s, as in render().
+          final travel = width + _fit(sprite, width, height).$2 + 2;
+          return width * 0.45 > 4 ? _Ratio(20 * travel, 9 * width) : _Ratio(travel, 4);
+        }(),
+      SpriteMotion.still || SpriteMotion.shake => null,
+    };
   }
 }
 

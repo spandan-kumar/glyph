@@ -163,9 +163,9 @@ abstract final class GlyphActions {
 
   /// Saves whatever is playing so it runs on the matrix without the phone.
   /// Library effects bake on a background isolate; clips encode their own
-  /// frames; anything else (games, audio) is recorded for about 4 s. Effects
-  /// are baked as seamless loops (renderLoop), since the matrix replays the
-  /// GIF end to start forever.
+  /// frames; procedural effects record at least 30 s. Authored sprites keep
+  /// their complete sequence and motion pass. Procedural loops blend their
+  /// seam, since the device replays the GIF end to start forever.
   static Future<String?> saveToDevice(BuildContext context, {Future<void> Function()? onUpload}) async =>
       (await sendToDevice(context, onUpload: onUpload)).message;
 
@@ -178,11 +178,6 @@ abstract final class GlyphActions {
     if (caps == null || g == null) return const Cancelled('nothing is playing on a connected device');
     final title = s.playback.item?.title ?? g.name;
     final w = caps.width, h = caps.height;
-    // On weak Wi-Fi a shorter, lighter loop uploads far more reliably. Keep
-    // the frame rate: WLED plays 50 ms frames evenly, 66 ms ones judder.
-    final weak = (s.devices.info?.signal ?? 100) < 40;
-    final seconds = weak ? 3.0 : 4.0;
-    const fps = deviceGifFps;
 
     if (g is ClipGenerator) {
       return sendClipToDevice(context, g.clip, title, onUpload: onUpload,
@@ -198,20 +193,16 @@ abstract final class GlyphActions {
         w,
         h,
         s.playback.timeScale,
-        seconds,
-        fps,
         g is SpriteGenerator ? g : null,
       ));
     } else {
-      final loop = renderLoop(
+      final loop = renderDeviceLoop(
         generator: g,
         params: s.playback.params,
         palette: s.playback.palette,
         width: w,
         height: h,
         timeScale: s.playback.timeScale,
-        seconds: seconds,
-        fps: fps,
       );
       bytes = compute(_encodeLoop, loop);
     }
@@ -423,9 +414,9 @@ abstract final class GlyphActions {
   }
 }
 
-Uint8List _bake((String, Map<String, double>, String, int, int, double, double, int, SpriteGenerator?) a) {
-  final (genId, params, paletteId, w, h, speed, seconds, fps, sprite) = a;
-  return bakeGif(
+Uint8List _bake((String, Map<String, double>, String, int, int, double, SpriteGenerator?) a) {
+  final (genId, params, paletteId, w, h, speed, sprite) = a;
+  return bakeLoop(renderDeviceLoop(
     // Downloaded sprites aren't registered in the worker isolate.
     generator: sprite ?? generatorById(genId),
     params: Params(params),
@@ -433,9 +424,7 @@ Uint8List _bake((String, Map<String, double>, String, int, int, double, double, 
     width: w,
     height: h,
     timeScale: speed,
-    seconds: seconds,
-    fps: fps,
-  ).bytes;
+  )).bytes;
 }
 
 Uint8List _encodeLoop(LoopFrames loop) => bakeLoop(loop).bytes;

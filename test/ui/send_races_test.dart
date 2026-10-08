@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,11 +11,13 @@ import 'package:glyph/engine/clip.dart';
 import 'package:glyph/engine/frame.dart';
 import 'package:glyph/engine/gif_encoder.dart';
 import 'package:glyph/engine/palette.dart';
+import 'package:glyph/engine/registry.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/actions.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../engine/gif_encoder_test.dart' show decodeTestGif;
 import '../features/device/fake_wled.dart';
 
 class _Playback extends PlaybackController {
@@ -79,6 +82,32 @@ void main() {
     );
     return context;
   }
+
+  testWidgets('weak Wi-Fi sends the same complete Ocean loop as strong Wi-Fi', (tester) async {
+    final context = await mount(tester);
+    final sent = <List<int>>[];
+    for (final signal in [100, 20]) {
+      final info = jsonDecode(alpha.info) as Map<String, dynamic>;
+      (info['wifi'] as Map)['signal'] = signal;
+      alpha.info = jsonEncode(info);
+      await tester.runAsync(() => devices.refresh());
+      playback.playGenerator(generatorById('plasma'));
+      playback.setParam('speed', 0.2);
+      playback.setParam('scale', 0.35);
+      playback.setPalette(paletteById('ocean'));
+      final result = await tester.runAsync(() => GlyphActions.sendToDevice(context));
+      await tester.pump();
+      expect(result, isA<Sent>());
+      final bytes = alpha.gifs[alpha.uploads.last]!;
+      sent.add(bytes);
+      final gif = decodeTestGif(Uint8List.fromList(bytes));
+      expect(gif.delays.reduce((a, b) => a + b), greaterThanOrEqualTo(3000));
+      // Remove the test Saved entry so the second Send exercises uploading.
+      alpha.presets.removeWhere((k, v) => (v as Map)['n'] == 'Plasma');
+      playback.pause();
+    }
+    expect(sent.last, orderedEquals(sent.first));
+  });
 
   testWidgets(
     'unchanged clip offers Play it without uploading even when storage is full',
