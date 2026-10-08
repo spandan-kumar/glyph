@@ -37,7 +37,7 @@ class Invaders extends Game {
   int _keyDir = 0;
 
   @override
-  String? get status => 'Wave $wave · ${'●' * lives}';
+  String? get status => 'Wave $wave · ${lives == 1 ? '1 life' : '$lives lives'}';
 
   int get _total => rows * cols;
   int get _left => alive.where((a) => a).length;

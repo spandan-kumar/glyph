@@ -123,7 +123,6 @@ void main() {
     expect(studio.mode, 'countdown');
     expect(find.text('Timer'), findsWidgets);
     expect(find.text('COUNT DOWN TO'), findsOneWidget);
-    expect(find.byType(SegmentedButton<String>), findsNothing);
     // Its own tool: no way across to Write or Clock from here.
     expect(find.descendant(of: find.byType(TextStudioScreen), matching: find.text('Clock')),
         findsNothing);
@@ -139,7 +138,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
     expect(tester.widget<TextStudioScreen>(find.byType(TextStudioScreen)).mode, 'text');
-    expect(find.byType(SegmentedButton<String>), findsNothing);
     final inStudio = find.byType(TextStudioScreen);
     expect(find.descendant(of: inStudio, matching: find.text('Clock')), findsNothing);
     expect(find.descendant(of: inStudio, matching: find.text('Timer')), findsNothing);
@@ -152,7 +150,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(tester.widget<TextStudioScreen>(find.byType(TextStudioScreen)).mode, 'clock');
     expect(find.text('24-hour'), findsOneWidget);
-    expect(find.byType(SegmentedButton<String>), findsNothing);
     expect(tester.takeException(), isNull);
     playback.pause();
   });

@@ -81,7 +81,7 @@ class _PadButtonState extends State<PadButton> {
             child: IconTheme(
               data: IconThemeData(size: _iconSize),
               child: DefaultTextStyle.merge(
-                style: LbType.label.copyWith(fontSize: 14, color: Lb.text, letterSpacing: 2),
+                style: LbType.bodyStrong.copyWith(color: Lb.text),
                 child: widget.child,
               ),
             ),
@@ -230,7 +230,7 @@ class TapPad extends StatelessWidget {
         color: Lb.panel,
         label: label,
         onDown: onTap,
-        child: Text(label, style: LbType.label.copyWith(fontSize: 22, letterSpacing: 8)),
+        child: Text(label, style: LbType.title),
       );
 }
 

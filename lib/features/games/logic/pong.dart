@@ -33,7 +33,7 @@ class Pong extends Game {
   double get aiSpeed => min(14.0, 4.5 + score * 0.8) * depth / 16;
 
   @override
-  String? get status => '●' * lives;
+  String? get status => lives == 1 ? '1 life' : '$lives lives';
 
   @override
   bool get pointerVertical => sideways;

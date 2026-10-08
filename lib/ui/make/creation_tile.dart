@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/community.dart';
 import '../community/glyph_menu.dart';
@@ -15,6 +16,7 @@ import '../design/type.dart';
 import '../scope.dart';
 import 'led_loop.dart';
 import 'studio_kit.dart';
+import '../design/route.dart';
 
 /// What kind of thing a creation is, in plain words.
 String creationKindLabel(Creation c) => switch (c.kind) {
@@ -43,7 +45,7 @@ class CreationTile extends StatelessWidget {
       label: '${c.title}, ${creationKindLabel(c)}',
       child: InkWell(
         borderRadius: BorderRadius.circular(Lb.rTile),
-        onTap: () => GlyphActions.playClip(context, c.clip, c.title),
+        onTap: () => _play(context, c),
         onLongPress: () => showCreationActions(context, c),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,6 +76,14 @@ class CreationTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Plays a creation; buzzes harder when the device itself changes.
+void _play(BuildContext context, Creation c) {
+  AppScope.of(context).devices.isConnected
+      ? HapticFeedback.mediumImpact()
+      : HapticFeedback.lightImpact();
+  GlyphActions.playClip(context, c.clip, c.title);
 }
 
 class _ClipLoop extends StatelessWidget {
@@ -108,8 +118,7 @@ Future<void> showCreationActions(BuildContext context, Creation c) {
       ),
     ]),
     actions: [
-      StudioAction(Icons.play_arrow_sharp, 'Play',
-          () => GlyphActions.playClip(context, c.clip, c.title)),
+      StudioAction(Icons.play_arrow_sharp, 'Play', () => _play(context, c)),
       if (editable) StudioAction(Icons.edit_sharp, 'Edit', () => openCreation(context, c)),
       StudioAction(Icons.save_alt_sharp, 'Send to device', () => keepOnMatrix(context, c),
           subtitle: 'Plays without your phone'),
@@ -130,13 +139,12 @@ void openCreation(BuildContext context, Creation c) {
     'text' => TextStudioScreen(initial: c, mode: c.meta['mode'] as String? ?? 'text'),
     _ => null,
   };
-  if (page != null) Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+  if (page != null) Navigator.of(context).push(lbRoute((_) => page));
 }
 
 Future<void> keepOnMatrix(BuildContext context, Creation c) async {
   if (AppScope.of(context).devices.caps == null) {
-    studioToast(context, 'Connect a device to send this to it.',
-        action: SnackBarAction(label: 'Connect', onPressed: () => goToMatrix(context)));
+    studioNoDevice(context);
     return;
   }
   await GlyphActions.saveClipToDevice(context, c.clip, c.title);

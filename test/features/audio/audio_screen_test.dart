@@ -84,11 +84,11 @@ void main() {
 
     await tester.tap(find.text('Waveform'));
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(find.text('Play'));
+    await tester.tap(find.text('Show here'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(playback.generator, isA<AudioVisualizer>());
     expect(playback.generator!.id, 'audio_wave');
-    expect(find.text('Playing (preview)'), findsOneWidget);
+    expect(find.text('Showing here'), findsOneWidget);
 
     // Switching look while playing swaps what's on the matrix.
     await tester.scrollUntilVisible(
