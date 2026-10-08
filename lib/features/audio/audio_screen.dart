@@ -386,7 +386,7 @@ class _MicFollower {
   void _onChange() {
     final g = playback.generator;
     final ours = g is AudioVisualizer && identical(g.feed, engine);
-    if (ours && playback.isPlaying) {
+    if (ours && playback.isRendering) {
       engine.acquire(this);
     } else {
       engine.release(this);

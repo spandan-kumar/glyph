@@ -127,7 +127,7 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    final ambient = AmbientScope.of(context);
+    final ambient = AmbientScope.read(context);
     return PopScope(
       // Back from Make or Device returns to Display; only Display leaves the app.
       canPop: _tab == 0,
@@ -151,7 +151,11 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ),
         bottomNavigationBar: ListenableBuilder(
-          listenable: Listenable.merge([HomeShell.dockHidden, _scrolledAway]),
+          listenable: Listenable.merge([
+            HomeShell.dockHidden,
+            _scrolledAway,
+            ambient,
+          ]),
           builder: (context, dock) {
             final hidden = HomeShell.dockHidden.value || _scrolledAway.value;
             return AnimatedSlide(
@@ -162,11 +166,18 @@ class _HomeShellState extends State<HomeShell> {
                 opacity: hidden ? 0 : 1,
                 duration: Lb.medium,
                 curve: Lb.ease,
-                child: IgnorePointer(ignoring: hidden, child: dock),
+                child: IgnorePointer(
+                  ignoring: hidden,
+                  child: Dock(
+                    items: _items,
+                    index: _tab,
+                    onSelect: _select,
+                    accent: ambient.accent,
+                  ),
+                ),
               ),
             );
           },
-          child: Dock(items: _items, index: _tab, onSelect: _select, accent: ambient.accent),
         ),
       ),
     );

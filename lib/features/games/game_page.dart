@@ -69,7 +69,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
     _gen
       ..liveFrame = (() => pb.frame)
       ..onEvent = _onEvent;
-    pb.frameTick.addListener(_sync);
+    pb.renderTick.addListener(_sync);
     WidgetsBinding.instance.addObserver(this);
     _wakelock(true);
     _loadBest();
@@ -174,7 +174,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
 
   @override
   void dispose() {
-    _playback?.frameTick.removeListener(_sync);
+    _playback?.renderTick.removeListener(_sync);
     WidgetsBinding.instance.removeObserver(this);
     final g = _game;
     if (g != null && !g.isOver) g.paused = true;

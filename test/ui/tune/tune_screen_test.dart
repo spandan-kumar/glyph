@@ -427,6 +427,17 @@ void main() {
     playback.pause();
   });
 
+  testWidgets('first-session swipe hint does not keep Flutter at display refresh', (tester) async {
+    final playback = await pumpApp(tester);
+    expect(find.text('SWIPE THE DISPLAY'), findsOneWidget);
+    playback.pause();
+    await step(tester, 5000);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.binding.transientCallbackCount, 0);
+    }
+  });
+
   testWidgets('swipe hint shows for the first two sessions only', (tester) async {
     SharedPreferences.setMockInitialValues({TuneScreen.swipeHintKey: 2});
     final playback = await pumpApp(tester);

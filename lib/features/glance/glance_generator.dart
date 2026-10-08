@@ -9,6 +9,8 @@ import 'glance_model.dart';
 import 'weather.dart';
 
 class GlanceCardGenerator extends Generator {
+  @override
+  int get streamFps => 10;
   GlanceCardGenerator(this.card, this.feed, {DateTime Function()? now})
     : now = now ?? DateTime.now;
   final GlanceCard card;
@@ -313,6 +315,8 @@ class PhoneShowGenerator extends Generator {
   bool get liveOnly => true;
   @override
   bool get pauseDuringAlert => true;
+  @override
+  int get streamFps => show.entries.every((e) => e.kind == ShowEntryKind.card) ? 10 : 40;
   @override
   EffectInstance create(int width, int height, int seed) =>
       _ShowEffect(this, width, height, seed);

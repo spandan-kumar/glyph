@@ -179,9 +179,10 @@ class AudioEngine extends ChangeNotifier implements AudioFeed {
   static AudioEngine get shared => _shared ??= AudioEngine();
 
   static const fftSize = 2048;
-  static const hop = 512;
+  // Match the 40 fps output without reducing frequency resolution.
+  static const hop = 1024;
   static const _waveLen = 64;
-  static const _historyLen = 86; // ~1 s of onset values at 44.1 kHz.
+  static const _historyLen = 43; // ~1 s of onset values at 44.1 kHz.
 
   final int sampleRate;
   final PcmSource _source;
@@ -209,12 +210,12 @@ class AudioEngine extends ChangeNotifier implements AudioFeed {
 
   /// Starts listening on behalf of [owner] (if the mic is allowed).
   Future<void> acquire(Object owner) {
-    _holders.add(owner);
+    if (!_holders.add(owner)) return _op;
     return _sync();
   }
 
   Future<void> release(Object owner) {
-    _holders.remove(owner);
+    if (!_holders.remove(owner)) return _op;
     return _sync();
   }
 
@@ -279,6 +280,9 @@ class AudioEngine extends ChangeNotifier implements AudioFeed {
     _error = '$e';
     _sub?.cancel();
     _sub = null;
+    // A stream error doesn't necessarily stop the native microphone.
+    _op = _op.then((_) => _source.stop()).catchError((_) {});
+    _features.value = AudioFeatures.silence;
     _setStatus(AudioStatus.failed);
   }
 
@@ -591,7 +595,7 @@ class AudioEngine extends ChangeNotifier implements AudioFeed {
   // bands weigh most because that's where kicks live.
   static const _onsetEdges = <double>[35, 120, 250, 500, 1000, 2000, 4000, 8000];
   static const _onsetWeights = [1.5, 1.2, 0.6, 0.4, 0.4, 0.3, 0.3];
-  static const _lag = 3;
+  static const _lag = 2;
 
   // Spectral flux on log-compressed band energies (so it's gain invariant)
   // against an adaptive threshold over the last second.
@@ -620,7 +624,7 @@ class AudioEngine extends ChangeNotifier implements AudioFeed {
     final threshold = 2.6 * mean + 0.1;
 
     if (!silent &&
-        filled >= 20 &&
+        filled >= 10 &&
         onset > threshold &&
         onset >= _prevOnset &&
         _clock - _lastBeat > 0.28) {
@@ -653,7 +657,7 @@ class AudioEngine extends ChangeNotifier implements AudioFeed {
   }
 
   void _publish() {
-    if (_clock == 0) return;
+    if (_clock == 0 || _features.value.time == _clock) return;
     _features.value = AudioFeatures(
       bands: Float32List.fromList(_bands),
       wave: Float32List.fromList(_wave),

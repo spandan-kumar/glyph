@@ -24,6 +24,8 @@ class GameGenerator extends Generator {
   String get id => 'game.${def.id}';
   @override
   String get name => def.name;
+  @override
+  int get previewFps => 40;
 
   /// Starts a fresh player game at the given matrix size.
   GameView newGame(int width, int height) => view =

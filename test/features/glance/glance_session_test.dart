@@ -41,6 +41,8 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     BackgroundStreaming.debugReset();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('glyph/power'), (_) async => null);
     fake = FakeWled();
     devices = DeviceStore(clientFactory: fake.client);
     playback = PlaybackController();
@@ -182,7 +184,9 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 150));
       expect(look.times.length, calls);
       playback.endAlert();
-      await flush();
+      await Future<void>.delayed(
+        Duration(milliseconds: 1000 ~/ g.streamFps + 20),
+      );
       expect(look.times.length, greaterThan(calls));
       expect(look.creates, creates);
     },

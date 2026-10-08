@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
 import '../../engine/frame.dart';
 import '../../engine/generator.dart';
@@ -7,6 +6,7 @@ import '../../engine/palette.dart';
 import '../design/tokens.dart';
 import '../widgets/led_matrix_view.dart';
 import '../widgets/live_preview.dart';
+import '../widgets/preview_clock.dart';
 
 /// Runs any [Generator] locally as a small self-playing LED panel — studio
 /// tiles, creation tiles. Pauses with an ancestor [TickerMode] and during
@@ -39,15 +39,12 @@ class LedLoop extends StatefulWidget {
   State<LedLoop> createState() => _LedLoopState();
 }
 
-class _LedLoopState extends State<LedLoop> with SingleTickerProviderStateMixin {
-  static const _interval = Duration(milliseconds: 40);
-  static const _starving = Duration(milliseconds: 200);
-
+class _LedLoopState extends State<LedLoop> {
   late Frame _frame;
   late EffectInstance _fx;
   late Params _params;
   late Palette _palette;
-  late final Ticker _ticker;
+  late final PreviewTicker _ticker;
   final _tick = ValueNotifier(0);
   Duration _last = Duration.zero;
   double _t = 0;
@@ -56,7 +53,13 @@ class _LedLoopState extends State<LedLoop> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     _setup();
-    _ticker = createTicker(_onTick)..start();
+    _ticker = PreviewTicker(_onTick);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ticker.bind(context);
   }
 
   void _setup() {
@@ -85,9 +88,9 @@ class _LedLoopState extends State<LedLoop> with SingleTickerProviderStateMixin {
 
   void _onTick(Duration elapsed) {
     final since = elapsed - _last;
-    if (since < _interval) return;
+    if (since.inMilliseconds < (widget.glow ? 50 : 83)) return;
     if (Scrollable.recommendDeferredLoadingForContext(context)) return;
-    if (!PreviewBudget.take(starving: since > _starving)) return;
+    if (!PreviewBudget.take(context)) return;
     final dt = (since.inMicroseconds / 1e6).clamp(0.0, 0.1);
     _last = elapsed;
     _t += dt;
@@ -97,19 +100,18 @@ class _LedLoopState extends State<LedLoop> with SingleTickerProviderStateMixin {
 
   @override
   void dispose() {
+    PreviewBudget.forget(context);
     _ticker.dispose();
     _tick.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => RepaintBoundary(
-        child: LedMatrixView(
+  Widget build(BuildContext context) => LedMatrixView(
           frame: _frame,
           repaint: _tick,
           glow: widget.glow,
           bezel: widget.bezel,
           borderRadius: widget.borderRadius,
-        ),
       );
 }

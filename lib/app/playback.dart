@@ -36,15 +36,46 @@ class PlaybackController extends ChangeNotifier {
   int get streamGeneration => _streamGen;
 
   Timer? _timer;
+  bool _playing = false, _foreground = true, _managedPreviews = false;
+  final _previews = <Object>{};
+  Duration? _period;
+  Uint8List? _published;
   final _clock = Stopwatch();
   Duration _last = Duration.zero;
 
   DdpGroupSender? _group;
   List<DdpTarget> _mirrors = const [];
 
-  /// Bumps every rendered frame; previews repaint off this without
-  /// rebuilding the whole widget tree.
-  final frameTick = ValueNotifier<int>(0);
+  /// Previews repaint only when pixels change, without rebuilding the tree.
+  late final frameTick = PlaybackFrameTick(this);
+  /// State observers (e.g. game scores) still see every simulation step.
+  final renderTick = ValueNotifier<int>(0);
+
+  /// UI owners follow TickerMode; a hidden preview must not keep rendering.
+  void managePreviews() {
+    _managedPreviews = true;
+    _syncTimer();
+  }
+
+  void setPreviewActive(Object owner, bool active) {
+    if (_disposed) return;
+    if (active) {
+      _previews.add(owner);
+    } else {
+      _previews.remove(owner);
+    }
+    _syncTimer();
+  }
+
+  set foreground(bool value) {
+    _foreground = value;
+    _syncTimer();
+  }
+
+  bool get _previewVisible =>
+      _foreground && (!_managedPreviews || _previews.isNotEmpty);
+  bool get needsContinuousWork =>
+      isAlerting || (_playing && isStreaming && !_held);
 
   Frame get frame => _alert?.frame ?? _frame;
   bool get isAlerting => _alert != null;
@@ -87,6 +118,8 @@ class PlaybackController extends ChangeNotifier {
     }
     _alert = _PlaybackAlert(generator, target.host, width, height, isPlaying, group);
     if (!isPlaying) _start();
+    _syncTimer();
+    _alert!.last = _clock.elapsed;
     notifyListeners();
     return true;
   }
@@ -97,10 +130,10 @@ class PlaybackController extends ChangeNotifier {
     _alert = null;
     alert.group?.close();
     if (!alert.wasPlaying) {
-      _timer?.cancel();
-      _timer = null;
-      _clock.stop();
+      _playing = false;
     }
+    _syncTimer();
+    _publishFrame();
     if (notify && !_disposed) notifyListeners();
   }
   Generator? get generator => _generator;
@@ -108,7 +141,8 @@ class PlaybackController extends ChangeNotifier {
   Palette get palette => _palette;
   LibraryItem? get item => _item;
   double get timeScale => _timeScale;
-  bool get isPlaying => _timer != null;
+  bool get isPlaying => _playing;
+  bool get isRendering => _timer != null;
   bool get isStreaming => _group?.isOpen ?? false;
 
   /// Frames delivered to the primary target.
@@ -149,6 +183,9 @@ class PlaybackController extends ChangeNotifier {
     _palette = pal;
     _instance = g.create(_frame.width, _frame.height, DateTime.now().millisecond);
     _t = 0;
+    _instance!.render(_frame, 0, 0, _params, _palette);
+    _publishFrame();
+    renderTick.value++;
     _start();
     notifyListeners();
   }
@@ -180,20 +217,51 @@ class PlaybackController extends ChangeNotifier {
   }
 
   void _start() {
-    if (_timer != null) return;
-    _clock
-      ..reset()
-      ..start();
-    _last = Duration.zero;
-    _timer = Timer.periodic(const Duration(microseconds: 1000000 ~/ fps), (_) => _tick());
+    if (!_playing) {
+      _playing = true;
+      _clock.reset();
+      _last = Duration.zero;
+    }
+    _syncTimer();
+  }
+
+  void _syncTimer() {
+    if (_disposed) return;
+    final live = needsContinuousWork;
+    final rate = isAlerting ? fps : live ? (_generator?.streamFps ?? fps) :
+        !_managedPreviews ? fps : (_generator?.previewFps ?? 20);
+    final period = !_playing || (!live && !_previewVisible)
+        ? null
+        : Duration(
+            microseconds: 1000000 ~/ rate.clamp(1, fps),
+          );
+    if (period == _period) return;
+    _timer?.cancel();
+    _timer = null;
+    _period = period;
+    if (period == null) {
+      _clock.stop();
+    } else {
+      _last = _clock.elapsed;
+      _clock.start();
+      _timer = Timer.periodic(period, (_) => _tick());
+    }
+    scheduleMicrotask(() { if (!_disposed) notifyListeners(); });
+  }
+
+  void _publishFrame() {
+    final rgb = frame.rgb;
+    if (listEquals(_published, rgb)) return;
+    if (_published?.length != rgb.length) _published = Uint8List(rgb.length);
+    _published!.setAll(0, rgb);
+    frameTick.value++;
   }
 
   void pause() {
     endAlert(notify: false);
     _revision++;
-    _timer?.cancel();
-    _timer = null;
-    _clock.stop();
+    _playing = false;
+    _syncTimer();
     notifyListeners();
   }
 
@@ -202,14 +270,13 @@ class PlaybackController extends ChangeNotifier {
   void stop() {
     endAlert(notify: false);
     _revision++;
-    _timer?.cancel();
-    _timer = null;
-    _clock.stop();
+    _playing = false;
+    _syncTimer();
     _generator = null;
     _instance = null;
     _item = null;
     _frame.fill(0);
-    frameTick.value++;
+    _publishFrame();
     notifyListeners();
   }
 
@@ -222,10 +289,10 @@ class PlaybackController extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    if (_timer != null) return;
+    if (_playing) return;
     _revision++;
-    _clock.start();
-    _timer = Timer.periodic(const Duration(microseconds: 1000000 ~/ fps), (_) => _tick());
+    _playing = true;
+    _syncTimer();
     notifyListeners();
   }
 
@@ -235,7 +302,9 @@ class PlaybackController extends ChangeNotifier {
     final dt = ((now - _last).inMicroseconds / 1e6).clamp(0.0, 0.1) * _timeScale;
     _last = now;
     final alert = _alert;
-    if (alert == null || (alert.wasPlaying && !(_generator?.pauseDuringAlert ?? false))) {
+    if ((_previewVisible || (isStreaming && !_held)) &&
+        (alert == null ||
+            (alert.wasPlaying && !(_generator?.pauseDuringAlert ?? false)))) {
       _t += dt;
       _instance?.render(_frame, _t, dt, _params, _palette);
     }
@@ -246,8 +315,11 @@ class PlaybackController extends ChangeNotifier {
       if (!_held) alert.group?.send(alert.frame);
     }
     final g = _group;
-    if (g != null && g.isOpen && !_held && _ticks++ % _sendEvery == 0) g.send(_frame, overrideFrame: alert?.frame, overrideHost: alert?.host);
-    frameTick.value++;
+    if (g != null && g.isOpen && !_held && _ticks++ % _sendEvery == 0) {
+      g.send(_frame, overrideFrame: alert?.frame, overrideHost: alert?.host);
+    }
+    if (_previewVisible) _publishFrame();
+    renderTick.value++;
   }
 
   int _ticks = 0;
@@ -257,13 +329,14 @@ class PlaybackController extends ChangeNotifier {
 
   /// While true, the stream stays open but no frames go out — the device is
   /// switched off. WLED lights itself back up when live frames resume after
-  /// its realtime timeout, so an off device must get none; the phone keeps
-  /// rendering, and sending resumes the moment it's switched back on.
+  /// its realtime timeout, so an off device must get none. Hidden previews
+  /// suspend too; sending resumes when it's switched back on.
   bool get streamHeld => _held;
   set streamHeld(bool on) {
     if (on == _held) return;
     if (on) endAlert(notify: false);
     _held = on;
+    _syncTimer();
     notifyListeners();
   }
 
@@ -304,6 +377,7 @@ class PlaybackController extends ChangeNotifier {
       return;
     }
     _group = g;
+    _syncTimer();
     notifyListeners();
   }
 
@@ -327,6 +401,7 @@ class PlaybackController extends ChangeNotifier {
     _group = null;
     _throttleOwner = null;
     _sendEvery = 1;
+    _syncTimer();
     if (notify) notifyListeners();
   }
 
@@ -339,8 +414,15 @@ class PlaybackController extends ChangeNotifier {
     _timer?.cancel();
     _group?.close();
     frameTick.dispose();
+    renderTick.dispose();
     super.dispose();
   }
+}
+
+/// Lets LED views register demand without coupling their callers to scheduling.
+class PlaybackFrameTick extends ValueNotifier<int> {
+  PlaybackFrameTick(this.playback) : super(0);
+  final PlaybackController playback;
 }
 
 class _PlaybackAlert {

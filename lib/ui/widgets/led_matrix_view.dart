@@ -2,13 +2,15 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../app/playback.dart';
 import '../../engine/frame.dart';
 import '../design/tokens.dart';
+import 'preview_visibility.dart';
 
 /// Draws a [Frame] as a real LED panel: warm unlit dots, lit dots with a hot
 /// core, and (with [glow]) a single blurred bloom pass under them. Pass
 /// [repaint] (e.g. the playback frame tick) to repaint without rebuilding.
-class LedMatrixView extends StatelessWidget {
+class LedMatrixView extends StatefulWidget {
   const LedMatrixView({
     super.key,
     required this.frame,
@@ -27,7 +29,69 @@ class LedMatrixView extends StatelessWidget {
   final bool bezel;
 
   @override
+  State<LedMatrixView> createState() => _LedMatrixViewState();
+}
+
+class _LedMatrixViewState extends State<LedMatrixView> {
+  PlaybackController? _playback;
+  final _scrolls = <ScrollPosition>{};
+  bool _visibilityPending = false;
+
+  void _syncDemand() {
+    final repaint = widget.repaint;
+    final playback = repaint is PlaybackFrameTick ? repaint.playback : null;
+    if (!identical(playback, _playback)) {
+      _playback?.setPreviewActive(this, false);
+    }
+    _playback = playback;
+    for (final scroll in _scrolls) { scroll.removeListener(_scheduleVisibility); }
+    _scrolls.clear();
+    if (playback == null) return;
+    context.visitAncestorElements((element) {
+      if (element is StatefulElement && element.state is ScrollableState) {
+        _scrolls.add((element.state as ScrollableState).position);
+      }
+      return true;
+    });
+    for (final scroll in _scrolls) { scroll.addListener(_scheduleVisibility); }
+    if (!TickerMode.valuesOf(context).enabled) playback.setPreviewActive(this, false);
+    _scheduleVisibility();
+  }
+
+  void _scheduleVisibility() {
+    if (_visibilityPending) return;
+    _visibilityPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _visibilityPending = false;
+      if (!mounted) return;
+      _playback?.setPreviewActive(this,
+          TickerMode.valuesOf(context).enabled && previewIsVisible(context));
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncDemand();
+  }
+
+  @override
+  void didUpdateWidget(LedMatrixView old) {
+    super.didUpdateWidget(old);
+    _syncDemand();
+  }
+
+  @override
+  void dispose() {
+    for (final scroll in _scrolls) { scroll.removeListener(_scheduleVisibility); }
+    _playback?.setPreviewActive(this, false);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final LedMatrixView(:frame, :repaint, :glow, :borderRadius, :bezel) =
+        widget;
     Widget panel = ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: CustomPaint(
@@ -47,7 +111,9 @@ class LedMatrixView extends StatelessWidget {
         child: Padding(padding: const EdgeInsets.all(4), child: panel),
       );
     }
-    return AspectRatio(aspectRatio: frame.width / frame.height, child: panel);
+    return RepaintBoundary(
+      child: AspectRatio(aspectRatio: frame.width / frame.height, child: panel),
+    );
   }
 }
 
@@ -58,7 +124,7 @@ class _LedPainter extends CustomPainter {
   final bool glow;
 
   static final _bg = Paint()..color = Lb.bezel;
-  static final _off = Paint()..color = Lb.ledOff;
+  static const _off = Lb.ledOff;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -83,8 +149,8 @@ class _LedPainter extends CustomPainter {
       canvas.restore();
     }
 
-    final led = Paint();
-    final core = Paint();
+    final leds = <Color, List<Offset>>{};
+    final cores = <Color, List<Offset>>{};
     for (var y = 0; y < frame.height; y++) {
       for (var x = 0; x < frame.width; x++) {
         final i = (y * frame.width + x) * 3;
@@ -92,17 +158,27 @@ class _LedPainter extends CustomPainter {
         final c = Offset((x + 0.5) * cell, (y + 0.5) * cell);
         final peak = _peak(cr, cg, cb);
         if (peak < 6) {
-          canvas.drawCircle(c, r, _off);
+          (leds[_off] ??= []).add(c);
           continue;
         }
-        led.color = Color.fromARGB(255, cr, cg, cb);
-        canvas.drawCircle(c, r, led);
+        final color = Color.fromARGB(255, cr, cg, cb);
+        (leds[color] ??= []).add(c);
         if (cell >= 6 && peak > 140) {
           // A whiter hot spot reads as emitted light rather than paint.
-          core.color = Color.lerp(led.color, const Color(0xFFFFFFFF), 0.45)!.withValues(alpha: 0.7);
-          canvas.drawCircle(c, r * 0.42, core);
+          final hot = Color.lerp(color, const Color(0xFFFFFFFF), 0.45)!.withValues(alpha: 0.7);
+          (cores[hot] ??= []).add(c);
         }
       }
+    }
+    // LED discs don't overlap: batch equal colours into one draw call.
+    _dots(canvas, leds, r);
+    _dots(canvas, cores, r * 0.42);
+  }
+
+  static void _dots(Canvas canvas, Map<Color, List<Offset>> groups, double radius) {
+    final paint = Paint()..strokeCap = StrokeCap.round..strokeWidth = radius * 2;
+    for (final entry in groups.entries) {
+      canvas.drawPoints(PointMode.points, entry.value, paint..color = entry.key);
     }
   }
 

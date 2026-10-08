@@ -72,14 +72,20 @@ class GlyphApp extends StatefulWidget {
   State<GlyphApp> createState() => _GlyphAppState();
 }
 
-class _GlyphAppState extends State<GlyphApp> {
-  late final _catalog = widget.catalogStore ?? CatalogStore.forApp(widget.catalog);
+class _GlyphAppState extends State<GlyphApp> with WidgetsBindingObserver {
+  late final _catalog =
+      widget.catalogStore ?? CatalogStore.forApp(widget.catalog);
   late final _ambient = AmbientController(widget.playback);
   late final _notifications = NotificationController(devices: widget.devices, playback: widget.playback);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    widget.playback.managePreviews();
+    widget.playback.foreground =
+        WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     _notifications.load();
     _glance.load();
     _catalog.addListener(_catalogChanged);
@@ -90,12 +96,24 @@ class _GlyphAppState extends State<GlyphApp> {
     _glance.catalog = _catalog.catalog;
     setState(() {});
   }
-  late final _glance = GlanceSession(devices: widget.devices, playback: widget.playback, catalog: widget.catalog, creations: widget.creations);
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    widget.playback.foreground = state == AppLifecycleState.resumed;
+  }
+
+  late final _glance = GlanceSession(
+    devices: widget.devices,
+    playback: widget.playback,
+    catalog: widget.catalog,
+    creations: widget.creations,
+  );
   late bool _onboarding = widget.showOnboarding;
   late bool _splash = widget.showSplash;
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _catalog.removeListener(_catalogChanged);
     if (widget.catalogStore == null) _catalog.dispose();
     _glance.dispose();

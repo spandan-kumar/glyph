@@ -11,6 +11,8 @@ import '../design/parts.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 import '../scope.dart';
+import '../widgets/preview_clock.dart';
+import '../widgets/preview_visibility.dart';
 import 'stage_morph.dart';
 import 'tune_controller.dart';
 
@@ -144,30 +146,31 @@ class _SwipeHint extends StatefulWidget {
   State<_SwipeHint> createState() => _SwipeHintState();
 }
 
-class _SwipeHintState extends State<_SwipeHint> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
+class _SwipeHintState extends State<_SwipeHint> {
+  final _c = ValueNotifier(0.0);
+  late final _ticker = PreviewTicker((elapsed) {
+    if (!previewIsVisible(context)) return;
+    _c.value = elapsed.inMicroseconds % 1600000 / 1600000;
+  });
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // A decorative nudge: under reduced motion the hint holds still.
-    if (Lb.reduceMotion(context)) {
-      _c.stop();
-      _c.value = 0;
-    } else if (!_c.isAnimating) {
-      _c.repeat();
-    }
+    final still = Lb.reduceMotion(context);
+    _ticker.bind(context, enabled: !still);
+    if (still) _c.value = 0;
   }
 
   @override
   void dispose() {
+    _ticker.dispose();
     _c.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
+    return RepaintBoundary(child: AnimatedBuilder(
       animation: _c,
       builder: (context, _) {
         final n = sin(_c.value * 2 * pi) * 4;
@@ -182,7 +185,7 @@ class _SwipeHintState extends State<_SwipeHint> with SingleTickerProviderStateMi
           ],
         );
       },
-    );
+    ));
   }
 }
 
@@ -438,6 +441,7 @@ class SendButton extends StatelessWidget {
         label: label,
         excludeSemantics: true,
         child: Material(
+          animationDuration: Duration.zero,
           color: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: const BorderRadius.all(Radius.circular(Lb.rControl)),
@@ -470,6 +474,8 @@ class SendButton extends StatelessWidget {
       button: true,
       label: label,
       child: Material(
+        // AmbientController already smooths this border's colour.
+        animationDuration: Duration.zero,
         color: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: const BorderRadius.all(Radius.circular(Lb.rControl)),

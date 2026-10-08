@@ -9,6 +9,8 @@ import '../design/parts.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 import '../screens/home_shell.dart';
+import '../widgets/preview_clock.dart';
+import '../widgets/preview_visibility.dart';
 
 // Shared chrome for the Make studio and the feature screens it opens
 // (editor, text, import, music, games). Lives here rather than in
@@ -184,24 +186,25 @@ class LivePulse extends StatefulWidget {
   State<LivePulse> createState() => _LivePulseState();
 }
 
-class _LivePulseState extends State<LivePulse> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
+class _LivePulseState extends State<LivePulse> {
+  final _phase = ValueNotifier(0.0);
+  late final _ticker = PreviewTicker((elapsed) {
+    if (!previewIsVisible(context)) return;
+    _phase.value = elapsed.inMicroseconds % 1400000 / 1400000;
+  });
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Decorative: holds a still, lit dot under reduced motion.
-    if (Lb.reduceMotion(context)) {
-      _c.stop();
-      _c.value = 0;
-    } else if (!_c.isAnimating) {
-      _c.repeat();
-    }
+    final still = Lb.reduceMotion(context);
+    _ticker.bind(context, enabled: !still);
+    if (still) _phase.value = 0;
   }
 
   @override
   void dispose() {
-    _c.dispose();
+    _ticker.dispose();
+    _phase.dispose();
     super.dispose();
   }
 
@@ -211,9 +214,8 @@ class _LivePulseState extends State<LivePulse> with SingleTickerProviderStateMix
     return Row(mainAxisSize: MainAxisSize.min, children: [
       SizedBox.square(
         dimension: 16,
-        child: AnimatedBuilder(
-          animation: _c,
-          builder: (context, _) => CustomPaint(painter: _PulsePainter(_c.value, accent)),
+        child: RepaintBoundary(
+          child: CustomPaint(painter: _PulsePainter(_phase, accent)),
         ),
       ),
       const SizedBox(width: 6),
@@ -228,9 +230,9 @@ class _LivePulseState extends State<LivePulse> with SingleTickerProviderStateMix
 }
 
 class _PulsePainter extends CustomPainter {
-  _PulsePainter(this.t, this.color);
+  _PulsePainter(this.t, this.color) : super(repaint: t);
 
-  final double t;
+  final ValueNotifier<double> t;
   final Color color;
 
   @override
@@ -238,11 +240,11 @@ class _PulsePainter extends CustomPainter {
     final c = size.center(Offset.zero);
     canvas.drawCircle(
         c,
-        3 + 5 * t,
+        3 + 5 * t.value,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.2
-          ..color = color.withValues(alpha: 0.7 * (1 - t)));
+          ..color = color.withValues(alpha: 0.7 * (1 - t.value)));
     canvas.drawCircle(c, 5, Paint()..color = color.withValues(alpha: 0.25));
     canvas.drawCircle(c, 3, Paint()..color = color);
   }

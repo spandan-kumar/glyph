@@ -283,6 +283,7 @@ void main() {
           expect(fake.posts.last.$2, {'live': false});
         }
         expect(tester.takeException(), isNull);
+        playback.pause();
       },
     );
   }

@@ -284,6 +284,25 @@ class NotificationController extends ChangeNotifier {
     if (_queue.isEmpty) return;
     _busy = true;
     final a = _queue.removeAt(0), generation = _generation;
+    try {
+      await BackgroundStreaming.duringWork(
+        () => _showAlert(a, generation, preview),
+      );
+    } catch (_) {
+      if (!_disposed && generation == _generation) {
+        error = 'Couldn\'t keep the alert awake. Try turning alerts off and on.';
+        notifyListeners();
+      }
+    } finally {
+      _busy = false;
+      if (!_disposed && _context == null && _queue.isNotEmpty) {
+        unawaited(_drain(preview: _queue.first.key == 'preview'));
+      }
+    }
+  }
+
+  Future<void> _showAlert(LogoAlert a, int generation, bool preview) async {
+    if (_disposed || generation != _generation || !canShow) return;
     final client = devices.client!;
     final info = devices.caps!;
     final c = _AlertContext(a, client, devices, playback);
@@ -350,10 +369,6 @@ class NotificationController extends ChangeNotifier {
         await (began && _shouldRestore(c) ? c.restore() : c.restoreOverride())
             .catchError((_) {});
       }
-      _busy = false;
-      if (!_disposed && _context == null && _queue.isNotEmpty) {
-        unawaited(_drain(preview: _queue.first.key == 'preview'));
-      }
     }
   }
 
@@ -364,9 +379,11 @@ class NotificationController extends ChangeNotifier {
     _timer?.cancel();
     _timer = null;
     _busy = true;
-    playback.endAlert();
     try {
-      if (_shouldRestore(c)) await c.restore();
+      await BackgroundStreaming.duringWork(() async {
+        playback.endAlert();
+        if (_shouldRestore(c)) await c.restore();
+      });
     } catch (_) {
       if (!_disposed) {
         error = 'Couldn’t confirm your device left the logo; it clears itself when live playback times out.';
@@ -391,7 +408,9 @@ class NotificationController extends ChangeNotifier {
     _context = null;
     if (c != null) {
       playback.endAlert();
-      if (_shouldRestore(c)) _handoff = c.restore().catchError((_) {});
+      if (_shouldRestore(c)) {
+        _handoff = BackgroundStreaming.duringWork(c.restore).catchError((_) {});
+      }
     }
   }
 

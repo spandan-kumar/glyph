@@ -12,8 +12,12 @@ void main() {
   late bool running;
   late List<String> calls;
   late List<Object?> startArgs;
+  late List<bool> power;
   setUp(() {
     BackgroundStreaming.debugReset();
+    power = [];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('glyph/power'), (call) async { power.add(call.arguments as bool); return null; });
     running = false;
     calls = [];
     startArgs = [];
@@ -42,12 +46,15 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
-  test('monitor remains awake without a stream; releasing its last owner stops service', () async {
+  test('idle monitor stays foreground without locks; releasing its last owner stops service', () async {
     final playback = PlaybackController();
     addTearDown(playback.dispose);
     BackgroundStreaming.watch(playback);
     final owner = Object();
     expect(await BackgroundStreaming.retain(owner, () {}), isTrue);
+    expect(power, isEmpty);
+    expect(startArgs.single.toString(), contains('allowWakeLock: false'));
+    expect(startArgs.single.toString(), contains('allowWifiLock: false'));
     playback.pause();
     await BackgroundStreaming.stop();
     expect(BackgroundStreaming.isRunning, isTrue);
@@ -56,6 +63,83 @@ void main() {
     await BackgroundStreaming.release(owner);
     expect(BackgroundStreaming.isRunning, isFalse);
     expect(running, isFalse);
+  });
+
+  test('nested alert work holds locks only until restoration completes', () async {
+    final playback = PlaybackController();
+    addTearDown(playback.dispose);
+    BackgroundStreaming.watch(playback);
+    final owner = Object();
+    await BackgroundStreaming.retain(owner, () {});
+    await BackgroundStreaming.duringWork(() async {
+      expect(power, [true]);
+      await BackgroundStreaming.duringWork(() async {
+        expect(power, [true]);
+      });
+      expect(power, [true]);
+    });
+    expect(power, [true, false]);
+    await BackgroundStreaming.release(owner);
+  });
+
+  test('removing the last monitor waits for in-flight restoration before stopping', () async {
+    final playback = PlaybackController();
+    addTearDown(playback.dispose);
+    BackgroundStreaming.watch(playback);
+    final owner = Object();
+    await BackgroundStreaming.retain(owner, () {});
+    await BackgroundStreaming.duringWork(() async {
+      await BackgroundStreaming.release(owner);
+      expect(running, true);
+      expect(power, [true]);
+    });
+    expect(running, false);
+    expect(power, [true, false]);
+  });
+
+  test('failed alert preparation releases locks and leaves monitoring alive', () async {
+    final playback = PlaybackController();
+    addTearDown(playback.dispose);
+    BackgroundStreaming.watch(playback);
+    final owner = Object();
+    await BackgroundStreaming.retain(owner, () {});
+    await expectLater(BackgroundStreaming.duringWork(() async { throw StateError('offline'); }), throwsStateError);
+    expect(power, [true, false]);
+    expect(running, true);
+    await BackgroundStreaming.release(owner);
+  });
+
+  test('a power permission failure stops the service and reports start failure', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('glyph/power'), (_) async {
+          throw PlatformException(code: 'power');
+        });
+    expect(await BackgroundStreaming.start(title: 'Audio', microphone: true, onStop: () {}), false);
+    expect(running, false);
+    expect(BackgroundStreaming.isRunning, false);
+  });
+
+  test('power locks follow a monitored stream and device power without service restarts', () async {
+    final playback = PlaybackController()..managePreviews();
+    addTearDown(playback.dispose);
+    BackgroundStreaming.watch(playback);
+    final owner = Object();
+    await BackgroundStreaming.retain(owner, () {});
+    playback.playGenerator(NotificationLogoGenerator(NotificationLogo.fallback));
+    await playback.startStreamingTo([const DdpTarget('127.0.0.1')]);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(power.last, true);
+    playback.streamHeld = true;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(power.last, false);
+    playback.streamHeld = false;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(power.last, true);
+    await playback.stopStreaming();
+    await BackgroundStreaming.stop();
+    expect(power.last, false);
+    expect(calls.where((c) => c == 'startService'), hasLength(1));
+    await BackgroundStreaming.release(owner);
   });
 
   test(

@@ -8,30 +8,41 @@ import '../../engine/registry.dart';
 import '../../library/catalog.dart';
 import '../design/tokens.dart';
 import 'led_matrix_view.dart';
+import 'preview_visibility.dart';
+import 'preview_clock.dart';
 
-/// Caps how many previews render per vsync so a screen full of thumbnails
-/// never blows the frame budget. Previews that miss a slot try again next
-/// frame; anything starved for too long goes through regardless.
+/// A strict cap shared by every thumbnail, including audio and games.
 abstract final class PreviewBudget {
-  static int maxPerFrame = 10;
+  static int maxPerFrame = 4;
   static Duration _stamp = Duration.zero;
   static int _used = 0;
+  static final _waiting = <BuildContext>{};
 
-  static bool take({required bool starving}) {
+  static void forget(BuildContext context) => _waiting.remove(context);
+
+  static bool take(BuildContext context) {
+    if (!previewIsVisible(context)) {
+      _waiting.remove(context);
+      return false;
+    }
     final now = SchedulerBinding.instance.currentFrameTimeStamp;
     if (now != _stamp) {
       _stamp = now;
       _used = 0;
+      _waiting.removeWhere((c) => !c.mounted ||
+          !TickerMode.getValuesNotifier(c).value.enabled ||
+          !previewIsVisible(c));
     }
-    if (_used >= maxPerFrame && !starving) return false;
+    _waiting.add(context);
+    if (_used >= maxPerFrame || !identical(_waiting.first, context)) return false;
+    _waiting.remove(context);
     _used++;
     return true;
   }
 }
 
-/// A self-running LED thumbnail. Grids and rails build lazily, so only
-/// on-screen previews exist; they also pause while a fast fling is in
-/// progress and whenever an ancestor [TickerMode] is off. No bloom: tiles
+/// A self-running LED thumbnail. Pauses off-screen, during fast flings
+/// and whenever an ancestor [TickerMode] is off. No bloom: tiles
 /// stay cheap, the Stage is the only thing that glows.
 class LivePreview extends StatefulWidget {
   /// A catalog look.
@@ -81,16 +92,15 @@ class LivePreview extends StatefulWidget {
   State<LivePreview> createState() => _LivePreviewState();
 }
 
-class _LivePreviewState extends State<LivePreview> with SingleTickerProviderStateMixin {
-  static const _interval = Duration(milliseconds: 40); // ~25 fps
-  static const _starving = Duration(milliseconds: 200);
+class _LivePreviewState extends State<LivePreview> {
+  static const _interval = Duration(milliseconds: 83); // ~12 fps
 
   late Frame _frame;
   late EffectInstance _instance;
   late Params _params;
   late Palette _palette;
   late double _speed;
-  late final Ticker _ticker;
+  late final PreviewTicker _ticker;
   final _tick = ValueNotifier(0);
   Duration _last = Duration.zero;
   double _t = 0;
@@ -99,7 +109,13 @@ class _LivePreviewState extends State<LivePreview> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _setup();
-    _ticker = createTicker(_onTick)..start();
+    _ticker = PreviewTicker(_onTick);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ticker.bind(context);
   }
 
   void _setup() {
@@ -125,7 +141,7 @@ class _LivePreviewState extends State<LivePreview> with SingleTickerProviderStat
     final since = elapsed - _last;
     if (since < _interval) return;
     if (Scrollable.recommendDeferredLoadingForContext(context)) return;
-    if (!PreviewBudget.take(starving: since > _starving)) return;
+    if (!PreviewBudget.take(context)) return;
     final dt = (since.inMicroseconds / 1e6).clamp(0.0, 0.1) * _speed;
     _last = elapsed;
     _t += dt;
@@ -135,18 +151,17 @@ class _LivePreviewState extends State<LivePreview> with SingleTickerProviderStat
 
   @override
   void dispose() {
+    PreviewBudget.forget(context);
     _ticker.dispose();
     _tick.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => RepaintBoundary(
-        child: LedMatrixView(
+  Widget build(BuildContext context) => LedMatrixView(
           frame: _frame,
           repaint: _tick,
           borderRadius: widget.borderRadius,
           bezel: widget.bezel,
-        ),
       );
 }
