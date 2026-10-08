@@ -223,7 +223,8 @@ abstract final class BackgroundStreaming {
         allowWifiLock: false,
         // A restarted service would have no render loop behind it.
         allowAutoRestart: false,
-        stopWithTask: true,
+        // Use AndroidManifest's stopWithTask flag for task removal. Plugin
+        // 11's Dart override also stops on activity pause (Home/screen off).
       ),
     );
   }

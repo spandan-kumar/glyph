@@ -46,6 +46,20 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
+  test('background audio keeps its service when the activity pauses', () async {
+    expect(await BackgroundStreaming.start(
+      title: 'Music', microphone: true, onStop: () {},
+    ), isTrue);
+    final args = startArgs.single as Map;
+    // Leave task removal to Android's manifest flag. Plugin 11's override
+    // stops on activity pause, including Home/lock.
+    expect(args, isNot(contains('stopWithTask')));
+    expect(args['serviceTypes'], contains(ForegroundServiceTypes.microphone.rawValue));
+    await BackgroundStreaming.stop();
+    expect(power, [true, false]);
+    expect(running, isFalse);
+  });
+
   test('idle monitor stays foreground without locks; releasing its last owner stops service', () async {
     final playback = PlaybackController();
     addTearDown(playback.dispose);
