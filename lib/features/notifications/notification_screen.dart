@@ -86,7 +86,7 @@ class _NotificationScreenState extends State<NotificationScreen> with WidgetsBin
     } catch (_) {
       if (mounted) {
         setState(() {
-          _appsError = 'Couldn\'t load your apps.';
+          _appsError = 'Couldn’t load your apps.';
           _loading = false;
         });
       }
@@ -117,7 +117,7 @@ class _NotificationScreenState extends State<NotificationScreen> with WidgetsBin
     try {
       await _controller!.service.openSettings();
     } catch (_) {
-      if (mounted) studioToast(context, 'Couldn\'t open Android settings.');
+      if (mounted) studioToast(context, 'Couldn’t open Android settings.');
     }
   }
 
@@ -129,7 +129,7 @@ class _NotificationScreenState extends State<NotificationScreen> with WidgetsBin
     try {
       await c.preview(package);
     } catch (_) {
-      if (mounted) studioToast(context, 'Couldn\'t show it. Is your device on?');
+      if (mounted) studioToast(context, 'Couldn’t show it. Is your device on?');
     } finally {
       if (mounted) setState(() => _testing = false);
     }
@@ -235,7 +235,7 @@ class _NotificationScreenState extends State<NotificationScreen> with WidgetsBin
               ]),
               const SizedBox(height: 10),
               if (!c.service.supported)
-                LbPanel(child: Text('Alerts need Android: iPhones don\'t share other apps\' notifications.', style: LbType.small))
+                LbPanel(child: Text('Alerts need Android: iPhones don’t share other apps\' notifications.', style: LbType.small))
               else if (_loading)
                 const Center(child: Padding(padding: EdgeInsets.all(20), child: LedSpinner()))
               else if (_appsError != null)
@@ -303,7 +303,7 @@ class _NotificationScreenState extends State<NotificationScreen> with WidgetsBin
               ),
               const SizedBox(height: 20),
               Text(
-                'Alerts run from your phone, so it needs to stay on your device\'s Wi-Fi with Glyph open or in the background. '
+                'Alerts run from your phone, so it needs to stay on your device’s Wi-Fi with Glyph open or in the background. '
                 'They wait while you draw, play a game or send something.',
                 style: LbType.small.copyWith(color: Lb.text3),
               ),
@@ -347,7 +347,7 @@ class _StatusLine extends StatelessWidget {
         child: live
             ? LivePulse(label: text)
             : Row(mainAxisSize: MainAxisSize.min, children: [
-                StatusDot(on: c.monitoring, size: 7),
+                StatusDot(on: c.monitoring),
                 const SizedBox(width: 8),
                 MonoLabel(text),
               ]),
@@ -367,7 +367,7 @@ class _PrimaryAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = controller;
-    const tall = Size.fromHeight(52);
+    const tall = Size.fromHeight(Lb.cta);
     if (!c.service.supported) {
       return const FilledButton(onPressed: null, child: Text('Android only for now'));
     }
@@ -463,23 +463,13 @@ class _AppGrid extends StatelessWidget {
                   duration: Lb.fast,
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: on ? accent.withValues(alpha: 0.10) : Lb.panel,
+                    // Chosen is the room-colour frame alone; the room fill only
+                    // marks which chosen app is being previewed.
+                    color: on && focus == a.package ? accent.withValues(alpha: 0.10) : Lb.panel,
                     borderRadius: BorderRadius.circular(Lb.rControl),
-                    border: Border.all(color: on ? accent : Lb.line, width: on && focus == a.package ? 2 : 1),
+                    border: Border.all(color: on ? accent : Lb.line, width: on ? 1.5 : 1),
                   ),
-                  child: Stack(fit: StackFit.expand, children: [
-                    Opacity(opacity: on ? 1 : 0.55, child: _AppIcon(service: service, package: a.package)),
-                    if (on)
-                      Positioned(
-                        right: 2,
-                        top: 2,
-                        child: Container(
-                          width: 7,
-                          height: 7,
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
-                        ),
-                      ),
-                  ]),
+                  child: Opacity(opacity: on ? 1 : 0.55, child: _AppIcon(service: service, package: a.package)),
                 ),
               ),
               const SizedBox(height: 6),

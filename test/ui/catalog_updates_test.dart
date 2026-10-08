@@ -233,7 +233,7 @@ void main() {
       });
       await tester.pump();
       expect(calls, 2);
-      expect(find.text('Couldn\'t check — are you online?'), findsOneWidget);
+      expect(find.text('Couldn’t check — are you online?'), findsOneWidget);
       expect(store.catalog.byId('remote-dot-item'), isNotNull);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

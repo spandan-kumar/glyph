@@ -26,7 +26,6 @@ class CatalogUpdatesScreen extends StatelessWidget {
   }
 
   Widget _content(BuildContext context, CatalogStore store) {
-    final accent = readAccent(context);
     final (status, statusColor) = !store.enabled
         ? ('New animations arrive with app updates for now.', Lb.text2)
         : store.checking
@@ -34,7 +33,7 @@ class CatalogUpdatesScreen extends StatelessWidget {
             : store.needsNewerApp
                 ? ('There are new animations for a newer Glyph.', Lb.phosphor)
                 : store.failed
-                    ? ('Couldn\'t check — are you online?', Lb.text2)
+                    ? ('Couldn’t check — are you online?', Lb.danger)
                     : store.lastAttempt == null
                         ? ('Not checked yet.', Lb.text2)
                         : ('Up to date · checked ${_ago(store.lastAttempt!)}', Lb.text2);
@@ -58,7 +57,7 @@ class CatalogUpdatesScreen extends StatelessWidget {
                   ),
                 );
               },
-              child: LedText('${store.catalog.items.length}', key: ValueKey('${store.catalog.items.length}'), dot: 7, color: accent),
+              child: LedText('${store.catalog.items.length}', key: ValueKey('${store.catalog.items.length}'), dot: 7, color: Lb.text),
             ),
           ),
           const SizedBox(height: 10),
@@ -103,7 +102,7 @@ class CatalogUpdatesScreen extends StatelessWidget {
             store.enabled
                 ? 'New animations come from ${store.remote!.url.host} and are signed, so only official Glyph '
                     'animations get in. Glyph sends nothing about you or your device; like any download, the '
-                    'server sees your connection\'s address.'
+                    'server sees your connection’s address.'
                 : 'When this switches on, new animations will download straight into your library — no app '
                     'update needed.',
             style: LbType.small.copyWith(color: Lb.text3),

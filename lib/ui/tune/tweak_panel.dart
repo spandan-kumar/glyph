@@ -49,8 +49,8 @@ class TweakPanel extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(Lb.gutter, 10, 8, 0),
                   child: Column(children: [
                     Container(
-                      width: 36,
-                      height: 4,
+                      width: 28,
+                      height: 3,
                       decoration: BoxDecoration(color: Lb.line, borderRadius: BorderRadius.circular(Lb.rTile)),
                     ),
                     const SizedBox(height: 6),
@@ -66,10 +66,11 @@ class TweakPanel extends StatelessWidget {
                       TextButton(
                         onPressed: onClose,
                         style: TextButton.styleFrom(
+                          minimumSize: const Size(Lb.touch, Lb.touch),
                           shape: const RoundedRectangleBorder(
                               borderRadius: BorderRadius.all(Radius.circular(Lb.rControl))),
                         ),
-                        child: Text('DONE', style: LbType.label.copyWith(color: Lb.text)),
+                        child: Text('Done', style: LbType.bodyStrong),
                       ),
                     ]),
                   ]),
@@ -130,18 +131,21 @@ class TweakPanel extends StatelessWidget {
                     label: 'Device',
                     child: Row(children: [
                       Expanded(
-                        child: Text('Show this on your device',
+                        child: Text('This look is only on your phone.',
                             style: LbType.body, maxLines: 2, overflow: TextOverflow.ellipsis),
                       ),
                       OutlinedButton(
-                        onPressed: () => GlyphActions.ensureStreaming(context),
+                        onPressed: () {
+                          HapticFeedback.mediumImpact(); // starts streaming to the device
+                          GlyphActions.ensureStreaming(context);
+                        },
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: accent),
-                          minimumSize: const Size(64, 40),
+                          minimumSize: const Size(64, Lb.touch),
                           shape: const RoundedRectangleBorder(
                               borderRadius: BorderRadius.all(Radius.circular(Lb.rControl))),
                         ),
-                        child: Text('SHOW', style: LbType.label.copyWith(color: Lb.text)),
+                        child: Text('Show on device', style: LbType.bodyStrong),
                       ),
                     ]),
                   ),
@@ -259,7 +263,7 @@ class _PaletteStripState extends State<PaletteStrip> {
                 ),
               ),
             ),
-            // The notch that marks "on the matrix".
+            // The notch that marks "on the device".
             IgnorePointer(
               child: Container(
                 width: 18,

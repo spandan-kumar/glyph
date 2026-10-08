@@ -87,7 +87,7 @@ class _RotationEditorState extends State<RotationEditor> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = 'Couldn\'t save. Try again.';
+          _error = 'Couldn’t save. Try again.';
         });
       }
     }
@@ -204,7 +204,7 @@ class _RotationEditorState extends State<RotationEditor> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Anything that isn\'t available — a deleted card, weather with no signal — is skipped. '
+            'Anything that isn’t available — a deleted card, weather with no signal — is skipped. '
             'A notification alert pauses the rotation, then it carries on.',
             style: LbType.small.copyWith(color: Lb.text3),
           ),
@@ -344,7 +344,10 @@ class _ChooseEntryState extends State<_ChooseEntry> {
                     ButtonSegment(value: ShowEntryKind.creation, label: Text('Yours')),
                   ],
                   selected: {_kind},
-                  onSelectionChanged: (v) => setState(() => _kind = v.first),
+                  onSelectionChanged: (v) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _kind = v.first);
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextField(

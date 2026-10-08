@@ -5,6 +5,7 @@ import '../../app/community.dart';
 import '../../app/whats_new.dart';
 import '../../features/device/widgets/common.dart';
 import '../design/parts.dart';
+import '../design/route.dart';
 import '../tune/stage_deck.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
@@ -24,11 +25,14 @@ class GlyphMenuKey extends StatelessWidget {
       SquareKey(icon: Icons.more_horiz_sharp, label: 'Community & help', onTap: () => showGlyphMenu(context));
 }
 
-Future<void> showGlyphMenu(BuildContext context) => showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => _GlyphMenu(parent: context),
-    );
+Future<void> showGlyphMenu(BuildContext context) {
+  HapticFeedback.selectionClick(); // opening a sheet is a pick
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) => _GlyphMenu(parent: context),
+  );
+}
 
 class _GlyphMenu extends StatelessWidget {
   const _GlyphMenu({required this.parent});
@@ -69,7 +73,7 @@ class _GlyphMenu extends StatelessWidget {
                   (c) => openCommunityLink(c, Community.discord)),
               row(Icons.photo_camera_sharp, 'Share your setup', 'Show what yours looks like', _out,
                   (c) => openCommunityLink(c, Community.showAndTell)),
-              row(Icons.map_sharp, 'Roadmap', 'What\'s coming next', _out,
+              row(Icons.map_sharp, 'Roadmap', 'What’s coming next', _out,
                   (c) => openCommunityLink(c, Community.roadmap)),
             ]),
             const SizedBox(height: 20),
@@ -78,9 +82,9 @@ class _GlyphMenu extends StatelessWidget {
             RowGroup(children: [
               row(Icons.bug_report_sharp, 'Send feedback', 'Something not right? Tell us', _more,
                   sendFeedback),
-              row(Icons.auto_awesome_sharp, 'Suggest an animation', 'Something you\'d love to see', _out,
+              row(Icons.auto_awesome_sharp, 'Suggest an animation', 'Something you’d love to see', _out,
                   (c) => suggestAnimation(c)),
-              row(Icons.grid_on_sharp, 'Request display support', 'A panel or controller Glyph doesn\'t handle yet',
+              row(Icons.grid_on_sharp, 'Request display support', 'A panel or controller Glyph doesn’t handle yet',
                   _out, requestDisplaySupport),
             ]),
             const SizedBox(height: 20),
@@ -91,8 +95,8 @@ class _GlyphMenu extends StatelessWidget {
               // animations simply arrive with app updates.
               if (AppScope.of(context).catalogStore?.enabled ?? false)
                 row(Icons.download_sharp, 'New animations', 'Get the latest without an app update', _more,
-                    (c) => Navigator.of(c).push(MaterialPageRoute<void>(builder: (_) => const CatalogUpdatesScreen()))),
-              row(Icons.new_releases_sharp, 'What\'s new', null, _more, showWhatsNew),
+                    (c) => Navigator.of(c).push(lbRoute<void>((_) => const CatalogUpdatesScreen()))),
+              row(Icons.new_releases_sharp, 'What’s new', null, _more, showWhatsNew),
               row(Icons.code_sharp, 'Source code', 'MIT licence · GitHub', _out,
                   (c) => openCommunityLink(c, Uri.parse(Community.repo))),
             ]),
@@ -157,7 +161,7 @@ Future<void> openCommunityLink(BuildContext context, Uri uri) async {
   final ok = await Community.launcher(uri);
   if (ok || !context.mounted) return;
   await Clipboard.setData(ClipboardData(text: uri.toString()));
-  if (context.mounted) toast(context, 'Couldn\'t open a browser. The link is copied.');
+  if (context.mounted) toast(context, 'Couldn’t open a browser. The link is copied.');
 }
 
 /// Gathers diagnostics and shows exactly what a report will include before

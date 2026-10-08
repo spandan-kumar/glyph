@@ -9,6 +9,7 @@ import '../../engine/frame.dart';
 import '../../engine/generator.dart';
 import '../../engine/palette.dart';
 import '../../ui/design/parts.dart';
+import '../../ui/design/route.dart';
 import '../../ui/design/toggle.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
@@ -161,7 +162,7 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
     if (!mounted) return;
     setState(() => _starting = false);
     if (!ok) {
-      studioToast(context, 'Couldn\'t show it. Check that your device is on and reachable.');
+      studioToast(context, 'Couldn’t show it. Check that your device is on and reachable.');
       return;
     }
     if (_wantBackground && BackgroundStreaming.supported && !s.background) {
@@ -173,15 +174,15 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
     _wantBackground = on;
     final ok = await _session!.setBackground(on);
     if (!ok && on && mounted) {
-      studioToast(context, 'Couldn\'t keep it running. Keep Glyph open to show this.');
+      studioToast(context, 'Couldn’t keep it running. Keep Glyph open to show this.');
     }
     if (mounted) setState(() {});
   }
 
   Future<void> _editCard({GlanceCard? card, GlanceKind kind = GlanceKind.counter}) async {
     final id = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => GlanceCardEditor(session: _session!, card: card, kind: card?.kind ?? kind),
+      lbRoute(
+        (_) => GlanceCardEditor(session: _session!, card: card, kind: card?.kind ?? kind),
       ),
     );
     if (id != null && mounted) setState(() => _focus = _CardFocus(id));
@@ -189,7 +190,7 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
 
   Future<void> _editRotation([PhoneShow? rotation]) async {
     final id = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => RotationEditor(session: _session!, show: rotation)),
+      lbRoute((_) => RotationEditor(session: _session!, show: rotation)),
     );
     if (id != null && mounted) setState(() => _focus = _RotationFocus(id));
   }
@@ -327,7 +328,7 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
                 ])
               else
                 FilledButton.icon(
-                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(Lb.cta)),
                   onPressed: _starting
                       ? null
                       : generator == null
@@ -376,7 +377,7 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
               ),
               const SizedBox(height: 24),
               Text(
-                'Glance plays live from your phone, so keep it on your device\'s Wi-Fi. '
+                'Glance plays live from your phone, so keep it on your device’s Wi-Fi. '
                 'For something that plays on its own, use Send on Display.',
                 style: LbType.small.copyWith(color: Lb.text3),
               ),
@@ -396,7 +397,8 @@ class _BackgroundRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LbPanel(
         padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
-        child: LbToggleTileCompat(
+        child: LbToggleTile(
+          padding: const EdgeInsets.symmetric(vertical: 12),
           title: 'Keep showing after you leave',
           subtitle: value ? 'Stop it here or from the notification' : 'Stops when you leave this screen',
           value: value,
@@ -428,6 +430,7 @@ class _CardGrid extends StatelessWidget {
         _Tile(
           key: ValueKey(c.id),
           selected: focus == _CardFocus(c.id),
+          playing: _playing(session, 'glance:${c.id}'),
           accent: accent,
           label: c.title,
           line: cardShortLine(session, c),
@@ -453,10 +456,28 @@ class _CardGrid extends StatelessWidget {
   }
 }
 
+/// Whether the generator with [id] is what this session is showing on the
+/// device right now.
+bool _playing(GlanceSession s, String id) => s.playing && s.playback.generator?.id == id;
+
+/// "Playing on the device": a room-colour dot ringed in ink, top right.
+class _PlayingDot extends StatelessWidget {
+  const _PlayingDot({required this.accent});
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: Lb.statusDot,
+        height: Lb.statusDot,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: accent, border: Border.all(color: Lb.ink)),
+      );
+}
+
 class _Tile extends StatelessWidget {
   const _Tile({
     super.key,
     required this.selected,
+    this.playing = false,
     required this.accent,
     required this.label,
     required this.line,
@@ -464,7 +485,7 @@ class _Tile extends StatelessWidget {
     required this.onLongPress,
     required this.child,
   });
-  final bool selected;
+  final bool selected, playing;
   final Color accent;
   final String label, line;
   final VoidCallback onTap, onLongPress;
@@ -487,7 +508,10 @@ class _Tile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(Lb.rControl),
                   border: Border.all(color: selected ? accent : Lb.line, width: selected ? 1.5 : 1),
                 ),
-                child: Center(child: AspectRatio(aspectRatio: 1, child: child)),
+                child: Stack(children: [
+                  Center(child: AspectRatio(aspectRatio: 1, child: child)),
+                  if (playing) Positioned(top: 3, right: 3, child: _PlayingDot(accent: accent)),
+                ]),
               ),
             ),
             const SizedBox(height: 6),
@@ -567,9 +591,15 @@ class _RotationList extends StatelessWidget {
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(Lb.rTile),
-                    border: Border.all(color: focus == _RotationFocus(r.id) ? accent : Lb.line),
+                    border: Border.all(
+                        color: focus == _RotationFocus(r.id) ? accent : Lb.line,
+                        width: focus == _RotationFocus(r.id) ? 1.5 : 1),
                   ),
-                  child: LedLoop(generator: session.showGenerator(r), resetKey: r, borderRadius: Lb.rTile),
+                  child: Stack(children: [
+                    Positioned.fill(child: LedLoop(generator: session.showGenerator(r), resetKey: r, borderRadius: Lb.rTile)),
+                    if (_playing(session, session.showGenerator(r).id))
+                      Positioned(top: 0, right: 0, child: _PlayingDot(accent: accent)),
+                  ]),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -603,33 +633,6 @@ class _RotationList extends StatelessWidget {
       ]),
     );
   }
-}
-
-/// A toggle row without the default vertical padding of LbToggleTile.
-class LbToggleTileCompat extends StatelessWidget {
-  const LbToggleTileCompat({super.key, required this.title, this.subtitle, required this.value, this.onChanged});
-  final String title;
-  final String? subtitle;
-  final bool value;
-  final ValueChanged<bool>? onChanged;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onChanged == null ? null : () => onChanged!(!value),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(children: [
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: LbType.body),
-                if (subtitle != null) Text(subtitle!, style: LbType.small),
-              ]),
-            ),
-            const SizedBox(width: 12),
-            LbToggle(value: value, onChanged: onChanged),
-          ]),
-        ),
-      );
 }
 
 String rotationLine(PhoneShow r) {
@@ -817,7 +820,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
       });
     } catch (_) {
       if (mounted && generation == _searchGeneration) {
-        setState(() => _error = 'Couldn\'t search. Check your connection.');
+        setState(() => _error = 'Couldn’t search. Check your connection.');
       }
     } finally {
       if (mounted && generation == _searchGeneration) setState(() => _searching = false);
@@ -876,7 +879,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = 'Couldn\'t save. Try again.';
+          _error = 'Couldn’t save. Try again.';
         });
       }
     }
@@ -938,7 +941,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
           ],
           const SizedBox(height: 20),
           FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(Lb.cta)),
             onPressed: _saving || !ready ? null : _save,
             child: Text(_saving ? 'Saving…' : 'Save card'),
           ),
@@ -1039,7 +1042,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
               alignment: Alignment.centerLeft,
               child: TextButton(
                 onPressed: () => setState(() => _manual = true),
-                child: const Text('Can\'t find it? Enter coordinates'),
+                child: const Text('Can’t find it? Enter coordinates'),
               ),
             )
           else ...[
@@ -1073,13 +1076,13 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
       ];
 
   List<Widget> _counterFields() => [
-        const MonoLabel('What\'s the day?'),
+        const MonoLabel('What’s the day?'),
         const SizedBox(height: 8),
         TextField(
           controller: _title,
           maxLength: 64,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(hintText: 'Goa trip, Mia\'s birthday…', counterText: ''),
+          decoration: const InputDecoration(hintText: 'Goa trip, Mia’s birthday…', counterText: ''),
           onChanged: (_) => setState(() => _titleEdited = true),
         ),
         const SizedBox(height: 18),
@@ -1091,11 +1094,14 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
             ButtonSegment(value: CounterMode.since, label: Text('Counting up since')),
           ],
           selected: {_mode},
-          onSelectionChanged: (v) => setState(() => _mode = v.first),
+          onSelectionChanged: (v) {
+            HapticFeedback.selectionClick();
+            setState(() => _mode = v.first);
+          },
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(Lb.cta)),
           onPressed: _pickDate,
           icon: const Icon(Icons.event_sharp, size: 18),
           label: Text(friendlyDate(context, _date)),
@@ -1113,9 +1119,15 @@ class _Credit extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
         onTap: () => launchUrl(Uri.parse(url)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          child: Text(label.toUpperCase(), style: LbType.label),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: Lb.touch),
+          child: Center(
+            widthFactor: 1,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(label.toUpperCase(), style: LbType.label),
+            ),
+          ),
         ),
       );
 }
