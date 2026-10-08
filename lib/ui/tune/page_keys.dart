@@ -26,7 +26,7 @@ class BackToTopKey extends StatelessWidget {
     HapticFeedback.selectionClick();
     if (onTop != null) return onTop!();
     if (!scroll.hasClients) return;
-    scroll.animateTo(0, duration: Lb.slow * 1.5, curve: Curves.easeInOutCubic);
+    scroll.animateTo(0, duration: Lb.slow * 1.5, curve: Lb.easeInOut);
   }
 
   @override

@@ -188,7 +188,7 @@ class _SetupFlowState extends State<SetupFlow> with ToolSession<SetupFlow> {
           child: AnimatedSwitcher(
             duration: Lb.medium,
             switchInCurve: Lb.ease,
-            switchOutCurve: Curves.easeInCubic,
+            switchOutCurve: Lb.easeLeave,
             transitionBuilder: (child, anim) {
               final incoming = child.key == ValueKey(_step);
               final from = Offset(0.06 * _dir * (incoming ? 1 : -1), 0);
@@ -362,7 +362,7 @@ class _VibeTile extends StatelessWidget {
           dimension: 104,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: const Color(0xFF050403),
+              color: Lb.bezel,
               borderRadius: BorderRadius.circular(Lb.rControl),
               border: Border.all(color: Lb.line),
             ),

@@ -1,5 +1,4 @@
-import 'package:flutter/animation.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart';
 
 /// Colour, shape and motion tokens for the "Lightbox" design language
 /// (docs/design/UX.md). Surfaces stay neutral warm-black; colour comes from
@@ -13,6 +12,10 @@ abstract final class Lb {
   static const text2 = Color(0xFFA39C91);
   static const text3 = Color(0xFF6B655C);
   static const ledOff = Color(0xFF1D1A17);
+
+  /// The LED panel's own black behind the dots and its hardware bezel:
+  /// darker than [ink] so the matrix reads as an object.
+  static const bezel = Color(0xFF050403);
   static const phosphor = Color(0xFFFFB547);
   static const danger = Color(0xFFFF6A5C);
   static const ok = Color(0xFF7BE0A0);
@@ -31,6 +34,27 @@ abstract final class Lb {
   static const medium = Duration(milliseconds: 260);
   static const slow = Duration(milliseconds: 420);
   static const ease = Curves.easeOutCubic;
+
+  /// Two-state moves the app runs for you (the Stage morph, the dock,
+  /// back to the top).
+  static const easeInOut = Curves.easeInOutCubic;
+
+  /// The outgoing copy in a cross-slide.
+  static const easeLeave = Curves.easeInCubic;
+
+  /// The dock hiding and showing on scroll.
+  static const dock = Duration(milliseconds: 360);
+
+  // Sizes that recur: a full-width primary action, a status LED, the
+  // minimum touch target, and the big hardware keys (Device, setup).
+  static const cta = 52.0;
+  static const statusDot = 6.0;
+  static const touch = 48.0;
+  static const keyLarge = 76.0;
+
+  /// Whether the system asks for less motion. Decorative loops (pulses,
+  /// radar, demo animations) hold still; moves that carry meaning still run.
+  static bool reduceMotion(BuildContext context) => MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 
   static const hairline = BorderSide(color: line, width: 1);
 }

@@ -252,7 +252,7 @@ class _CanvasPainter extends CustomPainter {
   final bool led;
   final CanvasView view;
 
-  static const _panel = Color(0xFF050403);
+  static const _panel = Lb.bezel;
   static const _off = Lb.ledOff;
 
   @override
@@ -348,7 +348,7 @@ class _ThumbPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF050403));
+    canvas.drawRect(Offset.zero & size, Paint()..color = Lb.bezel);
     final cw = size.width / frame.width, ch = size.height / frame.height;
     final paint = Paint();
     final px = frame.rgb;

@@ -291,7 +291,7 @@ class _PaletteChip extends StatelessWidget {
         Container(
           height: 30,
           decoration: BoxDecoration(
-            color: const Color(0xFF050403),
+            color: Lb.bezel,
             borderRadius: BorderRadius.circular(Lb.rControl),
             border: Border.all(color: Lb.line),
           ),

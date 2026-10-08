@@ -6,6 +6,7 @@ import '../../app/whats_new.dart';
 import '../community/whats_new_sheet.dart';
 import '../design/ambient.dart';
 import '../design/dock.dart';
+import '../design/tokens.dart';
 import '../make/make_screen.dart';
 import '../matrix/matrix_screen.dart';
 import '../scope.dart';
@@ -155,12 +156,12 @@ class _HomeShellState extends State<HomeShell> {
             final hidden = HomeShell.dockHidden.value || _scrolledAway.value;
             return AnimatedSlide(
               offset: Offset(0, hidden ? 1.6 : 0),
-              duration: const Duration(milliseconds: 360),
-              curve: Curves.easeInOutCubic,
+              duration: Lb.dock,
+              curve: Lb.easeInOut,
               child: AnimatedOpacity(
                 opacity: hidden ? 0 : 1,
-                duration: const Duration(milliseconds: 260),
-                curve: Curves.easeOut,
+                duration: Lb.medium,
+                curve: Lb.ease,
                 child: IgnorePointer(ignoring: hidden, child: dock),
               ),
             );

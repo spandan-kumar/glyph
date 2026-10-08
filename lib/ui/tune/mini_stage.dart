@@ -102,7 +102,7 @@ class MiniStage extends StatelessWidget {
                           child: AnimatedSwitcher(
                             duration: Lb.medium,
                             switchInCurve: Lb.ease,
-                            switchOutCurve: Curves.easeInCubic,
+                            switchOutCurve: Lb.easeLeave,
                             layoutBuilder: (current, previous) => Stack(
                               alignment: Alignment.centerLeft,
                               children: [...previous, ?current],

@@ -194,7 +194,7 @@ class _MiniTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: const Color(0xFF050403),
+        color: Lb.bezel,
         borderRadius: BorderRadius.circular(Lb.rTile),
         border: Border.all(color: Lb.line),
       ),

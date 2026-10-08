@@ -192,7 +192,7 @@ class _ArrowQuestion extends StatelessWidget {
                 height: 84,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF050403),
+                  color: Lb.bezel,
                   borderRadius: BorderRadius.circular(Lb.rPanel),
                   border: Border.all(color: Lb.line),
                 ),

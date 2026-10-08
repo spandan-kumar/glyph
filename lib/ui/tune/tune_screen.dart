@@ -462,7 +462,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
         // Same pace whether it starts near an end or in the middle.
         final left = (target - _scroll.offset).abs() / _morph.travel;
         await _scroll.animateTo(target,
-            duration: Lb.slow * (0.5 + 0.5 * left.clamp(0.0, 1.0)), curve: Curves.easeInOutCubic);
+            duration: Lb.slow * (0.5 + 0.5 * left.clamp(0.0, 1.0)), curve: Lb.easeInOut);
       } finally {
         _snapping = false;
       }
@@ -716,7 +716,7 @@ class _TweakLayer extends StatelessWidget {
     final stageH = h - panelH - top - 16;
     final playback = AppScope.of(context).playback;
     final tune = TuneScope.of(context);
-    final curved = CurvedAnimation(parent: animation, curve: Lb.ease, reverseCurve: Curves.easeInCubic);
+    final curved = CurvedAnimation(parent: animation, curve: Lb.ease, reverseCurve: Lb.easeLeave);
     return Stack(
       children: [
         Positioned.fill(
@@ -1036,7 +1036,7 @@ class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
       child: AnimatedBuilder(
         animation: _c,
         builder: (context, child) {
-          final t = Curves.easeInOutCubic.transform(_c.value);
+          final t = Lb.easeInOut.transform(_c.value);
           final r = Rect.lerp(widget.from, widget.to, t)!;
           return Stack(children: [
             Positioned.fromRect(

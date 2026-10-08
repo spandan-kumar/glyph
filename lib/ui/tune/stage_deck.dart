@@ -235,7 +235,7 @@ class _Caption extends StatelessWidget {
           child: AnimatedSwitcher(
             duration: tune.shuffling ? Duration.zero : Lb.medium,
             switchInCurve: Lb.ease,
-            switchOutCurve: Curves.easeInCubic,
+            switchOutCurve: Lb.easeLeave,
             layoutBuilder: (current, previous) => Stack(
               alignment: Alignment.topLeft,
               children: [...previous, ?current],

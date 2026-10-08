@@ -62,7 +62,7 @@ class StageMorph extends ChangeNotifier {
 
   /// 0 → 1 as the twin travels; each lands just before the bar takes over
   /// ([collapsed]), the ones nearer the Stage leaving first.
-  double twinProgress(Twin id) => Curves.easeInOutCubic.transform(fade(id.leaves, 0.98));
+  double twinProgress(Twin id) => Lb.easeInOut.transform(fade(id.leaves, 0.98));
 
   /// Where the flying copy of [id] is drawn: riding the page with its home,
   /// pulled into its slot in the bar.

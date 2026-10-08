@@ -38,7 +38,7 @@ class LedMatrixView extends StatelessWidget {
     if (bezel) {
       panel = DecoratedBox(
         decoration: BoxDecoration(
-          color: const Color(0xFF050403),
+          color: Lb.bezel,
           // Crisp hardware edge: the bezel only softens by a pixel more
           // than the panel inside it.
           borderRadius: BorderRadius.circular(borderRadius + 1),
@@ -57,7 +57,7 @@ class _LedPainter extends CustomPainter {
   final Frame frame;
   final bool glow;
 
-  static final _bg = Paint()..color = const Color(0xFF050403);
+  static final _bg = Paint()..color = Lb.bezel;
   static final _off = Paint()..color = Lb.ledOff;
 
   @override

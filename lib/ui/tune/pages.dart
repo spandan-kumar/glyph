@@ -4,6 +4,7 @@ import '../community/glyph_menu.dart';
 
 import '../design/ambient.dart';
 import '../design/led_text.dart';
+import '../design/route.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 import '../scope.dart';
@@ -13,20 +14,10 @@ import 'page_keys.dart';
 import 'tiles.dart';
 import 'tune_controller.dart';
 
-Route<T> _route<T>(TuneController tune, Widget page) => PageRouteBuilder<T>(
-      transitionDuration: Lb.medium,
-      reverseTransitionDuration: Lb.fast,
-      pageBuilder: (context, _, _) => TuneScope(
+Route<T> _route<T>(TuneController tune, Widget page) => lbRoute<T>(
+      (context) => TuneScope(
         controller: tune,
         child: Scaffold(backgroundColor: Colors.transparent, body: AmbientBackdrop(child: page)),
-      ),
-      transitionsBuilder: (context, anim, _, child) => FadeTransition(
-        opacity: CurvedAnimation(parent: anim, curve: Lb.ease),
-        child: SlideTransition(
-          position: Tween(begin: const Offset(0, 0.03), end: Offset.zero)
-              .animate(CurvedAnimation(parent: anim, curve: Lb.ease)),
-          child: child,
-        ),
       ),
     );
 

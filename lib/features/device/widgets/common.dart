@@ -374,7 +374,7 @@ class LedBezel extends StatelessWidget {
     duration: Lb.fast,
     padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
-      color: const Color(0xFF050403),
+      color: Lb.bezel,
       borderRadius: BorderRadius.circular(Lb.rControl),
       border: Border.all(color: active ? accent.withValues(alpha: 0.8) : Lb.line),
       boxShadow: active ? [BoxShadow(color: accent.withValues(alpha: 0.25), blurRadius: 14)] : null,
@@ -479,7 +479,7 @@ class _DotGlyphPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF050403));
+    canvas.drawRect(Offset.zero & size, Paint()..color = Lb.bezel);
     const n = 8;
     final cell = size.shortestSide / n;
     final p = Paint();

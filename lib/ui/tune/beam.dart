@@ -131,7 +131,7 @@ class BeamPainter extends CustomPainter {
         (start.dx + to.dx) / 2 + (s - 0.5) * from.width * 0.9,
         min(start.dy, to.dy) + (start.dy - to.dy).abs() * 0.15,
       );
-      final e = Curves.easeInCubic.transform(t);
+      final e = Lb.easeLeave.transform(t);
       final pos = _quad(start, control, to, e);
       // Fade in leaving the Stage, shrink as they're absorbed.
       final a = (t < 0.15 ? t / 0.15 : 1.0) * (1 - pow(t, 6).toDouble());
