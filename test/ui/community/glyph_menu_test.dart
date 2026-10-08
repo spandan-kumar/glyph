@@ -80,7 +80,7 @@ void main() {
       'Send feedback',
       'Suggest an animation',
       'Request display support',
-      'What\'s new',
+      'What’s new',
       'Source code',
     ]) {
       expect(find.text(row), findsOneWidget, reason: row);
@@ -92,7 +92,7 @@ void main() {
 
   testWidgets('Send feedback previews what is included; Discord first, GitHub second', (tester) async {
     final playback = await pump(tester);
-    LastError.record('Couldn\'t send it: timed out talking to 192.168.1.20');
+    LastError.record('Couldn’t send it: timed out talking to 192.168.1.20');
     await openMenu(tester);
     await tester.tap(find.text('Send feedback'));
     await settle(tester);
@@ -103,7 +103,7 @@ void main() {
     final preview = tester.widget<SelectableText>(find.byType(SelectableText)).data!;
     expect(preview, contains('Glyph 1.3.0 (5)'));
     expect(preview, contains('Device: not connected'));
-    expect(preview, contains('Last error: Couldn\'t send it'));
+    expect(preview, contains('Last error: Couldn’t send it'));
     expect(preview, isNot(contains('192.168')));
 
     await tester.ensureVisible(find.text('Report on GitHub'));

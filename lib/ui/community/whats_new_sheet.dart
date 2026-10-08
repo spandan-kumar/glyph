@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/community.dart';
 import '../../features/device/widgets/common.dart';
 import '../design/tokens.dart';
-import '../make/studio_kit.dart';
 import 'glyph_menu.dart';
 
 /// The release notes for [version], ending with two quiet community links.
-Future<void> showWhatsNewSheet(BuildContext context, String version, List<String> lines) =>
-    showModalBottomSheet<void>(
+Future<void> showWhatsNewSheet(BuildContext context, String version, List<String> lines) {
+  HapticFeedback.selectionClick(); // opening a sheet is a pick
+  return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
-        final accent = readAccent(context);
         void go(Future<Uri> Function() link) async {
           Navigator.pop(ctx);
           final uri = await link();
@@ -26,8 +26,8 @@ Future<void> showWhatsNewSheet(BuildContext context, String version, List<String
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SheetTitle('What\'s new', subtitle: 'Glyph $version'),
-                for (final l in lines) Note(text: l, lit: true, color: accent),
+                SheetTitle('What’s new', subtitle: 'Glyph $version'),
+                for (final l in lines) Note(text: l, lit: true, color: Lb.text2),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -48,3 +48,4 @@ Future<void> showWhatsNewSheet(BuildContext context, String version, List<String
         );
       },
     );
+}

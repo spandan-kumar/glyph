@@ -135,7 +135,7 @@ class NotificationController extends ChangeNotifier {
       try {
         await _configure();
       } catch (_) {
-        if (!_disposed) error = 'Couldn\'t update Android notification access.';
+        if (!_disposed) error = 'Couldn’t update Android notification access.';
       } finally {
         if (owner != null) await _release(owner);
       }
@@ -177,7 +177,7 @@ class NotificationController extends ChangeNotifier {
       }
       if (!ok) {
         throw StateError(
-          'Couldn\'t keep notification alerts running in the background.',
+          'Couldn’t keep notification alerts running in the background.',
         );
       }
       monitoring = true;
@@ -186,7 +186,7 @@ class NotificationController extends ChangeNotifier {
       if (!_disposed && generation == _generation) {
         error = e is StateError
             ? e.message.toString()
-            : 'Couldn\'t start notification alerts.';
+            : 'Couldn’t start notification alerts.';
         monitoring = false;
         if (identical(_monitorOwner, owner)) _monitorOwner = null;
         await _configure().catchError((_) {});
@@ -341,7 +341,7 @@ class NotificationController extends ChangeNotifier {
       notifyListeners();
     } catch (_) {
       if (!_disposed && generation == _generation) {
-        error = 'Couldn\'t show the logo on your device.';
+        error = 'Couldn’t show the logo on your device.';
         notifyListeners();
       }
     } finally {
@@ -369,7 +369,7 @@ class NotificationController extends ChangeNotifier {
       if (_shouldRestore(c)) await c.restore();
     } catch (_) {
       if (!_disposed) {
-        error = 'Couldn\'t confirm your device left the logo; it clears itself when live playback times out.';
+        error = 'Couldn’t confirm your device left the logo; it clears itself when live playback times out.';
       }
     } finally {
       _busy = false;
