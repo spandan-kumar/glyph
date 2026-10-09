@@ -47,9 +47,11 @@ retained as regression requirements, not promises for an unbuilt v1.4.
 - The first public manifest requires v1.3.6. Older releases contain a disabled
   placeholder key and continue using their bundled library.
 
-Release gates: clean analysis, full Flutter tests, sprite/generated-data
-validation, Android compilation/native tests, protected Pages deployment,
-live manifest/signature/payload verification, repeat checks and offline cache.
+Completed on 9 October: clean analysis, 1,220 Flutter tests, six native
+Android tests, sprite/generated-data validation, an arm64 release build,
+protected Pages deployment, live signature/hash verification, HTTP 304
+rechecks, offline-cache recovery and unchanged-publication reproducibility.
+See [production activation](CATALOG_DELIVERY.md#production-activation--9-october-2026).
 Phone and physical-device checks are deferred by the maintainer on 9 October:
 verify public catalog downloads, toggle persistence, offline process restart,
 foreground daily checks, and a final Music/Send smoke check before tagging.
@@ -289,7 +291,7 @@ catalog on GitHub Pages, an explicit Check for new animations action, and
 optional daily automatic checks (off by default). Checks run only while the
 app is open, including on resume when due. No accounts, upload service or
 per-user endpoints. The client foundations shipped in v1.3.3; the production
-key and public artifact are prepared for v1.3.6, with phone QA deferred.
+key and public artifact are deployed for v1.3.6, with phone QA deferred.
 See [delivery and QA](CATALOG_DELIVERY.md).
 
 - Build a remote JSON artifact from reviewed packs, including sprite data

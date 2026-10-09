@@ -15,7 +15,7 @@ resource use. The library still has 1,209 looks, 62 procedural generators,
 **Next release: v1.3.6+11.** Activate the signed GitHub Pages catalog with
 manual checks and optional foreground daily checks, fix background Music
 activity pauses, and preserve complete Send content. The source and hosting
-are prepared now; public catalog phone/controller QA is deferred by the
+are prepared and the signed Pages catalog is live; phone/controller QA is deferred by the
 maintainer, and the release tag waits for it. [PLAN.md](PLAN.md) owns the
 release gates and implementation details.
 

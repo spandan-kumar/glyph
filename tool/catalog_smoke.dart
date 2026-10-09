@@ -40,8 +40,9 @@ Future<void> main() async {
     final first = await remote.fetch(bundled: bundled);
     require(first != null, 'Public fetch failed: ${remote.lastError}');
     require(first!.dropped.isEmpty, 'Rejected entries: ${first.dropped}');
-    require(first.catalog.items.length == bundled.items.length, 'Initial catalog lost entries');
-    stdout.writeln('Verified public signature, hash and ${first.catalog.items.length} looks; '
+    final merged = bundled.merge(first.catalog, revoked: first.revoked);
+    require(merged.items.length == bundled.items.length, 'Initial catalog lost entries');
+    stdout.writeln('Verified public signature, hash and ${merged.items.length} merged looks; '
         'revision ${first.revision}, epoch ${first.epoch}.');
     final payloadGets = client.requests.where((r) => r.$1.contains('/payload/')).length;
     final second = await remote.fetch(bundled: bundled);
@@ -56,7 +57,8 @@ Future<void> main() async {
     );
     try {
       final cached = await offline.loadCached(bundled: bundled);
-      require(cached != null && cached.revision == first.revision,
+      require(cached != null && cached.revision == first.revision &&
+          bundled.merge(cached.catalog, revoked: cached.revoked).items.length == merged.items.length,
           'Offline restart did not recover the verified cache');
       require(await offline.fetch(bundled: bundled) == null, 'Offline check unexpectedly succeeded');
       require((await offline.loadCached(bundled: bundled))?.revision == first.revision,

@@ -1,7 +1,7 @@
 # Animation catalog delivery
 
 Signed, static, offline-first. A manifest signed with Ed25519 authenticates a
-payload; the app verifies both before parsing anything. v1.3.6+11 contains the
+payload; the app verifies both before parsing anything. The v1.3.6+11 candidate contains the
 production verification key and targets `https://spandan-kumar.github.io/glyph/`.
 Older releases retain the placeholder key and use bundled content only.
 The first publication has `minApp: 1.3.6`; the release candidate can test it
@@ -206,9 +206,27 @@ in a Glance rotation.
   initial check can correctly report zero newly downloaded looks.
 - Sprite validation and regenerated-asset checks pass. Existing tests cover
   tampering, resource bounds, rollback and the 24-hour foreground cadence.
-- Deployment and real-endpoint verification are recorded after the protected
-  workflow completes. `dart run tool/catalog_smoke.dart` repeats the public
-  download, unchanged recheck, offline-cache and minimum-app-version checks.
+- [Catalog workflow 37897881137](https://github.com/spandan-kumar/glyph/actions/runs/37897881137)
+  passed build, protected signing and Pages deployment. Its CI payload matched
+  the locally reviewed payload byte for byte before approval.
+- [CI 37897881136](https://github.com/spandan-kumar/glyph/actions/runs/37897881136)
+  passed Flutter analysis/tests and Android build/native tests. Locally:
+  1,220 Flutter tests, six Android unit tests, clean analysis and a successful
+  arm64 release build. The production-configuration regression also passes.
+- The actual HTTPS client downloaded and verified the manifest, signature
+  and payload, retaining all 1,209 bundled looks after merging. Its next
+  manifest request returned 304 without downloading the payload again.
+  An offline process restart re-verified the cache; a failed offline check
+  preserved it. The minimum-version gate rejected app version 1.3.5.
+- A mirror/rebuild of the published content preserved the existing manifest,
+  signature and payload byte for byte. No new signing key was needed.
+- `dart run tool/catalog_smoke.dart` repeats the public download, unchanged
+  recheck, offline-cache and minimum-app-version checks. This tests the
+  production client; the 24-hour cadence uses fake-clock tests, not a claimed
+  24-hour hardware run.
+- Candidate and SHA-256: `build/release-candidate/glyph-1.3.6-arm64-v8a.apk`
+  and its `.sha256`. APK metadata is version 1.3.6, Android versionCode 2011
+  (the project's offset plus pubspec build 11), arm64 only.
 
 Deferred phone QA: install the v1.3.6 release candidate, use Check now, verify
 the daily toggle survives restart, reopen the library offline, resume a due
