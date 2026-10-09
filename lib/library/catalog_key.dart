@@ -11,7 +11,7 @@ const catalogPublicKeyPlaceholder =
 /// unavailable: it never contacts the host and never trusts a cache. The
 /// matching private key lives only in the `CATALOG_SIGNING_KEY` secret of the
 /// protected `catalog` GitHub environment. See docs/CATALOG_DELIVERY.md.
-const catalogPublicKey = catalogPublicKeyPlaceholder;
+const catalogPublicKey = 'hmblCOPaU44P3haleTVpdv5vzUqzuIQAzVvfdj7cUjk=';
 
 /// Decodes a base64 Ed25519 public key; null for the placeholder or any
 /// malformed value, so a bad paste can never enable the feature.

@@ -1,7 +1,8 @@
 # Glyph — engineering plan
 
-Reconciled on 7 October 2026 against `main` at `75656c4`, v1.3.1+6.
-Release follow-up: v1.3.2+7 contains the bug bundle below; v1.4 adds features.
+Reconciled on 9 October 2026 against the published v1.3.5+10 and `main` at
+`59608b9`. v1.3.6+11 is the next release candidate; do not tag it until the
+remaining phone/controller checks below pass.
 [ROADMAP.md](ROADMAP.md) owns product priorities and launch plans; this file
 owns implementation order, dependencies and acceptance criteria. Dates are
 targets, not reasons to ship unfinished behaviour.
@@ -17,33 +18,57 @@ features must name their providers and explain what they send.
 
 ## Current baseline
 
-| Area | Shipped in v1.3.1 |
+| Area | Shipped by v1.3.5 |
 |---|---|
 | Display | Lightbox Stage, channels, search, favourites/recents, palette and motion controls, streaming, Send |
 | Library | 1,209 curated looks, 62 procedural generators, 329 sprites, 22 categories; Halloween and Diwali packs |
 | Make | Pixel editor/live drawing, Write/Clock/Timer, GIF/WebP/photo import, GIF and `.glyph` sharing/import |
-| Live tools | Nine mic visualisers, Now Playing album art/progress, seven games |
+| Live tools | Nine mic visualisers, Now Playing, seven games, opt-in logo Alerts, weather/day-counter Glance cards and phone Rotations |
 | Device | Discovery/manual address, capabilities, Saved, Shows, Routines, storage, boot intro, orientation fix, switching/mirroring, Android widget |
 | Community/release | MIT licence, contributor guide/agent skill, diagnostics, Glyph menu, What's new, issue forms, CI, signed APK/checksum workflow, Discord announcements, Dependabot |
 
-Baseline verification: analysis reports no issues; 1,009 tests pass, with
-the live-device test skipped without `GLYPH_LIVE_HOST`. This does not verify
-physical panels or Android background lifecycle behaviour.
+Release history: v1.3.2 shipped the Send/polish fixes; v1.3.3 shipped Alerts,
+Glance and Rotations; v1.3.4 refined interaction; v1.3.5 reduced resource use
+and completed the Lightbox polish. The older acceptance criteria below are
+retained as regression requirements, not promises for an unbuilt v1.4.
 
-Partial foundations, not shipped features:
+## v1.3.6: catalog activation and maintenance
 
-- Catalog delivery is implemented in this unreleased checkout: bounded
-  staging/cache, reactive app integration and a Pages workflow.
-  `defaultUrl` points at the Pages site, but the client stays off until the
-  maintainer replaces the placeholder signing key (docs/CATALOG_DELIVERY.md).
-- `NowPlayingListener` now also supplies opt-in logo notifications in this
-  unreleased checkout. Permission is granted only by the person; physical
-  Android/WLED QA remains.
-- Device Shows run autonomously from Saved items. Glance adds separate
-  phone-owned Shows in this unreleased checkout; physical QA remains.
-- The orientation fix transforms Glyph frames; it does not configure panel
-  wiring, tiling or WLED's 2D configuration.
-- iOS scaffolding exists; an iOS product release remains future work.
+- Replace the dormant catalog key with the production verification key.
+  Publish the signed catalog through GitHub Pages with a reviewed `catalog`
+  environment and main-only deployment policies. Manual checks are available;
+  daily checks remain off until the user enables them.
+- Include `5a8ce60`: background Music survives activity pauses and releases
+  microphone/power ownership when stopped.
+- Include `59608b9`: Send never reduces content because of signal strength.
+  Authored sprites retain their full sequence/motion pass, fast steps remain
+  present, and Write retains a full scroll. Procedural effects evolve forever;
+  their saved recording lasts at least 30 seconds rather than 3–4 seconds.
+- The first public manifest requires v1.3.6. Older releases contain a disabled
+  placeholder key and continue using their bundled library.
+
+Release gates: clean analysis, full Flutter tests, sprite/generated-data
+validation, Android compilation/native tests, protected Pages deployment,
+live manifest/signature/payload verification, repeat checks and offline cache.
+Phone and physical-device checks are deferred by the maintainer on 9 October:
+verify public catalog downloads, toggle persistence, offline process restart,
+foreground daily checks, and a final Music/Send smoke check before tagging.
+The Send change already passed phone/controller QA, including byte-identical
+uploads and two observed full Ocean loops; this does not replace catalog QA.
+
+## Next product work
+
+1. Device setup wizard: dimensions, start corner, serpentine wiring and tiling;
+   live corner/arrow tests; snapshot config, write, reconnect and restore.
+   Keep the existing app orientation transform separate from hardware wiring.
+2. Home Assistant blueprint for triggering existing Saved IDs; entity watching
+   is a later integration.
+3. Additional Glance feeds only after provider/coverage/usage validation.
+   Weather, phone-timezone day counters and Rotations already shipped.
+
+The iOS build and further display adapters remain future work. The Wi-Fi
+investigation supports a weak RF path; antenna/PCB interference has not been
+proven without a controlled hardware-clearance comparison.
 
 ## Principles and playback paths
 
@@ -61,9 +86,9 @@ Partial foundations, not shipped features:
 | Send | Bake GIF → verified upload → Image effect → Saved look | No after sending; GIF-capable WLED required |
 | Native | Device effects, clocks, Saved, Shows and Routines | No after configuration |
 
-## v1.3.2: one bug and polish bundle
+## Shipped v1.3.2: bug and polish bundle
 
-The confirmed release scope is v1.3.2+7: all five known polish issues plus
+The v1.3.2+7 release contains all five known polish issues plus
 the current correctness fixes A1–A3. No new Glance features are included.
 The tag-triggered Release workflow builds the arm64 APK and checksum,
 publishes the changelog and runs the existing Discord announcement.
@@ -111,22 +136,21 @@ fingerprint that could become stale after an external edit. The larger live
 playback refactor remains separate. Documentation corrections are bundled
 in this release.
 
-Combined verification after these fixes: `flutter analyze` reports no issues;
+Historical verification at the v1.3.2 release: `flutter analyze` reports no issues;
 `flutter test` passes 1,036 tests, with one live-device test skipped. The suite
-includes generated-data checks. This verifies the release source; physical
-controller/Android QA remains unverified.
+includes generated-data checks. Phone/controller QA was still pending at
+that release preparation; later sessions exercised these paths.
 
-## v1.4: playback foundation before more feeds
+## Shipped v1.3.3: playback, Alerts and Glance
 
-Proposed minimum: playback ownership/restoration,
-notifications, weather and days-until cards. Setup wizard and Home Assistant
-blueprint are independent work and ship when their checks pass. Planes,
-crypto, air quality and more cards follow a working end-to-end information
-flow. This scope is provisional pending the release decision below.
+Playback ownership/restoration, logo notifications, weather, days-until/since
+cards and phone Rotations shipped in v1.3.3. The following criteria describe
+that implementation and remain regression checks. Setup and Home Assistant
+are the next independent work; additional feeds need provider validation.
 
 ### 1. Playback ownership and temporary alerts
 
-Implementation status (7 October, unreleased): notification overlays and
+Implementation status (shipped in v1.3.3): notification overlays and
 monitor ownership are implemented. The live base generator/instance/feed
 continue underneath; only the selected host receives the alert frame.
 Native playback is left intact while realtime input is used, then live mode
@@ -134,7 +158,8 @@ and any prior realtime override are restored. No preset or Show is rewritten;
 exact Show position is left to WLED, not promised. This is the first temporary
 alert path, not the phone-owned Show coordinator needed by Glance below.
 Automated coverage is in `test/features/notifications` and Android bridge
-filter tests. Physical screen-off/locked-phone/WLED QA remains a release gate.
+filter tests. Later phone/controller sessions exercised lifecycle behaviour;
+repeat it when changing ownership or restoration.
 
 
 Add a small app-level coordinator around `PlaybackController`,
@@ -174,7 +199,7 @@ state/presets/config restored and test-owned files removed afterwards.
 
 ### 2. Notifications
 
-Implemented in this checkout, not yet released: Make entry, searchable app
+Shipped in v1.3.3: Make entry, searchable app
 picker with installed icons, local app/quiet-hour preferences, explicit
 session start, synthetic logo preview, four-second bounce, bounded/coalesced
 queue, native filtering and guarded live/native restoration. Now Playing
@@ -223,8 +248,8 @@ revocation and process termination, alongside existing Now Playing.
 
 ### 3. Glance cards and phone-owned Shows
 
-Implemented in this unreleased checkout; physical Android/WLED QA remains
-before release. See [implementation and QA notes](GLANCE.md). Counters follow
+Shipped in v1.3.3; retain these checks for later releases. See
+[implementation and QA notes](GLANCE.md). Counters follow
 the phone timezone only, per the product decision on 7 October 2026.
 
 Separate persisted card configuration from timestamped feed snapshots.
@@ -257,14 +282,15 @@ freshness, offline cache, errors and shared refresh. Fake-clock Show tests
 cover order/duration, skips, all-unavailable fallback and alert resumption.
 No feed polls per frame; counters require no network.
 
-### 4. Remote catalog: finish the dormant path
+### 4. Remote catalog: activated for v1.3.6
 
 Separate delivery track, not a Glance prerequisite. Confirmed: a static
 catalog on GitHub Pages, an explicit Check for new animations action, and
 optional daily automatic checks (off by default). Checks run only while the
 app is open, including on resume when due. No accounts, upload service or
-per-user endpoints. Implemented in this unreleased checkout; publishing and
-production activation remain pending. See [delivery and QA](CATALOG_DELIVERY.md).
+per-user endpoints. The client foundations shipped in v1.3.3; the production
+key and public artifact are prepared for v1.3.6, with phone QA deferred.
+See [delivery and QA](CATALOG_DELIVERY.md).
 
 - Build a remote JSON artifact from reviewed packs, including sprite data
   and attribution/notices. Separate content revision from schema version.
@@ -286,10 +312,11 @@ production activation remain pending. See [delivery and QA](CATALOG_DELIVERY.md)
 
 Acceptance: offline first launch/cache restart, HTTP failure, malformed/
 oversized data, incompatible entries, attribution, ID collisions, UI
-refresh, favourite retention and artifact rollback. Change the test that
-asserts `defaultUrl` is null only when delivery is actually enabled.
+refresh, favourite retention and artifact rollback. The production build
+test verifies the enabled Pages client; explicit placeholder tests still
+verify that disabled builds make no network requests.
 
-### 5. Delivery order and release gates
+### 5. Regression and release gates
 
 1. Land the bug bundle and documentation reconciliation.
 2. Prove alert interruption/restoration using synthetic input across live
@@ -311,8 +338,10 @@ extract only the adapter boundary needed by WLED and that second device.
 
 ## Product decisions
 
-Confirmed on 7 October: ship the bug bundle separately as v1.3.2, then start
-v1.4 with playback ownership/restoration. The user authorised the release.
+Confirmed on 9 October: activate catalog delivery and prepare v1.3.6 with the
+Music and complete-Send fixes. Phone/controller catalog QA happens later;
+keep the release tag pending that check. Setup is the next product priority.
+The original v1.3.2/v1.4 split was superseded by the shipped v1.3.3 features.
 
 Confirmed on 7 October: phone-present background streaming is acceptable,
 using the same model as Now Playing. Notifications show only a briefly

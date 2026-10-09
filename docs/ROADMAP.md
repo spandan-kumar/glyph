@@ -6,20 +6,23 @@ This plan merges product and marketing into one timeline, ordered for the
 most reach and community, based on research (October 2026) into what
 pixel-display owners want, which displays they own and where they talk.
 
-**Status, 7 October 2026.** v1.3.2+7 is the bug/polish release after v1.3.1+6. The bundled library has
-1,209 looks (62 procedural generators, 329 sprites, 22 categories), including
-Halloween and Diwali packs. The working app already includes creation
-sharing/import, Now Playing, device Shows/Routines, mirroring and a widget.
-[PLAN.md](PLAN.md) records the implementation baseline and next engineering
-steps; this roadmap owns product priorities and launch work.
+**Status, 9 October 2026.** v1.3.5+10 is published. v1.3.2 shipped the
+bug/polish bundle; v1.3.3 shipped logo Alerts, weather/day-counter Glance
+cards and phone Rotations; v1.3.4–1.3.5 added interaction polish and lower
+resource use. The library still has 1,209 looks, 62 procedural generators,
+329 sprites and 22 categories.
 
-**Strategy.** Soft-launch to WLED owners with the existing product and use
-feedback to shape v1.4. The five known bug/polish issues are bundled in
-v1.3.2, alongside the current correctness findings A1–A3 in the
-[architecture audit](ARCHITECTURE_AUDIT.md). Build playback ownership before
-notifications and live Glance cards; start with weather and counters, then
-add feeds once that flow works.
-The v1.3.2 scope is confirmed; v1.4 feature decisions remain in PLAN.md.
+**Next release: v1.3.6+11.** Activate the signed GitHub Pages catalog with
+manual checks and optional foreground daily checks, fix background Music
+activity pauses, and preserve complete Send content. The source and hosting
+are prepared now; public catalog phone/controller QA is deferred by the
+maintainer, and the release tag waits for it. [PLAN.md](PLAN.md) owns the
+release gates and implementation details.
+
+**Strategy.** Soft-launch the shipped WLED product, then prioritize the device
+setup wizard and an independent Home Assistant Saved-trigger blueprint.
+Weather, counters, notifications and phone Rotations are shipped foundations,
+not future v1.4 promises. Additional feeds need provider validation.
 The setup wizard and HA blueprint can progress independently. The seasonal launch
 window is a target, conditional on readiness. Later display adapters each
 create a new community launch; dates remain provisional until hardware and
@@ -73,17 +76,17 @@ Ranked from forum, Reddit and GitHub evidence.
 
 | # | Need | Who | Glyph |
 |---|---|---|---|
-| 1 | Notifications / smart-home values on the display | AWTRIX, WLED, Pixoo | notifications proposed for v1.4; HA entity watcher later |
-| 2 | Weather (now, forecast, air quality) | Tidbyt, AWTRIX | current weather first; forecast/air quality after first Glance slice |
+| 1 | Notifications / smart-home values on the display | AWTRIX, WLED, Pixoo | logo Alerts shipped in v1.3.3; HA entity watcher later |
+| 2 | Weather (now, forecast, air quality) | Tidbyt, AWTRIX | current weather shipped; forecast/air quality after provider validation |
 | 3 | Planes overhead (top Tidbyt request) | Tidbyt | candidate after Glance foundation/provider checks |
 | 4 | Sports scores | Tidbyt | skipped (free APIs keep dying) |
 | 5 | Panel setup/mapping is confusing | WLED | orientation fix shipped; full wizard independently planned |
 | 6 | Local, no cloud, no account | Pixoo, LaMetric, Tidbyt | core works locally; future external feeds explicitly optional |
 | 7 | Easy custom pixel art | WLED | yes |
 | 8 | Now Playing album art | Tidbyt, Pixoo | yes |
-| 9 | Content rotation with a UI, not YAML | WLED, Tidbyt | device Shows shipped; phone Rotations (Glance) implemented, unreleased |
-| 10 | Counters (days until/since) | Tidbyt, AWTRIX | partial → v1.4 |
-| 11 | Busy light, night modes | Tidbyt, AWTRIX | partial (Routines) → notifications |
+| 9 | Content rotation with a UI, not YAML | WLED, Tidbyt | device Shows shipped; phone Rotations shipped in v1.3.3 |
+| 10 | Counters (days until/since) | Tidbyt, AWTRIX | shipped in v1.3.3 (phone timezone) |
+| 11 | Busy light, night modes | Tidbyt, AWTRIX | Routines and logo Alerts shipped |
 | 12 | Stocks/crypto | Tidbyt | after core Glance; provider/usage validation required |
 | 13 | Calendar, transit, RSS | Tidbyt | later |
 | 14 | Non-Latin text | AWTRIX, WLED | gap → 2027 |
@@ -178,30 +181,23 @@ Remaining launch assets:
       coverage. Actions builds/publishes the APK and checksum; physical
       Android/controller QA was not performed during release preparation.
 
-### Weeks 2–3 — Build v1.4 "glance" (19 Oct – 1 Nov target)
+### Weeks 2–3 — Catalog and device setup (19 Oct – 1 Nov target)
 
 Confirmed product answers and remaining proposals are recorded in [PLAN.md](PLAN.md).
-Implementation order follows dependencies, not the appeal of a demo clip:
+Remaining work builds on the shipped features:
 
-1. **Playback ownership and restoration** — prove temporary alerts can
-   interrupt a live look or device-owned playback, then return safely;
-   power off, Stop and a new user choice always win.
-2. **Notifications** — extend the existing media-access listener, which
-   now supplies the opt-in logo feed in this unreleased checkout. Chosen apps,
-   logo-only bounce/pulse alerts with no message text, an in-app app picker,
-   quiet hours, bounded alerts and Android background QA. Uses the same
-   phone-on-Wi-Fi/background model as Now Playing. Implemented; physical
-   Android/WLED QA remains before release (see [QA notes](NOTIFICATIONS.md)).
-3. **First Glance slice** — weather (Open-Meteo) and days-until/since;
-   timestamped/stale/offline states, then phone-owned Shows with clear
-   phone requirements. Implemented in this unreleased checkout; counters use
-   the phone timezone only. Existing device Shows keep working autonomously.
-   Physical QA remains before release (see [QA notes](GLANCE.md)).
-4. **Remote catalog track** — validated static artifact, cache and reactive
-   app integration, implemented in this unreleased checkout. GitHub Pages
-   with manual checks and optional daily checks (off by default) is confirmed.
-   Publishing/activation remains pending; independent of Glance and the bug
-   bundle (see [delivery and QA](CATALOG_DELIVERY.md)).
+1. **Signed catalog delivery** — activate the v1.3.6 production verification
+   key, protected signing and Pages hosting. Verify the public artifact,
+   caching and optional daily cadence; finish deferred phone QA before
+   releasing the app (see [delivery runbook](CATALOG_DELIVERY.md)).
+2. **Device setup wizard** — the next product priority: size, start corner,
+   serpentine wiring, tiling and visible corner/arrow tests, with configuration
+   snapshot/write/reconnect/restore.
+3. **Regression coverage** — Alerts, Glance and phone Rotations shipped in
+   v1.3.3. Keep interruption/restoration, permission revocation, freshness,
+   foreground/background transitions and phone-timezone counters working.
+   The source has automated coverage and prior phone/controller QA; visual
+   checks and new catalog phone QA must not be inferred from those tests.
 
 Independent work, ship when verified:
 
@@ -221,11 +217,11 @@ Apply for Play production only after the actual required closed-test period
 and account requirements are confirmed. The old ~27 Oct estimate assumed
 a test start that has not been verified.
 
-### Week 4 — Big launch with v1.4 (2–8 Nov target)
+### Week 4 — Wider launch (2–8 Nov target)
 
 Target one 72-hour window, **Tue 3 – Thu 5 Nov**, if the release gates in
 PLAN.md pass. Otherwise move the launch; posts must show only shipped
-features. This is a promotion target, not a guaranteed v1.4 deadline:
+features. This is a promotion target; ship only features that meet their gates:
 
 - [ ] **r/homeassistant** (~388k) + HA forum *Share your Projects*: lead with
       notifications/weather actually shipped, the HA blueprint if ready, and

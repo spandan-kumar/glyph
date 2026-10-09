@@ -1,11 +1,12 @@
 # Animation catalog delivery
 
 Signed, static, offline-first. A manifest signed with Ed25519 authenticates a
-payload; the app verifies both before parsing anything. The client ships
-switched on (`RemoteCatalog.defaultUrl` is the Pages site) but stays inert
-until the maintainer replaces the placeholder public key in
-`lib/library/catalog_key.dart` (see Maintainer setup). No APK version bump or
-release is part of this work.
+payload; the app verifies both before parsing anything. v1.3.6+11 contains the
+production verification key and targets `https://spandan-kumar.github.io/glyph/`.
+Older releases retain the placeholder key and use bundled content only.
+The first publication has `minApp: 1.3.6`; the release candidate can test it
+before the APK is tagged. Phone/controller verification is deferred by the
+maintainer on 9 October 2026; see the activation record below.
 
 ## In the app
 
@@ -111,7 +112,7 @@ bundled contents; when the warning fires, split the payload.
 release that contains the verifying client, and raise it for content that
 needs newer generators.
 
-## Maintainer setup (one time, by hand)
+## Maintainer setup (one time)
 
 1. Generate the signing key on a trusted machine:
    `dart run tool/catalog_keygen.dart` (or `--out path`). The private key
@@ -126,7 +127,9 @@ needs newer generators.
    **required reviewers** (and yourself), restrict **deployment branches** to
    `main`, and add the secret `CATALOG_SIGNING_KEY` with the key file's
    contents to this environment only (not a repository secret). Back the key
-   up in a password manager, then delete the local file.
+   up in a password manager, then delete the local file. The production seed
+   is backed up in macOS Keychain: service
+   `dev.spandankumar.glyph.catalog-signing`, account `spandan-kumar`.
 4. Settings → Pages → Source: **GitHub Actions**. The `github-pages`
    environment should also be limited to `main`.
 5. Optionally pin the actions in `catalog.yml` to commit SHAs.
@@ -161,13 +164,14 @@ the other content. The next normal publish needs `revision` above the rolled
 back one. For older recovery, restore a retained Actions artifact
 (`catalog-signed-<run>`, 90 days) through the same process.
 
-**Sequencing with app releases.** Ship the app that contains the verifying
-client and the real public key first; only then publish the first catalog
-(until then nothing consumes it). For content that needs new generators or
-sprite features, release the app first and publish the catalog with a higher
-`minApp` afterwards; older apps then keep their current library and show the
-"needs a newer version" message instead of dropping entries. Never publish
-content that a released app cannot handle without raising `minApp`.
+**Sequencing with app releases.** For initial activation, the signed site may
+be published for pre-release testing with `minApp` set to the release
+candidate. Older apps have no usable verification key and make no requests.
+Tag the app only after its public-endpoint phone checks pass. For later key
+rotation, ship the new public key before switching the signing secret. For
+content that requires newer generators or sprite features, release the app
+first and raise `minApp`; older apps retain their library and explain that
+an app update is needed. Never lower the gate just to make a test pass.
 
 ## Staging and tests
 
@@ -188,5 +192,26 @@ re-verification and source binding; publication rules, previous retention and
 rollback; keygen never printing the private key; and a retired favourite used
 in a Glance rotation.
 
-GitHub execution of the workflow, the environment approval and the live HTTPS
-artifact remain unverified until the maintainer completes setup.
+## Production activation — 9 October 2026
+
+- GitHub authentication: `spandan-kumar` (repository owner).
+- Pages uses GitHub Actions with HTTPS; both deployment environments allow
+  only the `main` branch. The `catalog` environment requires owner review
+  before its signing secret becomes available to a job.
+- `CATALOG_SIGNING_KEY` is an environment secret, not a repository secret.
+  The app and repository contain only the matching public key. The backup
+  is verified in macOS Keychain; no private seed is committed or logged.
+- Content revision 3: 1,209 looks; signed manifest; content-addressed payload
+  of 962,287 bytes; `minApp: 1.3.6`. No new art is added by activation, so the
+  initial check can correctly report zero newly downloaded looks.
+- Sprite validation and regenerated-asset checks pass. Existing tests cover
+  tampering, resource bounds, rollback and the 24-hour foreground cadence.
+- Deployment and real-endpoint verification are recorded after the protected
+  workflow completes. `dart run tool/catalog_smoke.dart` repeats the public
+  download, unchanged recheck, offline-cache and minimum-app-version checks.
+
+Deferred phone QA: install the v1.3.6 release candidate, use Check now, verify
+the daily toggle survives restart, reopen the library offline, resume a due
+foreground check and repeat the Music/Send smoke test. Keep daily checks
+at the user's original setting after testing. No phone/controller changes
+are made during this activation session; v1.3.6 is not tagged yet.

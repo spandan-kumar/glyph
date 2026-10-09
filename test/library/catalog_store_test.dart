@@ -269,16 +269,13 @@ void main() {
     expect(findGenerator('sprite:remote-dot'), isNull);
   });
 
-  test('a build without a usable key or endpoint loads without contacting a host', () async {
+  test('the production build enables Pages while a placeholder still makes no requests', () async {
     final s = CatalogStore.forApp(base);
     addTearDown(s.dispose);
-    await s.load();
-    await s.check();
-    expect(s.enabled, decodeCatalogKey(catalogPublicKey) != null);
-    if (!s.enabled) {
-      expect(s.lastAttempt, isNull);
-      expect(identical(s.catalog, base), isTrue);
-    }
+    expect(decodeCatalogKey(catalogPublicKey), hasLength(32));
+    expect(s.enabled, isTrue);
+    expect(s.remote!.url, Uri.parse(RemoteCatalog.defaultUrl));
+    expect(s.automatic, isFalse);
     // The placeholder key always means "no remote catalog".
     final placeholder = CatalogStore(
       bundled: base,
