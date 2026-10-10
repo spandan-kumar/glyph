@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'bake_limits.dart';
 import 'clip.dart';
 import 'frame.dart';
 import 'generator.dart';
@@ -36,29 +37,50 @@ LoopFrames renderDeviceLoop({
   required int height,
   double timeScale = 1,
 }) {
+  if (!timeScale.isFinite || timeScale <= 0) {
+    throw ArgumentError.value(timeScale, 'timeScale', 'must be finite and positive');
+  }
   if (generator is SpriteGenerator) {
     final content = generator.contentSeconds(params, width, height);
     final period = generator.loopSeconds(params, width, height,
             maxSeconds: max(maxNaturalSeconds * timeScale, content)) ??
         content;
     final seconds = period / timeScale;
-    // Fast sprites still need every authored step. GIF delays have a 20 ms
-    // floor, so WLED may play these more slowly than the phone preview.
-    final shortestStep = generator.sprite.ms.reduce(min) / 1000 /
-        params['speed'].clamp(0.05, 10) / timeScale;
-    final fps = max(deviceGifFps.toDouble(), 1 / shortestStep);
-    final n = max(1, (seconds * fps).ceil());
-    final dt = period / n;
+    // Sample every authored change as well as motion at 20 fps. One short
+    // step mustn't force the whole recording to use its high frame rate.
+    final rate = 1000 * params['speed'].clamp(0.05, 10) * timeScale;
+    final ms = generator.sprite.ms;
+    final ends = <double>[];
+    var tick = 1, step = 0, stepMs = ms.first;
+    var start = 0.0;
+    while (start < seconds - 1e-9) {
+      final end = min(seconds, min(tick / deviceGifFps, stepMs / rate));
+      if (end > start + 1e-9) {
+        checkBakeSize(width, height, ends.length + 1);
+        ends.add(end);
+        start = end;
+      }
+      if (tick / deviceGifFps <= end + 1e-9) tick++;
+      if (stepMs / rate <= end + 1e-9) {
+        step = (step + 1) % ms.length;
+        stepMs += ms[step];
+      }
+    }
     final effect = generator.create(width, height, 1);
     final frames = <Frame>[];
-    for (var i = 0; i < n; i++) {
+    final holds = <double>[];
+    var previous = 0.0;
+    start = 0;
+    for (final end in ends) {
+      final sample = (start + end) / 2 * timeScale;
       final frame = Frame(width, height);
-      // Sample inside each step, so floating-point boundaries cannot drop
-      // a sequence step on the final pass.
-      effect.render(frame, (i + 0.5) * dt, i == 0 ? dt / 2 : dt, params, palette);
+      effect.render(frame, sample, sample - previous, params, palette);
       frames.add(frame);
+      holds.add(end - start);
+      previous = sample;
+      start = end;
     }
-    return LoopFrames(frames, seconds);
+    return LoopFrames(frames, seconds, frameSeconds: holds);
   }
   return renderLoop(
     generator: generator,
@@ -83,12 +105,15 @@ class BakeResult {
 /// Frames that play as a seamless loop: the frame after the last is the
 /// first.
 class LoopFrames {
-  const LoopFrames(this.frames, this.seconds);
+  const LoopFrames(this.frames, this.seconds, {this.frameSeconds});
 
   final List<Frame> frames;
 
   /// How long all [frames] play for, together.
   final double seconds;
+
+  /// Authored changes may need uneven sampling. Null means uniform timing.
+  final List<double>? frameSeconds;
 }
 
 /// Renders about [seconds] of [generator] as a seamless loop (see
@@ -167,6 +192,25 @@ LoopFrames renderLoop({
   double minimumSeconds = 0,
 }) {
   if (fps <= 0) throw ArgumentError.value(fps, 'fps', 'must be positive');
+  final baseDt = timeScale / fps;
+  final natural =
+      _naturalLoop(generator, params, width, height, max(3 * seconds, maxNaturalSeconds) * timeScale);
+  // Validate before creating the effect or collecting seam-search frames.
+  final target = max(1, (seconds * fps).round());
+  final lo = max(max(1, (minimumSeconds * fps).ceil()), (target * 0.75).round());
+  final hi = max(lo, (target * 1.25).round());
+  if (natural == null) {
+    checkBakeSize(width, height, hi + max(hi ~/ 2, 1));
+  } else {
+    final (effectSeconds, blend) = natural;
+    final period = effectSeconds / timeScale;
+    final passes = minimumSeconds > 0
+        ? (max(seconds, minimumSeconds) / period).ceil()
+        : (seconds / period).round();
+    final n = max(1, (max(1, passes) * period * fps).round());
+    final m = blend ? min((fade * fps).round(), n ~/ 2) : 0;
+    checkBakeSize(width, height, n + m);
+  }
   final effect = generator.create(width, height, seed);
   final out = Frame(width, height);
   var t = 0.0;
@@ -176,6 +220,7 @@ LoopFrames renderLoop({
   }
 
   List<Frame> take(int n, double dt) {
+    checkBakeSize(width, height, n);
     final frames = <Frame>[];
     for (var i = 0; i < n; i++) {
       step(dt);
@@ -184,13 +229,9 @@ LoopFrames renderLoop({
     return frames;
   }
 
-  final baseDt = timeScale / fps;
   for (var i = (warmup * fps).round(); i > 0; i--) {
     step(baseDt);
   }
-
-  final natural =
-      _naturalLoop(generator, params, width, height, max(3 * seconds, maxNaturalSeconds) * timeScale);
   if (natural != null) {
     final (effectSeconds, blend) = natural;
     final period = effectSeconds / timeScale;
@@ -207,9 +248,6 @@ LoopFrames renderLoop({
     return LoopFrames(_crossFade(take(n + m, dt), n, m), total);
   }
 
-  final target = max(1, (seconds * fps).round());
-  final lo = max(max(1, (minimumSeconds * fps).ceil()), (target * 0.75).round());
-  final hi = max(lo, (target * 1.25).round());
   final m0 = min((fade * fps).round(), lo ~/ 2);
   final s = take(hi + max(hi ~/ 2, 1), baseDt);
   double mismatch(int n, int m) {
@@ -252,12 +290,18 @@ LoopFrames renderLoop({
 BakeResult bakeLoop(LoopFrames loop) {
   final frames = loop.frames;
   if (frames.isEmpty) throw ArgumentError('No frames to bake');
+  checkBakeSize(frames.first.width, frames.first.height, frames.length);
+  final holds = loop.frameSeconds;
+  if (holds != null && holds.length != frames.length) {
+    throw ArgumentError('Expected one duration per frame');
+  }
   // Round each frame's end time to whole centiseconds, as [bakeFrames] does.
-  final totalCs = loop.seconds * 100;
   final delays = List<int>.filled(frames.length, 0);
   var total = 0;
+  var elapsed = 0.0;
   for (var i = 0; i < frames.length; i++) {
-    final end = ((i + 1) * totalCs / frames.length).round();
+    elapsed = holds == null ? (i + 1) * loop.seconds / frames.length : elapsed + holds[i];
+    final end = (elapsed * 100).round();
     delays[i] = max(2, end - total);
     total += delays[i];
   }
@@ -327,6 +371,9 @@ List<Frame> renderFrames({
   int seed = 1,
   double timeScale = 1,
 }) {
+  if (fps <= 0) throw ArgumentError.value(fps, 'fps', 'must be positive');
+  final count = max(1, (seconds * fps).round());
+  checkBakeSize(width, height, count);
   final effect = generator.create(width, height, seed);
   final out = Frame(width, height);
   final dt = timeScale / fps;
@@ -336,7 +383,7 @@ List<Frame> renderFrames({
     t += dt;
   }
   final frames = <Frame>[];
-  for (var i = max(1, (seconds * fps).round()); i > 0; i--) {
+  for (var i = count; i > 0; i--) {
     effect.render(out, t, dt, params, palette);
     frames.add(out.copy());
     t += dt;

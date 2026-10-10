@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/creations.dart';
+import 'package:glyph/engine/bake_limits.dart';
 import 'package:glyph/engine/clip.dart';
 import 'package:glyph/engine/frame.dart';
 import 'package:glyph/features/import/decode.dart';
@@ -65,6 +66,16 @@ void main() {
     expect(src.delaysMs, [120, 80]);
     expect(src.sourceWidth, 96); // 4 px × 24 (max scale)
     expect(src.sourceHeight, 48);
+  });
+
+  test('long GIF sharing reduces upscale without dropping frames or timing', () {
+    final frames = [for (var i = 0; i < 100; i++) Frame(16, 16)..fill(i.isEven ? 0xFF0000 : 0x0000FF)];
+    final clip = FrameClip.uniform(frames, fps: 20);
+    final src = decodeSource(encodeShareGif(clip));
+    expect(src.frameCount, 100);
+    expect(src.delaysMs.reduce((a, b) => a + b), 5000);
+    expect(src.sourceWidth * src.sourceHeight * src.frameCount, lessThanOrEqualTo(maxBakePixels));
+    expect(src.sourceWidth, greaterThan(16));
   });
 
   test('share files are written with slugged names', () async {

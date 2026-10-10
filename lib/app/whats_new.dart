@@ -4,6 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.3.6': [
+    'Check for new animations, with optional daily checks while Glyph is open.',
+    'Send keeps complete sprite sequences and scrolling messages, even on weak Wi-Fi.',
+    'Background Music keeps running with the screen off and cleans up when stopped.',
+    'Long text prepares without freezing the screen; tab labels fade smoothly.',
+  ],
   '1.3.5': [
     'Hidden previews pause, and LED drawing and Music analysis do less work.',
     'Alerts let your phone sleep when idle and keep playback handoffs awake.',

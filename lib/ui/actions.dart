@@ -6,6 +6,7 @@ import '../engine/generators/sprite.dart';
 import '../features/device/boot_intro.dart';
 
 import '../engine/clip.dart';
+import '../engine/bake_limits.dart';
 import '../engine/frame.dart';
 import '../app/background.dart';
 import '../app/community.dart';
@@ -183,10 +184,10 @@ abstract final class GlyphActions {
       return sendClipToDevice(context, g.clip, title, onUpload: onUpload,
           speed: s.playback.params['speed'] * s.playback.timeScale);
     }
-    final Future<Uint8List> bytes;
+    final Future<Uint8List> Function() bytes;
     if (findGenerator(g.id) != null) {
       // compute() with a top-level function avoids capturing BuildContext.
-      bytes = compute(_bake, (
+      final request = (
         g.id,
         s.playback.params.toMap(),
         s.playback.palette.id,
@@ -194,17 +195,20 @@ abstract final class GlyphActions {
         h,
         s.playback.timeScale,
         g is SpriteGenerator ? g : null,
-      ));
-    } else {
-      final loop = renderDeviceLoop(
-        generator: g,
-        params: s.playback.params,
-        palette: s.playback.palette,
-        width: w,
-        height: h,
-        timeScale: s.playback.timeScale,
       );
-      bytes = compute(_encodeLoop, loop);
+      bytes = () => compute(_bake, request);
+    } else {
+      bytes = () {
+        final loop = renderDeviceLoop(
+          generator: g,
+          params: s.playback.params,
+          palette: s.playback.palette,
+          width: w,
+          height: h,
+          timeScale: s.playback.timeScale,
+        );
+        return compute(_encodeLoop, loop);
+      };
     }
     return _upload(context, title, bytes, onUpload: onUpload);
   }
@@ -219,6 +223,11 @@ abstract final class GlyphActions {
       {Future<void> Function()? onUpload, double speed = 1}) async {
     final caps = AppScope.of(context).devices.caps;
     if (caps == null) return const Cancelled('no device is connected');
+    try {
+      checkBakeSize(caps.width, caps.height, clip.frames.length);
+    } on BakeLimitException catch (e) {
+      return Failed(_fail(context, e.message));
+    }
     final fitted = clip.fitTo(caps.width, caps.height);
     // Keep each frame's own timing. GIF delays are whole centiseconds (min
     // 2), so round each frame's end time rather than each delay: the loop
@@ -231,13 +240,13 @@ abstract final class GlyphActions {
       delays.add(d);
       totalCs += d;
     }
-    return _upload(context, title, compute(_encodeClip, (fitted.frames, delays)), onUpload: onUpload);
+    return _upload(context, title, () => compute(_encodeClip, (fitted.frames, delays)), onUpload: onUpload);
   }
 
   static Future<SendResult> _upload(
     BuildContext context,
     String title,
-    Future<Uint8List> encoding, {
+    Future<Uint8List> Function() encoding, {
     Future<void> Function()? onUpload,
   }) async {
     final s = AppScope.of(context);
@@ -252,7 +261,7 @@ abstract final class GlyphActions {
     SendResult stop() {
       final why = guard.stopped ?? 'something changed';
       // Said out loud, so a Send never just vanishes.
-      if (context.mounted) _toast(context, 'Send stopped — $why.');
+      if (context.mounted) _toast(context, 'Send stopped because $why.');
       return Cancelled(why);
     }
 
@@ -261,7 +270,7 @@ abstract final class GlyphActions {
       return Failed(_fail(context, 'This device can’t save animations. It can still show them live from your phone.'));
     }
     try {
-      final bytes = await encoding;
+      final bytes = await encoding();
       if (!current()) return stop();
       // Keep the current look on the matrix while the file uploads (a slow
       // trickle of frames holds live mode); switch only once it's saved.
@@ -289,7 +298,10 @@ abstract final class GlyphActions {
         // The file this replaces goes once the switch is done, so it counts
         // as free space.
         final credit = await client.reclaimableBytes(existing?.id, fileName);
-        if (!caps.fitsFile(bytes.length - credit)) throw WledException('Not enough space on the controller.');
+        if (!caps.fitsFile(bytes.length - credit)) {
+          throw WledException('Not enough space on the device for the full animation. '
+              'Remove unused Saved animations or show it live.');
+        }
         await onUpload?.call();
         if (!current()) throw const _SendStopped();
         playback.throttleStream(throttle);

@@ -136,6 +136,27 @@ void main() {
     playback.pause();
   });
 
+  testWidgets('editing during an asynchronous save preserves its original content', (tester) async {
+    final (playback, creations) = await pump(tester, const TextStudioScreen());
+    const original = 'Save this complete message';
+    await tester.enterText(find.byType(TextField), original);
+    await tester.pump(const Duration(milliseconds: 200));
+    await tapVisible(tester, find.text('Save'));
+    await tester.pump();
+    expect(find.text('Saving…'), findsOneWidget);
+    await tapVisible(tester, find.byType(TextField));
+    await tester.enterText(find.byType(TextField), 'New unsaved words');
+    await tester.pump(const Duration(milliseconds: 200));
+    for (var i = 0; i < 40 && creations.items.isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(creations.items.single.meta['text'], original);
+    expect(find.byIcon(Icons.check_circle_sharp), findsNothing);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
   testWidgets('Send with no device stays tappable and offers Connect', (tester) async {
     final (playback, _) = await pump(tester, const TextStudioScreen());
     await tapVisible(tester, find.text('Send to device'));

@@ -120,9 +120,12 @@ abstract final class BackgroundStreaming {
     _micType = running.value && microphone;
     try {
       await _syncPower();
-    } on PlatformException {
+    } catch (e) {
+      if (e is! PlatformException && e is! MissingPluginException) rethrow;
       running.value = false;
       _micType = false;
+      _awake = false;
+      _onStop = null;
       await FlutterForegroundTask.stopService();
     }
     return running.value;
@@ -180,8 +183,16 @@ abstract final class BackgroundStreaming {
     }
     _micType = false;
     running.value = false;
-    await _syncPower();
-    await FlutterForegroundTask.stopService();
+    try {
+      await _syncPower();
+    } on PlatformException catch (e) {
+      debugPrint('Could not release streaming power locks: ${e.code}');
+    } on MissingPluginException {
+      debugPrint('Streaming power channel is unavailable during shutdown');
+    } finally {
+      _awake = false;
+      await FlutterForegroundTask.stopService();
+    }
   }
 
   /// Releases streaming ownership when playback ends. A notification monitor

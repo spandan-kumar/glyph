@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/ui/design/dock.dart';
+import 'package:glyph/ui/design/led_text.dart';
+import 'package:glyph/ui/design/tokens.dart';
 
 void main() {
   const items = [
@@ -39,8 +41,16 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Make'));
     await tester.pump();
     expect(index.value, 1);
+    Color makeColor() => tester.widget<LedText>(find.byWidgetPredicate(
+      (widget) => widget is LedText && widget.text == 'MAKE',
+    )).color;
+    expect(makeColor(), Lb.text3);
     expect(tester.binding.transientCallbackCount, greaterThan(0));
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(makeColor(), isNot(Lb.text3));
+    expect(makeColor(), isNot(accent.value));
     await tester.pump(const Duration(milliseconds: 300));
+    expect(makeColor().toARGB32(), accent.value.toARGB32());
     expect(tester.binding.transientCallbackCount, 0);
     final indicator = tester.widget<AnimatedPositioned>(
       find.byKey(const ValueKey('dock-indicator')),

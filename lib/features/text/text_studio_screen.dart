@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -10,7 +10,7 @@ import '../../app/creations.dart';
 import '../../engine/clip.dart';
 import '../../engine/frame.dart';
 import '../../engine/generator.dart';
-import '../../engine/gif_baker.dart';
+import '../../engine/bake_limits.dart';
 import '../../engine/palette.dart';
 import '../../engine/registry.dart';
 import '../../ui/actions.dart';
@@ -23,6 +23,7 @@ import '../../ui/make/studio_kit.dart';
 import '../../ui/make/tool_session.dart';
 import '../../ui/widgets/led_matrix_view.dart';
 import 'native_text.dart';
+import 'text_baker.dart';
 import 'text_generators.dart';
 import 'text_settings.dart';
 
@@ -73,6 +74,8 @@ class _TextStudioScreenState extends State<TextStudioScreen>
   Timer? _pushDebounce;
   bool _native = true;
   bool _busy = false;
+  bool _saving = false;
+  int _edits = 0;
   String? _result;
   String? _creationId;
 
@@ -157,6 +160,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
       change();
       _result = null;
       _saved = false;
+      _edits++;
     });
     _rebuild();
   }
@@ -194,47 +198,45 @@ class _TextStudioScreenState extends State<TextStudioScreen>
   }
 
   /// Renders the current design into a clip at [w]×[h].
-  FrameClip _bake(int w, int h) {
-    final g = _makeGenerator();
-    var seconds = 4.0;
-    if (_mode == 'text') {
-      final loop = (g.create(w, h, 1) as TextInstance).loopSeconds;
-      if (loop != null) seconds = loop;
-    }
-    final fps = min(20, max(8, (240 / seconds).floor()));
-    final frames = renderFrames(
-      generator: g,
-      params: Params({}),
-      palette: paletteById(_s.palette),
-      width: w,
-      height: h,
-      seconds: seconds,
-      fps: fps,
-      warmup: _s.background.isEmpty ? 0 : 1.5,
-    );
-    return FrameClip.uniform(frames, fps: fps);
-  }
+  Future<FrameClip> _bake(int w, int h, {TextSettings? settings}) =>
+      compute(bakeTextClip, ((settings ?? _s).copy(), _mode, w, h));
 
   Future<void> _saveCreation() async {
+    if (_saving || _busy) return;
     HapticFeedback.lightImpact();
     final (w, h) = _size;
-    final c = await AppScope.of(context).creations.save(
+    final settings = _s.copy(), mode = _mode, title = _title, edits = _edits;
+    final creations = AppScope.of(context).creations;
+    setState(() => _saving = true);
+    try {
+      final clip = await _bake(w, h, settings: settings);
+      final c = await creations.save(
           id: _creationId,
-          title: _title,
+          title: title,
           kind: 'text',
-          clip: _bake(w, h),
-          meta: {..._s.toJson(), 'mode': _mode},
+          clip: clip,
+          meta: {...settings.toJson(), 'mode': mode},
         );
-    _creationId = c.id;
-    if (!mounted) return;
-    setState(() => _saved = true);
-    studioToast(context, 'Saved to Made by you');
+      if (!mounted) return;
+      _creationId = c.id;
+      setState(() => _saved = edits == _edits);
+      studioToast(context, 'Saved to Made by you');
+    } catch (e) {
+      LastError.record('Save from Write/Clock failed: $e');
+      if (mounted) {
+        studioToast(context, e is BakeLimitException ? e.message : 'Couldn’t save it. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _saveToMatrix() async {
     final scope = AppScope.of(context);
     final devices = scope.devices;
     final caps = devices.caps, client = devices.client;
+    final selection = devices.selectionGeneration;
+    final title = _title, playbackRevision = scope.playback.revision;
     if (caps == null || client == null) {
       studioNoDevice(context);
       return;
@@ -255,7 +257,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         await saveNativeText(client,
             s: _s,
             mode: _mode,
-            presetName: _title,
+            presetName: title,
             rows: caps.height,
             isEsp8266: caps.isEsp8266);
         await devices.refresh();
@@ -265,13 +267,20 @@ class _TextStudioScreenState extends State<TextStudioScreen>
           msg += ' Your device doesn\'t know the time yet: turn on internet time in its Time settings.';
         }
       } else {
-        final clip = _bake(caps.width, caps.height);
+        final clip = await _bake(caps.width, caps.height);
         if (!mounted) return;
-        msg = await sendClipFromTool(clip, _title);
+        if (!devices.isCurrent(client, selection)) {
+          msg = 'Send stopped because you switched device.';
+        } else if (scope.playback.revision != playbackRevision) {
+          msg = 'Send stopped because something else started playing.';
+        } else {
+          msg = await sendClipFromTool(clip, title);
+        }
       }
     } catch (e) {
       LastError.record('Send from ${_mode == 'text' ? 'Write' : 'Clock'} failed: $e');
-      msg = 'Couldn\'t send it. Check that your device is on and on your Wi-Fi, then try again.';
+      msg = e is BakeLimitException ? e.message
+          : 'Couldn\'t send it. Check that your device is on and on your Wi-Fi, then try again.';
     }
     noteSent(msg);
     if (!mounted) return;
@@ -593,9 +602,10 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         Expanded(
           child: OutlinedButton.icon(
             style: _secondaryStyle,
-            onPressed: _saveCreation,
-            icon: Icon(_saved ? Icons.check_circle_sharp : Icons.save_sharp, size: 18),
-            label: const Text('Save'),
+            onPressed: _busy || _saving ? null : _saveCreation,
+            icon: _saving ? const LedSpinner(size: 16)
+                : Icon(_saved ? Icons.check_circle_sharp : Icons.save_sharp, size: 18),
+            label: Text(_saving ? 'Saving…' : 'Save'),
           ),
         ),
         const SizedBox(width: 10),
@@ -603,7 +613,7 @@ class _TextStudioScreenState extends State<TextStudioScreen>
           child: OutlinedButton.icon(
             style: _secondaryStyle,
             // With no device it stays tappable: the toast offers Connect.
-            onPressed: !countdown && !_busy && (!connected || is2D || (_mode == 'text' && !_native))
+            onPressed: !countdown && !_busy && !_saving && (!connected || is2D || (_mode == 'text' && !_native))
                 ? _saveToMatrix
                 : null,
             icon: _busy

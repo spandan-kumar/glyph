@@ -15,9 +15,11 @@ resource use. The library still has 1,209 looks, 62 procedural generators,
 **Next release: v1.3.6+11.** Activate the signed GitHub Pages catalog with
 manual checks and optional foreground daily checks, fix background Music
 activity pauses, and preserve complete Send content. The source and hosting
-are prepared and the signed Pages catalog is live; phone/controller QA is deferred by the
-maintainer, and the release tag waits for it. [PLAN.md](PLAN.md) owns the
-release gates and implementation details.
+are prepared and the signed Pages catalog is live. Phone/controller QA passed
+on 10 October, including offline catalog recovery, complete Send, resource
+limits and background Music. Publish through Actions after CI passes.
+[PLAN.md](PLAN.md) owns the release gates and implementation details;
+[the QA record](QA_1_3_6.md) states the physical coverage and its limits.
 
 **Strategy.** Soft-launch the shipped WLED product, then prioritize the device
 setup wizard and an independent Home Assistant Saved-trigger blueprint.
@@ -190,9 +192,10 @@ Remaining work builds on the shipped features:
    key, protected signing and Pages hosting. Verify the public artifact,
    caching and optional daily cadence; finish deferred phone QA before
    releasing the app (see [delivery runbook](CATALOG_DELIVERY.md)).
-2. **Device setup wizard** — the next product priority: size, start corner,
-   serpentine wiring, tiling and visible corner/arrow tests, with configuration
-   snapshot/write/reconnect/restore.
+2. **Device setup wizard** — the next product priority: assisted home Wi-Fi
+   onboarding with guided fallback, single-panel size/wiring, optional power
+   limits and visible tests, with snapshot/write/reconnect/verify/restore.
+   Panel grids come later. See the [setup plan](DEVICE_SETUP.md).
 3. **Regression coverage** — Alerts, Glance and phone Rotations shipped in
    v1.3.3. Keep interruption/restoration, permission revocation, freshness,
    foreground/background transitions and phone-timezone counters working.
@@ -201,8 +204,9 @@ Remaining work builds on the shipped features:
 
 Independent work, ship when verified:
 
-- **Panel setup wizard** — size presets, start corner, serpentine, tiling,
-  live corner/arrow tests and WLED config snapshot/write/reconnect/restore.
+- **Device setup wizard** — Wi-Fi onboarding, size presets, start corner,
+  zig-zag wiring, optional power limits and live visual tests with recovery.
+  Single panel first; tiling follows later.
 - **Home Assistant blueprint** — list Saved look IDs and trigger them from
   automations. Entity watching is a later feature.
 - **Seasonal promotion** — Halloween + Diwali packs shipped in v1.3.1;

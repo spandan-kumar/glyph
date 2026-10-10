@@ -44,6 +44,12 @@ retained as regression requirements, not promises for an unbuilt v1.4.
   Authored sprites retain their full sequence/motion pass, fast steps remain
   present, and Write retains a full scroll. Procedural effects evolve forever;
   their saved recording lasts at least 30 seconds rather than 3–4 seconds.
+- Follow-up maintenance: always stop the foreground service after power-channel
+  cleanup failures; sample sprite changes without forcing long holds to use
+  the fastest step's rate; bake full text in a worker isolate; bound preparation
+  before frame/encoder allocations; restore selection-only dock label fading.
+  Insufficient ESP storage remains an explicit failure with the previous
+  playback preserved. Additional storage for larger displays is hardware work.
 - The first public manifest requires v1.3.6. Older releases contain a disabled
   placeholder key and continue using their bundled library.
 
@@ -58,11 +64,52 @@ foreground daily checks, and a final Music/Send smoke check before tagging.
 The Send change already passed phone/controller QA, including byte-identical
 uploads and two observed full Ocean loops; this does not replace catalog QA.
 
+Follow-up maintenance verified locally on 10 October: clean analysis, 1,238
+passing Flutter tests (one live-device test skipped), and an arm64 release APK
+for v1.3.6+11. Regression coverage includes failed/missing power channels,
+mixed sprite timing, preparation limits, asynchronous text saves, selection
+fading, sharing and Send cancellation/capability checks. The current APK and
+checksum are in `build/release-candidate/`; these changes remain uncommitted.
+Phone smoke checks on 10 October installed the latest two minor fixes over
+v1.3.5 on the Pixel 8, preserving existing data. Clean analysis and 56 targeted
+tests passed before building. A text save persisted in Made by you; sending
+that clip produced a 16×16 GIF with 279 frames and 34.88 seconds downloaded
+from WLED. Switching looks during Send returned the control to idle without
+adding the interrupted animation to Saved. No unhandled exceptions appeared
+in the app log. The temporary creation, Saved entry and GIF were removed;
+original controller state, config and presets matched their snapshots. No
+power locks or streaming foreground service remained after stopping.
+
+Full phone/controller follow-up on 10 October passed signed catalog download,
+toggle persistence, offline cold-start/cache/recovery, byte-identical complete
+sprite Send/re-Send, preparation-limit errors, Android GIF sharing, recorded
+dock fades, and Music foreground/Home/screen-off/notification Stop checks.
+Clean analysis, all 1,238 Flutter tests and six freshly rerun native tests
+passed. Test content was removed; original controller state/config/Saved/file
+inventory were restored, and microphone/service/power ownership was released.
+See [the QA record and explicit coverage limits](QA_1_3_6.md). The hardware
+available was 16×16; 64×64 preparation and injected platform failures have
+automated coverage, not physical coverage. No release tag was created.
+
+A local Ocean/plasma bake at speed 0.2 and time scale 0.35 retained the full
+recording at each panel size:
+
+| Panel | Frames | Duration | GIF bytes |
+|---|---:|---:|---:|
+| 16×16 | 677 | 33.85 s | 166,940 |
+| 32×8 | 600 | 30.00 s | 143,208 |
+| 64×64 | 676 | 33.80 s | 1,380,925 |
+
+These are computer-side preparation checks, not phone performance measurements
+or proof that a controller has enough filesystem space. No automatic recording
+shortening is applied.
+
 ## Next product work
 
-1. Device setup wizard: dimensions, start corner, serpentine wiring and tiling;
-   live corner/arrow tests; snapshot config, write, reconnect and restore.
-   Keep the existing app orientation transform separate from hardware wiring.
+1. [Device setup wizard](DEVICE_SETUP.md): assisted home Wi-Fi onboarding with
+   guided fallback, one panel, dimensions/wiring, optional power limits and
+   visual tests; snapshot, apply, reconnect, verify and restore. Panel grids
+   follow later. Keep app orientation separate from hardware wiring.
 2. Home Assistant blueprint for triggering existing Saved IDs; entity watching
    is a later integration.
 3. Additional Glance feeds only after provider/coverage/usage validation.
@@ -291,7 +338,8 @@ catalog on GitHub Pages, an explicit Check for new animations action, and
 optional daily automatic checks (off by default). Checks run only while the
 app is open, including on resume when due. No accounts, upload service or
 per-user endpoints. The client foundations shipped in v1.3.3; the production
-key and public artifact are deployed for v1.3.6, with phone QA deferred.
+key and public artifact are deployed for v1.3.6. Phone catalog download,
+persistence and offline recovery passed on 10 October; see [the QA record](QA_1_3_6.md).
 See [delivery and QA](CATALOG_DELIVERY.md).
 
 - Build a remote JSON artifact from reviewed packs, including sprite data
@@ -339,6 +387,20 @@ blueprint uses existing Saved IDs and can ship independently. Before AWTRIX,
 extract only the adapter boundary needed by WLED and that second device.
 
 ## Product decisions
+
+Confirmed on 10 October: keep full Send content. Larger displays will use
+additional hardware storage; the current format keeps ESP filesystem storage.
+Do not introduce automatic shorter-loop fallbacks. Device storage remains a
+capability checked before upload; phone preparation still needs resource limits.
+The wizard plan now specifies realtime mapping, app-layout migration/rollback,
+full output-entry preservation, default physical wiring tests, an existing-device
+fast path, WLED network scans/IP capture and the iOS guided-settings path.
+
+Confirmed on 9 October for the setup wizard: include home Wi-Fi onboarding
+with an assisted Android connection and guided fallback; start with a single
+panel and add grids later; offer an optional supply/current-limit step.
+The [setup plan](DEVICE_SETUP.md) records the flow, recovery, implementation
+order and automated/physical acceptance gates. Implementation is pending.
 
 Confirmed on 9 October: activate catalog delivery and prepare v1.3.6 with the
 Music and complete-Send fixes. Phone/controller catalog QA happens later;

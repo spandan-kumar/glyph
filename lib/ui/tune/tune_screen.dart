@@ -348,7 +348,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
       switch (result) {
         case AlreadyOnDevice() || Cancelled():
           // Each said its own piece already (the toast with "Play it", or
-          // "Send stopped — …").
+          // "Send stopped because …").
           settle();
           return;
         case Sent():

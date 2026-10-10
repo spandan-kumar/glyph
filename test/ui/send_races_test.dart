@@ -7,8 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
+import 'package:glyph/engine/bake_limits.dart';
 import 'package:glyph/engine/clip.dart';
 import 'package:glyph/engine/frame.dart';
+import 'package:glyph/engine/generator.dart';
 import 'package:glyph/engine/gif_encoder.dart';
 import 'package:glyph/engine/palette.dart';
 import 'package:glyph/engine/registry.dart';
@@ -27,6 +29,24 @@ class _Playback extends PlaybackController {
     stops++;
     return super.stopStreaming(notify: notify);
   }
+}
+
+class _CountingGenerator extends Generator {
+  int creates = 0;
+  @override
+  String get id => 'custom-counting';
+  @override
+  String get name => 'Custom';
+  @override
+  EffectInstance create(int width, int height, int seed) {
+    creates++;
+    return _Blank();
+  }
+}
+
+class _Blank extends EffectInstance {
+  @override
+  void render(Frame out, double t, double dt, Params p, Palette pal) => out.fill(0);
 }
 
 void main() {
@@ -107,6 +127,55 @@ void main() {
       playback.pause();
     }
     expect(sent.last, orderedEquals(sent.first));
+  });
+
+  testWidgets('oversized clips fail before fitting or changing device playback', (tester) async {
+    final context = await mount(tester);
+    final count = maxBakeFrames + 1;
+    final oversized = FrameClip(width: 1, height: 1,
+      frames: List.filled(count, Frame(1, 1)), delaysMs: List.filled(count, 50));
+    playback.playGenerator(ClipGenerator(clip, title: 'Original'));
+    final result = await GlyphActions.sendClipToDevice(context, oversized, 'Huge');
+    expect(result, isA<Failed>());
+    expect((result as Failed).message, contains('Show it live'));
+    expect(alpha.uploads, isEmpty);
+    expect(alpha.posts, isEmpty);
+    expect(playback.stops, 0);
+    expect(playback.generator?.name, 'Original');
+    playback.pause();
+  });
+
+  testWidgets('unsupported devices do not start baking an animation', (tester) async {
+    final info = jsonDecode(alpha.info) as Map<String, dynamic>;
+    info['arch'] = 'esp8266';
+    alpha.info = jsonEncode(info);
+    final context = await mount(tester);
+    final g = _CountingGenerator();
+    playback.playGenerator(g);
+    expect(g.creates, 1);
+    final result = await GlyphActions.sendToDevice(context);
+    expect(result, isA<Failed>());
+    expect((result as Failed).message, contains('can’t save'));
+    expect(g.creates, 1);
+    expect(alpha.uploads, isEmpty);
+    playback.pause();
+  });
+
+  testWidgets('custom generators report a budget failure without changing playback', (tester) async {
+    final info = jsonDecode(alpha.info) as Map<String, dynamic>;
+    (info['leds'] as Map)['matrix'] = {'w': 1024, 'h': 1024};
+    alpha.info = jsonEncode(info);
+    final context = await mount(tester);
+    final g = _CountingGenerator();
+    playback.playGenerator(g);
+    final result = await GlyphActions.sendToDevice(context);
+    expect(result, isA<Failed>());
+    expect((result as Failed).message, contains('Show it live'));
+    expect(g.creates, 1);
+    expect(alpha.uploads, isEmpty);
+    expect(alpha.posts, isEmpty);
+    expect(playback.stops, 0);
+    playback.pause();
   });
 
   testWidgets(
@@ -321,8 +390,8 @@ void main() {
         expect(
           find.text(
             switchDevice
-                ? 'Send stopped — you switched device.'
-                : 'Send stopped — you picked a different look.',
+                ? 'Send stopped because you switched device.'
+                : 'Send stopped because you picked a different look.',
           ),
           findsOneWidget,
         );
@@ -452,6 +521,7 @@ void main() {
       );
       expect(result, isA<Failed>());
       expect((result as Failed).message, contains('space'));
+      expect(result.message, contains('full animation'));
       expect(alpha.uploads, isEmpty);
       expect(alpha.deleted, isEmpty);
       expect(alpha.posts, isEmpty);

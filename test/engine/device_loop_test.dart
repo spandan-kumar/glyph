@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph/engine/bake_limits.dart';
 import 'package:glyph/engine/generator.dart';
 import 'package:glyph/engine/generators/sprite.dart';
 import 'package:glyph/engine/gif_baker.dart';
@@ -68,6 +69,39 @@ void main() {
     final gif = decodeTestGif(bakeLoop(loop).bytes);
     expect(gif.frames, hasLength(3));
     expect(gif.delays, [2, 2, 2]);
+  });
+
+  test('one fast authored step does not oversample all the long holds', () {
+    final g = sprite({
+      'id': 'uneven', 'motion': 'still',
+      'ms': [20, 1000, 1000], 'frames': [['R'], ['G'], ['B']],
+    });
+    final loop = renderDeviceLoop(
+      generator: g, params: Params.defaultsFor(g, {'speed': 3}),
+      palette: paletteById('ocean'), width: 1, height: 1,
+    );
+    final states = <int>[];
+    for (final frame in loop.frames) {
+      final color = frame.get(0, 0);
+      if (states.isEmpty || states.last != color) states.add(color);
+    }
+    expect(states, [0xFF0000, 0x00FF00, 0x0000FF]);
+    expect(loop.frames.length, lessThan(20));
+    expect(loop.frameSeconds!.reduce((a, b) => a + b), closeTo(loop.seconds, 1e-9));
+    final baked = bakeLoop(loop);
+    expect(baked.duration.inMilliseconds, closeTo(loop.seconds * 1000, 20));
+    expect(decodeTestGif(baked.bytes).delays.first, 2);
+  });
+
+  test('a very large full sprite pass fails before frame allocation', () {
+    final g = sprite({
+      'id': 'large', 'motion': 'still',
+      'ms': 1000, 'frames': [['R'], ['G'], ['B']],
+    });
+    expect(() => renderDeviceLoop(
+      generator: g, params: Params.defaultsFor(g, {'speed': 0.25}),
+      palette: paletteById('ocean'), width: 1024, height: 1024,
+    ), throwsA(isA<BakeLimitException>()));
   });
 
   test('long scrolling banner includes its complete travel at the chosen speed', () {

@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../app/community.dart';
 import '../../app/creations.dart';
+import '../../engine/bake_limits.dart';
 import '../../engine/clip.dart';
 import '../../engine/frame.dart';
 import '../../engine/gif_encoder.dart';
@@ -92,10 +93,11 @@ Future<Creation> importGlyphFile(CreationsStore store, Uint8List bytes) async {
 /// Encodes [clip] as a looping GIF that keeps each frame's own delay,
 /// upscaled with hard pixel edges so it isn't a speck in a chat app.
 Uint8List encodeShareGif(FrameClip clip, {int targetSide = 320}) {
+  checkBakeSize(clip.width, clip.height, clip.frames.length);
   final side = math.max(clip.width, clip.height);
   var k = (targetSide / side).floor().clamp(1, 24);
   // Keep the encoder's work (pixels × frames) sensible on long clips.
-  while (k > 1 && clip.width * clip.height * k * k * clip.frames.length > 30000000) {
+  while (k > 1 && clip.width * clip.height * k * k * clip.frames.length > maxBakePixels) {
     k--;
   }
   final frames = k == 1 ? clip.frames : [for (final f in clip.frames) _upscale(f, k)];
@@ -174,7 +176,9 @@ Future<void> _share(
     LastError.record('Sharing failed: $e');
     messenger
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: const Text('Couldn\'t share that. Try again.')));
+      ..showSnackBar(SnackBar(content: Text(
+        e is BakeLimitException ? e.message : 'Couldn\'t share that. Try again.',
+      )));
   }
 }
 

@@ -1,3 +1,5 @@
 • New animations arrive through the signed Glyph catalog, with manual checks and optional daily checks.
 • Send preserves complete sprite sequences and scrolling messages; evolving effects get longer loops, even on weak Wi-Fi.
-• Background Music keeps running when the activity pauses and releases resources when stopped.
+• Background Music survives activity pauses and cleans up reliably when stopped.
+• Long text prepares without freezing the screen; sprite baking avoids redundant frames.
+• Tab labels fade smoothly when switching screens.

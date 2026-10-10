@@ -133,6 +133,45 @@ void main() {
     expect(BackgroundStreaming.isRunning, false);
   });
 
+  test('failed lock release still stops the service and allows a fresh start', () async {
+    var failRelease = true;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('glyph/power'), (call) async {
+          final active = call.arguments as bool;
+          power.add(active);
+          if (!active && failRelease) throw PlatformException(code: 'power');
+          return null;
+        });
+    await BackgroundStreaming.start(title: 'Music', microphone: true, onStop: () {});
+    await BackgroundStreaming.stop();
+    expect(running, false);
+    expect(BackgroundStreaming.isRunning, false);
+    expect(calls.where((c) => c == 'stopService'), hasLength(1));
+    failRelease = false;
+    expect(await BackgroundStreaming.start(title: 'Music', onStop: () {}), true);
+    expect(power, [true, false, true]);
+    await BackgroundStreaming.stop();
+  });
+
+  test('a missing power channel cannot leave the foreground service running', () async {
+    await BackgroundStreaming.start(title: 'Music', onStop: () {});
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('glyph/power'), null);
+    await BackgroundStreaming.stop();
+    expect(running, false);
+    expect(BackgroundStreaming.isRunning, false);
+    expect(calls.where((c) => c == 'stopService'), hasLength(1));
+  });
+
+  test('a missing power channel during startup shuts the new service down', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('glyph/power'), null);
+    expect(await BackgroundStreaming.start(title: 'Music', onStop: () {}), false);
+    expect(running, false);
+    expect(BackgroundStreaming.isRunning, false);
+    expect(calls.where((c) => c == 'stopService'), hasLength(1));
+  });
+
   test('power locks follow a monitored stream and device power without service restarts', () async {
     final playback = PlaybackController()..managePreviews();
     addTearDown(playback.dispose);

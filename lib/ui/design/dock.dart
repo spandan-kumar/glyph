@@ -165,9 +165,14 @@ class _DockTab extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Center(
-          // The room colour is already smoothed by AmbientController.
-          child: LedText(item.label.toUpperCase(), dot: dot,
-              color: active ? accent : Lb.text3),
+          // Animate selection only; room colour already has its own smoothing.
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: active ? 1 : 0, end: active ? 1 : 0),
+            duration: Lb.reduceMotion(context) ? Duration.zero : Lb.medium,
+            curve: Lb.ease,
+            builder: (context, value, _) => LedText(item.label.toUpperCase(), dot: dot,
+                color: Color.lerp(Lb.text3, accent, value)!),
+          ),
         ),
       ),
     );
