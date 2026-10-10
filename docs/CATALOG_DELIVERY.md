@@ -233,3 +233,14 @@ the daily toggle survives restart, reopen the library offline, resume a due
 foreground check and repeat the Music/Send smoke test. Keep daily checks
 at the user's original setting after testing. No phone/controller changes
 are made during this activation session; v1.3.6 is not tagged yet.
+
+### Release follow-up — 10 October 2026
+
+The previously deferred phone checks passed: public catalog download,
+automatic-toggle persistence, offline cold-start/cache recovery and online
+recheck. Music passed Home, screen-off and notification Stop checks; complete
+Send and cleanup also passed. The automatic catalog toggle was returned to
+its original disabled setting. Daily timing retains fake-clock coverage.
+See [the complete QA and release verification](QA_1_3_6.md).
+[v1.3.6+11 is published](https://github.com/spandan-kumar/glyph/releases/tag/v1.3.6)
+after successful full CI and the release workflow.

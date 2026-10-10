@@ -6,18 +6,18 @@ This plan merges product and marketing into one timeline, ordered for the
 most reach and community, based on research (October 2026) into what
 pixel-display owners want, which displays they own and where they talk.
 
-**Status, 9 October 2026.** v1.3.5+10 is published. v1.3.2 shipped the
+**Status, 10 October 2026.** v1.3.6+11 is published. v1.3.2 shipped the
 bug/polish bundle; v1.3.3 shipped logo Alerts, weather/day-counter Glance
 cards and phone Rotations; v1.3.4–1.3.5 added interaction polish and lower
 resource use. The library still has 1,209 looks, 62 procedural generators,
 329 sprites and 22 categories.
 
-**Next release: v1.3.6+11.** Activate the signed GitHub Pages catalog with
-manual checks and optional foreground daily checks, fix background Music
-activity pauses, and preserve complete Send content. The source and hosting
-are prepared and the signed Pages catalog is live. Phone/controller QA passed
-on 10 October, including offline catalog recovery, complete Send, resource
-limits and background Music. Publish through Actions after CI passes.
+**Latest release: v1.3.6+11.** Activates the signed GitHub Pages catalog with
+manual checks and optional foreground daily checks, fixes background Music
+activity pauses, and preserves complete Send content. Full CI and phone/controller
+QA passed, including offline catalog recovery, complete Send, resource limits
+and background Music. Actions published the arm64 APK and checksum; both the
+checksum and signing-certificate continuity with v1.3.5 were verified.
 [PLAN.md](PLAN.md) owns the release gates and implementation details;
 [the QA record](QA_1_3_6.md) states the physical coverage and its limits.
 

@@ -1,8 +1,8 @@
 # Glyph — engineering plan
 
-Reconciled on 9 October 2026 against the published v1.3.5+10 and `main` at
-`59608b9`. v1.3.6+11 is the next release candidate; do not tag it until the
-remaining phone/controller checks below pass.
+Updated on 10 October 2026 after publishing v1.3.6+11 from `032c357`.
+Full CI and the phone/controller checks below passed. The published arm64 APK,
+checksum and signature were verified; the setup wizard is next.
 [ROADMAP.md](ROADMAP.md) owns product priorities and launch plans; this file
 owns implementation order, dependencies and acceptance criteria. Dates are
 targets, not reasons to ship unfinished behaviour.
