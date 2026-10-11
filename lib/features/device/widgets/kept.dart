@@ -8,6 +8,7 @@ import '../../../ui/design/type.dart';
 import '../../../wled/presets.dart';
 import '../device_manager.dart';
 import 'common.dart';
+import 'home_assistant.dart';
 
 /// What's saved on the device: a grid of LED tiles. Tap plays it on the
 /// device; long-press to rename, delete or play it at power-on.
@@ -39,6 +40,13 @@ class KeptSection extends StatelessWidget {
       );
     }
     final accent = accentOf(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [_grid(context, items, accent), const SizedBox(height: 8), HomeAssistantLink(manager: manager)],
+    );
+  }
+
+  Widget _grid(BuildContext context, List<WledPreset> items, Color accent) {
     return LayoutBuilder(
       builder: (context, c) {
         final cols = c.maxWidth >= 520 ? 4 : 3;

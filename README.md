@@ -74,6 +74,8 @@ with whatever is on your matrix.
 **Device**
 - Power, brightness and night light; **Saved** animations, **Shows**
   (playlists) and **Routines** (schedules) that run without your phone.
+- **Home Assistant**: trigger Saved looks and Shows from automations with a
+  ready-made blueprint; see [docs/HOME_ASSISTANT.md](docs/HOME_ASSISTANT.md).
 - The **Glyph intro** plays every time your device powers on.
 - Storage alerts, multiple devices, a home-screen widget, and the full WLED
   settings inside the app.
