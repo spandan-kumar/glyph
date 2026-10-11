@@ -276,8 +276,6 @@ class _GridScreenState extends State<GridScreen> {
               : const SizedBox(width: double.infinity),
         ),
         const SizedBox(height: 20),
-        const MonoLabel('Panels'),
-        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(

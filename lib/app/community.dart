@@ -132,6 +132,8 @@ abstract final class Community {
 
   static const _platform = MethodChannel('glyph/platform');
 
+  static Future<AppEnv> readEnvForTest() => _readEnv();
+
   static Future<AppEnv> _readEnv() async {
     var version = '', build = '';
     String? phone, android;
@@ -144,7 +146,11 @@ abstract final class Community {
       final m = await _platform.invokeMapMethod<String, Object?>('phone');
       phone = m?['model'] as String?;
       final sdk = m?['sdk'];
-      android = m?['android'] == null ? null : 'Android ${m!['android']}${sdk == null ? '' : ' (SDK $sdk)'}';
+      android = m?['android'] != null
+          ? 'Android ${m!['android']}${sdk == null ? '' : ' (SDK $sdk)'}'
+          : m?['ios'] != null
+          ? 'iOS ${m!['ios']}'
+          : null;
     } catch (_) {}
     return AppEnv(version: version, build: build, phone: phone, os: android);
   }

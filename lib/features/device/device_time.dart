@@ -6,15 +6,18 @@ import '../../app/community.dart';
 import '../../wled/timezone.dart';
 import '../../wled/wled_client.dart';
 
-/// The phone's timezone: IANA id (Android only) and current UTC offset.
+/// The phone's timezone: IANA id (Android and iOS) and current UTC offset.
 typedef PhoneZone = ({String? iana, Duration offset});
 
 const _platform = MethodChannel('glyph/platform');
 
-Future<PhoneZone> _readPhoneZone() async {
+Future<PhoneZone> _readPhoneZone() => readPhoneZone();
+
+/// [hasIana] overrides the platform check (tests can't be Android or iOS).
+Future<PhoneZone> readPhoneZone({bool? hasIana}) async {
   String? iana;
-  // Only Android reports the IANA id; elsewhere the offset alone is used.
-  if (Platform.isAndroid) {
+  // Android and iOS report the IANA id; elsewhere the offset alone is used.
+  if (hasIana ?? (Platform.isAndroid || Platform.isIOS)) {
     try {
       final m = await _platform.invokeMapMethod<String, Object?>('phone');
       final tz = m?['tz'];

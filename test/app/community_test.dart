@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/community.dart';
 import 'package:glyph/app/devices.dart';
@@ -161,5 +162,19 @@ void main() {
     expect(d.text, contains('WLED ${info.version}'));
     expect(d.text, contains('Last error: Couldn'));
     devices.dispose();
+  });
+
+  test('environment reads the iOS phone map', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('glyph/platform');
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      channel,
+      (_) async => {'model': 'iPhone16,2', 'ios': '18.1', 'tz': 'Asia/Kolkata'},
+    );
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    final e = await Community.readEnvForTest();
+    expect(e.phone, 'iPhone16,2');
+    expect(e.os, 'iOS 18.1');
   });
 }

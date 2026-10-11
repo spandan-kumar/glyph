@@ -60,6 +60,9 @@ class FakeApDevice {
 
   final String mac, name;
   int netCalls = 0;
+
+  /// False: the phone isn't on the setup network yet, so requests fail.
+  bool reachable = true;
   final writes = <(String, Object?)>[];
   var networks = <Map<String, Object>>[
     {'ssid': 'Home', 'rssi': -48, 'bssid': 'aa', 'channel': 6, 'enc': 3},
@@ -72,6 +75,7 @@ class FakeApDevice {
 
   Future<http.Response> _handle(http.Request r) async {
     final path = r.url.path;
+    if (!reachable) throw http.ClientException('unreachable');
     if (r.method == 'GET') {
       if (path == '/json/info') {
         return http.Response(

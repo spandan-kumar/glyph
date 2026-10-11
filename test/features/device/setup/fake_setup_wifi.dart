@@ -1,10 +1,12 @@
 import 'package:glyph/features/device/setup/setup_wifi.dart';
 
 class FakeSetupWifi implements SetupWifi {
-  FakeSetupWifi({this.assisted = true, this.result = const SetupWifiConnected('WLED-AP')});
+  FakeSetupWifi({this.assisted = true, this.canOpenWifiSettings = true, this.result = const SetupWifiConnected('WLED-AP')});
 
   @override
   bool assisted;
+  @override
+  bool canOpenWifiSettings;
   SetupWifiResult result;
   final List<({String? ssid, String prefix, String password})> connects = [];
   int releases = 0;

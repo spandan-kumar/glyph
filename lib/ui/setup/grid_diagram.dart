@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../wled/panel_setup.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
+import 'setup_parts.dart' show SetupChip;
 
 /// A display of several panels drawn as one grid of dim LED dots with the
 /// panel outlines over it. Used by the grid layout screen, the panel-order
@@ -46,7 +47,7 @@ class GridDiagram extends StatelessWidget {
   final Set<(int, int)> targets;
   final ValueChanged<(int, int)>? onPanel;
 
-  /// Panels drawn marked (amber outline).
+  /// Panels drawn marked (a [Lb.text] frame).
   final Set<(int, int)> selected;
 
   /// Where the first light of a panel sits, drawn as an amber dot.
@@ -69,8 +70,10 @@ class GridDiagram extends StatelessWidget {
       final pitch = math.max(1.0, math.min(availW / totalW, maxHeight / totalH));
       final geo = _GridGeo(cols, rows, panelW, panelH, pitch, Offset(m + (availW - totalW * pitch) / 2, m));
       final size = Size(availW + 2 * m, totalH * pitch + 2 * m);
+      // Panels narrower than a touch target get a row of chips as well.
+      final dense = _interactive && targets.isNotEmpty && panelW * pitch < Lb.touch;
       final desc = label ?? 'Display diagram, $cols by $rows panels of $panelW by $panelH lights';
-      return SizedBox(
+      final diagram = SizedBox(
         width: size.width,
         height: size.height,
         child: Stack(
@@ -104,12 +107,36 @@ class GridDiagram extends StatelessWidget {
           ],
         ),
       );
+      if (!dense) return diagram;
+      final cells = targets.toList()..sort((a, b) => (a.$2 * cols + a.$1).compareTo(b.$2 * cols + b.$1));
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          diagram,
+          const SizedBox(height: 12),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final cell in cells)
+                SetupChip(
+                  label: 'Panel ${cell.$2 * cols + cell.$1 + 1}',
+                  selected: selected.contains(cell),
+                  onTap: () => onPanel!(cell),
+                ),
+            ],
+          ),
+        ],
+      );
     },
   );
 
   Widget _target(_GridGeo g, (int, int) cell, VoidCallback onTap, String label) {
     final r = g.rect(cell);
-    final w = math.max(Lb.touch, r.width), h = math.max(Lb.touch, r.height);
+    // Taller than drawn when short, never wider than the panel, so a target
+    // can't reach into a neighbour's visual; dense grids add chips instead.
+    final w = r.width, h = math.max(Lb.touch, r.height);
     return Positioned(
       left: r.center.dx - w / 2,
       top: r.center.dy - h / 2,
@@ -211,7 +238,7 @@ class _GridPainter extends CustomPainter {
         canvas.drawRect(
           r,
           Paint()
-            ..color = mark ? Lb.phosphor : (target ? Lb.text2 : Lb.text3.withValues(alpha: interactive ? 0.5 : 0.9))
+            ..color = mark ? Lb.text : (target ? Lb.text2 : Lb.text3.withValues(alpha: interactive ? 0.5 : 0.9))
             ..style = PaintingStyle.stroke
             ..strokeWidth = mark || target ? 1.5 : 1,
         );

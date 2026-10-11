@@ -36,13 +36,31 @@ void main() {
       expect(f, findsOneWidget);
       expect(tester.getSemantics(f).getSemanticsData().flagsCollection.isButton, isTrue);
       final size = tester.getSize(f);
-      expect(size.width, greaterThanOrEqualTo(48));
+      // 8 across is ~39 px per panel: the hit area grows taller, not into neighbours.
+      expect(size.width, lessThan(48));
       expect(size.height, greaterThanOrEqualTo(48));
       await tester.tap(f);
       expect(got, cell);
     }
+    // Too dense for 48 px targets across, so each target also has a chip.
+    for (final entry in {'Panel 1': (0, 0), 'Panel 16': (7, 1)}.entries) {
+      final chip = find.widgetWithText(InkWell, entry.key);
+      expect(chip, findsOneWidget);
+      expect(tester.getSize(chip).height, greaterThanOrEqualTo(48));
+      got = null;
+      await tester.tap(chip);
+      expect(got, entry.value);
+    }
     expect(find.bySemanticsLabel('Cell 3 0'), findsNothing, reason: 'panels that are not targets are not buttons');
     handle.dispose();
+  });
+
+  testWidgets('roomy grids have no chips', (tester) async {
+    await pump(
+      tester,
+      GridDiagram(cols: 2, rows: 1, panelW: 8, panelH: 8, targets: const {(0, 0)}, onPanel: (_) {}),
+    );
+    expect(find.byType(InkWell), findsNothing);
   });
 
   testWidgets('a lone target is still its own node, apart from the diagram label', (tester) async {

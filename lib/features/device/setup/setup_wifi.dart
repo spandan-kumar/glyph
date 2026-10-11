@@ -50,6 +50,10 @@ abstract class SetupWifi {
   Future<void> release();
   Future<void> openSettings();
 
+  /// False where an app can't open the Wi-Fi page (iOS): the guided step then
+  /// tells the person to go there themselves and offers "I've joined it".
+  bool get canOpenWifiSettings => true;
+
   /// Guided path: routes the app's traffic through the Wi-Fi network the
   /// person joined in Settings, which Android otherwise skips because it has
   /// no internet. [release] undoes it. False when there's nothing to bind.
@@ -60,8 +64,9 @@ typedef NearbyPermission = Future<bool> Function();
 
 class PlatformSetupWifi extends SetupWifi {
   PlatformSetupWifi({int? sdk, NearbyPermission? requestNearby,
-    NearbyPermission? requestLocation,
-  }) : _requestNearby = requestNearby ?? _defaultRequest,
+    NearbyPermission? requestLocation, bool? canOpenSettings,
+  }) : _canOpenSettings = canOpenSettings ?? (kIsWeb || !Platform.isIOS),
+        _requestNearby = requestNearby ?? _defaultRequest,
         _requestLocation = requestLocation ?? _defaultLocation {
     _sdk = sdk;
   }
@@ -70,6 +75,7 @@ class PlatformSetupWifi extends SetupWifi {
   static const _platform = MethodChannel('glyph/platform');
 
   int? _sdk;
+  final bool _canOpenSettings;
   final NearbyPermission _requestNearby, _requestLocation;
 
   static Future<bool> _defaultLocation() async =>
@@ -96,6 +102,9 @@ class PlatformSetupWifi extends SetupWifi {
       _sdk = null;
     }
   }
+
+  @override
+  bool get canOpenWifiSettings => _canOpenSettings;
 
   @override
   bool get assisted => (_sdk ?? 0) >= 29;

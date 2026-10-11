@@ -94,7 +94,7 @@ class JoinScreen extends StatelessWidget {
       gap: guided ? 16 : 24,
       children: [
         if (guided) ...[
-          _StepLine('1. Open Wi-Fi settings'),
+          _StepLine(c.canOpenWifiSettings ? '1. Open Wi-Fi settings' : '1. Open the Settings app, then Wi-Fi.'),
           _StepLine('2. Join $name. The password is $pw.'),
           _StepLine('3. Come back to Glyph.'),
           const SizedBox(height: 20),
@@ -105,6 +105,11 @@ class JoinScreen extends StatelessWidget {
               Flexible(child: Text('Waiting for your device…', style: LbType.small)),
             ],
           ),
+          if (!c.canOpenWifiSettings && c.joinStillLooking)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text('Still looking for your device…', style: LbType.small),
+            ),
         ] else
           LbPanel(child: Column(children: [_Kv('Network', name), const SizedBox(height: 8), _Kv('Password', pw)])),
         if (c.joinError != null)
@@ -121,7 +126,9 @@ class JoinScreen extends StatelessWidget {
       ],
       // After a failed system dialog, Wi-Fi settings leads and Connect becomes the retry.
       primary: guided
-          ? SetupPrimary('Open Wi-Fi settings', onPressed: c.openWifiSettings)
+          ? c.canOpenWifiSettings
+                ? SetupPrimary('Open Wi-Fi settings', onPressed: c.openWifiSettings)
+                : SetupPrimary('I\'ve joined it', busy: c.joinChecking, onPressed: c.confirmJoined)
           : c.assistedFailed
           ? SetupPrimary('Use Wi-Fi settings instead', onPressed: c.useGuided)
           : SetupPrimary('Connect', busy: c.joinBusy, onPressed: c.connectAssisted),

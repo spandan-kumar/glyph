@@ -199,6 +199,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
         // Back from the device's own network: the phone goes back to normal.
         unawaited(wifi.release().catchError((Object _) {}));
       case SetupStep.join:
+        joinStillLooking = false;
         if (showGuided) _startGuided();
       case SetupStep.wifi:
         unawaited(scan());
@@ -428,6 +429,31 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> openWifiSettings() => wifi.openSettings();
+
+  /// iOS can't open the Wi-Fi page, so the guided step says where to go.
+  bool get canOpenWifiSettings => wifi.canOpenWifiSettings;
+
+  /// "I've joined it" found nothing yet; polling carries on.
+  bool joinStillLooking = false;
+  bool joinChecking = false;
+
+  /// "I've joined it": looks for the device right away.
+  Future<void> confirmJoined() async {
+    if (joinChecking) return;
+    joinChecking = true;
+    joinStillLooking = false;
+    _notify();
+    final g = _gen;
+    try {
+      await wifi.bindCurrentWifi();
+      await _reachSetupDevice(g, tries: 1, quiet: true);
+    } finally {
+      joinChecking = false;
+    }
+    if (_disposed || g != _gen) return;
+    if (_step == SetupStep.join) joinStillLooking = true;
+    _notify();
+  }
 
   void _startGuided() {
     _guidedTimer?.cancel();

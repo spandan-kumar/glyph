@@ -167,6 +167,27 @@ void main() {
       rig.playback.pause();
     });
 
+    testWidgets('guided on iOS: no settings button, "I\'ve joined it" checks at once', (tester) async {
+      final rig = await joinRig(
+        tester,
+        wifi: FakeSetupWifi(assisted: false, canOpenWifiSettings: false),
+      );
+      rig.ap.reachable = false;
+      await tapText(tester, 'No, it\'s new');
+      expect(find.text('1. Open the Settings app, then Wi-Fi.'), findsOneWidget);
+      expect(find.text('2. Join WLED-AP. The password is wled1234.'), findsOneWidget);
+      expect(find.text('3. Come back to Glyph.'), findsOneWidget);
+      expect(find.text('Open Wi-Fi settings'), findsNothing);
+      expect(find.text('Still looking for your device…'), findsNothing);
+      await tapText(tester, 'I\'ve joined it');
+      expect(find.text('Still looking for your device…'), findsOneWidget);
+      expect(rig.wifi.settingsOpened, 0);
+      rig.ap.reachable = true;
+      await tapText(tester, 'I\'ve joined it', ms: 800);
+      expect(find.text('Which Wi-Fi should it join?'), findsOneWidget);
+      rig.playback.pause();
+    });
+
     testWidgets('assisted can be set aside for the guided steps', (tester) async {
       final rig = await joinRig(tester);
       await tapText(tester, 'No, it\'s new');

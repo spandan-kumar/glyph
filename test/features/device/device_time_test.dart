@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/features/device/device_time.dart';
 import 'package:glyph/wled/wled_client.dart';
@@ -81,5 +82,31 @@ void main() {
     failState = false;
     failCfg = true;
     expect(await ensureDeviceTime(client(), phone: nyc, now: now), isFalse);
+  });
+
+  group('readPhoneZone', () {
+    const channel = MethodChannel('glyph/platform');
+    void reply(Object? Function(MethodCall) h) {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (c) async => h(c));
+      addTearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null));
+    }
+
+    test('uses the iOS map: tz is the IANA id', () async {
+      reply((c) => c.method == 'phone'
+          ? {'model': 'iPhone16,2', 'ios': '18.1', 'tz': 'Asia/Kolkata'}
+          : null);
+      expect((await readPhoneZone(hasIana: true)).iana, 'Asia/Kolkata');
+    });
+
+    test('offset only when the platform has no id, or the channel is missing', () async {
+      reply((_) => {'tz': 'Asia/Kolkata'});
+      expect((await readPhoneZone(hasIana: false)).iana, isNull);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+      expect((await readPhoneZone(hasIana: true)).iana, isNull);
+    });
   });
 }
