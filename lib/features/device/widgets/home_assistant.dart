@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -12,6 +14,30 @@ import 'common.dart';
 final homeAssistantGuide = Uri.parse(
   '${Community.repo}/blob/main/docs/HOME_ASSISTANT.md',
 );
+
+const _platform = MethodChannel('glyph/platform');
+
+Future<int?>? _sdkCache;
+
+Future<int?> _readSdk() async {
+  try {
+    final m = await _platform.invokeMapMethod<String, Object?>('phone');
+    return m?['sdk'] as int?;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Android 13 (SDK 33) and later show their own confirmation when something is
+/// copied, so Glyph's toast is only for older Android and other platforms.
+/// Replaced in tests.
+Future<bool> Function() showCopyToast = _showCopyToast;
+
+Future<bool> _showCopyToast() async {
+  if (!Platform.isAndroid) return true;
+  final sdk = await (_sdkCache ??= _readSdk());
+  return sdk == null || sdk < 33;
+}
 
 /// The names Home Assistant lists for this device: the stored name as the
 /// device holds it (not Glyph's tidied display name), system items left out.
@@ -144,7 +170,8 @@ class _NameRowState extends State<_NameRow> {
   Future<void> _copy() async {
     HapticFeedback.lightImpact();
     await Clipboard.setData(ClipboardData(text: widget.name));
-    if (mounted) toast(context, 'Copied');
+    final show = await showCopyToast();
+    if (show && mounted) toast(context, 'Copied');
   }
 
   @override

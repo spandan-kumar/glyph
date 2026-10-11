@@ -204,7 +204,7 @@ class _RotationEditorState extends State<RotationEditor> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Anything that isn’t available — a deleted card, weather with no signal — is skipped. '
+            'Anything that isn’t available is skipped: a deleted card, or weather with no signal. '
             'A notification alert pauses the rotation, then it carries on.',
             style: LbType.small.copyWith(color: Lb.text3),
           ),
@@ -366,8 +366,8 @@ class _ChooseEntryState extends State<_ChooseEntry> {
                 padding: const EdgeInsets.all(Lb.gutter),
                 child: Text(
                   switch (_kind) {
-                    ShowEntryKind.card => 'No cards yet — make one on the Glance screen.',
-                    ShowEntryKind.creation => 'Nothing made yet — draw or write something in Make.',
+                    ShowEntryKind.card => 'No cards yet. Make one on the Glance screen.',
+                    ShowEntryKind.creation => 'Nothing made yet. Draw or write something in Make.',
                     ShowEntryKind.library => 'Nothing matches.',
                   },
                   style: LbType.small,

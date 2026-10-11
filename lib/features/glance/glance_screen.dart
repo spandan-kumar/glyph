@@ -263,7 +263,7 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
           final (title, line) = switch (focus) {
             _CardFocus(:final id) => (_card(id)!.title, cardStatus(s, _card(id)!)),
             _RotationFocus(:final id) => (_rotation(id)!.title, rotationLine(_rotation(id)!)),
-            null => ('Weather and the days that matter', 'Add a city or a date to make your first card.'),
+            null => ('Weather, air and the days that matter', 'Add a city or a date to make your first card.'),
           };
           return ListView(
             padding: const EdgeInsets.fromLTRB(Lb.gutter, 4, Lb.gutter, 40),
@@ -800,10 +800,17 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
         _ => 'Weather',
       };
 
+  /// The default name for a place card; forecast and air say which they are.
+  String get _placeName => switch (widget.kind) {
+    GlanceKind.forecast => '${shortPlace(_place!.name)} forecast',
+    GlanceKind.airQuality => '${shortPlace(_place!.name)} air',
+    _ => shortPlace(_place!.name),
+  };
+
   String get _effectiveTitle {
     final t = _title.text.trim();
     if (t.isNotEmpty) return t;
-    if (_weather) return _place == null ? _kindName : shortPlace(_place!.name);
+    if (_weather) return _place == null ? _kindName : _placeName;
     return _mode == CounterMode.until ? 'Big day' : 'Since';
   }
 
@@ -1081,7 +1088,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
           TextField(
             controller: _title,
             maxLength: 64,
-            decoration: InputDecoration(hintText: shortPlace(_place!.name), counterText: ''),
+            decoration: InputDecoration(hintText: _placeName, counterText: ''),
             onChanged: (_) => setState(() => _titleEdited = true),
           ),
         ] else ...[
@@ -1163,7 +1170,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
             const SizedBox(height: 8),
           ],
           Text(
-            'Only the city you search for is sent to Open-Meteo — Glyph never asks for your location.',
+            'Only the city you search for is sent to Open-Meteo. Glyph never asks for your location.',
             style: LbType.small.copyWith(color: Lb.text3),
           ),
         ],

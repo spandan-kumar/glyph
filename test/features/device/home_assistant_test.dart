@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/community.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/features/device/device_manager.dart';
+import 'package:glyph/features/device/widgets/home_assistant.dart';
 import 'package:glyph/features/device/widgets/kept.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:glyph/wled/device.dart';
@@ -80,6 +81,28 @@ void main() {
     expect(copied, ['pipplee.gif']);
     expect(find.text('Copied'), findsOneWidget);
     expect(tester.getSize(find.byTooltip('Copy pipplee.gif')).height, greaterThanOrEqualTo(48));
+  });
+
+  testWidgets('copy skips the toast where the system already confirms it', (tester) async {
+    await open(tester);
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') copied.add((call.arguments as Map)['text'] as String);
+      return null;
+    });
+    final oldToast = showCopyToast;
+    showCopyToast = () async => false;
+    addTearDown(() {
+      showCopyToast = oldToast;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    await tester.tap(find.text('Use with Home Assistant'));
+    await settle(tester, 600);
+    await tester.tap(find.byTooltip('Copy pipplee.gif'));
+    await settle(tester, 300);
+    expect(copied, ['pipplee.gif']);
+    expect(find.text('Copied'), findsNothing);
   });
 
   testWidgets('Open the guide launches the guide externally', (tester) async {
