@@ -110,7 +110,7 @@ jobs:
           "$apksigner" sign "${sign_args[@]}" "$apk"
 
           require_cert() {
-            if ! awk '/^Signer .* certificate SHA-256 digest:/ {print tolower($NF)}' "$1" | grep -Fxq "$2"; then
+            if ! awk '/Signer.* certificate SHA-256 digest:/ {print tolower($NF)}' "$1" | grep -Fxq "$2"; then
               echo "::error::Expected signing certificate $2 is missing from $1."
               exit 1
             fi
