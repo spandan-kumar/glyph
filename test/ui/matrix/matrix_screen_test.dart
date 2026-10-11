@@ -7,6 +7,7 @@ import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
 import 'package:glyph/features/device/boot_intro.dart';
+import 'package:glyph/features/device/setup/setup_store.dart';
 import 'package:glyph/features/device/widgets/device_settings.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/design/toggle.dart';
@@ -15,6 +16,7 @@ import 'package:glyph/ui/onboarding/onboarding_flow.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:glyph/wled/device.dart';
+import 'package:glyph/wled/panel_setup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/device/fake_wled.dart';
@@ -141,8 +143,8 @@ void main() {
     await reveal(tester, find.text('Shelf').last);
     expect(find.text('YOUR DEVICES'), findsOneWidget);
     expect(find.text('Add a device'), findsOneWidget);
-    expect(find.text('Device settings'), findsOneWidget);
-    expect(find.text('The full WLED setup, inside Glyph'), findsOneWidget);
+    expect(find.text('WLED firmware settings'), findsOneWidget);
+    expect(find.text('Wi-Fi, LEDs, 2D layout and more, inside Glyph'), findsOneWidget);
     await reveal(tester, find.byType(LbToggle).last);
     await tester.tap(find.byType(LbToggle).last);
     await settle(tester);
@@ -162,7 +164,7 @@ void main() {
     playback.pause();
   });
 
-  testWidgets('rename and fix orientation from Your devices', (tester) async {
+  testWidgets('rename, and Set up display opens the setup wizard', (tester) async {
     SharedPreferences.setMockInitialValues(twoMatrices);
     final (_, playback) = await pump(tester);
     await reveal(tester, find.text('Rename'));
@@ -173,14 +175,40 @@ void main() {
     await settle(tester, 800);
     expect(wled.posts.any((p) => p.$1 == '/json/cfg'), isTrue);
 
-    await reveal(tester, find.text('Fix orientation'));
-    await tester.tap(find.text('Fix orientation'));
-    await settle(tester, 600);
-    expect(find.text('Which way is the arrow pointing on your device?'), findsOneWidget);
+    await reveal(tester, find.text('Set up display'));
+    expect(find.text('Size, wiring and a quick check'), findsOneWidget);
+    expect(find.text('Fix orientation'), findsNothing);
+    expect(find.text('Undo display setup'), findsNothing, reason: 'nothing to undo yet');
+    await tester.tap(find.text('Set up display'));
+    await settle(tester, 1200);
+    expect(find.text('CONNECT'), findsOneWidget);
+    expect(find.byTooltip('Close'), findsOneWidget, reason: 'it starts at Check for this device');
     expect(tester.takeException(), isNull);
-    await tester.tap(find.byTooltip('Back'));
-    await settle(tester, 600);
-    expect(find.text('Which way is the arrow pointing on your device?'), findsNothing);
+    await tester.tap(find.byTooltip('Close'));
+    await settle(tester, 800);
+    expect(find.text('CONNECT'), findsNothing);
+    playback.pause();
+  });
+
+  testWidgets('Undo display setup shows only with a backup, asks, and says what happened', (tester) async {
+    SharedPreferences.setMockInitialValues(twoMatrices);
+    final state = DeviceSetupState.fromJson(
+      cfg: Map<String, dynamic>.from(wled.cfg),
+      info: jsonDecode(wled.info) as Map<String, dynamic>,
+    );
+    await SetupStore().save(SetupSnapshot.of(state, host: '192.168.29.6'));
+    final (_, playback) = await pump(tester);
+    await reveal(tester, find.text('Undo display setup'));
+    expect(find.text('Put the previous setup back'), findsOneWidget);
+    await tester.tap(find.text('Undo display setup'));
+    await settle(tester, 400);
+    expect(find.text('Undo display setup?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Undo'));
+    await settle(tester, 1200);
+    expect(find.text('Your previous setup is back.'), findsOneWidget);
+    expect(await SetupStore().has(state.mac), isFalse);
+    await settle(tester, 400);
+    expect(find.text('Undo display setup'), findsNothing);
     playback.pause();
   });
 
@@ -192,12 +220,18 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.tap(find.widgetWithText(FilledButton, 'Connect your device'));
     await settle(tester, 600);
+    expect(find.text('Is your device on your Wi-Fi?'), findsOneWidget);
+    await tester.tap(find.text('Yes, it\'s on my Wi-Fi'));
+    await settle(tester, 600);
     expect(find.text('Add a device'), findsOneWidget);
     expect(find.text('Can\'t see it?'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.tap(find.byTooltip('Back'));
     await settle(tester, 600);
-    expect(find.text('Add a device'), findsNothing);
+    expect(find.text('Is your device on your Wi-Fi?'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back'));
+    await settle(tester, 600);
+    expect(find.text('Is your device on your Wi-Fi?'), findsNothing);
     playback.pause();
   });
 
@@ -209,7 +243,7 @@ void main() {
     expect(find.text('Matrix'), findsWidgets);
     expect(find.text('Can\'t reach it right now'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
-    expect(find.text('Device settings'), findsNothing, reason: 'only offered when it answers');
+    expect(find.text('WLED firmware settings'), findsNothing, reason: 'only offered when it answers');
     await reveal(tester, find.text('Add a device'));
     expect(find.text('Shelf'), findsWidgets);
     expect(tester.takeException(), isNull);
@@ -226,14 +260,14 @@ void main() {
     playback.pause();
   });
 
-  testWidgets('Device settings opens WLED\'s own pages and re-reads the device on close', (tester) async {
+  testWidgets('WLED firmware settings opens WLED\'s own pages and re-reads the device on close', (tester) async {
     SharedPreferences.setMockInitialValues(twoMatrices);
     final (_, playback) = await pump(
       tester,
       settingsView: (context, url) => Center(child: Text('web view: $url')),
     );
-    await reveal(tester, find.text('Device settings'));
-    await tester.tap(find.text('Device settings'));
+    await reveal(tester, find.text('WLED firmware settings'));
+    await tester.tap(find.text('WLED firmware settings'));
     await settle(tester, 600);
     expect(find.byType(DeviceSettingsPage), findsOneWidget);
     expect(find.text('web view: http://192.168.29.6/settings'), findsOneWidget);
@@ -245,7 +279,7 @@ void main() {
     await settle(tester, 600);
     expect(find.byType(DeviceSettingsPage), findsNothing);
     expect(wled.gets, contains('/json/info'), reason: 'changes made in WLED show up');
-    expect(find.text('Device settings'), findsOneWidget);
+    expect(find.text('WLED firmware settings'), findsOneWidget);
     playback.pause();
   });
 }

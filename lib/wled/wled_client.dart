@@ -1,12 +1,42 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
 import 'device.dart';
+import 'panel_setup.dart';
 import 'presets.dart';
 import 'schedule.dart';
+
+class _PresetMutation {
+  _PresetMutation(this.host);
+  final String host;
+  bool active = true;
+}
+
+/// A Wi-Fi network found by the device's own scan (`/json/net`).
+class WifiNetwork {
+  const WifiNetwork({
+    required this.ssid,
+    required this.rssi,
+    required this.secure,
+    this.bssid = '',
+  });
+
+  final String ssid;
+
+  /// Signal in dBm (closer to 0 is stronger).
+  final int rssi;
+
+  /// False for an open network (`enc` 0).
+  final bool secure;
+  final String bssid;
+
+  @override
+  String toString() => 'WifiNetwork($ssid, $rssi dBm${secure ? '' : ', open'})';
+}
 
 class WledException implements Exception {
   WledException(this.message, [this.cause]);
@@ -21,12 +51,20 @@ class WledException implements Exception {
 /// WLED JSON/HTTP API. Endpoints verified against wled/WLED v16.0.1 and
 /// v0.14.4 sources (wled00/wled_server.cpp, json.cpp, presets.cpp).
 class WledClient {
-  WledClient(this.host, {http.Client? client})
+  WledClient(this.host, {http.Client? client, Future<void> Function(Duration)? delay})
       : _http = client ?? http.Client(),
+        _delay = delay ?? Future<void>.delayed,
         _base = Uri.parse('http://${_authority(host)}');
 
   static const timeout = Duration(seconds: 4);
   static const uploadTimeout = Duration(seconds: 40);
+
+  /// presets.json writes finish in the device loop after the HTTP reply, so a
+  /// write is confirmed by polling the file instead of sleeping a fixed time.
+  static const presetPollInterval = Duration(milliseconds: 120);
+  static const presetPollTimeout = Duration(seconds: 3);
+  static final _presetQueues = <String, Future<void>>{};
+  static final _mutationKey = Object();
 
   /// Longest GIF file name (without the leading slash) accepted by
   /// [gifSegmentName]: ESP8266 builds cap segment names at 32 chars
@@ -36,6 +74,37 @@ class WledClient {
   final String host;
   final http.Client _http;
   final Uri _base;
+  final Future<void> Function(Duration) _delay;
+  final _createdGifs = <String>{};
+
+  /// Boot rewrites and JSON preset saves must share a queue, even when two
+  /// clients address the same host. Nested calls retain the operation's lock.
+  Future<T> withPresetMutation<T>(Future<T> Function() operation) {
+    final key = host.toLowerCase();
+    final held = Zone.current[_mutationKey];
+    if (held is _PresetMutation && held.host == key && held.active) {
+      return operation();
+    }
+    final next = (_presetQueues[key] ?? Future<void>.value()).then((_) {
+      final lease = _PresetMutation(key);
+      return runZoned(() async {
+        try {
+          return await operation();
+        } finally {
+          lease.active = false;
+        }
+      }, zoneValues: {_mutationKey: lease});
+    });
+    final settled = next.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    _presetQueues[key] = settled;
+    settled.then((_) {
+      if (identical(_presetQueues[key], settled)) _presetQueues.remove(key);
+    });
+    return next;
+  }
 
   Future<WledInfo> info() async => WledInfo.fromJson(await _getMap('/json/info'));
 
@@ -87,7 +156,58 @@ class WledClient {
     }
   }
 
-  Future<void> setState(Map<String, dynamic> s) async {
+  Future<void> setState(Map<String, dynamic> s) {
+    if (s.containsKey('psave') || s.containsKey('pdel')) {
+      return withPresetMutation(() async {
+        final id = (s['psave'] ?? s['pdel']);
+        final before = id is int ? await _presetEntry(id) : null;
+        await _setState(s);
+        // The HTTP response precedes the device-loop filesystem write.
+        if (id is! int) return;
+        if (s.containsKey('pdel')) {
+          await _pollPreset(id, (e) => e == null);
+        } else {
+          final name = s['n'];
+          final old = before == null ? null : jsonEncode(before);
+          await _pollPreset(
+            id,
+            (e) =>
+                e != null &&
+                (old == null || jsonEncode(e) != old) &&
+                (name is! String || e['n'] == name),
+          );
+        }
+      });
+    }
+    return _setState(s);
+  }
+
+  /// The raw presets.json entry for [id]; null when absent or unreadable.
+  Future<Map<String, dynamic>?> _presetEntry(int id) async {
+    try {
+      final all = await _getMap('/presets.json');
+      final e = all['$id'];
+      return e is Map && e.isNotEmpty ? Map<String, dynamic>.from(e) : null;
+    } on WledException {
+      return null;
+    }
+  }
+
+  /// Polls presets.json until [done] accepts entry [id] or
+  /// [presetPollTimeout] passes (then carries on: the write may simply have
+  /// changed nothing). Time is counted in [presetPollInterval] steps through
+  /// the injectable delay, so tests need no real waiting.
+  Future<void> _pollPreset(int id, bool Function(Map<String, dynamic>? entry) done) async {
+    var waited = Duration.zero;
+    while (true) {
+      if (done(await _presetEntry(id))) return;
+      if (waited >= presetPollTimeout) return;
+      await _delay(presetPollInterval);
+      waited += presetPollInterval;
+    }
+  }
+
+  Future<void> _setState(Map<String, dynamic> s) async {
     final res = await _send(() => _http.post(_uri('/json/state'),
         headers: const {'Content-Type': 'application/json'},
         body: jsonEncode(s)));
@@ -220,17 +340,19 @@ class WledClient {
   /// Without an "o" key WLED snapshots the live state; "ib" includes
   /// brightness, "sb" segment bounds. The write happens asynchronously in the
   /// device loop (presets.cpp savePreset). Names are capped at 32 chars.
-  Future<int> saveCurrentAsPreset(String name, {int? id}) async {
-    id ??= await firstFreePresetId();
-    if (id < 1 || id > 250) throw WledException('Preset id must be 1..250');
-    await setState({
-      'psave': id,
-      'n': name.length > 32 ? name.substring(0, 32) : name,
-      'ib': true,
-      'sb': true,
-    });
-    return id;
-  }
+  Future<int> saveCurrentAsPreset(String name, {int? id}) => withPresetMutation(
+    () async {
+      final pid = id ?? await firstFreePresetId();
+      if (pid < 1 || pid > 250) throw WledException('Preset id must be 1..250');
+      await setState({
+        'psave': pid,
+        'n': name.length > 32 ? name.substring(0, 32) : name,
+        'ib': true,
+        'sb': true,
+      });
+      return pid;
+    },
+  );
 
   /// Uploads [gif], plays it on segment 0 and saves that as a preset.
   /// Returns the preset id.
@@ -242,36 +364,155 @@ class WledClient {
     int? presetId,
     Future<void> Function()? beforeSwitch,
     void Function(int attempt)? onRetry,
-  }) async {
+    bool Function()? canSwitch,
+  }) => withPresetMutation(() async {
     final fx = caps.imageEffectId;
     if (!caps.canPlayGifs || fx == null) {
       throw WledException(
-          'This device cannot play GIFs (needs WLED 16+ on an ESP32-family chip)');
+        'This device cannot play GIFs (needs WLED 16+ on an ESP32-family chip)',
+      );
     }
-    final name = gifSegmentName(fileName);
-    var existing = 0;
-    try {
-      existing = (await files())['/$name'] ?? 0;
-    } on WledException {
-      // listing is best-effort; assume a new file
+    final baseName = gifSegmentName(fileName);
+    final listing = await files();
+    final presets = await presetList();
+    final previous = presets
+        .where((p) => p.id == presetId)
+        .firstOrNull
+        ?.gifName;
+    final segments = (await state())['seg'];
+    final used = {
+      for (final path in listing.keys) path.substring(1).toLowerCase(),
+      for (final p in presets)
+        if (p.gifName != null) p.gifName!.toLowerCase(),
+      if (segments is List)
+        for (final s in segments.whereType<Map>())
+          if (s['n'] is String) (s['n'] as String).toLowerCase(),
+    };
+    var name = baseName;
+    if (used.contains(name.toLowerCase())) {
+      final stem = baseName.substring(0, baseName.length - 4);
+      for (var revision = 0; revision < 256; revision++) {
+        final suffix = revision.toRadixString(16).padLeft(2, '0');
+        final candidate =
+            '${stem.substring(0, min(stem.length, 24))}-$suffix.gif';
+        if (!used.contains(candidate.toLowerCase())) {
+          name = candidate;
+          break;
+        }
+      }
+      if (name == baseName) {
+        throw WledException(
+          'Remove unused versions of this animation before sending again',
+        );
+      }
     }
-    if (!caps.fitsFile(gif.length - existing)) {
+    // The file this send replaces is deleted after the switch, so its space
+    // counts as free (see [_replacedFile]).
+    final replaced = _replacedFile(presetId, presets, listing, fileName);
+    final credit = replaced == null ? 0 : listing['/$replaced'] ?? 0;
+    if (!caps.fitsFile(gif.length - credit)) {
       final freeKb =
-          (caps.freeFsBytes - DeviceCapabilities.fsSafetyMarginBytes) ~/ 1024;
+          (caps.freeFsBytes + credit - DeviceCapabilities.fsSafetyMarginBytes) ~/ 1024;
       throw WledException(
-          'GIF is ${(gif.length / 1024).ceil()} KB but the device has only '
-          '${freeKb < 0 ? 0 : freeKb} KB free');
+        'GIF is ${(gif.length / 1024).ceil()} KB but the device has only '
+        '${freeKb < 0 ? 0 : freeKb} KB free',
+      );
     }
-    // Upload first, without touching what the matrix shows, so a failed
-    // upload leaves it exactly as it was. Once the file is verified, load
-    // the GIF while live frames still cover it, then leave live mode so the
-    // switch is instant (no flash of whatever played before).
-    await _releaseFile(name);
-    await uploadFileReliably('/$name', gif, onRetry: onRetry);
-    await playGif(name, imageEffectId: fx);
-    await beforeSwitch?.call();
-    await exitLive();
-    return saveCurrentAsPreset(presetName, id: presetId);
+    final pid = presetId ?? await firstFreePresetId();
+    if (canSwitch != null && !canSwitch()) {
+      throw WledException('Send cancelled: playback changed');
+    }
+    var committed = false;
+    try {
+      // Never overwrite a file the device or a Saved look still uses.
+      await uploadFileReliably('/$name', gif, onRetry: onRetry);
+      _createdGifs.add(name);
+      if (canSwitch != null && !canSwitch()) {
+        throw WledException('Send cancelled: playback changed');
+      }
+      committed = true;
+      await playGif(name, imageEffectId: fx);
+      await beforeSwitch?.call();
+      await exitLive();
+      try {
+        await saveCurrentAsPreset(presetName, id: pid);
+      } on WledException {
+        // A lost HTTP reply can follow a successful asynchronous device write.
+        // The staged filename is unique, so an older Saved entry cannot match.
+        final label = presetName.length > 32 ? presetName.substring(0, 32) : presetName;
+        await _pollPreset(pid, (e) => e != null && e['n'] == label);
+        WledPreset? saved;
+        try {
+          saved = (await presetList()).where((p) => p.id == pid).firstOrNull;
+        } on WledException {
+          // Keep the original failure when the write cannot be confirmed.
+        }
+        if (saved?.name != label || saved?.gifName != name ||
+            saved?.effectId != fx || saved?.body['on'] != true) {
+          rethrow;
+        }
+      }
+      // Retire the file this look used before, once nothing plays or saves it.
+      if (previous != null && (replaced == previous || _createdGifs.contains(previous))) {
+        try {
+          final saved = await presetList();
+          final segs = (await state())['seg'];
+          final playing =
+              segs is List &&
+              segs.whereType<Map>().any((s) => s['n'] == previous);
+          if (!playing && saved.every((p) => p.gifName != previous)) {
+            await deleteFile('/$previous');
+            _createdGifs.remove(previous);
+          }
+        } catch (_) {}
+      }
+      return pid;
+    } catch (_) {
+      if (!committed) {
+        try {
+          await deleteFile('/$name');
+          _createdGifs.remove(name);
+        } catch (_) {}
+      }
+      rethrow;
+    }
+  });
+
+  /// The GIF that preset [presetId] plays today, when this send may retire
+  /// it: no other preset uses it and its name is one Glyph generates for
+  /// [fileName] (never the boot intro or a file the user uploaded). Holds
+  /// across app restarts, unlike [_createdGifs].
+  String? _replacedFile(int? presetId, List<WledPreset> presets, Map<String, int> listing, String fileName) {
+    final old = presets.where((p) => p.id == presetId).firstOrNull?.gifName;
+    if (old == null || old == 'glyph-intro.gif' || !listing.containsKey('/$old')) return null;
+    if (presets.any((p) => p.id != presetId && p.gifName == old)) return null;
+    return matchesGifName(fileName, old) || _createdGifs.contains(old) ? old : null;
+  }
+
+  /// Bytes a send of [fileName] over preset [presetId] gives back once it
+  /// has switched, so a near-full device isn't refused for a swap.
+  Future<int> reclaimableBytes(int? presetId, String fileName) async {
+    if (presetId == null) return 0;
+    try {
+      final listing = await files();
+      final old = _replacedFile(presetId, await presetList(), listing, fileName);
+      return old == null ? 0 : listing['/$old'] ?? 0;
+    } on WledException {
+      return 0;
+    }
+  }
+
+  /// Replacement files retain enough of the original name for catalog
+  /// matching after restarting the app.
+  static bool matchesGifName(String baseName, String fileName) {
+    final base = (baseName.startsWith('/') ? baseName.substring(1) : baseName).toLowerCase();
+    if (base.length <= 4 || !base.endsWith('.gif')) return false;
+    final file = fileName.toLowerCase();
+    if (base == file) return true;
+    final stem = base.substring(0, base.length - 4);
+    final prefix = '${stem.substring(0, min(stem.length, 24))}-';
+    return file.startsWith(prefix) &&
+        RegExp(r'^[0-9a-f]{2}\.gif$').hasMatch(file.substring(prefix.length));
   }
 
   /// Uploads [bytes] to [path] and checks the stored size, retrying up to
@@ -362,7 +603,7 @@ class WledClient {
         headers: const {'Content-Type': 'application/json'},
         body: jsonEncode(patch)));
     if (res.statusCode == 401) {
-      throw WledException('Device settings are PIN-locked; unlock them in WLED first', 401);
+      throw WledException('WLED firmware settings are PIN-locked; unlock them in WLED first', 401);
     }
     _check(res, '/json/cfg');
   }
@@ -376,6 +617,20 @@ class WledClient {
       'id': {'name': n.length > 32 ? n.substring(0, 32) : n}
     });
   }
+
+  /// Turns on internet time (NTP) with a timezone from WLED's table and an
+  /// extra offset in seconds (cfg if.ntp: en, tz, offset). The host is left
+  /// alone. Newly enabled NTP starts on the next restart or reconnect.
+  Future<void> setInternetTime({required int tz, required int offsetSeconds}) => setConfig({
+        'if': {
+          'ntp': {'en': true, 'tz': tz, 'offset': offsetSeconds}
+        }
+      });
+
+  /// Sets the device clock now (json.cpp setTimeFromAPI: unix seconds, UTC).
+  /// A backup source: correct before NTP syncs, and with no internet at all.
+  Future<void> setClock(DateTime nowUtc) =>
+      _setState({'time': nowUtc.toUtc().millisecondsSinceEpoch ~/ 1000});
 
   Future<WledSchedule> schedule() async => WledSchedule.fromConfig(await config());
 
@@ -433,25 +688,26 @@ class WledClient {
   /// re-saved as an API call (`"o": true`), which savePreset writes verbatim
   /// minus o/v/time/error/psave; WLED also applies the body, so the preset
   /// starts playing. Playlists are re-saved (and so restarted).
-  Future<void> renamePreset(int id, String name) async {
-    final n = name.trim();
-    if (n.isEmpty) throw WledException('Name can\'t be empty');
-    final body = _mapOf((await _getMap('/presets.json'))['$id']);
-    if (body.isEmpty) throw WledException('Preset $id no longer exists');
-    final preset = WledPreset(id: id, name: n, body: body);
-    final pl = preset.playlist;
-    if (pl != null) return savePlaylist(id: id, name: n, playlist: pl);
-    await setState({
-      ...Map<String, dynamic>.of(body)
-        ..remove('psave')
-        ..remove('pdel')
-        ..remove('rb')
-        ..remove('np'),
-      'psave': id,
-      'n': n.length > 32 ? n.substring(0, 32) : n,
-      'o': true,
-    });
-  }
+  Future<void> renamePreset(int id, String name) =>
+      withPresetMutation(() async {
+        final n = name.trim();
+        if (n.isEmpty) throw WledException('Name can\'t be empty');
+        final body = _mapOf((await _getMap('/presets.json'))['$id']);
+        if (body.isEmpty) throw WledException('Preset $id no longer exists');
+        final preset = WledPreset(id: id, name: n, body: body);
+        final pl = preset.playlist;
+        if (pl != null) return savePlaylist(id: id, name: n, playlist: pl);
+        await setState({
+          ...Map<String, dynamic>.of(body)
+            ..remove('psave')
+            ..remove('pdel')
+            ..remove('rb')
+            ..remove('np'),
+          'psave': id,
+          'n': n.length > 32 ? n.substring(0, 32) : n,
+          'o': true,
+        });
+      });
 
   /// Advances a running device playlist (json.cpp "np").
   Future<void> nextInPlaylist() => setState({'np': true});
@@ -487,6 +743,217 @@ class WledClient {
     }
     _check(res!, p);
     return res.bodyBytes;
+  }
+
+  // --- Device setup (wizard) ---------------------------------------------
+  // Credentials (Wi-Fi password, settings PIN) only ever travel in a request
+  // body; no error, log line or return value carries them.
+
+  /// Wi-Fi networks the device can see. WLED's first `/json/net` call starts
+  /// an asynchronous scan and answers with an empty list, so this polls once
+  /// a second until networks appear or [timeout] has passed (then returns an
+  /// empty list). Hidden (empty) names are dropped, duplicates keep the
+  /// strongest signal, and the result is sorted strongest first.
+  Future<List<WifiNetwork>> scanNetworks(
+      {Duration timeout = const Duration(seconds: 10)}) async {
+    const step = Duration(seconds: 1);
+    var waited = Duration.zero;
+    WledException? lastError;
+    var answered = false;
+    while (true) {
+      try {
+        final list = _mapOf(await _get('/json/net'))['networks'];
+        answered = true;
+        final found = _parseNetworks(list);
+        if (found.isNotEmpty) return found;
+      } on WledException catch (e) {
+        lastError = e; // the radio can stall the link while it scans
+      }
+      if (waited >= timeout) break;
+      await _delay(step);
+      waited += step;
+    }
+    if (!answered && lastError != null) throw lastError;
+    return const [];
+  }
+
+  static List<WifiNetwork> _parseNetworks(Object? list) {
+    final best = <String, WifiNetwork>{};
+    for (final n in list is List ? list : const []) {
+      if (n is! Map) continue;
+      final ssid = n['ssid'];
+      if (ssid is! String || ssid.isEmpty) continue;
+      final rssi = n['rssi'] is num ? (n['rssi'] as num).toInt() : -100;
+      final old = best[ssid];
+      if (old != null && old.rssi >= rssi) continue;
+      best[ssid] = WifiNetwork(
+        ssid: ssid,
+        rssi: rssi,
+        secure: !(n['enc'] is num && n['enc'] == 0),
+        bssid: n['bssid'] is String ? n['bssid'] as String : '',
+      );
+    }
+    return best.values.toList()..sort((a, b) => b.rssi.compareTo(a.rssi));
+  }
+
+  /// Gives the device a Wi-Fi network to join and restarts it. Writes only
+  /// `nw.ins[0].ssid/psk` (the `/settings/wifi` form would reset AP name and
+  /// TX power). The restart cuts the connection, so a failure of that last
+  /// request is not an error: success is confirmed by finding the device on
+  /// the new network.
+  Future<void> joinWifi(String ssid, String password, {
+    int? tz,
+    int offsetSeconds = 0,
+  }) async {
+    if (ssid.isEmpty) throw WledException('Network name can\'t be empty');
+    await setConfig({
+      'nw': {
+        'ins': [
+          // WLED keeps the old password when psk is empty (cfg.cpp).
+          {'ssid': ssid, 'psk': password, 'bssid': '000000000000'}
+        ]
+      },
+      if (tz != null)
+        'if': {
+          'ntp': {'en': true, 'tz': tz, 'offset': offsetSeconds},
+        },
+    });
+    try {
+      await reboot();
+    } on WledException {
+      // The device may drop the link as it restarts.
+    }
+  }
+
+  /// Restarts the device (json.cpp "rb"); the config saves first.
+  Future<void> reboot() => setState({'rb': true});
+
+  /// Unlocks settings for a PIN-protected device (the JSON handler checks any
+  /// body that contains "pin"; WLED then stays unlocked for later config and
+  /// form requests). The write itself answers 200 either way, and reading the
+  /// config is never PIN-protected, so the result is checked with a no-op
+  /// config write; a wrong PIN throws with cause 401.
+  Future<void> unlockSettings(String pin) async {
+    await _setState({'pin': pin});
+    final live = _mapOf(_mapOf((await config())['if'])['live']);
+    if (await _settingsLocked(live['rlm'] != false)) {
+      throw WledException('That PIN did not work', 401);
+    }
+  }
+
+  /// Whether config writes are refused (a settings PIN is set and not yet
+  /// entered). Reads are never refused, so this rewrites the realtime-map
+  /// flag with its current value: a no-op unless WLED answers 401.
+  Future<bool> _settingsLocked(bool realtimeMaps) async {
+    try {
+      await setRealtimeMaps(realtimeMaps);
+      return false;
+    } on WledException catch (e) {
+      if (e.cause == 401) return true;
+      rethrow;
+    }
+  }
+
+  /// Applies a single-panel layout through the settings form, which takes
+  /// effect at once (the JSON config only applies after a restart and cannot
+  /// turn 2D off). [s] null makes the device a plain strip. WLED answers
+  /// with an HTML page, so HTTP 200 only means "sent": read [setupState]
+  /// to verify.
+  Future<void> setPanelLayout(DisplaySetup? s) async {
+    final form = s == null ? stripForm() : panelForm(s);
+    final res = await _send(
+        () => _http.post(_uri('/settings/2D'), body: form), uploadTimeout);
+    _check(res, '/settings/2D');
+  }
+
+  /// Puts playback back after a layout write. WLED recreates its segments
+  /// then (segment 0 falls back to Solid). [state] is `/json/state` read
+  /// before the write: a running playlist or preset is applied again,
+  /// otherwise segment 0 is rewritten without its geometry. Top-level
+  /// on/bri are left alone.
+  Future<void> restorePlayback(Map<String, dynamic> state) async {
+    final pl = state['pl'], ps = state['ps'];
+    if (pl is num && pl >= 0) return _setState({'pl': pl.toInt()});
+    if (ps is num && ps >= 0) return _setState({'ps': ps.toInt()});
+    final segs = state['seg'];
+    if (segs is! List || segs.isEmpty || segs.first is! Map) return;
+    const keep = {
+      'id', 'fx', 'sx', 'ix', 'pal', 'c1', 'c2', 'c3', 'col', 'n', 'o1', 'o2',
+      'o3', 'si', 'm12', 'bm', 'on', 'bri', 'cct', 'set', 'rev', 'mi', 'rY',
+      'mY', 'tp',
+    };
+    final seg = {
+      for (final e in (segs.first as Map).entries)
+        if (keep.contains(e.key)) '${e.key}': e.value,
+    };
+    if (seg.isEmpty) return;
+    await _setState({
+      'seg': [seg]
+    });
+  }
+
+  /// Undo restores the original geometry too; post-apply playback must not.
+  Future<void> restoreSetupState(Map<String, dynamic> state) async {
+    final ps = state['ps'], pl = state['pl'];
+    await _setState({
+      for (final key in ['on', 'bri', 'transition', 'bs', 'ledmap', 'nl', 'udpn', 'lor', 'seg'])
+        if (state.containsKey(key)) key: state[key],
+      // pd keeps the saved preset identity without loading over its geometry.
+      if (ps is num && ps > 0) 'pd': ps.toInt(),
+    });
+    // WLED checks mainseg before creating segments, so set it afterwards.
+    if (state['mainseg'] is num) await _setState({'mainseg': state['mainseg']});
+    // pl is read-only; a running playlist is selected through its preset id.
+    if (pl is num && pl >= 0) await _setState({'ps': pl.toInt()});
+  }
+
+  /// Whether streamed pixels go through WLED's LED map (`if.live.rlm`).
+  /// Off means raw LED order, which the wiring test relies on.
+  Future<void> setRealtimeMaps(bool on) => setConfig({
+        'if': {
+          'live': {'rlm': on}
+        }
+      });
+
+  /// Sets the LED count of a single output. WLED rebuilds a posted output
+  /// from defaults for every missing field, so [outputEntry] must be the
+  /// complete entry read from the device; only `len` changes.
+  Future<void> setLedCount(int count, Map<String, dynamic> outputEntry) async {
+    if (count < 1) throw WledException('LED count must be at least 1');
+    if (outputEntry.isEmpty) throw WledException('Missing LED output settings');
+    final entry = Map<String, dynamic>.of(outputEntry)..['len'] = count;
+    await setConfig({
+      'hw': {
+        'led': {
+          'ins': [entry]
+        }
+      }
+    });
+  }
+
+  /// Global brightness limit in mA (`hw.led.maxpwr`); 0 turns the limit off.
+  Future<void> setCurrentLimit(int ma) => setConfig({
+        'hw': {
+          'led': {'maxpwr': ma < 0 ? 0 : ma}
+        }
+      });
+
+  /// Reads config and info for the wizard. Reading is never PIN-protected,
+  /// so with [checkLock] a locked device is found with a no-op write
+  /// ([_settingsLocked]) and gives a [DeviceSetupState] with `pinLocked` set.
+  /// Re-reads that verify a write skip the check: the write already proved it.
+  Future<DeviceSetupState> setupState({bool checkLock = false}) async {
+    final info = await _getMap('/json/info');
+    final cfg = await config();
+    final state = DeviceSetupState.fromJson(cfg: cfg, info: info);
+    if (checkLock && await _settingsLocked(state.realtimeMaps)) {
+      return DeviceSetupState.lockedFromInfo(info);
+    }
+    return DeviceSetupState.fromJson(
+      cfg: cfg,
+      info: info,
+      files: (await files()).keys,
+    );
   }
 
   void close() => _http.close();

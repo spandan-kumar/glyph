@@ -37,7 +37,7 @@ class Breaker extends Game {
   double get paddleRow => height - 1.0;
 
   @override
-  String? get status => 'Level $level · ${'●' * lives}';
+  String? get status => 'Level $level · ${lives == 1 ? '1 life' : '$lives lives'}';
 
   void buildLevel() => bricks = List.filled(rows * cols, true);
 

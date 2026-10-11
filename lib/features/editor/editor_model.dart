@@ -29,7 +29,9 @@ class EditorModel extends ChangeNotifier {
       : _frames = frames == null || frames.isEmpty
             ? [Frame(width, height)]
             : [for (final f in frames) f.copy()],
-        _fps = fps.clamp(minFps, maxFps);
+        _fps = fps.clamp(minFps, maxFps) {
+    _keepSavePoint();
+  }
 
   /// Restores a saved drawing. [fps] comes from creation meta when available;
   /// otherwise it's derived from the first frame delay.
@@ -54,6 +56,10 @@ class EditorModel extends ChangeNotifier {
   bool _mirrorX = false, _mirrorY = false, _onion = false;
   final List<int> _recent = [];
   bool _dirty = false;
+
+  // What was last saved (or loaded), so undoing back to it isn't "unsaved".
+  List<Frame> _saved = const [];
+  int _savedFps = 0;
 
   final _undo = <_Snapshot>[];
   final _redo = <_Snapshot>[];
@@ -105,7 +111,7 @@ class EditorModel extends ChangeNotifier {
     final c = v.clamp(minFps, maxFps);
     if (c == _fps) return;
     _fps = c;
-    _dirty = true;
+    _dirty = !_atSavePoint();
     notifyListeners();
   }
 
@@ -124,7 +130,24 @@ class EditorModel extends ChangeNotifier {
 
   void markSaved() {
     _dirty = false;
+    _keepSavePoint();
     notifyListeners();
+  }
+
+  void _keepSavePoint() {
+    _saved = [for (final f in _frames) f.copy()];
+    _savedFps = _fps;
+  }
+
+  bool _atSavePoint() {
+    if (_fps != _savedFps || _frames.length != _saved.length) return false;
+    for (var i = 0; i < _frames.length; i++) {
+      final a = _frames[i].rgb, b = _saved[i].rgb;
+      for (var k = 0; k < a.length; k++) {
+        if (a[k] != b[k]) return false;
+      }
+    }
+    return true;
   }
 
   // Strokes ------------------------------------------------------------------
@@ -299,7 +322,7 @@ class EditorModel extends ChangeNotifier {
     final s = from.removeLast();
     _frames = s.frames;
     _index = s.index.clamp(0, _frames.length - 1);
-    _dirty = true;
+    _dirty = !_atSavePoint();
     _pixelsChanged();
     notifyListeners();
   }

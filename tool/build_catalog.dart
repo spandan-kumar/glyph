@@ -19,6 +19,9 @@ const revision = 2;
 /// Revision for the public-domain classics packs (drives the "Just Added" shelf).
 const classicsRevision = 3;
 
+/// Artist-authored CC0 collection; keep previous items' revisions stable.
+const cc0Revision = 4;
+
 const categoryOrder = [
   'Classic Cartoons', 'Storybook', 'Monsters & Legends', 'Masterpieces',
   'Chill', 'Party', 'Emoji', 'Love', 'Holidays', 'Nature', 'Animals', 'Water',
@@ -766,8 +769,8 @@ void main() {
   for (final sg in spriteGenerators) {
     final s = sg.sprite;
     if (s.source != null) {
-      // Public-domain classics: one item each, exactly as drawn, with their
-      // attribution notice. Recolours or motion swaps would just be noise.
+      // Credited art gets one curated item, without extra motion/colour filler.
+      final cc0 = s.source!['license'] == 'CC0-1.0';
       final title = titles.contains(s.title.toLowerCase()) ? '${s.title} (Classic)' : s.title;
       add(LibraryItem(
         id: ids.contains(slug(title)) ? 'classic-${slug(title)}' : slug(title),
@@ -775,8 +778,14 @@ void main() {
         category: s.category,
         generatorId: sg.id,
         paletteId: s.palette,
-        tags: tagsFor([...s.tags, 'classic', 'public domain', 'pixel art', 'sprite'], s.palette),
-        added: classicsRevision,
+        tags: tagsFor([
+          ...s.tags,
+          for (final MapEntry(:key, :value) in occasionTags.entries)
+            if (cc0 && s.tags.contains(key)) ...value,
+          if (cc0) 'cc0' else 'classic',
+          'public domain', 'pixel art', 'sprite',
+        ], s.palette),
+        added: cc0 ? cc0Revision : classicsRevision,
         notice: s.notice,
       ));
       spriteItems++;

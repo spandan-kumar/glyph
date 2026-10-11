@@ -48,7 +48,7 @@ class HardwareControls extends StatelessWidget {
                   value: (bri ?? 128).clamp(1, 255).toDouble(),
                   min: 1,
                   max: 255,
-                  size: 76,
+                  size: Lb.keyLarge,
                   accent: accent,
                   label: 'Brightness',
                   onChanged: (v) => store.setBrightness(v.round()),
@@ -63,7 +63,7 @@ class HardwareControls extends StatelessWidget {
                 key: const ValueKey('nightlight'),
                 semantics: 'Night light',
                 lit: store.nightlightOn,
-                litColor: Lb.phosphor,
+                litColor: accent,
                 icon: Icons.bedtime_sharp,
                 onTap: store.isConnected
                     ? () => showModalBottomSheet<void>(
@@ -107,7 +107,7 @@ class ChunkyButton extends StatelessWidget {
     required this.onTap,
     this.litColor = Lb.ok,
     this.semantics,
-    this.size = 76,
+    this.size = Lb.keyLarge,
   });
 
   final IconData icon;
@@ -126,7 +126,8 @@ class ChunkyButton extends StatelessWidget {
       onTap: onTap == null
           ? null
           : () {
-              HapticFeedback.lightImpact();
+              // The physical device changes (or its night-light sheet opens): firm.
+              HapticFeedback.mediumImpact();
               onTap!();
             },
       child: AnimatedContainer(
@@ -198,7 +199,10 @@ class _NightlightSheetState extends State<NightlightSheet> {
                 ButtonSegment(value: 3, label: Text('Sunrise')),
               ],
               selected: {_mode},
-              onSelectionChanged: (s) => setState(() => _mode = s.first),
+              onSelectionChanged: (s) {
+                HapticFeedback.selectionClick();
+                setState(() => _mode = s.first);
+              },
             ),
             const SizedBox(height: 18),
             Row(
@@ -233,7 +237,10 @@ class _NightlightSheetState extends State<NightlightSheet> {
                 if (on) ...[
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _set(false, m),
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        _set(false, m);
+                      },
                       child: const Text('Stop'),
                     ),
                   ),
@@ -241,7 +248,12 @@ class _NightlightSheetState extends State<NightlightSheet> {
                 ],
                 Expanded(
                   child: FilledButton(
-                    onPressed: canStart ? () => _set(true, m) : null,
+                    onPressed: canStart
+                        ? () {
+                            HapticFeedback.mediumImpact();
+                            _set(true, m);
+                          }
+                        : null,
                     child: Text(on ? 'Start again' : 'Start'),
                   ),
                 ),

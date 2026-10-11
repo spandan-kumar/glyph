@@ -7,6 +7,7 @@ import '../../engine/clip.dart';
 import '../../engine/frame.dart';
 import '../import/decode.dart';
 import 'boot_intro.dart';
+import 'device_time.dart';
 import '../../wled/presets.dart';
 import '../../wled/schedule.dart';
 import '../../wled/wled_client.dart';
@@ -49,6 +50,7 @@ class DeviceManager extends ChangeNotifier {
   static const saveSettle = Duration(milliseconds: 700);
 
   String? _host;
+  int _selection = -1;
   int _seenKept = 0;
   List<WledPreset> _presets = const [];
   Map<String, int> _files = const {};
@@ -62,6 +64,7 @@ class DeviceManager extends ChangeNotifier {
   final _thumbs = <String, Future<Uint8List>>{};
   final _clips = <String, Future<FrameClip?>>{};
   Future<void> _queue = Future.value();
+  int _loadGen = 0;
 
   List<WledPreset> get presets => _presets;
   List<WledPreset> get playlists => [
@@ -106,12 +109,14 @@ class DeviceManager extends ChangeNotifier {
   String? get scheduleError => _scheduleError;
 
   WledClient? get _client => store.client;
+  bool _current(WledClient c, int selection) =>
+      !_disposed && store.isCurrent(c, selection);
 
   /// Reloads when the selected device changed since the last load. Safe to
   /// call from build: the load starts in a microtask.
   void syncHost() {
     final h = store.isConnected ? store.selected?.host : null;
-    if (h == _host) {
+    if (h == _host && _selection == store.selectionGeneration) {
       // Something new was kept elsewhere in the app (e.g. Tune's Keep).
       if (h != null && store.keptRevision != _seenKept) {
         _seenKept = store.keptRevision;
@@ -122,6 +127,7 @@ class DeviceManager extends ChangeNotifier {
       return;
     }
     _seenKept = store.keptRevision;
+    _selection = store.selectionGeneration;
     _host = h;
     _presets = const [];
     _files = const {};
@@ -130,39 +136,64 @@ class DeviceManager extends ChangeNotifier {
     _effects = const [];
     _forgetAllPictures();
     _loaded = false;
+    _loading = false;
     _error = _scheduleError = null;
     if (h != null) scheduleMicrotask(load);
+  }
+
+  /// Tells the device the time (internet time plus the phone's clock), then
+  /// re-reads routines. True when the device took it.
+  Future<bool> setDeviceTime() async {
+    final c = _client;
+    if (c == null) return false;
+    final ok = await ensureDeviceTime(c);
+    await load();
+    return ok;
   }
 
   Future<void> load() async {
     final c = _client;
     if (c == null) return;
+    final selection = store.selectionGeneration, request = ++_loadGen;
+    bool current() => _current(c, selection) && request == _loadGen;
     _loading = true;
     notifyListeners();
     await _serial(() async {
+      if (!current()) return;
       try {
-        _presets = await c.presetList();
+        final presets = await c.presetList();
+        if (!current()) return;
+        _presets = presets;
         _error = null;
       } catch (e) {
+        if (!current()) return;
         _error = 'Couldn\'t load presets: ${_msg(e)}';
       }
       try {
-        _setFiles(await c.files());
+        final files = await c.files();
+        if (!current()) return;
+        _setFiles(files);
       } catch (_) {
         // Listing is optional; the Files tab shows what it has.
       }
       try {
-        _schedule = await c.schedule();
+        final schedule = await c.schedule();
+        if (!current()) return;
+        _schedule = schedule;
         _scheduleError = null;
       } catch (e) {
+        if (!current()) return;
         _scheduleError = _msg(e);
       }
       if (_effects.isEmpty) {
         try {
-          _effects = await c.effects();
+          final effects = await c.effects();
+          if (!current()) return;
+          _effects = effects;
         } catch (_) {}
       }
     });
+    if (!current()) return;
     _loading = false;
     _loaded = c == _client;
     notifyListeners();
@@ -171,14 +202,20 @@ class DeviceManager extends ChangeNotifier {
   Future<void> reloadPresets({bool settle = true}) async {
     final c = _client;
     if (c == null) return;
+    final selection = store.selectionGeneration;
     if (settle) await Future<void>.delayed(saveSettle);
     await _serial(() async {
-      _presets = await c.presetList();
+      if (!_current(c, selection)) return;
+      final presets = await c.presetList();
+      if (!_current(c, selection)) return;
+      _presets = presets;
       try {
-        _setFiles(await c.files());
+        final files = await c.files();
+        if (!_current(c, selection)) return;
+        _setFiles(files);
       } catch (_) {}
     });
-    notifyListeners();
+    if (_current(c, selection)) notifyListeners();
   }
 
   WledPreset? preset(int id) {
@@ -188,28 +225,10 @@ class DeviceManager extends ChangeNotifier {
     return null;
   }
 
-  String presetName(int id) => preset(id)?.name ?? 'Preset $id';
+  String presetName(int id) => preset(id)?.name ?? 'Saved animation';
 
   String? effectName(int? id) =>
       id != null && id >= 0 && id < _effects.length ? _effects[id] : null;
-
-  /// One-line description: what the preset shows.
-  String describe(WledPreset p) {
-    switch (p.kind) {
-      case PresetKind.playlist:
-        final pl = p.playlist!;
-        final n = pl.entries.length;
-        return 'Playlist · $n preset${n == 1 ? '' : 's'}';
-      case PresetKind.api:
-        return 'API command';
-      case PresetKind.state:
-        if (p.turnsOff) return 'Turns the device off';
-        final gif = p.gifName;
-        if (gif != null) return 'GIF · $gif';
-        final fx = effectName(p.effectId);
-        return fx != null ? 'Effect · $fx' : 'Saved state';
-    }
-  }
 
   /// Presets whose Image effect plays [file] ("duck.gif" or "/duck.gif").
   List<WledPreset> presetsUsingFile(String file) {
@@ -300,8 +319,12 @@ class DeviceManager extends ChangeNotifier {
   Future<void> apply(int id) => store.applyPreset(id);
 
   Future<void> rename(int id, String name) async {
-    await _client?.renamePreset(id, name);
-    await reloadPresets();
+    final c = _client, selection = store.selectionGeneration;
+    if (c == null) return;
+    await c.renamePreset(id, name);
+    if (!_current(c, selection)) return;
+    await reloadPresets(settle: false);
+    if (!_current(c, selection)) return;
     await store.refreshState();
   }
 
@@ -310,36 +333,66 @@ class DeviceManager extends ChangeNotifier {
   Future<void> deletePreset(int id, {bool withFile = false}) async {
     final c = _client;
     if (c == null) return;
-    if (bootIntro.isSystem(id)) throw WledException('Your device needs this to start up');
+    final selection = store.selectionGeneration;
+    if (bootIntro.isSystem(id)) {
+      throw WledException('Your device needs this to start up');
+    }
     final gif = preset(id)?.gifName;
     final wasPowerOnLook = bootIntro.installed && powerOnLook == id;
-    await c.deletePreset(id);
-    // Don't leave the intro handing over to a preset that's gone.
-    if (wasPowerOnLook) await BootIntro.setPowerOnLook(c, 0);
-    if (withFile && gif != null && presetsUsingFile(gif).every((p) => p.id == id)) {
-      await c.deleteFile('/$gif');
-      _forget(gif);
-    }
+    await c.withPresetMutation(() async {
+      if (!_current(c, selection)) return;
+      await c.deletePreset(id);
+      // Don't leave the intro handing over to a preset that's gone.
+      if (wasPowerOnLook) await BootIntro.setPowerOnLook(c, 0);
+      if (withFile &&
+          gif != null &&
+          presetsUsingFile(gif).every((p) => p.id == id)) {
+        await c.deleteFile('/$gif');
+        _forget(gif);
+      }
+    });
+    if (!_current(c, selection)) return;
     await reloadPresets(settle: false);
+    if (!_current(c, selection)) return;
     await store.refresh();
   }
 
   Future<void> deleteFile(String path) async {
-    if (isSystemFile(path)) throw WledException('Your device needs this to start up');
-    await _client?.deleteFile(path);
+    if (isSystemFile(path)) {
+      throw WledException('Your device needs this to start up');
+    }
+    final c = _client, selection = store.selectionGeneration;
+    if (c == null) return;
+    await c.withPresetMutation(() async {
+      if (_current(c, selection)) await c.deleteFile(path);
+    });
+    if (!_current(c, selection)) return;
     _forget(path);
     await reloadPresets(settle: false);
+    if (!_current(c, selection)) return;
     await store.refresh();
   }
 
   /// Saves (and starts) a playlist; returns its preset id.
-  Future<int> savePlaylist({int? id, required String name, required WledPlaylist playlist}) async {
+  Future<int> savePlaylist({
+    int? id,
+    required String name,
+    required WledPlaylist playlist,
+  }) async {
     final c = _client;
     if (c == null) throw WledException('Not connected');
-    final pid = id ?? freePresetId;
-    if (pid == null) throw WledException('All 250 preset slots are in use');
-    await c.savePlaylist(id: pid, name: name, playlist: playlist);
-    await reloadPresets();
+    final selection = store.selectionGeneration;
+    final pid = await c.withPresetMutation(() async {
+      if (!_current(c, selection)) {
+        throw WledException('Selected device changed');
+      }
+      final pid = id ?? await c.firstFreePresetId();
+      await c.savePlaylist(id: pid, name: name, playlist: playlist);
+      return pid;
+    });
+    if (!_current(c, selection)) return pid;
+    await reloadPresets(settle: false);
+    if (!_current(c, selection)) return pid;
     // The save already started it but without an id ("pl": 0); applying the
     // stored preset gives the running playlist its id.
     await store.applyPreset(pid);
@@ -349,28 +402,37 @@ class DeviceManager extends ChangeNotifier {
   Future<void> saveTimers(List<WledTimer> timers) async {
     final c = _client;
     if (c == null) return;
+    final selection = store.selectionGeneration;
     await c.saveTimers(timers);
+    if (!_current(c, selection)) return;
     await _reloadSchedule(c);
   }
 
   Future<void> setBootPreset(int id) async {
     final c = _client;
     if (c == null) return;
+    final selection = store.selectionGeneration;
     if (bootIntro.installed) {
       // The intro stays first; the choice becomes what follows it.
       await BootIntro.setPowerOnLook(c, id);
+      if (!_current(c, selection)) return;
       await reloadPresets(settle: false);
     } else {
       await c.setBootPreset(id);
     }
+    if (!_current(c, selection)) return;
     await _reloadSchedule(c);
   }
 
   Future<void> _reloadSchedule(WledClient c) async {
+    final selection = store.selectionGeneration;
     try {
-      _schedule = await _serial(c.schedule);
+      final schedule = await _serial(c.schedule);
+      if (!_current(c, selection)) return;
+      _schedule = schedule;
       _scheduleError = null;
     } catch (e) {
+      if (!_current(c, selection)) return;
       _scheduleError = _msg(e);
     }
     notifyListeners();

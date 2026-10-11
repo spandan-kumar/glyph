@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../app/playback.dart';
@@ -34,6 +35,7 @@ class TuneController extends ChangeNotifier {
   int _index = 0;
   int _direction = 1;
   bool _shuffling = false;
+  bool _disposed = false;
   Timer? _shuffleTimer;
 
   /// Called when a tile tunes in, with the tile's global rect, so the screen
@@ -62,6 +64,22 @@ class TuneController extends ChangeNotifier {
     _channel = channel;
     _index = index;
     notifyListeners();
+  }
+
+  /// Rebuild the surf order while leaving playback and shuffle untouched.
+  void refresh(Channel channel) {
+    final at = channel.indexOfPlaying(playback);
+    _channel = channel;
+    _index = at < 0 ? _index.clamp(0, max(0, channel.items.length - 1)) : at;
+    // A catalog can rebuild Display while a sibling search route also
+    // listens to this controller. Notify those routes after the build.
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_disposed) notifyListeners();
+      });
+    } else {
+      notifyListeners();
+    }
   }
 
   /// Tunes in to [entry] and makes [channel] the surf order.
@@ -145,6 +163,7 @@ class TuneController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _shuffleTimer?.cancel();
     super.dispose();
   }

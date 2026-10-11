@@ -51,6 +51,7 @@ assets/       catalog JSON, sprite packs, fonts (OFL), brand
 tool/         builders, previews, smoke tests
 test/         mirrors lib/
 docs/         UX spec, plan, roadmap, README media
+skills/       portable agent skills (glyph-animation: draw a sprite and open a PR)
 fastlane/     store listing metadata and per-versionCode changelogs
 .github/      CI, release and announce workflows, issue forms
 ```
@@ -105,13 +106,21 @@ files. Don't flash test streams on someone's display without saying so.
 - Work on `main` unless told otherwise; commit only when asked.
 - Commit messages: imperative summary line, a body explaining why.
 - Releases: bump `version:` in `pubspec.yaml` (`X.Y.Z+N`), add
-  `fastlane/metadata/android/en-US/changelogs/<N>.txt` (≤500 chars), then
-  push a `vX.Y.Z` tag. `.github/workflows/release.yml` builds the signed
+  `fastlane/metadata/android/en-US/changelogs/<N>.txt` (≤500 chars) and an
+  identical `changelogs/<2000+N>.txt`, then push a `vX.Y.Z` tag.
+  `.github/workflows/release.yml` builds the signed
   arm64 APK and its `.sha256` and publishes the GitHub release; don't commit
   APKs to `release/` any more. CI (`ci.yml`) runs analyze + test on every PR.
+- Android release keys, rotation and backups: [docs/SIGNING.md](docs/SIGNING.md).
 
 ## Licence and contributing
 
 Glyph is MIT-licensed (`LICENSE`). `CONTRIBUTING.md` is the guide for
 contributors (sprite format, licensing rules for art, PR checklist); keep it
 in sync when the sprite format or commands change.
+
+For any task that adds or changes a pixel-art animation (sprite), follow the
+`glyph-animation` skill in `skills/glyph-animation/SKILL.md`; validate with
+`python3 skills/glyph-animation/scripts/validate_sprite.py --all`. Keep the
+skill's `reference.md` and validator in sync with `sprite.dart`,
+`palette.dart` and `build_catalog.dart`.

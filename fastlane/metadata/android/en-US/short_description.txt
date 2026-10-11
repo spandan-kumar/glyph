@@ -1,1 +1,1 @@
-Animations, pixel art, clocks, music and games for your WLED LED matrix.
+Set up and play with your WLED LED matrix. Free, open source, no account.

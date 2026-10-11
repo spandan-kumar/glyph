@@ -1,14 +1,16 @@
 import 'dart:async';
-import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 
+import '../../app/community.dart';
 import '../../app/creations.dart';
 import '../../engine/clip.dart';
 import '../../engine/frame.dart';
 import '../../engine/generator.dart';
-import '../../engine/gif_baker.dart';
+import '../../engine/bake_limits.dart';
 import '../../engine/palette.dart';
 import '../../engine/registry.dart';
 import '../../ui/actions.dart';
@@ -20,7 +22,9 @@ import '../../ui/design/type.dart';
 import '../../ui/make/studio_kit.dart';
 import '../../ui/make/tool_session.dart';
 import '../../ui/widgets/led_matrix_view.dart';
+import '../device/device_time.dart';
 import 'native_text.dart';
+import 'text_baker.dart';
 import 'text_generators.dart';
 import 'text_settings.dart';
 
@@ -45,7 +49,7 @@ const _presets = <(String, Map<String, dynamic>)>[
   ('Open', {'colorMode': 'solid', 'color': 0x4BE3A0, 'font': 'bold', 'direction': 'static', 'background': ''}),
   ('On Air', {'colorMode': 'solid', 'color': 0xFF2244, 'font': 'bold', 'direction': 'static', 'background': ''}),
   ('Welcome', {'colorMode': 'animated', 'palette': 'sunset', 'direction': 'left', 'background': ''}),
-  ('♥ Love ♥', {'colorMode': 'animated', 'palette': 'heart', 'direction': 'left', 'background': 'twinkle'}),
+  ('Love', {'text': '♥ Love ♥', 'colorMode': 'animated', 'palette': 'heart', 'direction': 'left', 'background': 'twinkle'}),
   ('Game On', {'colorMode': 'gradient', 'palette': 'neon', 'font': 'bold', 'direction': 'left', 'background': 'rain'}),
   ('Merry Christmas', {'colorMode': 'rainbow', 'palette': 'christmas', 'direction': 'left', 'background': 'snow', 'effect': 'outline'}),
 ];
@@ -71,8 +75,13 @@ class _TextStudioScreenState extends State<TextStudioScreen>
   Timer? _pushDebounce;
   bool _native = true;
   bool _busy = false;
+  bool _saving = false;
+  int _edits = 0;
   String? _result;
   String? _creationId;
+
+  /// What's on screen is what was last saved (the Save key shows a check).
+  bool _saved = false;
 
   @override
   void initState() {
@@ -151,6 +160,8 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     setState(() {
       change();
       _result = null;
+      _saved = false;
+      _edits++;
     });
     _rebuild();
   }
@@ -173,61 +184,66 @@ class _TextStudioScreenState extends State<TextStudioScreen>
 
   Future<void> _play() async {
     final playback = AppScope.of(context).playback;
+    // Streaming changes what the device shows; a local preview is a commit.
+    AppScope.of(context).devices.isConnected
+        ? HapticFeedback.mediumImpact()
+        : HapticFeedback.lightImpact();
     _pushed = _makeGenerator();
     playback.playGenerator(_pushed!);
     toolPlays(_pushed!);
     await GlyphActions.ensureStreaming(context);
     if (!mounted) return;
     if (!AppScope.of(context).devices.isConnected) {
-      _toast('Playing here on your phone. Connect a device to see it big.');
+      studioToast(context, 'Playing here on your phone. Connect a device to see it big.');
     }
   }
 
   /// Renders the current design into a clip at [w]×[h].
-  FrameClip _bake(int w, int h) {
-    final g = _makeGenerator();
-    var seconds = 4.0;
-    if (_mode == 'text') {
-      final loop = (g.create(w, h, 1) as TextInstance).loopSeconds;
-      if (loop != null) seconds = loop.clamp(2.0, 12.0);
-    }
-    final fps = min(20, max(8, (240 / seconds).floor()));
-    final frames = renderFrames(
-      generator: g,
-      params: Params({}),
-      palette: paletteById(_s.palette),
-      width: w,
-      height: h,
-      seconds: seconds,
-      fps: fps,
-      warmup: _s.background.isEmpty ? 0 : 1.5,
-    );
-    return FrameClip.uniform(frames, fps: fps);
-  }
+  Future<FrameClip> _bake(int w, int h, {TextSettings? settings}) =>
+      compute(bakeTextClip, ((settings ?? _s).copy(), _mode, w, h));
 
   Future<void> _saveCreation() async {
+    if (_saving || _busy) return;
+    HapticFeedback.lightImpact();
     final (w, h) = _size;
-    final c = await AppScope.of(context).creations.save(
+    final settings = _s.copy(), mode = _mode, title = _title, edits = _edits;
+    final creations = AppScope.of(context).creations;
+    setState(() => _saving = true);
+    try {
+      final clip = await _bake(w, h, settings: settings);
+      final c = await creations.save(
           id: _creationId,
-          title: _title,
+          title: title,
           kind: 'text',
-          clip: _bake(w, h),
-          meta: {..._s.toJson(), 'mode': _mode},
+          clip: clip,
+          meta: {...settings.toJson(), 'mode': mode},
         );
-    _creationId = c.id;
-    _toast('Saved to Made by you');
+      if (!mounted) return;
+      _creationId = c.id;
+      setState(() => _saved = edits == _edits);
+      studioToast(context, 'Saved to Made by you');
+    } catch (e) {
+      LastError.record('Save from Write/Clock failed: $e');
+      if (mounted) {
+        studioToast(context, e is BakeLimitException ? e.message : 'Couldn’t save it. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _saveToMatrix() async {
     final scope = AppScope.of(context);
     final devices = scope.devices;
     final caps = devices.caps, client = devices.client;
+    final selection = devices.selectionGeneration;
+    final title = _title, playbackRevision = scope.playback.revision;
     if (caps == null || client == null) {
-      _toast('Connect a device to send this to it.');
+      studioNoDevice(context);
       return;
     }
     if (_mode == 'text' && _s.text.trim().isEmpty) {
-      _toast('Type a message first.');
+      studioToast(context, 'Type a message first.');
       return;
     }
     setState(() {
@@ -237,25 +253,38 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     String? msg;
     try {
       if (_mode == 'clock' || (_native && caps.is2D)) {
+        HapticFeedback.lightImpact(); // Send pressed (the clip path buzzes in sendClipFromTool)
         await GlyphActions.stopStreaming(context);
         await saveNativeText(client,
             s: _s,
             mode: _mode,
-            presetName: _title,
+            presetName: title,
             rows: caps.height,
             isEsp8266: caps.isEsp8266);
         await devices.refresh();
-        msg = 'Sent to your device. Unplug your phone — it keeps playing.';
+        msg = 'Sent to your device. It keeps playing without your phone.';
+        HapticFeedback.lightImpact();
         if (_mode == 'clock' && _clockUnsynced(devices.info?.raw)) {
-          msg += ' Your device doesn\'t know the time yet: turn on internet time in its Time settings.';
+          // Instead of sending people to firmware settings, just set it.
+          if (!await ensureDeviceTime(client)) {
+            msg += ' Your device couldn\'t set its clock. Check it\'s online.';
+          }
         }
       } else {
-        final clip = _bake(caps.width, caps.height);
+        final clip = await _bake(caps.width, caps.height);
         if (!mounted) return;
-        msg = await sendClipFromTool(clip, _title);
+        if (!devices.isCurrent(client, selection)) {
+          msg = 'Send stopped because you switched device.';
+        } else if (scope.playback.revision != playbackRevision) {
+          msg = 'Send stopped because something else started playing.';
+        } else {
+          msg = await sendClipFromTool(clip, title);
+        }
       }
     } catch (e) {
-      msg = 'Couldn\'t send it: $e';
+      LastError.record('Send from ${_mode == 'text' ? 'Write' : 'Clock'} failed: $e');
+      msg = e is BakeLimitException ? e.message
+          : 'Couldn\'t send it. Check that your device is on and on your Wi-Fi, then try again.';
     }
     noteSent(msg);
     if (!mounted) return;
@@ -270,10 +299,6 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     final y = t is String ? int.tryParse(t.split('-').first) : null;
     return y != null && y < 2020;
   }
-
-  void _toast(String msg) => ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
@@ -332,7 +357,10 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                       ChoiceChip(
                         label: Text('${sz.$1}×${sz.$2}'),
                         selected: _pickedSize == sz,
-                        onSelected: (_) => _update(() => _pickedSize = sz),
+                        onSelected: (_) {
+                          HapticFeedback.selectionClick();
+                          _update(() => _pickedSize = sz);
+                        },
                       ),
                   ],
                 ),
@@ -373,16 +401,22 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                     ChoiceChip(
                       label: Text(label),
                       selected: _s.useDuration && _s.durationSec == secs,
-                      onSelected: (_) => _update(() {
-                        _s.useDuration = true;
-                        _s.durationSec = secs;
-                      }),
+                      onSelected: (_) {
+                        HapticFeedback.selectionClick();
+                        _update(() {
+                          _s.useDuration = true;
+                          _s.durationSec = secs;
+                        });
+                      },
                     ),
                   ChoiceChip(
                     avatar: const Icon(Icons.event_sharp, size: 16),
                     label: Text(!_s.useDuration && _s.target != null ? _fmtDate(_s.target!) : 'Date & time'),
                     selected: !_s.useDuration,
-                    onSelected: (_) => _pickDate(),
+                    onSelected: (_) {
+                      HapticFeedback.selectionClick();
+                      _pickDate();
+                    },
                   ),
                 ]),
                 const SizedBox(height: 12),
@@ -414,11 +448,14 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                       padding: const EdgeInsets.only(right: 6),
                       child: ActionChip(
                         label: Text(label),
-                        onPressed: () => _update(() {
-                          final next = TextSettings.fromJson({..._s.toJson(), ...style, 'text': label});
-                          _s = next;
-                          _textCtl.text = label;
-                        }),
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          _update(() {
+                            final text = style['text'] as String? ?? label;
+                            _s = TextSettings.fromJson({..._s.toJson(), ...style, 'text': text});
+                            _textCtl.text = text;
+                          });
+                        },
                       ),
                     ),
                 ],
@@ -441,45 +478,58 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         runSpacing: 6,
         children: [
           for (final (v, label) in options)
-            ChoiceChip(label: Text(label), selected: v == selected, onSelected: (_) => _update(() => onPick(v))),
+            ChoiceChip(
+              label: Text(label),
+              selected: v == selected,
+              onSelected: (_) {
+                HapticFeedback.selectionClick();
+                _update(() => onPick(v));
+              },
+            ),
         ],
       );
+
+  /// Three short, mutually exclusive options.
+  Widget _segments<T>(List<(T, String)> options, T selected, void Function(T) onPick) =>
+      StudioSegments<T>(options: options, selected: selected, onChanged: (v) => _update(() => onPick(v)));
 
   Widget _styleSection() => StudioGroup(
         label: 'Style',
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _chips([('tiny', 'Tiny'), ('classic', 'Classic'), ('bold', 'Bold')], _s.font, (v) => _s.font = v),
+          _segments([('tiny', 'Tiny'), ('classic', 'Classic'), ('bold', 'Bold')], _s.font, (v) => _s.font = v),
+          const SizedBox(height: 4),
           _switch('Large on tall devices', _s.large, (v) => _s.large = v),
           const SizedBox(height: 4),
           _chips([('solid', 'Solid'), ('gradient', 'Gradient'), ('rainbow', 'Rainbow'), ('animated', 'Animated')],
               _s.colorMode, (v) => _s.colorMode = v),
           const SizedBox(height: 12),
           SizedBox(
-            height: 36,
+            height: Lb.touch,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: _s.colorMode == 'solid'
                   ? [
                       for (final c in _swatches)
-                        _Dot(
+                        StudioSwatch(
+                          label: '#${c.toRadixString(16).padLeft(6, '0').toUpperCase()}',
                           selected: _s.color == c,
-                          decoration: BoxDecoration(color: Color(0xFF000000 | c)),
+                          color: Color(0xFF000000 | c),
                           onTap: () => _update(() => _s.color = c),
                         ),
                     ]
                   : [
                       for (final p in palettes)
-                        _Dot(
+                        StudioSwatch(
+                          label: p.name,
                           selected: _s.palette == p.id,
-                          decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: [for (final c in p.swatch) Color(0xFF000000 | c)])),
+                          gradient: LinearGradient(colors: [for (final c in p.swatch) Color(0xFF000000 | c)]),
                           onTap: () => _update(() => _s.palette = p.id),
                         ),
                     ],
             ),
           ),
           const SizedBox(height: 12),
-          _chips([('none', 'Plain'), ('outline', 'Outline'), ('shadow', 'Shadow')], _s.effect, (v) => _s.effect = v),
+          _segments([('none', 'Plain'), ('outline', 'Outline'), ('shadow', 'Shadow')], _s.effect, (v) => _s.effect = v),
         ]),
       );
 
@@ -515,7 +565,10 @@ class _TextStudioScreenState extends State<TextStudioScreen>
                   child: ChoiceChip(
                     label: Text(name),
                     selected: _s.background == id,
-                    onSelected: (_) => _update(() => _s.background = id),
+                    onSelected: (_) {
+                      HapticFeedback.selectionClick();
+                      _update(() => _s.background = id);
+                    },
                   ),
                 ),
             ],
@@ -529,38 +582,47 @@ class _TextStudioScreenState extends State<TextStudioScreen>
     final note = switch (_mode) {
       'clock' => 'A clock sent to your device runs on the device itself, so it keeps time without your phone. '
           'It uses the device\'s own font; 12/24-hour follows its time settings.',
-      'countdown' => 'Timers run from your phone, so use Play on device.',
+      'countdown' => 'Timers run from your phone, so use Show on device.',
       _ => _native
           ? 'Sent as words: live time like #HH:#MM works, '
               'but it uses the device\'s own font and colours.'
           : 'Sent as an animation: your exact look and background, but the words are fixed.',
     };
-    final ok = _result != null && const ['Sent', 'Kept', 'Saved'].any(_result!.startsWith);
+    final resultColor = switch (_result) {
+      final String r when r.startsWith('Sent') => Lb.ok,
+      alreadyOnDeviceMessage => Lb.text2,
+      _ => Lb.danger,
+    };
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       const SizedBox(height: 4),
       FilledButton.icon(
+        style: studioCtaStyle,
         onPressed: _play,
         icon: const Icon(Icons.play_arrow_sharp),
-        label: const Text('Play on device'),
+        label: const Text('Show on device'),
       ),
       const SizedBox(height: 10),
       Row(children: [
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: _saveCreation,
-            icon: const Icon(Icons.bookmark_add_sharp, size: 18),
-            label: const Text('Save'),
+            style: _secondaryStyle,
+            onPressed: _busy || _saving ? null : _saveCreation,
+            icon: _saving ? const LedSpinner(size: 16)
+                : Icon(_saved ? Icons.check_circle_sharp : Icons.save_sharp, size: 18),
+            label: Text(_saving ? 'Saving…' : 'Save'),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: connected && !countdown && !_busy && (is2D || (_mode == 'text' && !_native))
+            style: _secondaryStyle,
+            // With no device it stays tappable: the toast offers Connect.
+            onPressed: !countdown && !_busy && !_saving && (!connected || is2D || (_mode == 'text' && !_native))
                 ? _saveToMatrix
                 : null,
             icon: _busy
                 ? const LedSpinner(size: 16)
-                : const Icon(Icons.push_pin_sharp, size: 18),
+                : const Icon(Icons.save_alt_sharp, size: 18),
             label: FittedBox(child: Text(_busy ? 'Sending…' : 'Send to device')),
           ),
         ),
@@ -569,15 +631,10 @@ class _TextStudioScreenState extends State<TextStudioScreen>
       if (_mode == 'text') ...[
         const MonoLabel('Send as'),
         const SizedBox(height: 8),
-        SegmentedButton<bool>(
-          style: studioSegmentStyle,
-          segments: const [
-            ButtonSegment(value: true, label: Text('Device font')),
-            ButtonSegment(value: false, label: Text('Exact look')),
-          ],
-          selected: {_native},
-          showSelectedIcon: false,
-          onSelectionChanged: (v) => setState(() => _native = v.first),
+        StudioSegments<bool>(
+          options: const [(true, 'Device font'), (false, 'Exact look')],
+          selected: _native,
+          onChanged: (v) => setState(() => _native = v),
         ),
         const SizedBox(height: 8),
       ],
@@ -590,36 +647,13 @@ class _TextStudioScreenState extends State<TextStudioScreen>
       if (_result != null)
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text(_result!, style: LbType.small.copyWith(color: ok ? Lb.ok : Lb.phosphor)),
+          child: Text(_result!, style: LbType.small.copyWith(color: resultColor)),
         ),
     ]);
   }
 
+  static final _secondaryStyle = OutlinedButton.styleFrom(minimumSize: const Size(0, Lb.touch));
+
   static String _fmtDate(DateTime d) =>
       '${d.day}/${d.month} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-}
-
-class _Dot extends StatelessWidget {
-  const _Dot({required this.selected, required this.decoration, required this.onTap});
-
-  final bool selected;
-  final BoxDecoration decoration;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: GestureDetector(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: Lb.fast,
-            width: 34,
-            height: 34,
-            decoration: decoration.copyWith(
-              borderRadius: const BorderRadius.all(Radius.circular(Lb.rTile)),
-              border: Border.all(color: selected ? Lb.text : Lb.line, width: selected ? 2.5 : 1),
-            ),
-          ),
-        ),
-      );
 }

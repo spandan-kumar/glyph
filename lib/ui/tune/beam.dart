@@ -131,13 +131,13 @@ class BeamPainter extends CustomPainter {
         (start.dx + to.dx) / 2 + (s - 0.5) * from.width * 0.9,
         min(start.dy, to.dy) + (start.dy - to.dy).abs() * 0.15,
       );
-      final e = Curves.easeInCubic.transform(t);
+      final e = Lb.easeLeave.transform(t);
       final pos = _quad(start, control, to, e);
       // Fade in leaving the Stage, shrink as they're absorbed.
       final a = (t < 0.15 ? t / 0.15 : 1.0) * (1 - pow(t, 6).toDouble());
       final r = 2.6 * (1 - 0.55 * e);
       canvas.drawCircle(pos, r * 2.4, glow..color = color.withValues(alpha: 0.5 * a));
-      canvas.drawCircle(pos, r, dot..color = Color.lerp(color, Colors.white, 0.35)!.withValues(alpha: a));
+      canvas.drawCircle(pos, r, dot..color = Color.lerp(color, Lb.text, 0.35)!.withValues(alpha: a));
     }
   }
 

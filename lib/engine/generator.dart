@@ -26,6 +26,15 @@ abstract class Generator {
   /// can't be baked into a GIF and sent to the device.
   bool get liveOnly => false;
 
+  /// A phone-run Show keeps its place while a notification covers it.
+  bool get pauseDuringAlert => false;
+
+  /// Local previews can be slower; player-controlled content stays responsive.
+  int get previewFps => 20;
+
+  /// Slow live cards need fewer frames; effects and interactive content use 40.
+  int get streamFps => 40;
+
   /// Creates per-run state (particles, heat buffers, …) for a matrix size.
   EffectInstance create(int width, int height, int seed);
 }

@@ -126,7 +126,7 @@ void main() {
     expect(tester.takeException(), isNull);
 
     // Play hands the clip to the shared player.
-    await tester.tap(find.byTooltip('Play on device'));
+    await tester.tap(find.byTooltip('Show on device'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(playback.generator?.name, 'gradient');
     expect(tester.takeException(), isNull);
@@ -143,6 +143,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(creations.items.single.kind, 'import');
     expect(creations.items.single.clip.width, 16);
+
+    // No device: Send stays enabled and offers Connect.
+    await tester.tap(find.text('Send to device'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Connect a device to send this to it.'), findsOneWidget);
+    expect(find.text('Connect'), findsOneWidget);
 
     playback.pause();
     // Unmount so the preview ticker and timers stop before the test ends.

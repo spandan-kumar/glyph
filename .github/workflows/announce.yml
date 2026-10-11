@@ -1,40 +1,39 @@
+# Announces a release on Discord. Tagged releases announce themselves from
+# release.yml (a workflow-created release doesn't trigger this); this covers
+# releases published by hand, and re-announcing one with "Run workflow".
 name: Announce release
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to announce (e.g. v1.3.1)
+        required: true
 
 permissions:
   contents: read
 
 jobs:
   discord:
+    if: github.event_name == 'workflow_dispatch' || github.event.release.author.login != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Post to Discord
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          NAME: ${{ github.event.release.name || github.event.release.tag_name }}
-          URL: ${{ github.event.release.html_url }}
-          BODY: ${{ github.event.release.body }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
         run: |
           if [ -z "$WEBHOOK" ]; then
             echo "DISCORD_WEBHOOK_URL is not set; skipping."
             exit 0
           fi
-          body="${BODY:0:1500}"
-          if [ "${#BODY}" -gt 1500 ]; then body="$body…"; fi
-          jq -n --arg name "$NAME" --arg url "$URL" --arg body "$body" \
+          release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG")"
+          name="$(jq -r '.name // .tag_name' <<<"$release")"
+          url="$(jq -r .html_url <<<"$release")"
+          body="$(jq -r '.body // ""' <<<"$release" | head -c 1500)"
+          jq -n --arg name "$name" --arg url "$url" --arg body "$body" \
             '{username: "Glyph", content: ("**\($name)** is out\n\($url)\n\n\($body)")[0:2000]}' \
             | curl -fsS -H 'Content-Type: application/json' -d @- "$WEBHOOK"
-
-      # Mastodon / Bluesky would go here, gated on their own secrets, e.g.:
-      # - name: Post to Mastodon
-      #   env:
-      #     TOKEN: ${{ secrets.MASTODON_TOKEN }}
-      #     INSTANCE: ${{ vars.MASTODON_INSTANCE }}
-      #   run: |
-      #     [ -n "$TOKEN" ] || exit 0
-      #     curl -fsS -H "Authorization: Bearer $TOKEN" \
-      #       -F "status=Glyph ${{ github.event.release.tag_name }} is out: ${{ github.event.release.html_url }}" \
-      #       "https://$INSTANCE/api/v1/statuses"

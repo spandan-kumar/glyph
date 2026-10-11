@@ -9,6 +9,7 @@ import 'package:glyph/app/playback.dart';
 import 'package:glyph/engine/clip.dart';
 import 'package:glyph/engine/frame.dart';
 import 'package:glyph/features/text/text_settings.dart';
+import 'package:glyph/features/text/text_generators.dart';
 import 'package:glyph/features/text/text_studio_screen.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/scope.dart';
@@ -72,7 +73,6 @@ void main() {
     final (playback, creations) = await pump(tester, const TextStudioScreen());
     expect(find.text('Write'), findsOneWidget);
     // Write is its own tool: no switch across to Clock or Timer.
-    expect(find.byType(SegmentedButton<String>), findsNothing);
     expect(find.text('Clock'), findsNothing);
     expect(find.text('Timer'), findsNothing);
     await tester.enterText(find.byType(TextField), 'Hello device');
@@ -84,7 +84,7 @@ void main() {
     await tapVisible(tester, find.text('32×8'));
     await tester.pump(const Duration(milliseconds: 200));
 
-    await tapVisible(tester, find.text('Play on device'));
+    await tapVisible(tester, find.text('Show on device'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(playback.generator?.id, '_text');
 
@@ -113,16 +113,72 @@ void main() {
     playback.pause();
   });
 
+  testWidgets('saving long scrolling words retains a complete pass beyond 12 seconds', (tester) async {
+    final (playback, creations) = await pump(tester, const TextStudioScreen());
+    final text = List.filled(12, 'Complete message').join(' ');
+    await tester.enterText(find.byType(TextField), text);
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.runAsync(() async {
+      await tapVisible(tester, find.text('Save'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    for (var i = 0; i < 40 && creations.items.isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(creations.items, hasLength(1));
+    final c = creations.items.single;
+    final settings = TextSettings.fromJson(c.meta);
+    final loop = (ScrollingText(settings).create(c.clip.width, c.clip.height, 1) as TextInstance).loopSeconds!;
+    expect(loop, greaterThan(12));
+    expect(c.clip.totalMs, closeTo(loop * 1000, 125));
+    playback.pause();
+  });
+
+  testWidgets('editing during an asynchronous save preserves its original content', (tester) async {
+    final (playback, creations) = await pump(tester, const TextStudioScreen());
+    const original = 'Save this complete message';
+    await tester.enterText(find.byType(TextField), original);
+    await tester.pump(const Duration(milliseconds: 200));
+    await tapVisible(tester, find.text('Save'));
+    await tester.pump();
+    expect(find.text('Saving…'), findsOneWidget);
+    await tapVisible(tester, find.byType(TextField));
+    await tester.enterText(find.byType(TextField), 'New unsaved words');
+    await tester.pump(const Duration(milliseconds: 200));
+    for (var i = 0; i < 40 && creations.items.isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(creations.items.single.meta['text'], original);
+    expect(find.byIcon(Icons.check_circle_sharp), findsNothing);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('Send with no device stays tappable and offers Connect', (tester) async {
+    final (playback, _) = await pump(tester, const TextStudioScreen());
+    await tapVisible(tester, find.text('Send to device'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Connect a device to send this to it.'), findsOneWidget);
+    expect(find.text('Connect'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+    // Let the toast's timer finish before the scaffold goes away.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 5));
+  });
+
   testWidgets('Clock opens with only clock controls', (tester) async {
     final (playback, _) = await pump(tester, const TextStudioScreen(mode: 'clock'));
     expect(find.text('Clock'), findsOneWidget);
-    expect(find.byType(SegmentedButton<String>), findsNothing);
     expect(find.text('24-hour'), findsOneWidget);
     expect(find.text('Type your message'), findsNothing);
     expect(find.text('COUNT DOWN TO'), findsNothing);
     await tapVisible(tester, find.text('Analog face'));
     await tester.pump(const Duration(milliseconds: 200));
-    await tapVisible(tester, find.text('Play on device'));
+    await tapVisible(tester, find.text('Show on device'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(playback.generator?.id, '_clock');
     expect(tester.takeException(), isNull);
@@ -132,13 +188,12 @@ void main() {
   testWidgets('Timer opens with only countdown controls', (tester) async {
     final (playback, _) = await pump(tester, const TextStudioScreen(mode: 'countdown'));
     expect(find.text('Timer'), findsOneWidget);
-    expect(find.byType(SegmentedButton<String>), findsNothing);
     expect(find.text('COUNT DOWN TO'), findsOneWidget);
     expect(find.text('24-hour'), findsNothing);
     expect(find.text('Type your message'), findsNothing);
     await tapVisible(tester, find.text('1 min'));
     await tester.pump(const Duration(milliseconds: 200));
-    await tapVisible(tester, find.text('Play on device'));
+    await tapVisible(tester, find.text('Show on device'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(playback.generator?.id, '_countdown');
     expect(playback.generator?.name, 'Timer');
@@ -163,7 +218,6 @@ void main() {
     expect(find.text('Timer'), findsOneWidget);
     expect(find.text('COUNT DOWN TO'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Lift off'), findsOneWidget);
-    expect(find.byType(SegmentedButton<String>), findsNothing);
     expect(tester.takeException(), isNull);
     playback.pause();
   });
@@ -195,7 +249,7 @@ void main() {
       await openTool(tester);
       await tester.enterText(find.byType(TextField), 'Hello');
       await tester.pump(const Duration(milliseconds: 200));
-      await tapVisible(tester, find.text('Play on device'));
+      await tapVisible(tester, find.text('Show on device'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(playback.generator?.id, '_text');
       expect(playback.isPlaying, isTrue);
@@ -222,7 +276,7 @@ void main() {
       await openTool(tester);
       await tester.enterText(find.byType(TextField), 'Hello');
       await tester.pump(const Duration(milliseconds: 200));
-      await tapVisible(tester, find.text('Play on device'));
+      await tapVisible(tester, find.text('Show on device'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(playback.generator?.id, '_text');
 
@@ -240,6 +294,37 @@ void main() {
       expect(tester.takeException(), isNull);
       playback.pause();
     });
+
+    for (final ntpOn in [false, true]) {
+      testWidgets('Clock send sets the device time itself (internet time ${ntpOn ? 'on' : 'off'})',
+          (tester) async {
+        SharedPreferences.setMockInitialValues({
+          'devices.v1': jsonEncode([const SavedDevice(host: '192.168.29.6', name: 'Matrix').toJson()]),
+          'devices.selected': '192.168.29.6',
+        });
+        final fake = FakeWled();
+        fake.info = fake.info.replaceFirst('2026-10-2, 18:49:00', '1970-1-1, 00:00:03');
+        ((fake.cfg['if'] as Map)['ntp'] as Map)['en'] = ntpOn;
+        final devices = DeviceStore(clientFactory: fake.client);
+        await devices.load();
+        final (playback, _) = await pump(
+            tester, ToolHost(tool: () => const TextStudioScreen(mode: 'clock')),
+            devices: devices);
+        await openTool(tester);
+        await tapVisible(tester, find.text('Send to device'));
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+        expect(find.textContaining('Sent to your device'), findsWidgets);
+        expect(find.textContaining('doesn\'t know the time'), findsNothing);
+        expect(find.textContaining('couldn\'t set its clock'), findsNothing);
+        expect(fake.clockSets, hasLength(1));
+        expect(fake.ntpWrites, ntpOn ? isEmpty : hasLength(1));
+        if (!ntpOn) expect(fake.ntpWrites.single['en'], isTrue);
+        await leaveTool(tester);
+        playback.pause();
+      });
+    }
 
     testWidgets('without playing anything, what played before keeps playing', (tester) async {
       final (playback, _) =

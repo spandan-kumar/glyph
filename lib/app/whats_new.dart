@@ -4,6 +4,38 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.0': [
+    'Set up display: size and wiring are found with a quick light test and saved on your device. Undo anytime.',
+    'Several panels? The wizard works out their order and any upside-down panels.',
+    'Your device sets its clock from your phone, so routines run on time.',
+    'Home Assistant can show a Saved look or Show when something happens.',
+    'Glance adds forecast and air quality cards.',
+  ],
+  '1.3.6': [
+    'Check for new animations, with optional daily checks while Glyph is open.',
+    'Send keeps complete sprite sequences and scrolling messages, even on weak Wi-Fi.',
+    'Background Music keeps running with the screen off and cleans up when stopped.',
+    'Long text prepares without freezing the screen; tab labels fade smoothly.',
+  ],
+  '1.3.5': [
+    'Hidden previews pause, and LED drawing and Music analysis do less work.',
+    'Alerts let your phone sleep when idle and keep playback handoffs awake.',
+    'Lightbox polish across Display, Make, Device and setup: clearer controls, larger touch targets and accessible labels.',
+    'Decorative motion respects your phone’s reduced-motion setting.',
+  ],
+  '1.3.2': [
+    'Send stays reachable while you browse, even with the Stage collapsed.',
+    'Already on your device? Play it without uploading again. Tweaked clips keep their speed.',
+    'Sharing opens Discord; Show it off appears less often.',
+    'Routines hides the built-in intro and keeps your power-on look editable.',
+    'Safer Sends when switching devices or replacing an animation, and safer Saved writes.',
+  ],
+  '1.3.1': [
+    'Halloween and Diwali packs: 16 new animations, from a haunted house to sky lanterns.',
+    'A Glyph menu (⋯ on every tab): Discord, share your setup, the roadmap, feedback.',
+    'Send feedback fills in the details for you; errors have a Report button.',
+    'Fixed: a device switched off while Now Playing ran could light up again.',
+  ],
   '1.3.0': [
     'Now Playing: show what\'s playing on your phone — cover art and title — on your device.',
     'A square, LED-style look throughout the app.',

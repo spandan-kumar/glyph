@@ -53,9 +53,11 @@ List<double> kicks(double bpm, double seconds, {double amp = 0.7, double bed = 0
 /// Feeds hop-sized chunks, like a mic stream, and records beat times.
 List<double> feed(AudioEngine e, List<double> samples, {int chunk = 512}) {
   final beats = <double>[];
+  var lastBeat = e.latest.beatCount;
   for (var i = 0; i < samples.length; i += chunk) {
     e.addSamples(samples.sublist(i, min(i + chunk, samples.length)));
-    if (e.latest.beat) beats.add(e.latest.time);
+    if (e.latest.beatCount > lastBeat) beats.add(e.latest.time);
+    lastBeat = e.latest.beatCount;
   }
   return beats;
 }
@@ -69,6 +71,15 @@ int argmax(Float32List a) {
 }
 
 void main() {
+  test('small PCM chunks publish only fresh analyses at output cadence', () {
+    final e = AudioEngine();
+    addTearDown(e.dispose);
+    var updates = 0;
+    e.features.addListener(() => updates++);
+    feed(e, sine(1000, 0.5, 1), chunk: 256);
+    expect(updates, 43);
+    expect(e.latest.dominantHz, closeTo(1000, 10));
+  });
   test('a 1 kHz sine peaks in the band that covers 1 kHz', () {
     final e = AudioEngine(bandCount: 16);
     feed(e, sine(1000, 0.5, 1));
@@ -206,6 +217,26 @@ void main() {
   });
 
   group('lifecycle', () {
+    test('an interrupted stream stops native capture before a retry starts', () async {
+      final src = FakePcmSource();
+      final e = AudioEngine(source: src, permission: FakeMicPermission(MicAccess.granted));
+      await e.acquire('screen');
+      src.addSine(1000, 0.5, 0.1);
+      await pumpEventQueue();
+      expect(e.latest.bands, isNotEmpty);
+      src.fail();
+      await pumpEventQueue();
+      expect(e.status, AudioStatus.failed);
+      expect(src.running, false);
+      expect(e.latest.bands, isEmpty);
+      await e.acquire('retry');
+      expect(src.running, true);
+      expect(e.status, AudioStatus.listening);
+      await e.release('screen');
+      await e.release('retry');
+      e.dispose();
+    });
+
     test('runs while held, stops when released', () async {
       final src = FakePcmSource();
       final e = AudioEngine(source: src, permission: FakeMicPermission(MicAccess.granted));

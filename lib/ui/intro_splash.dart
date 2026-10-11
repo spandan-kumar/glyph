@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -20,7 +22,8 @@ class IntroSplash extends StatefulWidget {
   State<IntroSplash> createState() => _IntroSplashState();
 }
 
-class _IntroSplashState extends State<IntroSplash> with SingleTickerProviderStateMixin {
+class _IntroSplashState extends State<IntroSplash>
+    with SingleTickerProviderStateMixin {
   // The quick version starts just before the pile pops.
   static const _quickFrom = 2.25;
 
@@ -32,6 +35,8 @@ class _IntroSplashState extends State<IntroSplash> with SingleTickerProviderStat
   late final double _to = GlyphIntro.duration + (widget.full ? 0.6 : 0.2);
   double _simTo = 0;
   bool _done = false;
+  bool _checked = false;
+  Timer? _hold;
 
   @override
   void initState() {
@@ -44,6 +49,19 @@ class _IntroSplashState extends State<IntroSplash> with SingleTickerProviderStat
       _advance(t);
       _tick.value++;
     })..start();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_checked) return;
+    _checked = true;
+    if (!Lb.reduceMotion(context)) return;
+    // Reduced motion: the finished logo, held briefly, then on.
+    _ticker.stop();
+    _advance(GlyphIntro.duration);
+    _tick.value++;
+    _hold = Timer(const Duration(milliseconds: 800), _finish);
   }
 
   void _advance(double t) {
@@ -63,6 +81,7 @@ class _IntroSplashState extends State<IntroSplash> with SingleTickerProviderStat
 
   @override
   void dispose() {
+    _hold?.cancel();
     _ticker.dispose();
     _tick.dispose();
     super.dispose();
@@ -70,15 +89,18 @@ class _IntroSplashState extends State<IntroSplash> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _finish,
-      child: ColoredBox(
-        color: Lb.ink,
-        child: Center(
-          child: SizedBox(
-            width: 220,
-            child: LedMatrixView(frame: _frame, repaint: _tick, glow: true),
+    return Semantics(
+      label: 'Glyph',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _finish,
+        child: ColoredBox(
+          color: Lb.ink,
+          child: Center(
+            child: SizedBox(
+              width: 220,
+              child: LedMatrixView(frame: _frame, repaint: _tick, glow: true),
+            ),
           ),
         ),
       ),

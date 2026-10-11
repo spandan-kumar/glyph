@@ -32,6 +32,8 @@ class FakePcmSource implements PcmSource {
     _ctrl?.add(b.buffer.asUint8List());
   }
 
+  void fail() => _ctrl?.addError(StateError('capture interrupted'));
+
   void addSine(double hz, double amp, double seconds, {int sampleRate = 44100}) => addSamples([
     for (var i = 0; i < (seconds * sampleRate).round(); i++)
       amp * sin(2 * pi * hz * i / sampleRate),

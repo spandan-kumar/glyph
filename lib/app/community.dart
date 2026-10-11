@@ -1,20 +1,44 @@
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'devices.dart';
 
-/// Links to Glyph's GitHub (feedback, ideas, show-and-tell, roadmap) and the
+/// Links to Glyph's community (sharing, feedback, ideas, roadmap) and the
 /// diagnostics a bug report carries. Building the links is pure; opening
 /// them and reading the phone go through swappable hooks for tests.
 abstract final class Community {
   static const repo = 'https://github.com/spandan-kumar/glyph';
 
-  /// Set to an invite link to show the Discord row; hidden while null.
-  static const String? discordInvite = null;
+  /// The Glyph Discord (a permanent invite).
+  static final discord = Uri.parse('https://discord.gg/9EeCFZAFvk');
 
-  static final showAndTell = Uri.parse('$repo/discussions/categories/show-and-tell');
-  static final roadmap = Uri.parse('$repo/blob/main/docs/ROADMAP.md');
+  static final showAndTell = discord;
+
+  /// The public board (Ideas → Planned → Building → Shipped).
+  static final latestRelease = Uri.parse('$repo/releases/latest');
+
+  static final roadmap = Uri.parse('https://github.com/users/spandan-kumar/projects/4');
+
+  /// Invite after the first fresh Send, then after ten more and a week.
+  /// Stored on the phone so restarting the app doesn't reset the cooldown.
+  ///
+  /// The invite is only spent when it is going to be shown: [stillShowing]
+  /// is asked once the stored state has been read, and a `false` keeps the
+  /// invite for the next Send (the send itself still counts).
+  static Future<bool> inviteAfterSend({DateTime? now, bool Function()? stillShowing}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final count = (prefs.getInt('community.sendsSinceInvite') ?? 0) + 1;
+    final last = prefs.getInt('community.lastShareInvite');
+    final at = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    final due = last == null ||
+        (count >= 10 && at - last >= const Duration(days: 7).inMilliseconds);
+    final invite = due && (stillShowing?.call() ?? true);
+    await prefs.setInt('community.sendsSinceInvite', invite ? 0 : count);
+    if (invite) await prefs.setInt('community.lastShareInvite', at);
+    return invite;
+  }
 
   /// GitHub (and some browsers) choke on very long prefilled URLs.
   static const maxUrlLength = 6000;
@@ -32,8 +56,9 @@ abstract final class Community {
   static Uri idea(Diagnostics d) =>
       _issue('feedback.yml', 'feedback,community', {'app_version': d.appLine});
 
-  static Uri animationRequest(Diagnostics d) =>
-      _issue('animation_request.yml', 'animation-request,community', {'panel': ?d.panel});
+  /// [idea] pre-fills what to draw (e.g. a search that found nothing).
+  static Uri animationRequest(Diagnostics d, {String? idea}) =>
+      _issue('animation_request.yml', 'animation-request,community', {'idea': ?idea, 'panel': ?d.panel});
 
   static Uri displayRequest() => _issue('display_request.yml', null, const {});
 
@@ -107,6 +132,8 @@ abstract final class Community {
 
   static const _platform = MethodChannel('glyph/platform');
 
+  static Future<AppEnv> readEnvForTest() => _readEnv();
+
   static Future<AppEnv> _readEnv() async {
     var version = '', build = '';
     String? phone, android;
@@ -119,7 +146,11 @@ abstract final class Community {
       final m = await _platform.invokeMapMethod<String, Object?>('phone');
       phone = m?['model'] as String?;
       final sdk = m?['sdk'];
-      android = m?['android'] == null ? null : 'Android ${m!['android']}${sdk == null ? '' : ' (SDK $sdk)'}';
+      android = m?['android'] != null
+          ? 'Android ${m!['android']}${sdk == null ? '' : ' (SDK $sdk)'}'
+          : m?['ios'] != null
+          ? 'iOS ${m!['ios']}'
+          : null;
     } catch (_) {}
     return AppEnv(version: version, build: build, phone: phone, os: android);
   }

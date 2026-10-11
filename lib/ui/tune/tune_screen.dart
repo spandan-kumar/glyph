@@ -9,8 +9,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../app/community.dart';
 import '../../app/devices.dart';
 import '../../library/user_library.dart';
+import '../../wled/wled_client.dart';
 import '../actions.dart';
+import '../community/glyph_menu.dart';
 import '../design/ambient.dart';
+import '../design/dock.dart';
 import '../design/parts.dart';
 import '../design/stage.dart';
 import '../design/tokens.dart';
@@ -21,6 +24,7 @@ import '../widgets/live_preview.dart';
 import 'beam.dart';
 import 'channels.dart';
 import 'mini_stage.dart';
+import 'page_keys.dart';
 import 'pages.dart';
 import 'stage_deck.dart';
 import 'stage_morph.dart';
@@ -50,9 +54,12 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
   final _scroll = ScrollController();
   final _stackKey = GlobalKey();
   final _stageKey = GlobalKey(); // the Stage's home slot in the page
+  final _deckKey = GlobalKey(); // everything under it up to the rails
   final _floatKey = GlobalKey(); // the one live Stage, floating above it
   final _glyphKey = GlobalKey();
   final _morph = StageMorph();
+  final _deckTwins = TwinAnchors(), _barTwins = TwinAnchors();
+  bool _landed = false;
   double _topInset = 0;
   final UserLibrary _library = UserLibrary.shared;
 
@@ -69,6 +76,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
   bool _tweakOpen = false;
   bool _hint = false;
   KeepState _keep = KeepState.idle;
+  int _sendRequest = 0;
   (Rect, Offset)? _beamPath;
   String? _autoId, _lastMarked;
   double _pull = 0;
@@ -79,6 +87,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
+    _morph.addListener(_onMorph);
     _library.addListener(_rebuildChannels);
     _library.load();
     _loadHint();
@@ -102,6 +111,17 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     final scope = AppScope.of(context);
     if (identical(scope.playback, _scope?.playback) && identical(scope.catalog, _scope?.catalog)) {
       _scope = scope;
+      return;
+    }
+    if (identical(scope.playback, _scope?.playback) && _tune != null) {
+      _scope = scope;
+      _base = CatalogChannels(scope.catalog, widget.now ?? DateTime.now());
+      _rebuildChannels();
+      final previous = tune.channel;
+      final expanded = previous.id.endsWith('/all');
+      final id = expanded ? previous.id.substring(0, previous.id.length - 4) : previous.id;
+      final next = _channels.where((c) => c.id == id).firstOrNull;
+      tune.refresh(next == null ? previous.withCatalog(scope.catalog) : expanded ? next.expanded() : next);
       return;
     }
     _scope?.playback.removeListener(_onPlayback);
@@ -149,7 +169,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     if (!mounted || scope == null) return;
     final p = scope.playback, gif = scope.devices.playingGif;
     if (gif == null || p.isStreaming || p.item?.id != _autoId) return;
-    final match = scope.catalog.items.where((i) => keptFileName(i.title) == gif).firstOrNull;
+    final match = scope.catalog.items.where((i) => WledClient.matchesGifName(keptFileName(i.title), gif)).firstOrNull;
     if (match == null || match.id == p.item?.id) return;
     _autoId = match.id;
     p.playItem(match);
@@ -216,14 +236,46 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
       mini: MiniStage.panelRect(top: _topInset, aspect: f.width / f.height),
       barBottom: _topInset + MiniStage.height,
       offset: _scroll.hasClients ? _scroll.offset : 0,
+      deckBottom: switch (_deckKey.currentContext?.findRenderObject()) {
+        RenderBox deck when deck.hasSize => viewport.getOffsetToReveal(deck, 0).offset + deck.size.height,
+        _ => null,
+      },
+      twins: {
+        for (final id in Twin.values) id: ?_twinEnds(id, viewport, stack),
+      },
     );
+  }
+
+  /// A deck element's home (page at the top) and its slot in the bar.
+  (Rect, Rect)? _twinEnds(Twin id, RenderAbstractViewport viewport, RenderBox stack) {
+    final deck = _deckTwins[id], bar = _barTwins[id];
+    if (deck == null || bar == null) return null;
+    final home = Offset(stack.globalToLocal(deck.localToGlobal(Offset.zero)).dx,
+            viewport.getOffsetToReveal(deck, 0).offset) &
+        deck.size;
+    return (home, stack.globalToLocal(bar.localToGlobal(Offset.zero)) & bar.size);
+  }
+
+  /// One soft tick as the Stage drops into the bar, the way a key seats.
+  void _onMorph() {
+    final landed = _morph.collapsed;
+    if (landed == _landed) return;
+    _landed = landed;
+    if (landed && _scroll.hasClients && _scroll.position.isScrollingNotifier.value) {
+      HapticFeedback.selectionClick();
+    }
   }
 
   void _tapStage() => _morph.t > 0.5 ? _toTop() : _openTweak();
 
+  /// Back to the top from the mini bar or a tuned-in tile: one page-scale
+  /// move, shorter than the BackToTopKey's distance-scaled run.
+  static const _toTopDuration = Lb.slow;
+  static const _toTopCurve = Lb.ease;
+
   Future<void> _toTop() async {
     if (!_scroll.hasClients || _scroll.offset <= 0) return;
-    await _scroll.animateTo(0, duration: Lb.slow, curve: Lb.ease);
+    await _scroll.animateTo(0, duration: _toTopDuration, curve: _toTopCurve);
   }
 
   // ---- Tweak ---------------------------------------------------------------
@@ -262,42 +314,85 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     if (!(d.caps?.canPlayGifs ?? false)) {
       return _toast('This device can only show looks live from your phone — it can’t save them.');
     }
-    if (s.playback.generator == null || _keep == KeepState.beaming) return;
+    if (s.playback.generator == null || _keep == KeepState.beaming || _keep == KeepState.checking) return;
+    final request = ++_sendRequest;
     HapticFeedback.lightImpact();
-    await _toTop();
-    if (!mounted) return;
-    setState(() {
-      _keep = KeepState.beaming;
-      _beamPath = _measureBeam();
-    });
-    _beam.repeat();
-    _charge.value = 0;
-    _charge.animateTo(0.88, duration: const Duration(seconds: 5), curve: Curves.easeOutCubic);
-
-    final msg = await GlyphActions.saveToDevice(context);
-    if (!mounted) return;
-    final ok = msg != null && (msg.startsWith('Sent') || msg.startsWith('Kept'));
-    _beam.stop();
-    // saveToDevice reports in its own words; ours replace it before it paints.
-    ScaffoldMessenger.of(context).removeCurrentSnackBar();
-    setState(() {
-      _keep = ok ? KeepState.kept : KeepState.failed;
-      _beamPath = null;
-    });
-    if (ok) {
-      _charge.value = 1;
-      HapticFeedback.lightImpact();
-      _toast(sendSuccessMessage);
-    } else {
+    setState(() => _keep = KeepState.checking);
+    void settle() {
+      if (!mounted || request != _sendRequest) return;
+      _beam.stop();
+      _charge.stop();
       _charge.value = 0;
-      if (msg != liveOnlyMessage) LastError.record('Send from Display failed: ${msg ?? 'no device details'}');
-      _toast(friendlySendError(msg),
-          action: msg == liveOnlyMessage ? null : SnackBarAction(label: 'Try again', onPressed: _keepIt));
+      setState(() {
+        _keep = KeepState.idle;
+        _beamPath = null;
+      });
     }
-    await _flash.forward(from: 0);
-    if (!mounted) return;
-    _charge.value = 0;
-    setState(() => _keep = KeepState.idle);
+
+    try {
+      final result = await GlyphActions.sendToDevice(context, onUpload: () async {
+        // Sent from the pinned mini bar: stay where you are; its key shows
+        // the progress. Otherwise bring the Stage into view for the beam.
+        final collapsed = _morph.t > 0.5;
+        if (!collapsed) await _toTop();
+        if (!mounted || request != _sendRequest) return;
+        setState(() {
+          _keep = KeepState.beaming;
+          _beamPath = collapsed ? null : _measureBeam();
+        });
+        _beam.repeat();
+        _charge.value = 0;
+        _charge.animateTo(0.88, duration: const Duration(seconds: 5), curve: Lb.ease);
+      });
+      if (!mounted || request != _sendRequest) return;
+      switch (result) {
+        case AlreadyOnDevice() || Cancelled():
+          // Each said its own piece already (the toast with "Play it", or
+          // "Send stopped because …").
+          settle();
+          return;
+        case Sent():
+          _beam.stop();
+          // GlyphActions reports in its own words; ours replace it before it paints.
+          ScaffoldMessenger.of(context).removeCurrentSnackBar();
+          setState(() {
+            _keep = KeepState.kept;
+            _beamPath = null;
+          });
+          _charge.value = 1;
+          HapticFeedback.lightImpact();
+          var invite = false;
+          try {
+            invite = await Community.inviteAfterSend(stillShowing: () => mounted && request == _sendRequest);
+          } catch (_) {
+            // The invite is a nicety; never let it break a finished Send.
+          }
+          if (!mounted || request != _sendRequest) return;
+          _toast(sendSuccessMessage,
+              action: invite
+                  ? SnackBarAction(label: 'Show it off', onPressed: () => openCommunityLink(context, Community.showAndTell))
+                  : null);
+        case Failed(:final message, :final liveOnly):
+          _beam.stop();
+          ScaffoldMessenger.of(context).removeCurrentSnackBar();
+          setState(() {
+            _keep = KeepState.failed;
+            _beamPath = null;
+          });
+          _charge.value = 0;
+          if (!liveOnly) LastError.record('Send from Display failed: $message');
+          _toast(friendlySendError(message),
+              action: liveOnly ? null : SnackBarAction(label: 'Try again', onPressed: _keepIt));
+      }
+      await _flash.forward(from: 0);
+      if (!mounted || request != _sendRequest) return;
+      _charge.value = 0;
+      setState(() => _keep = KeepState.idle);
+    } catch (_) {
+      // Whatever went wrong, the key must not stay stuck on "sending".
+      settle();
+      rethrow;
+    }
   }
 
   Offset _local(Offset global) {
@@ -335,8 +430,13 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
 
   bool _onNotification(ScrollNotification n) {
     if (n.depth != 0) return false;
-    if (n is ScrollStartNotification && n.dragDetails != null) _dragged = true;
-    if (n is ScrollUpdateNotification && (n.scrollDelta ?? 0) != 0) _collapsing = n.scrollDelta! > 0;
+    if (n is ScrollUpdateNotification && (n.scrollDelta ?? 0) != 0) {
+      _collapsing = n.scrollDelta! > 0;
+      // The Stage has two states, full and in the bar. A drag that moves
+      // the page inside the morph zone hands over to one timed motion to
+      // whichever end it was heading for; nothing tracks the finger halfway.
+      if (n.dragDetails != null && _morph.between) _snapMorph();
+    }
     if (n is OverscrollNotification && n.overscroll < 0 && n.dragDetails != null) {
       _pull -= n.overscroll;
       if (_pull > 90) {
@@ -345,25 +445,32 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
       }
     } else if (n is ScrollEndNotification) {
       _pull = 0;
-      if (_dragged) _snapMorph();
-      _dragged = false;
+      // A fling that ran out inside the zone.
+      _snapMorph();
     }
     return false;
   }
 
-  bool _dragged = false;
   bool _collapsing = false;
+  bool _snapping = false;
 
-  /// Coming to rest mid-collapse would leave a half-shrunk Stage beside its
-  /// empty slot, so finish the way it was going (a small nudge falls back).
+  /// Runs the rest of the morph, Stage and page together, to the end the
+  /// scroll was heading for.
   void _snapMorph() {
-    if (!_morph.between || !_scroll.hasClients) return;
-    final collapse = _collapsing ? _morph.t > 0.2 : _morph.t > 0.8;
-    final target = collapse ? _morph.travel : 0.0;
+    if (_snapping || !_morph.between || !_scroll.hasClients) return;
+    _snapping = true;
+    final target = _collapsing ? _morph.travel : 0.0;
     // After this notification: starting a scroll from inside it is unsafe.
-    Future.microtask(() {
-      if (!mounted || !_scroll.hasClients || !_morph.between) return;
-      _scroll.animateTo(target, duration: Lb.medium, curve: Lb.ease);
+    Future.microtask(() async {
+      try {
+        if (!mounted || !_scroll.hasClients) return;
+        // Same pace whether it starts near an end or in the middle.
+        final left = (target - _scroll.offset).abs() / _morph.travel;
+        await _scroll.animateTo(target,
+            duration: Lb.slow * (0.5 + 0.5 * left.clamp(0.0, 1.0)), curve: Lb.easeInOut);
+      } finally {
+        _snapping = false;
+      }
     });
   }
 
@@ -380,7 +487,9 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     _scope?.devices.removeListener(_mirrorMatrix);
     _library.removeListener(_rebuildChannels);
     _scroll.dispose();
-    _morph.dispose();
+    _morph
+      ..removeListener(_onMorph)
+      ..dispose();
     _tweak.dispose();
     _beam.dispose();
     _charge.dispose();
@@ -424,7 +533,14 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
         color: Lb.panel.withValues(alpha: 0.96),
         child: Padding(
           padding: EdgeInsets.only(top: top),
-          child: MiniStage(onTap: _toTop, livePanel: false),
+          child: MiniStage(
+            onTap: _toTop,
+            livePanel: false,
+            onSend: _keepIt,
+            keepState: _keep,
+            morph: _morph,
+            anchors: _barTwins,
+          ),
         ),
       ),
     );
@@ -456,12 +572,15 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
                           SliverToBoxAdapter(child: _Header(glyphKey: _glyphKey, onSearch: _search, keep: this)),
                           SliverToBoxAdapter(
                             child: StageDeck(
+                              key: _deckKey,
                               stageKey: _stageKey,
                               onTweak: _openTweak,
                               onKeep: _keepIt,
                               keepState: _keep,
                               showHint: _hint,
                               onLayout: _syncMorph,
+                              morph: _morph,
+                              anchors: _deckTwins,
                             ),
                           ),
                           SliverList.builder(
@@ -496,9 +615,11 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
                   child: bar,
                   builder: (context, child) {
                     final o = _morph.fade(0.55, 1);
+                    // Laid out even while hidden: the caption and Send
+                    // measure their landing slots in it.
                     return IgnorePointer(
                       ignoring: !_morph.collapsed || _tweakOpen,
-                      child: o <= 0 ? const SizedBox.shrink() : Opacity(opacity: o, child: child),
+                      child: Offstage(offstage: o <= 0, child: Opacity(opacity: o, child: child)),
                     );
                   },
                 ),
@@ -516,6 +637,34 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
                   child: Offstage(offstage: !ready, child: child),
                 );
               },
+            ),
+
+            // The title and Send riding up with the Stage into the bar (drawn over
+            // it, so a path that brushes the shrinking Stage stays readable).
+            Positioned.fill(
+              child: IgnorePointer(
+                child: FadeTransition(
+                  opacity: hidden,
+                  child: ListenableBuilder(
+                    listenable: Listenable.merge([_morph, tune.playback]),
+                    builder: (context, _) => _TwinFlight(morph: _morph, tune: tune, keep: _keep),
+                  ),
+                ),
+              ),
+            ),
+
+            // Back to the top, on the dock's line (the body runs under the
+            // dock, so its inset already includes it).
+            Positioned(
+              right: Lb.gutter,
+              bottom: media.padding.bottom - Dock.height,
+              child: FadeTransition(
+                opacity: hidden,
+                child: ListenableBuilder(
+                  listenable: _morph,
+                  builder: (context, _) => BackToTopKey(scroll: _scroll, showAfter: _morph.travel, onTop: _toTop),
+                ),
+              ),
             ),
 
             // AHA #5: the beam from Stage to the header's device glyph.
@@ -572,7 +721,7 @@ class _TweakLayer extends StatelessWidget {
     final stageH = h - panelH - top - 16;
     final playback = AppScope.of(context).playback;
     final tune = TuneScope.of(context);
-    final curved = CurvedAnimation(parent: animation, curve: Lb.ease, reverseCurve: Curves.easeInCubic);
+    final curved = CurvedAnimation(parent: animation, curve: Lb.ease, reverseCurve: Lb.easeLeave);
     return Stack(
       children: [
         Positioned.fill(
@@ -700,26 +849,30 @@ class _Header extends StatelessWidget {
             padding: const EdgeInsets.only(top: 2),
             child: SquareKey(icon: Icons.search_sharp, label: 'Search', onTap: onSearch),
           ),
+          const SizedBox(width: 8),
+          const Padding(padding: EdgeInsets.only(top: 2), child: GlyphMenuKey()),
         ],
       ),
     );
   }
 
+  // Short enough to fit beside the three keys on a narrow phone; the glyph
+  // already stands for the device.
   (String, VoidCallback?) _status(BuildContext context) {
     final scope = AppScope.of(context);
     final d = scope.devices, p = scope.playback;
     void connect() => HomeShell.go(context, 2);
     if (d.isConnected) {
-      if (d.isOn == false) return ('Device · off', () => PowerKey.set(context, true));
-      if (p.isStreaming) return ('Device · live', connect);
+      if (d.isOn == false) return ('Off · tap to wake', () => PowerKey.set(context, true));
+      if (p.isStreaming) return ('Live', connect);
       final title = p.item?.title ?? p.generator?.name;
-      if (title != null && d.isPlayingKept(title)) return ('Device · playing on its own', connect);
-      return ('Device · tap to show this', () => GlyphActions.ensureStreaming(context));
+      if (title != null && d.isPlayingKept(title)) return ('Playing on its own', connect);
+      return ('Tap to show this', () => GlyphActions.ensureStreaming(context));
     }
     if (d.selected != null) {
-      return d.isLoading ? ('Looking for ${d.selected!.name}…', null) : ('Device · offline · tap to fix', connect);
+      return d.isLoading ? ('Looking for ${d.selected!.name}…', null) : ('Offline · tap to fix', connect);
     }
-    return ('No device · tap to connect', connect);
+    return ('Tap to connect a device', connect);
   }
 }
 
@@ -776,14 +929,14 @@ class PowerKey extends StatelessWidget {
                 child: InkWell(
                   onTap: connected ? () => set(context, !on) : null,
                   child: SizedBox.square(
-                    dimension: 44,
+                    dimension: Lb.touch,
                     child: Stack(
                       children: [
                         Center(
                           child: Icon(Icons.power_settings_new_sharp,
                               size: 20, color: on ? Lb.text : Lb.text3),
                         ),
-                        Positioned(top: 6, right: 6, child: StatusDot(on: on, size: 5)),
+                        Positioned(top: 6, right: 6, child: StatusDot(on: on)),
                       ],
                     ),
                   ),
@@ -796,6 +949,68 @@ class PowerKey extends StatelessWidget {
     );
   }
 }
+
+/// The copies of the caption and Send in flight between the deck and the
+/// bar while the Stage collapses; at either end the real ones show instead.
+class _TwinFlight extends StatelessWidget {
+  const _TwinFlight({required this.morph, required this.tune, required this.keep});
+
+  final StageMorph morph;
+  final TuneController tune;
+  final KeepState keep;
+
+  @override
+  Widget build(BuildContext context) {
+    if (morph.t <= 0 || morph.collapsed) return const SizedBox.shrink();
+    Widget text(Twin id, String value, TextStyle from, TextStyle to) {
+      final rect = morph.twinRect(id)!;
+      final (home, slot) = morph.twinEnds(id)!;
+      // A title that fits at both ends must not be cut short in between
+      // (the box and the type don't shrink at quite the same rate).
+      double natural(TextStyle style) {
+        final painter = TextPainter(text: TextSpan(text: value, style: style), maxLines: 1, textDirection: TextDirection.ltr)
+          ..layout();
+        final width = painter.width;
+        painter.dispose();
+        return width;
+      }
+
+      final fits = natural(from) <= home.width + 1 && natural(to) <= slot.width + 1;
+      return Positioned(
+        left: rect.left,
+        top: rect.top,
+        height: rect.height,
+        width: fits ? null : rect.width,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          widthFactor: 1,
+          child: Text(value,
+              style: TextStyle.lerp(from, to, morph.twinProgress(id)),
+              maxLines: 1,
+              softWrap: false,
+              overflow: fits ? TextOverflow.visible : TextOverflow.ellipsis),
+        ),
+      );
+    }
+
+    return Stack(children: [
+      if (morph.flies(Twin.title)) text(Twin.title, captionTitle(tune), LbType.title, LbType.heading),
+      if (morph.flies(Twin.send))
+        Positioned.fromRect(
+          rect: morph.twinRect(Twin.send)!,
+          child: SendInFlight(
+            progress: morph.twinProgress(Twin.send),
+            state: keep,
+            accent: AmbientScope.of(context).accent,
+          ),
+        ),
+    ]);
+  }
+}
+
+/// Signature move: a tapped tile flies into the Stage in 340ms, ease-in-out,
+/// fading as it lands. Not a general UI duration.
+const tileFlight = Duration(milliseconds: 340);
 
 /// A tile's panel flying up into the Stage (or the mini-stage).
 class _Flight extends StatefulWidget {
@@ -810,7 +1025,7 @@ class _Flight extends StatefulWidget {
 }
 
 class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 340))
+  late final _c = AnimationController(vsync: this, duration: tileFlight)
     ..forward().whenComplete(widget.onDone);
 
   @override
@@ -830,12 +1045,12 @@ class _FlightState extends State<_Flight> with SingleTickerProviderStateMixin {
       child: AnimatedBuilder(
         animation: _c,
         builder: (context, child) {
-          final t = Curves.easeInOutCubic.transform(_c.value);
+          final t = Lb.easeInOut.transform(_c.value);
           final r = Rect.lerp(widget.from, widget.to, t)!;
           return Stack(children: [
             Positioned.fromRect(
               rect: r,
-              child: Opacity(opacity: (1 - Curves.easeInExpo.transform(_c.value)).clamp(0.0, 1.0), child: child),
+              child: Opacity(opacity: (1 - Lb.easeLeave.transform(_c.value)).clamp(0.0, 1.0), child: child),
             ),
           ]);
         },

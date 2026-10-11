@@ -99,8 +99,7 @@ class Dock extends StatelessWidget {
                             top: 0,
                             bottom: 0,
                             width: widths[index],
-                            child: AnimatedContainer(
-                              duration: Lb.medium,
+                            child: DecoratedBox(
                               decoration: BoxDecoration(
                                 color: Color.alphaBlend(accent.withValues(alpha: 0.12), Lb.raised),
                                 borderRadius: BorderRadius.circular(Lb.rControl),
@@ -166,12 +165,13 @@ class _DockTab extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Center(
-          child: TweenAnimationBuilder<Color?>(
-            tween: ColorTween(end: active ? accent : Lb.text3),
-            duration: Lb.medium,
+          // Animate selection only; room colour already has its own smoothing.
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: active ? 1 : 0, end: active ? 1 : 0),
+            duration: Lb.reduceMotion(context) ? Duration.zero : Lb.medium,
             curve: Lb.ease,
-            builder: (context, color, _) =>
-                LedText(item.label.toUpperCase(), dot: dot, color: color ?? Lb.text3),
+            builder: (context, value, _) => LedText(item.label.toUpperCase(), dot: dot,
+                color: Color.lerp(Lb.text3, accent, value)!),
           ),
         ),
       ),
