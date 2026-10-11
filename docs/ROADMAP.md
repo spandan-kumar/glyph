@@ -158,7 +158,7 @@ hardware or Apple setup have no date until the equipment exists.
       wiring test, Now Playing, swipe channels, draw live, a game, boot
       intro). Needs maintainer footage. Film in a dark room at a slow shutter
       so LEDs don't flicker; a diffuser photographs better.
-- [ ] Confirm the social preview is configured in GitHub repository settings.
+- [x] Social preview configured in GitHub repository settings; private vulnerability reporting enabled (11 Oct).
 - [ ] Android developer verification registration/status (external, confirm).
 - [ ] Technical blog post: phone-side rendering, DDP, the WLED GIF timer bug.
 - [ ] One-page creator kit: what it is, 3 clips, links, contact.
