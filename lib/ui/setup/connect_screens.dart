@@ -127,10 +127,17 @@ class JoinScreen extends StatelessWidget {
           child: c.advancedOpen ? _RenamedFields(controller: c) : const SizedBox(width: double.infinity),
         ),
       ],
+      // After a failed system dialog, Wi-Fi settings leads and Connect becomes the retry.
       primary: guided
           ? SetupPrimary('Open Wi-Fi settings', onPressed: c.openWifiSettings)
+          : c.assistedFailed
+          ? SetupPrimary('Use Wi-Fi settings instead', onPressed: c.useGuided)
           : SetupPrimary('Connect', busy: c.joinBusy, onPressed: c.connectAssisted),
-      secondary: !guided && c.assisted ? SetupSecondary('Use Wi-Fi settings instead', onPressed: c.useGuided) : null,
+      secondary: guided || !c.assisted
+          ? null
+          : c.assistedFailed
+          ? SetupSecondary('Try again', onPressed: c.connectAssisted)
+          : SetupSecondary('Use Wi-Fi settings instead', onPressed: c.useGuided),
       link: SetupLink('Renamed its network?', onPressed: () => c.setAdvancedOpen(!c.advancedOpen)),
     );
   }

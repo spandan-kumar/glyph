@@ -194,10 +194,13 @@ void main() {
       await tapText(tester, 'No, it\'s new');
       await tapText(tester, 'Connect');
       expect(find.text('Connect to your device'), findsOneWidget);
-      expect(find.textContaining('Couldn\'t find its Wi-Fi network'), findsOneWidget);
+      expect(find.textContaining('Couldn\'t connect to its Wi-Fi network'), findsOneWidget);
+      // A device that was set up before shows its network only briefly:
+      // Wi-Fi settings (which keeps retrying) leads, Connect becomes Try again.
+      expect(find.widgetWithText(FilledButton, 'Use Wi-Fi settings instead'), findsOneWidget);
       wifi.result = const SetupWifiCancelled();
-      await tapText(tester, 'Connect');
-      expect(find.textContaining('Couldn\'t find its Wi-Fi network'), findsNothing);
+      await tapText(tester, 'Try again');
+      expect(find.textContaining('Couldn\'t connect to its Wi-Fi network'), findsNothing);
       wifi.result = const SetupWifiDenied();
       await tapText(tester, 'Connect');
       expect(find.text('Join it in Wi-Fi settings'), findsOneWidget);

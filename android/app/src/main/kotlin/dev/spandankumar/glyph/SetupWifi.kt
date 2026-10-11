@@ -19,7 +19,6 @@ import io.flutter.plugin.common.MethodChannel
 
 /** Pure decisions, kept free of Android framework calls so they unit-test on the JVM. */
 internal object SetupWifiLogic {
-    const val TIMEOUT_MS = 60_000
     const val DEFAULT_PREFIX = "WLED"
     const val DEFAULT_PASSWORD = "wled1234"
     const val MIN_SDK = 29
@@ -115,7 +114,9 @@ class SetupWifi(private val context: Context, messenger: BinaryMessenger) {
                 .setNetworkSpecifier(spec)
                 .build()
             callback = cb
-            cm.requestNetwork(request, cb, SetupWifiLogic.TIMEOUT_MS)
+            // No app-side timeout: the system dialog runs its own scan with "Try again",
+            // and cancelling under it leaves an orphaned "Something came up" dialog.
+            cm.requestNetwork(request, cb)
         } catch (e: Exception) {
             callback = null
             reply { result.error("failed", e.javaClass.simpleName, null) }

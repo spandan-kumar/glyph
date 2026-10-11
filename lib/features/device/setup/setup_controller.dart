@@ -14,6 +14,7 @@ import '../../../wled/layout.dart';
 import '../../../wled/panel_setup.dart';
 import '../../../wled/device.dart' show WledInfo;
 import '../../../wled/wled_client.dart';
+import '../device_time.dart';
 import 'setup_session.dart';
 import 'setup_store.dart';
 import 'setup_wifi.dart';
@@ -269,6 +270,9 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   bool joinGuided = false;
   bool joinBusy = false;
   String? joinError;
+
+  /// The system dialog couldn't connect: Wi-Fi settings becomes the main way.
+  bool assistedFailed = false;
   bool advancedOpen = false;
   String setupSsid = '';
   String setupPassword = 'wled1234';
@@ -304,6 +308,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     if (joinBusy) return;
     joinBusy = true;
     joinError = null;
+    assistedFailed = false;
     _notify();
     final g = _gen;
     final custom = setupSsid.trim();
@@ -322,7 +327,13 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       case SetupWifiCancelled():
         break;
       case SetupWifiUnavailable():
-        joinError = 'Couldn\'t find its Wi-Fi network. Is it plugged in? Give it a few seconds, then try again.';
+        // A device that was set up before keeps retrying its old Wi-Fi and
+        // only shows its own network for a few seconds at a time; Android's
+        // Wi-Fi settings keep retrying, the one-shot system dialog doesn't.
+        assistedFailed = true;
+        joinError =
+            'Couldn\'t connect to its Wi-Fi network. If it was set up before, its network only '
+            'appears every few seconds. Wi-Fi settings keeps trying, so use that instead.';
       case SetupWifiDenied():
         joinGuided = true;
         joinError = 'Glyph needs to see nearby Wi-Fi to do this. You can join it in Wi-Fi settings instead.';
@@ -645,7 +656,17 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   /// "Done" on the unsupported screen: nothing to set up, finish.
-  void skipToDone() => _go(SetupStep.done);
+  void skipToDone() {
+    unawaited(_setTime());
+    _go(SetupStep.done);
+  }
+
+  /// Part of setup, no extra step: the device learns the time (best effort).
+  Future<void> _setTime() async {
+    try {
+      await ensureDeviceTime(client);
+    } catch (_) {}
+  }
 
   // --- Size -------------------------------------------------------------------
 
@@ -1182,6 +1203,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       await devices.refresh();
     } catch (_) {}
     if (_disposed || g != _gen) return;
+    unawaited(_setTime());
     _go(SetupStep.done);
   }
 
