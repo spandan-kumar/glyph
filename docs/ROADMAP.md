@@ -79,8 +79,8 @@ Ranked from forum, Reddit and GitHub evidence.
 | # | Need | Who | Glyph |
 |---|---|---|---|
 | 1 | Notifications / smart-home values on the display | AWTRIX, WLED, Pixoo | logo Alerts shipped in v1.3.3; HA entity watcher later |
-| 2 | Weather (now, forecast, air quality) | Tidbyt, AWTRIX | current weather shipped; forecast/air quality after provider validation |
-| 3 | Planes overhead (top Tidbyt request) | Tidbyt | candidate after Glance foundation/provider checks |
+| 2 | Weather (now, forecast, air quality) | Tidbyt, AWTRIX | current weather shipped; forecast and air quality cards built (Open-Meteo, validated 11 Oct 2026), not yet released |
+| 3 | Planes overhead (top Tidbyt request) | Tidbyt | skipped for now (no suitable free feed validated) |
 | 4 | Sports scores | Tidbyt | skipped (free APIs keep dying) |
 | 5 | Panel setup/mapping is confusing | WLED | orientation fix shipped; full wizard independently planned |
 | 6 | Local, no cloud, no account | Pixoo, LaMetric, Tidbyt | core works locally; future external feeds explicitly optional |
@@ -89,7 +89,7 @@ Ranked from forum, Reddit and GitHub evidence.
 | 9 | Content rotation with a UI, not YAML | WLED, Tidbyt | device Shows shipped; phone Rotations shipped in v1.3.3 |
 | 10 | Counters (days until/since) | Tidbyt, AWTRIX | shipped in v1.3.3 (phone timezone) |
 | 11 | Busy light, night modes | Tidbyt, AWTRIX | Routines and logo Alerts shipped |
-| 12 | Stocks/crypto | Tidbyt | after core Glance; provider/usage validation required |
+| 12 | Stocks/crypto | Tidbyt | stocks skipped; crypto blocked: CoinGecko's docs now require an API key (Demo plan), see GLANCE.md |
 | 13 | Calendar, transit, RSS | Tidbyt | later |
 | 14 | Non-Latin text | AWTRIX, WLED | gap → 2027 |
 | 15 | Ambient scenes | Tidbyt | yes |
@@ -207,8 +207,11 @@ Independent work, ship when verified:
 - **Device setup wizard** — Wi-Fi onboarding, size presets, start corner,
   zig-zag wiring, optional power limits and live visual tests with recovery.
   Single panel first; tiling follows later.
-- **Home Assistant blueprint** — list Saved look IDs and trigger them from
-  automations. Entity watching is a later feature.
+- **Home Assistant blueprint** — *built, not released* (`homeassistant/`,
+  guide in [HOME_ASSISTANT.md](HOME_ASSISTANT.md), in-app "Use with Home
+  Assistant" sheet). Triggers Saved looks and Shows by name from automations.
+  Needs a check against a live Home Assistant. Entity watching is a later
+  feature.
 - **Seasonal promotion** — Halloween + Diwali packs shipped in v1.3.1;
   film clips for 24 Oct. An automatic seasonal Routine remains planned.
 

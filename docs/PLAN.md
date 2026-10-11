@@ -110,10 +110,14 @@ shortening is applied.
    guided fallback, one panel, dimensions/wiring, optional power limits and
    visual tests; snapshot, apply, reconnect, verify and restore. Panel grids
    follow later. Keep app orientation separate from hardware wiring.
-2. Home Assistant blueprint for triggering existing Saved IDs; entity watching
-   is a later integration.
+2. Home Assistant blueprint for triggering existing Saved looks by name (built,
+   not released: `homeassistant/`, `docs/HOME_ASSISTANT.md`; needs a live-HA
+   check); entity watching is a later integration.
 3. Additional Glance feeds only after provider/coverage/usage validation.
    Weather, phone-timezone day counters and Rotations already shipped.
+   Forecast and air quality cards are built, not released (Open-Meteo,
+   validated 11 Oct 2026; see GLANCE.md). Crypto prices are blocked: CoinGecko
+   now documents an API key for all access. Planes and stocks are skipped.
 
 The iOS build and further display adapters remain future work. The Wi-Fi
 investigation supports a weak RF path; antenna/PCB interference has not been
@@ -380,8 +384,8 @@ verify that disabled builds make no network requests.
    generated-data checks, physical QA and clear phone/internet disclosures.
    Add versionCode changelog/release notes then; festivals do not waive gates.
 
-Planes/crypto/air quality need provider, coverage and usage checks before
-scope is promised. The panel wizard needs config snapshot, live wiring
+Planes need provider, coverage and usage checks before scope is promised
+(air quality passed them; crypto failed on the API-key requirement). The panel wizard needs config snapshot, live wiring
 patterns, verified write/reconnect and an accessible restore path. The HA
 blueprint uses existing Saved IDs and can ship independently. Before AWTRIX,
 extract only the adapter boundary needed by WLED and that second device.

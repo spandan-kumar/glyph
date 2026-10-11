@@ -46,7 +46,10 @@ void main() {
           'temperature_2m,weather_code,is_day',
         );
         expect(r.url.queryParameters['timezone'], 'Asia/Kolkata');
-        expect(r.url.queryParameters['forecast_days'], '1');
+        expect(r.url.queryParameters['forecast_days'], '4');
+        expect(r.url.queryParameters['hourly'], 'temperature_2m,weather_code');
+        expect(r.url.queryParameters['forecast_hours'], '8');
+        expect(r.url.queryParameters['daily'], contains('weather_code'));
         expect(r.url.queryParameters['timeformat'], 'unixtime');
         return http.Response.bytes(utf8.encode(jsonEncode(response())), 200);
       }),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +18,7 @@ import '../../ui/make/led_loop.dart';
 import '../../ui/make/studio_kit.dart';
 import '../../ui/scope.dart';
 import '../../ui/widgets/led_matrix_view.dart';
+import 'air_quality.dart';
 import 'glance_generator.dart';
 import 'glance_model.dart';
 import 'glance_session.dart';
@@ -91,7 +93,11 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
     if (s == null || !_visible) return;
     s.weather.watch(this, [
       for (final c in s.store.cards)
-        if (c.kind == GlanceKind.weather) c.place!,
+        if (c.kind == GlanceKind.weather || c.kind == GlanceKind.forecast) c.place!,
+    ]);
+    s.air.watch(this, [
+      for (final c in s.store.cards)
+        if (c.kind == GlanceKind.airQuality) c.place!,
     ]);
   }
 
@@ -102,6 +108,7 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
       _watch();
     } else {
       _session?.weather.release(this);
+      _session?.air.release(this);
     }
   }
 
@@ -110,6 +117,7 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
     WidgetsBinding.instance.removeObserver(this);
     _session?.store.removeListener(_watch);
     _session?.weather.release(this);
+    _session?.air.release(this);
     final session = _session, generator = session?.playback.generator;
     if (session != null && !session.background && _owned.contains(generator)) {
       scheduleMicrotask(() {
@@ -246,7 +254,7 @@ class _GlanceScreenState extends State<GlanceScreen> with WidgetsBindingObserver
     return StudioScaffold(
       title: 'Glance',
       body: ListenableBuilder(
-        listenable: Listenable.merge([s, s.store, s.weather, s.devices, BackgroundStreaming.running]),
+        listenable: Listenable.merge([s, s.store, s.weather, s.air, s.devices, BackgroundStreaming.running]),
         builder: (context, _) {
           final focus = _current();
           final generator = _generatorFor(focus);
@@ -442,6 +450,8 @@ class _CardGrid extends StatelessWidget {
           child: LedLoop(generator: session.cardGenerator(c), resetKey: c, borderRadius: Lb.rTile),
         ),
       _AddTile(icon: Icons.wb_sunny_sharp, label: 'Weather', onTap: onAdd == null ? null : () => onAdd!(GlanceKind.weather)),
+      _AddTile(icon: Icons.thermostat_sharp, label: 'Forecast', onTap: onAdd == null ? null : () => onAdd!(GlanceKind.forecast)),
+      _AddTile(icon: Icons.air_sharp, label: 'Air quality', onTap: onAdd == null ? null : () => onAdd!(GlanceKind.airQuality)),
       _AddTile(icon: Icons.event_sharp, label: 'Countdown', onTap: onAdd == null ? null : () => onAdd!(GlanceKind.counter)),
     ];
     return GridView.count(
@@ -641,29 +651,67 @@ String rotationLine(PhoneShow r) {
   return '${r.entries.length} ${r.entries.length == 1 ? 'item' : 'items'} · $loop loop';
 }
 
-/// One line for a card tile: "24° Goa", "12 days".
+/// One line for a card tile: "24° Goa", "31/24 Goa", "AQI 42 Goa", "12 days".
 String cardShortLine(GlanceSession s, GlanceCard c) {
   if (c.kind == GlanceKind.counter) {
     final n = c.days(DateTime.now());
     return '$n ${n.abs() == 1 ? 'day' : 'days'}';
   }
-  final w = s.weather.snapshot(c.place!);
-  if (w == null || s.weather.freshness(c.place!) == WeatherFreshness.unavailable) return c.place!.name;
-  return '${w.temperature(c.fahrenheit).round()}° ${c.place!.name}';
+  final place = c.place!;
+  if (c.kind == GlanceKind.airQuality) {
+    final a = s.air.snapshot(place), scale = resolveAqiScale(c.aqi, _region());
+    final v = a?.aqi(scale);
+    if (v == null || s.air.freshness(place) == WeatherFreshness.unavailable) return place.name;
+    return '$v ${shortPlace(place.name)}';
+  }
+  final w = s.weather.snapshot(place);
+  if (w == null || s.weather.freshness(place) == WeatherFreshness.unavailable) return place.name;
+  if (c.kind == GlanceKind.forecast) {
+    final day = w.days.where((d) => d.date == w.placeToday(DateTime.now())).firstOrNull;
+    if (day != null) {
+      return '${_deg(day.high, c.fahrenheit)}/${_deg(day.low, c.fahrenheit)} ${shortPlace(place.name)}';
+    }
+  }
+  return '${w.temperature(c.fahrenheit).round()}° ${place.name}';
+}
+
+String? _region() => PlatformDispatcher.instance.locale.countryCode;
+String _deg(double celsius, bool f) => '${(f ? celsius * 9 / 5 + 32 : celsius).round()}';
+
+String _at(DateTime t) {
+  final l = t.toLocal();
+  return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }
 
 /// Status under the stage for a card.
 String cardStatus(GlanceSession s, GlanceCard c) {
   if (c.kind == GlanceKind.counter) return c.counterLabel(DateTime.now());
   final place = c.place!;
+  if (c.kind == GlanceKind.airQuality) {
+    final a = s.air.snapshot(place), status = s.air.freshness(place);
+    if (status == WeatherFreshness.unavailable) {
+      return s.air.refreshing(place) ? 'Getting the air quality…' : 'No air quality yet · check your connection';
+    }
+    final scale = resolveAqiScale(c.aqi, _region());
+    final v = a!.aqi(scale);
+    if (v == null) return 'No air quality data here';
+    return '${scale.label} $v · ${aqiLevel(scale, v).word} · '
+        '${status == WeatherFreshness.stale ? 'last seen' : 'updated'} ${_at(a.fetched)}';
+  }
   final w = s.weather.snapshot(place), status = s.weather.freshness(place);
   if (status == WeatherFreshness.unavailable) {
     return s.weather.refreshing(place) ? 'Getting the weather…' : 'No weather yet · check your connection';
   }
-  final t = w!.fetched.toLocal();
-  final at = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-  return '${w.temperature(c.fahrenheit).round()}°${c.fahrenheit ? 'F' : 'C'} · ${weatherDescription(w.code)} · '
-      '${status == WeatherFreshness.stale ? 'last seen' : 'updated'} $at';
+  final when = '${status == WeatherFreshness.stale ? 'last seen' : 'updated'} ${_at(w!.fetched)}';
+  if (c.kind == GlanceKind.forecast) {
+    if (!w.hasForecast) return 'No forecast yet · check your connection';
+    final day = w.days.where((d) => d.date == w.placeToday(DateTime.now())).firstOrNull;
+    final range = day == null
+        ? ''
+        : 'High ${_deg(day.high, c.fahrenheit)}° · Low ${_deg(day.low, c.fahrenheit)}° · ';
+    return '$range$when';
+  }
+  return '${w.temperature(c.fahrenheit).round()}°${c.fahrenheit ? 'F' : 'C'} · ${weatherDescription(w.code)} · $when';
 }
 
 /// The stage's demo before there are any cards: a sunny day, then a
@@ -735,6 +783,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
   late DateTime _date = widget.card?.date ?? DateTime.now().add(const Duration(days: 30));
   late CounterMode _mode = widget.card?.mode ?? CounterMode.until;
   late bool _fahrenheit = widget.card?.fahrenheit ?? false;
+  late AqiPref _aqi = widget.card?.aqi ?? AqiPref.auto;
   // The title follows the city until someone types their own.
   late bool _titleEdited = widget.card != null;
   List<WeatherPlace> _results = [];
@@ -743,12 +792,18 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
   Timer? _debounce;
   String? _error;
 
-  bool get _weather => widget.kind == GlanceKind.weather;
+  bool get _weather => widget.kind != GlanceKind.counter;
+  bool get _air => widget.kind == GlanceKind.airQuality;
+  String get _kindName => switch (widget.kind) {
+        GlanceKind.forecast => 'Forecast',
+        GlanceKind.airQuality => 'Air quality',
+        _ => 'Weather',
+      };
 
   String get _effectiveTitle {
     final t = _title.text.trim();
     if (t.isNotEmpty) return t;
-    if (_weather) return _place == null ? 'Weather' : shortPlace(_place!.name);
+    if (_weather) return _place == null ? _kindName : shortPlace(_place!.name);
     return _mode == CounterMode.until ? 'Big day' : 'Since';
   }
 
@@ -760,6 +815,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
         fahrenheit: _fahrenheit,
         date: _date,
         mode: _mode,
+        aqi: _aqi,
       );
 
   @override
@@ -771,7 +827,12 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
 
   void _choose(WeatherPlace place) {
     _place = place;
-    widget.session.weather.watch(this, [place]);
+    // Only the feed this card uses is asked for data.
+    if (_air) {
+      widget.session.air.watch(this, [place]);
+    } else {
+      widget.session.weather.watch(this, [place]);
+    }
   }
 
   @override
@@ -780,6 +841,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
       _choose(_place!);
     } else {
       widget.session.weather.release(this);
+      widget.session.air.release(this);
     }
   }
 
@@ -787,6 +849,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.session.weather.release(this);
+    widget.session.air.release(this);
     _debounce?.cancel();
     _title.dispose();
     _query.dispose();
@@ -890,7 +953,14 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
     final s = widget.session;
     final ready = !_weather || _place != null;
     return StudioScaffold(
-      title: widget.card == null ? (_weather ? 'New weather card' : 'New countdown') : 'Edit card',
+      title: widget.card == null
+          ? switch (widget.kind) {
+              GlanceKind.weather => 'New weather card',
+              GlanceKind.forecast => 'New forecast card',
+              GlanceKind.airQuality => 'New air quality card',
+              GlanceKind.counter => 'New countdown',
+            }
+          : 'Edit card',
       body: ListView(
         padding: const EdgeInsets.fromLTRB(Lb.gutter, 4, Lb.gutter, 40),
         children: [
@@ -920,7 +990,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
           const SizedBox(height: 12),
           if (_weather && _place != null)
             ListenableBuilder(
-              listenable: s.weather,
+              listenable: Listenable.merge([s.weather, s.air]),
               builder: (context, _) => Text(
                 cardStatus(s, _card),
                 textAlign: TextAlign.center,
@@ -931,7 +1001,7 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
             Text(_card.counterLabel(DateTime.now()),
                 textAlign: TextAlign.center, style: LbType.small.copyWith(color: Lb.text2))
           else
-            Text('Search for a city to see its weather here.',
+            Text('Search for a city to see it here.',
                 textAlign: TextAlign.center, style: LbType.small.copyWith(color: Lb.text2)),
           const SizedBox(height: 24),
           if (_weather) ..._weatherFields(s) else ..._counterFields(),
@@ -948,8 +1018,9 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
           if (_weather) ...[
             const SizedBox(height: 16),
             Wrap(alignment: WrapAlignment.center, spacing: 4, children: [
-              _Credit('Weather by Open-Meteo', 'https://open-meteo.com/'),
+              _Credit(_air ? 'Air quality by Open-Meteo' : 'Weather by Open-Meteo', 'https://open-meteo.com/'),
               _Credit('CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/'),
+              if (_air) _Credit('Data: CAMS, Copernicus', 'https://atmosphere.copernicus.eu/'),
               _Credit('Places by GeoNames', 'https://www.geonames.org/'),
             ]),
           ],
@@ -975,19 +1046,35 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
             ]),
           ),
           const SizedBox(height: 18),
-          SegmentedButton<bool>(
-            style: studioSegmentStyle,
-          showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(value: false, label: Text('°C')),
-              ButtonSegment(value: true, label: Text('°F')),
-            ],
-            selected: {_fahrenheit},
-            onSelectionChanged: (v) {
-              HapticFeedback.selectionClick();
-              setState(() => _fahrenheit = v.first);
-            },
-          ),
+          if (_air)
+            SegmentedButton<AqiPref>(
+              style: studioSegmentStyle,
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: AqiPref.auto, label: Text('Auto')),
+                ButtonSegment(value: AqiPref.us, label: Text('US AQI')),
+                ButtonSegment(value: AqiPref.eu, label: Text('European')),
+              ],
+              selected: {_aqi},
+              onSelectionChanged: (v) {
+                HapticFeedback.selectionClick();
+                setState(() => _aqi = v.first);
+              },
+            )
+          else
+            SegmentedButton<bool>(
+              style: studioSegmentStyle,
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: false, label: Text('°C')),
+                ButtonSegment(value: true, label: Text('°F')),
+              ],
+              selected: {_fahrenheit},
+              onSelectionChanged: (v) {
+                HapticFeedback.selectionClick();
+                setState(() => _fahrenheit = v.first);
+              },
+            ),
           const SizedBox(height: 18),
           const MonoLabel('Name on the card'),
           const SizedBox(height: 8),
@@ -1068,8 +1155,15 @@ class _GlanceCardEditorState extends State<GlanceCardEditor> with WidgetsBinding
             OutlinedButton(onPressed: _coordinates, child: const Text('Use these coordinates')),
           ],
           const SizedBox(height: 8),
+          if (_air) ...[
+            Text(
+              'Modelled air quality from the CAMS forecast, not a sensor reading. It can differ from a monitor near you.',
+              style: LbType.small.copyWith(color: Lb.text3),
+            ),
+            const SizedBox(height: 8),
+          ],
           Text(
-            'Only the city you search for is sent to the weather service — Glyph never asks for your location.',
+            'Only the city you search for is sent to Open-Meteo — Glyph never asks for your location.',
             style: LbType.small.copyWith(color: Lb.text3),
           ),
         ],

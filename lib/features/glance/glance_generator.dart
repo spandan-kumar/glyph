@@ -1,91 +1,205 @@
 import 'dart:math';
+import 'dart:ui' show PlatformDispatcher;
 
 import '../../engine/frame.dart';
 import '../../engine/generator.dart';
 import '../../engine/palette.dart';
 import '../text/fonts.dart';
 import '../text/text_render.dart';
+import 'air_quality.dart';
 import 'glance_model.dart';
 import 'weather.dart';
 
 class GlanceCardGenerator extends Generator {
   @override
   int get streamFps => 10;
-  GlanceCardGenerator(this.card, this.feed, {DateTime Function()? now})
-    : now = now ?? DateTime.now;
+  GlanceCardGenerator(
+    this.card,
+    this.feed, {
+    this.air,
+    String? Function()? region,
+    DateTime Function()? now,
+  }) : now = now ?? DateTime.now,
+       region = region ?? _phoneRegion;
   final GlanceCard card;
   final WeatherFeed feed;
+  final AirFeed? air;
   final DateTime Function() now;
+
+  /// The phone's country code, used only to pick the air quality index.
+  final String? Function() region;
   @override
   String get id => 'glance:${card.id}';
   @override
   String get name => card.title;
   @override
   bool get liveOnly => true;
+  AqiScale get scale => resolveAqiScale(card.aqi, region());
   bool get available {
-    if (card.kind == GlanceKind.counter) return true;
-    final snapshot = feed.snapshot(card.place!);
-    return snapshot != null &&
-        snapshot.freshness(now(), failed: feed.failed(card.place!)) !=
-            WeatherFreshness.unavailable;
+    switch (card.kind) {
+      case GlanceKind.counter:
+        return true;
+      case GlanceKind.airQuality:
+        final s = air?.snapshot(card.place!);
+        return s != null &&
+            s.hasData(scale) &&
+            s.freshness(now(), failed: air!.failed(card.place!)) !=
+                WeatherFreshness.unavailable;
+      case GlanceKind.weather || GlanceKind.forecast:
+        final snapshot = feed.snapshot(card.place!);
+        return snapshot != null &&
+            (card.kind == GlanceKind.weather || snapshot.hasForecast) &&
+            snapshot.freshness(now(), failed: feed.failed(card.place!)) !=
+                WeatherFreshness.unavailable;
+    }
   }
 
   @override
   EffectInstance create(int width, int height, int seed) => _CardEffect(this);
 }
 
+String? _phoneRegion() => PlatformDispatcher.instance.locale.countryCode;
+
+/// What one card says: a big value and the small texts that follow it.
+class _Content {
+  _Content(this.value, this.texts, {this.valueColor = 0xe8f6ef, this.icon, this.stale = false});
+  final String value;
+  final int valueColor;
+
+  /// Small texts; a null colour takes the layout's default.
+  final List<(String, int?)> texts;
+  final WeatherSnapshot? icon;
+  final bool stale;
+}
+
 class _CardEffect extends EffectInstance {
   _CardEffect(this.generator);
   final GlanceCardGenerator generator;
   final _text = _CardText();
+
+  _Content _content(DateTime now) {
+    final c = generator.card;
+    switch (c.kind) {
+      case GlanceKind.counter:
+        final days = c.days(now);
+        final label = days == 0 ? c.title : c.counterLabel(now);
+        return _Content(days == 0 ? 'TODAY' : '${days.abs()}', [
+          (c.title, null),
+          if (label != c.title) (label, null),
+        ]);
+      case GlanceKind.airQuality:
+        final scale = generator.scale, air = generator.air;
+        final s = air?.snapshot(c.place!);
+        final status =
+            s?.freshness(now, failed: air!.failed(c.place!)) ??
+            WeatherFreshness.unavailable;
+        final value = s?.aqi(scale);
+        if (status == WeatherFreshness.unavailable || value == null) {
+          return _Content('--', [(c.title, null), ('NO AIR DATA', null)]);
+        }
+        final level = aqiLevel(scale, value);
+        final stale = status == WeatherFreshness.stale;
+        return _Content(
+          '$value',
+          [
+            (c.title, null),
+            (stale ? 'OLD ${level.word}' : level.word, level.color),
+            (scale.label, null),
+            if (s!.pm25 != null) ('PM2.5 ${s.pm25!.round()}', null),
+          ],
+          valueColor: level.color,
+          stale: stale,
+        );
+      case GlanceKind.weather || GlanceKind.forecast:
+        var weather = generator.feed.snapshot(c.place!);
+        final status =
+            weather?.freshness(now, failed: generator.feed.failed(c.place!)) ??
+            WeatherFreshness.unavailable;
+        final forecast = c.kind == GlanceKind.forecast;
+        if (status == WeatherFreshness.unavailable ||
+            (forecast && !weather!.hasForecast)) {
+          return _Content('--', [
+            (c.title, null),
+            (forecast ? 'NO FORECAST' : 'NO DATA', null),
+          ]);
+        }
+        weather = weather!;
+        final stale = status == WeatherFreshness.stale;
+        final fahrenheit = c.fahrenheit;
+        final unit = fahrenheit ? 'F' : 'C';
+        if (!forecast) {
+          final desc = weatherDescription(weather.code);
+          final label = stale ? 'OLD $desc' : desc;
+          final hiLo =
+              weather.high != null && weather.low != null && weather.dailyIsToday(now)
+              ? 'H ${_temp(weather.high!, fahrenheit)} L ${_temp(weather.low!, fahrenheit)}'
+              : null;
+          return _Content(
+            '${weather.temperature(fahrenheit).round()}$unit',
+            [
+              (c.title, null),
+              if (label != c.title) (label, null),
+              ?(hiLo == null ? null : (hiLo, null)),
+            ],
+            icon: weather,
+            stale: stale,
+          );
+        }
+        // Forecast: today's high/low big; then the next hours and days.
+        final today = weather.placeToday(now);
+        final day = weather.days.where((d) => d.date == today).firstOrNull;
+        final desc = weatherDescription(day?.code ?? weather.code);
+        final hours = weather.nextHours(now, 3);
+        final next = [
+          for (final d in weather.days)
+            if (d.date.compareTo(today) > 0) d,
+        ].take(3);
+        return _Content(
+          day == null
+              ? '${weather.temperature(fahrenheit).round()}$unit'
+              : '${_temp(day.high, fahrenheit)}/${_temp(day.low, fahrenheit)}',
+          [
+            (c.title, null),
+            (stale ? 'OLD $desc' : desc, null),
+            if (hours.isNotEmpty)
+              (
+                [
+                  for (final h in hours)
+                    '${weather.hourLabel(h)} ${_temp(h.celsius, fahrenheit)}',
+                ].join('  '),
+                null,
+              ),
+            if (next.isNotEmpty)
+              (
+                [
+                  for (final d in next)
+                    '${d.weekday} ${_temp(d.high, fahrenheit)}/${_temp(d.low, fahrenheit)}',
+                ].join('  '),
+                null,
+              ),
+          ],
+          icon: weather,
+          stale: stale,
+        );
+    }
+  }
+
   @override
   void render(Frame out, double t, double dt, Params p, Palette pal) {
     out.fill(0);
-    final c = generator.card, now = generator.now();
-    String value, label;
-    WeatherSnapshot? weather;
-    var stale = false;
-    if (c.kind == GlanceKind.counter) {
-      final days = c.days(now);
-      value = days == 0 ? 'TODAY' : '${days.abs()}';
-      label = days == 0 ? c.title : c.counterLabel(now);
-    } else {
-      weather = generator.feed.snapshot(c.place!);
-      final status =
-          weather?.freshness(now, failed: generator.feed.failed(c.place!)) ??
-          WeatherFreshness.unavailable;
-      if (status == WeatherFreshness.unavailable) {
-        value = '--';
-        label = 'NO DATA';
-        weather = null;
-      } else {
-        stale = status == WeatherFreshness.stale;
-        value =
-            '${weather!.temperature(c.fahrenheit).round()}${c.fahrenheit ? 'F' : 'C'}';
-        label = stale
-            ? 'OLD ${weatherDescription(weather.code)}'
-            : weatherDescription(weather.code);
-      }
-    }
-    final hiLo =
-        weather != null &&
-            weather.high != null &&
-            weather.low != null &&
-            weather.dailyIsToday(now)
-        ? 'H ${_temp(weather.high!, c.fahrenheit)} L ${_temp(weather.low!, c.fahrenheit)}'
-        : null;
-    // Strips cycle value, title, label (and high/low); square devices keep the
-    // value on top and cycle the small texts below it. Every segment lasts
-    // long enough to scroll its whole text.
+    final content = _content(generator.now());
+    final weather = content.icon, stale = content.stale;
+    // Strips cycle value, then the small texts; square devices keep the value
+    // on top and cycle the small texts below it. Every segment lasts long
+    // enough to scroll its whole text.
     if (out.height < 13) {
       final icon = weather != null && out.width < 16;
       final shown = _text.sequence(
         out,
         [
-          (value, true, 0xe8f6ef, 5.0),
-          (c.title, false, 0xe8f6ef, 3.5),
-          if (label != c.title) (label, false, 0xe8f6ef, 3.5),
-          ?(hiLo == null ? null : (hiLo, false, 0xe8f6ef, 3.5)),
+          (content.value, true, content.valueColor, 5.0),
+          for (final (text, color) in content.texts)
+            (text, false, color ?? 0xe8f6ef, 3.5),
         ],
         0,
         out.height,
@@ -109,7 +223,7 @@ class _CardEffect extends EffectInstance {
       }
       _text.sequence(
         out,
-        [(value, true, 0xe8f6ef, 1.0)],
+        [(content.value, true, content.valueColor, 1.0)],
         top,
         out.height - top - 7,
         t,
@@ -118,9 +232,7 @@ class _CardEffect extends EffectInstance {
       _text.sequence(
         out,
         [
-          (c.title, false, color, 4.0),
-          if (label != c.title) (label, false, color, 4.0),
-          ?(hiLo == null ? null : (hiLo, false, color, 4.0)),
+          for (final (text, c) in content.texts) (text, false, c ?? color, 4.0),
         ],
         out.height - 6,
         5,

@@ -104,6 +104,9 @@ class WeatherApi {
     );
   }
 
+  /// Bounded, timed GET shared with the other Glance feeds.
+  Future<Object?> getJson(Uri uri) => _get(uri);
+
   Future<Map<String, dynamic>> _getMap(Uri uri) async {
     final data = await _get(uri);
     if (data is! Map<String, dynamic>) {
@@ -175,8 +178,10 @@ class WeatherApi {
               'latitude': idx.map((i) => '${places[i].latitude}').join(','),
               'longitude': idx.map((i) => '${places[i].longitude}').join(','),
               'current': 'temperature_2m,weather_code,is_day',
-              'daily': 'temperature_2m_max,temperature_2m_min',
-              'forecast_days': '1',
+              'daily': 'temperature_2m_max,temperature_2m_min,weather_code',
+              'hourly': 'temperature_2m,weather_code',
+              'forecast_days': '4',
+              'forecast_hours': '8',
               'timezone': entry.key,
               'timeformat': 'unixtime',
               'temperature_unit': 'celsius',
@@ -235,7 +240,71 @@ class WeatherApi {
         isUtc: true,
       ).toIso8601String().substring(0, 10);
     }
+    final days = <Map<String, Object>>[];
+    final dt = (raw['daily'] as Map?)?['time'];
+    final dMax = (raw['daily'] as Map?)?['temperature_2m_max'];
+    final dMin = (raw['daily'] as Map?)?['temperature_2m_min'];
+    final dCode = (raw['daily'] as Map?)?['weather_code'];
+    if ((raw['daily_units'] as Map?)?['temperature_2m_max'] == '°C' &&
+        (raw['daily_units'] as Map?)?['temperature_2m_min'] == '°C' &&
+        offset != null &&
+        offset.abs() <= 14 * 3600 &&
+        dt is List &&
+        dMax is List &&
+        dMin is List &&
+        dCode is List) {
+      for (var i = 0; i < dt.length && i < 7; i++) {
+        try {
+          if (dt[i] is! num || dMax[i] is! num || dMin[i] is! num || dCode[i] is! num) {
+            continue;
+          }
+          days.add(
+            DailyForecast.fromJson({
+              'd': DateTime.fromMillisecondsSinceEpoch(
+                ((dt[i] as num).toInt() + offset) * 1000,
+                isUtc: true,
+              ).toIso8601String().substring(0, 10),
+              'h': dMax[i],
+              'l': dMin[i],
+              'c': dCode[i],
+            }).toJson(),
+          );
+        } catch (_) {
+          /* A bad day is left out, never guessed. */
+        }
+      }
+    }
+    final hours = <Map<String, Object>>[];
+    final hourly = raw['hourly'];
+    if (hourly is Map &&
+        (raw['hourly_units'] as Map?)?['temperature_2m'] == '°C' &&
+        hourly['time'] is List &&
+        hourly['temperature_2m'] is List &&
+        hourly['weather_code'] is List) {
+      final ht = hourly['time'] as List,
+          hT = hourly['temperature_2m'] as List,
+          hC = hourly['weather_code'] as List;
+      for (var i = 0; i < ht.length && i < 24; i++) {
+        try {
+          if (i >= hT.length || i >= hC.length || ht[i] is! num || hT[i] is! num || hC[i] is! num) {
+            continue;
+          }
+          hours.add(
+            HourlyForecast.fromJson({
+              't': DateTime.fromMillisecondsSinceEpoch(
+                (ht[i] as num).toInt() * 1000,
+                isUtc: true,
+              ).toIso8601String(),
+              'c': hT[i],
+              'w': hC[i],
+            }).toJson(),
+          );
+        } catch (_) {}
+      }
+    }
     final result = WeatherSnapshot.fromJson({
+      'days': days,
+      'hours': hours,
       'observed': DateTime.fromMillisecondsSinceEpoch(
         (current['time'] as num).toInt() * 1000,
         isUtc: true,

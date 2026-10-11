@@ -114,6 +114,7 @@ class WeatherService extends ChangeNotifier implements WeatherFeed {
     if (!force && next != null && _now().isBefore(next)) return false;
     if (!force &&
         cached != null &&
+        cached.hasForecast && // readings cached before forecasts existed refresh once
         !_errors.contains(key) &&
         _now().difference(cached.fetched) < cadence) {
       return false;

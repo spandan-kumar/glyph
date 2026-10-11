@@ -1,3 +1,5 @@
+import 'air_quality.dart';
+
 class WeatherPlace {
   const WeatherPlace(
     this.name,
@@ -35,7 +37,9 @@ class WeatherPlace {
   }
 }
 
-enum GlanceKind { weather, counter }
+/// [weather] is now; [forecast] is today's range and what follows; both use a
+/// place. [airQuality] uses a place too. [counter] needs no network.
+enum GlanceKind { weather, counter, forecast, airQuality }
 
 enum CounterMode { until, since }
 
@@ -49,6 +53,7 @@ class GlanceCard {
     this.fahrenheit = false,
     this.date,
     this.mode = CounterMode.until,
+    this.aqi = AqiPref.auto,
   });
   final String id, title;
   final GlanceKind kind;
@@ -56,13 +61,17 @@ class GlanceCard {
   final bool fahrenheit;
   final DateTime? date;
   final CounterMode mode;
+  final AqiPref aqi;
+
+  /// Weather, forecast and air quality cards are about a place.
+  bool get usesPlace => kind != GlanceKind.counter;
 
   bool get valid =>
       id.isNotEmpty &&
       id.length <= 80 &&
       title.trim().isNotEmpty &&
       title.length <= 64 &&
-      (kind == GlanceKind.weather
+      (usesPlace
           ? place?.valid == true
           : date != null && date!.year >= 1900 && date!.year <= 2200);
 
@@ -96,6 +105,7 @@ class GlanceCard {
       'date':
           '${date!.year.toString().padLeft(4, '0')}-${date!.month.toString().padLeft(2, '0')}-${date!.day.toString().padLeft(2, '0')}',
     'mode': mode.name,
+    if (aqi != AqiPref.auto) 'aqi': aqi.name,
   };
   factory GlanceCard.fromJson(Map m) {
     DateTime? date;
@@ -119,6 +129,7 @@ class GlanceCard {
       fahrenheit: m['fahrenheit'] == true,
       date: date,
       mode: CounterMode.values.byName(m['mode'] as String? ?? 'until'),
+      aqi: AqiPref.values.byName(m['aqi'] as String? ?? 'auto'),
     );
     if (!c.valid) throw const FormatException('Invalid card');
     return c;

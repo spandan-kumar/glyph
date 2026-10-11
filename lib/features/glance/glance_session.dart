@@ -11,6 +11,7 @@ import '../../engine/generator.dart';
 import '../../engine/palette.dart';
 import '../../engine/registry.dart';
 import '../../library/catalog.dart';
+import 'air_quality_service.dart';
 import 'glance_generator.dart';
 import 'glance_model.dart';
 import 'glance_store.dart';
@@ -25,8 +26,10 @@ class GlanceSession extends ChangeNotifier with WidgetsBindingObserver {
     required this.creations,
     GlanceStore? store,
     WeatherService? weather,
+    AirQualityService? air,
   }) : store = store ?? GlanceStore(),
        weather = weather ?? WeatherService() {
+    this.air = air ?? AirQualityService(http: this.weather.api);
     playback.addListener(_changed);
     devices.addListener(_deviceChanged);
     this.store.addListener(_storeChanged);
@@ -38,6 +41,7 @@ class GlanceSession extends ChangeNotifier with WidgetsBindingObserver {
   final CreationsStore creations;
   final GlanceStore store;
   final WeatherService weather;
+  late final AirQualityService air;
   Generator? _active;
   int? _selection;
   int _request = 0;
@@ -51,9 +55,9 @@ class GlanceSession extends ChangeNotifier with WidgetsBindingObserver {
       _background && _backgroundOwner != null && BackgroundStreaming.isRunning;
   bool startingBackground = false;
 
-  Future<void> load() => Future.wait([store.load(), weather.load()]);
+  Future<void> load() => Future.wait([store.load(), weather.load(), air.load()]);
   GlanceCardGenerator cardGenerator(GlanceCard card) =>
-      GlanceCardGenerator(card, weather);
+      GlanceCardGenerator(card, weather, air: air);
   PhoneShowGenerator showGenerator(PhoneShow show) =>
       PhoneShowGenerator(show, resolve);
   ShowLook? resolve(PhoneShowEntry entry) {
@@ -264,6 +268,7 @@ class GlanceSession extends ChangeNotifier with WidgetsBindingObserver {
     if (_disposed) return;
     if (!playing) {
       weather.release(this);
+      air.release(this);
       _feedKey = '';
       final owner = _backgroundOwner;
       _backgroundOwner = null;
@@ -294,12 +299,19 @@ class GlanceSession extends ChangeNotifier with WidgetsBindingObserver {
         : <GlanceCard>[];
     final places = [
       for (final c in cards)
-        if (c.kind == GlanceKind.weather) c.place!,
+        if (c.kind == GlanceKind.weather || c.kind == GlanceKind.forecast)
+          c.place!,
     ];
-    final key = places.map((p) => p.key).join('|');
+    final airPlaces = [
+      for (final c in cards)
+        if (c.kind == GlanceKind.airQuality) c.place!,
+    ];
+    final key =
+        '${places.map((p) => p.key).join('|')}#${airPlaces.map((p) => p.key).join('|')}';
     if (key == _feedKey) return;
     _feedKey = key;
     weather.watch(this, places);
+    air.watch(this, airPlaces);
   }
 
   void _storeChanged() {
@@ -342,6 +354,7 @@ class GlanceSession extends ChangeNotifier with WidgetsBindingObserver {
     devices.removeListener(_deviceChanged);
     store.removeListener(_storeChanged);
     weather.release(this);
+    air.release(this);
     final owner = _backgroundOwner;
     if (owner != null) {
       unawaited(BackgroundStreaming.release(owner).catchError((Object _) {}));
@@ -352,6 +365,7 @@ class GlanceSession extends ChangeNotifier with WidgetsBindingObserver {
     }
     store.dispose();
     weather.dispose();
+    air.dispose();
     super.dispose();
   }
 }

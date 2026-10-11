@@ -140,6 +140,36 @@ void main() {
   );
 
   testWidgets(
+    'forecast and air quality are offered, make no request until used, and credit their sources',
+    (tester) async {
+      await pump(tester, const GlanceScreen());
+      expect(find.bySemanticsLabel('Add Forecast'), findsOneWidget);
+      expect(find.bySemanticsLabel('Add Air quality'), findsOneWidget);
+      expect(requests, 0);
+      await tester.runAsync(
+        () => session.store.saveCard(
+          const GlanceCard(
+            id: 'aq',
+            title: 'Delhi',
+            kind: GlanceKind.airQuality,
+            place: WeatherPlace('Delhi', 28.6, 77.2),
+          ),
+        ),
+      );
+      await pump(tester, GlanceCardEditor(session: session, kind: GlanceKind.airQuality, card: session.store.card('aq')));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(requests, 1, reason: 'one air quality request for the one place');
+      expect(find.text('Auto'), findsOneWidget);
+      expect(find.text('US AQI'), findsOneWidget);
+      expect(find.text('European'), findsOneWidget);
+      expect(find.text('DATA: CAMS, COPERNICUS'), findsOneWidget);
+      expect(find.text('AIR QUALITY BY OPEN-METEO'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'weather is search-first: typing searches once, picking a city fetches once, no location asked',
     (tester) async {
       await pump(tester, GlanceCardEditor(session: session, kind: GlanceKind.weather));
