@@ -4,6 +4,23 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SetupWifiLogicTest {
+    @Test fun queuedCallbacksCannotBindAfterReleaseOrReplacement() {
+        val requests = SetupWifiRequest()
+        val first = Any(); val second = Any()
+        var bound: Any? = null
+        requests.active = first
+        requests.active = null
+        requests.run(first) { bound = first }
+        assertNull(bound)
+        requests.active = second
+        requests.run(first) { bound = first }
+        assertNull(bound)
+        requests.run(second) { bound = second }
+        assertSame(second, bound)
+        requests.run(first) { bound = null }
+        assertSame(second, bound)
+    }
+
     @Test fun parsesDefaultsAndOverrides() {
         val d = SetupWifiLogic.parse(null)
         assertNull(d.ssid); assertEquals("WLED", d.prefix); assertEquals("wled1234", d.password)

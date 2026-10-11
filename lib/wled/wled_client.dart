@@ -620,7 +620,7 @@ class WledClient {
 
   /// Turns on internet time (NTP) with a timezone from WLED's table and an
   /// extra offset in seconds (cfg if.ntp: en, tz, offset). The host is left
-  /// alone. Applies at runtime.
+  /// alone. Newly enabled NTP starts on the next restart or reconnect.
   Future<void> setInternetTime({required int tz, required int offsetSeconds}) => setConfig({
         'if': {
           'ntp': {'en': true, 'tz': tz, 'offset': offsetSeconds}
@@ -801,14 +801,22 @@ class WledClient {
   /// TX power). The restart cuts the connection, so a failure of that last
   /// request is not an error: success is confirmed by finding the device on
   /// the new network.
-  Future<void> joinWifi(String ssid, String password) async {
+  Future<void> joinWifi(String ssid, String password, {
+    int? tz,
+    int offsetSeconds = 0,
+  }) async {
     if (ssid.isEmpty) throw WledException('Network name can\'t be empty');
     await setConfig({
       'nw': {
         'ins': [
-          {'ssid': ssid, 'psk': password}
+          // WLED keeps the old password when psk is empty (cfg.cpp).
+          {'ssid': ssid, 'psk': password, 'bssid': '000000000000'}
         ]
-      }
+      },
+      if (tz != null)
+        'if': {
+          'ntp': {'en': true, 'tz': tz, 'offset': offsetSeconds},
+        },
     });
     try {
       await reboot();
@@ -884,6 +892,21 @@ class WledClient {
     });
   }
 
+  /// Undo restores the original geometry too; post-apply playback must not.
+  Future<void> restoreSetupState(Map<String, dynamic> state) async {
+    final ps = state['ps'], pl = state['pl'];
+    await _setState({
+      for (final key in ['on', 'bri', 'transition', 'bs', 'ledmap', 'nl', 'udpn', 'lor', 'seg'])
+        if (state.containsKey(key)) key: state[key],
+      // pd keeps the saved preset identity without loading over its geometry.
+      if (ps is num && ps > 0) 'pd': ps.toInt(),
+    });
+    // WLED checks mainseg before creating segments, so set it afterwards.
+    if (state['mainseg'] is num) await _setState({'mainseg': state['mainseg']});
+    // pl is read-only; a running playlist is selected through its preset id.
+    if (pl is num && pl >= 0) await _setState({'ps': pl.toInt()});
+  }
+
   /// Whether streamed pixels go through WLED's LED map (`if.live.rlm`).
   /// Off means raw LED order, which the wiring test relies on.
   Future<void> setRealtimeMaps(bool on) => setConfig({
@@ -926,7 +949,11 @@ class WledClient {
     if (checkLock && await _settingsLocked(state.realtimeMaps)) {
       return DeviceSetupState.lockedFromInfo(info);
     }
-    return state;
+    return DeviceSetupState.fromJson(
+      cfg: cfg,
+      info: info,
+      files: (await files()).keys,
+    );
   }
 
   void close() => _http.close();

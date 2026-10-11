@@ -167,6 +167,64 @@ void main() {
     expect(await store.has(mac), isTrue);
   });
 
+  test('a different device MAC refuses all restoration writes', () async {
+    final snap = await takeSnapshot();
+    await store.save(snap);
+    final other = FakeSetupDevice(mac: 'aabbccddeeff', ledCount: 16);
+    final result = await store.restore(other.client(host), devices, snapshot: snap);
+    expect(result.ok, isFalse);
+    expect(result.deviceMismatch, isTrue);
+    expect(other.writes, isEmpty);
+    expect(await store.has(mac), isTrue);
+  });
+
+  test('successful writes followed by disconnection keep the backup', () async {
+    final snap = await takeSnapshot();
+    await store.save(snap);
+    final c = device.client(host);
+    await c.setCurrentLimit(500);
+    device.afterRequest = (r) {
+      if (r.method == 'POST') device.offline = true;
+    };
+    final result = await store.restore(c, devices, snapshot: snap);
+    expect(device.limit, snap.currentLimitMa);
+    expect(result.ok, isFalse);
+    expect(result.verificationFailed, isTrue);
+    expect(result.failed[SetupField.currentLimit], contains('verify'));
+    expect(result.restored, isNot(contains(SetupField.currentLimit)));
+    expect(await store.has(mac), isTrue);
+  });
+
+  test('undo restores all segment geometry after count and layout changes', () async {
+    final c = device.client(host);
+    device.state['seg'] = [
+      {'id': 0, 'start': 0, 'stop': 8, 'startY': 0, 'stopY': 4, 'fx': 9},
+      {'id': 1, 'start': 8, 'stop': 16, 'startY': 4, 'stopY': 8, 'grp': 2, 'spc': 1, 'fx': 12},
+    ];
+    final playback = await c.state();
+    final snap = SetupSnapshot.of(await c.setupState(), host: host, playback: playback);
+    await store.save(snap);
+    await c.setLedCount(256, snap.outputEntry);
+    await c.setPanelLayout(const DisplaySetup(16, 16, PanelWiring()));
+    final result = await store.restore(c, devices, snapshot: snap);
+    expect(result.ok, isTrue);
+    expect(device.state['seg'], playback['seg']);
+  });
+
+  test('failed full-state restore keeps the backup for retry', () async {
+    final c = device.client(host);
+    final snap = SetupSnapshot.of(await c.setupState(), host: host, playback: await c.state());
+    await store.save(snap);
+    await c.setPanelLayout(const DisplaySetup(16, 16, PanelWiring()));
+    device.beforeRequest = (r) async {
+      if (r.method == 'POST' && r.url.path == '/json/state') throw Exception('disconnected');
+    };
+    final result = await store.restore(c, devices, snapshot: snap);
+    expect(result.ok, isFalse);
+    expect(result.playbackFailed, isTrue);
+    expect(await store.has(mac), isTrue);
+  });
+
   test('a locked device is reported without writing', () async {
     device = FakeSetupDevice(pin: '1234');
     final snap = SetupSnapshot(

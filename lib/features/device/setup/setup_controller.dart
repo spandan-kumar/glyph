@@ -14,6 +14,7 @@ import '../../../wled/layout.dart';
 import '../../../wled/panel_setup.dart';
 import '../../../wled/device.dart' show WledInfo;
 import '../../../wled/wled_client.dart';
+import '../../../wled/timezone.dart';
 import '../device_time.dart';
 import 'setup_session.dart';
 import 'setup_store.dart';
@@ -240,6 +241,30 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     return _client!;
   }
 
+  Future<void> _target(String next) async {
+    if (host == next) return;
+    await _endTest();
+    await _snapshotting;
+    if (!wrote && !(_snapshot?.needsRestore ?? false)) await _forgetSnapshot();
+    _client?.close();
+    _client = null;
+    _clientHost = null;
+    host = next;
+    state = null;
+    _snapshot = _prior = null;
+    _snapshotting = null;
+    draftWidth = draftHeight = null;
+    draftWiring = null;
+    _resetAnswers();
+    supplyAmps = null;
+    wrote = confirmed = fastPath = rollbackFailed = false;
+    testNeedsMoreLeds = checkUnreachable = pinBusy = false;
+    testError = pinError = wiringNote = null;
+    unsupportedReason = SetupSupport.supported;
+    _rlmOverridden = _suspended = false;
+    _rlmClient = null;
+  }
+
   WledClient? _setupClientCache;
   WledClient get _setupClient => _setupClientCache ??= _factory(setupHost);
 
@@ -260,7 +285,8 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       return 'Couldn\'t reach ${d.name}. Is it switched on and on the same Wi-Fi?';
     }
     HapticFeedback.mediumImpact();
-    host = d.host;
+    await _target(d.host);
+    if (_disposed || g != _gen) return null;
     _go(SetupStep.check);
     return null;
   }
@@ -483,7 +509,13 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     _go(SetupStep.joining);
     final g = _gen;
     try {
-      await _setupClient.joinWifi(ssid, psk);
+      final phone = await phoneZoneReader();
+      if (_disposed || g != _gen) return;
+      final zone = wledTimezoneFor(phone.iana, phone.offset);
+      await _setupClient.joinWifi(ssid, psk,
+        tz: zone.tz,
+        offsetSeconds: zone.offsetSeconds,
+      );
     } catch (_) {
       if (_disposed || g != _gen) return;
       wifiError = 'Your device didn\'t take that. Check your phone is still connected to it, then try again.';
@@ -510,7 +542,8 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
     HapticFeedback.mediumImpact();
-    host = found.host;
+    await _target(found.host);
+    if (_disposed || g != _gen) return;
     _go(SetupStep.check);
   }
 
@@ -600,7 +633,17 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
     try {
-      final s = await client.setupState(checkLock: true);
+      final c = client;
+      var s = await c.setupState(checkLock: true);
+      if (_disposed || g != _gen) return;
+      final pending = await store.load(s.mac);
+      if (_disposed || g != _gen) return;
+      if (pending?.needsRestore == true && !s.pinLocked) {
+        final restored = await store.restore(c, devices, snapshot: pending);
+        if (_disposed || g != _gen) return;
+        if (!restored.ok) throw StateError('Restore pending');
+        s = await c.setupState();
+      }
       if (_disposed || g != _gen) return;
       _handleState(s);
     } catch (_) {
@@ -833,11 +876,26 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   int _testToken = 0;
   Timer? _chase;
   int _chaseAt = 0;
-  Future<void> _ending = Future.value();
+  Future<void> _ending = Future.value(), _starting = Future.value();
+  WledClient? _rlmClient;
+
+  bool _testCurrent(int token) =>
+      token == _testToken && !_disposed && !_cleaned && _resumed;
+
+  Future<void> _start(Future<void> Function(int) run) {
+    if (!_resumed) _suspended = true;
+    final token = ++_testToken;
+    final ending = _ending;
+    return _starting = _starting.then((_) async {
+      await ending;
+      if (_testCurrent(token)) await run(token);
+    });
+  }
 
   bool get testRunning => _testReady;
 
-  SetupSession _makeSession() => SetupSession(
+  SetupSession _makeSession(int token) => SetupSession(
+    canStart: () => _testCurrent(token),
     playback: playback,
     devices: devices,
     host: host!,
@@ -846,30 +904,34 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     observeLifecycle: false,
   );
 
-  Future<void> _prepareTest() async {
+  Future<void> _prepareTest() => _start(_prepareTestNow);
+
+  Future<void> _prepareTestNow(int token) async {
     if (_testReady) {
       _showTestPattern();
       return;
     }
-    final token = ++_testToken;
     testError = null;
-    await _ending;
-    if (token != _testToken || _disposed) return;
+    if (!_testCurrent(token)) return;
     try {
       await _ensureSnapshot();
-      if (token != _testToken) return;
+      if (!_testCurrent(token)) return;
       final s = state!;
       if (s.isMatrix && s.realtimeMaps) {
-        await client.setRealtimeMaps(false);
+        _snapshot = _snapshot!.withNeedsRestore(true);
+        await store.save(_snapshot!);
+        if (!_testCurrent(token)) return;
+        _rlmClient = client;
         _rlmOverridden = true;
+        await _rlmClient!.setRealtimeMaps(false);
       }
-      if (token != _testToken) {
+      if (!_testCurrent(token)) {
         await _restoreRlm();
         return;
       }
-      final session = _makeSession();
+      final session = _makeSession(token);
       await session.start();
-      if (token != _testToken) {
+      if (!_testCurrent(token)) {
         await session.end();
         await _restoreRlm();
         return;
@@ -877,7 +939,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       _session = session;
       _testReady = true;
     } catch (_) {
-      if (token != _testToken) return;
+      if (!_testCurrent(token)) return;
       testError = 'Couldn\'t show anything on your device. Is it still on and on the same Wi-Fi?';
       await _restoreRlm();
       _notify();
@@ -889,9 +951,14 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _restoreRlm() async {
     if (!_rlmOverridden) return;
-    _rlmOverridden = false;
     try {
-      await client.setRealtimeMaps(true);
+      await _rlmClient!.setRealtimeMaps(_snapshot?.realtimeMaps ?? true);
+      _rlmOverridden = false;
+      _rlmClient = null;
+      if (_snapshot != null) {
+        _snapshot = _snapshot!.withNeedsRestore(false);
+        await store.save(_snapshot!);
+      }
     } catch (_) {}
   }
 
@@ -903,8 +970,9 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     _testReady = false;
     final s = _session;
     _session = null;
-    final prev = _ending;
+    final prev = _ending, starting = _starting;
     return _ending = prev.then((_) async {
+      await starting;
       try {
         await s?.end(width: width, height: height);
       } catch (_) {}
@@ -965,23 +1033,29 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> setLedsNow() async {
     final s = state;
     if (s == null || s.outputs.isEmpty || !hasSize) return;
-    final g = _gen;
+    final g = _gen, c = client, count = draftLeds;
+    bool stale() => _disposed || g != _gen;
     try {
       await _ensureSnapshot();
+      if (stale()) return;
       wrote = true;
-      await client.setLedCount(draftLeds, s.outputs.first);
+      await c.setLedCount(count, s.outputs.first);
+      if (stale()) return;
       await _delay(settle);
+      if (stale()) return;
       final play = _snapshot?.playback;
       if (play != null) {
         try {
-          await client.restorePlayback(play);
+          await c.restorePlayback(play);
         } catch (_) {}
       }
-      final fresh = await client.setupState();
+      if (stale()) return;
+      final fresh = await c.setupState();
       if (_disposed || g != _gen) return;
       state = fresh;
       _showTestPattern();
     } catch (_) {
+      if (stale()) return;
       testError = 'Couldn\'t change the number of LEDs.';
     }
     _notify();
@@ -999,14 +1073,14 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _ensureSnapshot() => _snapshotting ??= _takeSnapshot();
 
   Future<void> _takeSnapshot() async {
-    final s = state!;
+    final s = state!, c = client, target = host!;
     final saved = devices.saved.where((d) => d.host == host).firstOrNull;
     Map<String, dynamic>? playback;
     try {
-      playback = await client.state();
+      playback = await c.state();
     } catch (_) {}
     final snap = SetupSnapshot.of(s,
-        host: host!, appLayout: saved?.layout ?? MatrixLayout.identity, playback: playback);
+        host: target, appLayout: saved?.layout ?? MatrixLayout.identity, playback: playback);
     try {
       _prior = await store.load(s.mac);
       await store.save(snap);
@@ -1158,22 +1232,22 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
 
   Frame get lookFrame => cornerCheckFrame(_w, _h);
 
-  Future<void> _startLook() async {
-    final token = ++_testToken;
+  Future<void> _startLook() => _start(_startLookNow);
+
+  Future<void> _startLookNow(int token) async {
     testError = null;
-    await _ending;
-    if (token != _testToken || _disposed) return;
-    final session = _makeSession();
+    if (!_testCurrent(token)) return;
+    final session = _makeSession(token);
     try {
       await session.start();
     } catch (_) {
-      if (token == _testToken) {
+      if (_testCurrent(token)) {
         testError = 'Couldn\'t show anything on your device. Is it still on and on the same Wi-Fi?';
         _notify();
       }
       return;
     }
-    if (token != _testToken) {
+    if (!_testCurrent(token)) {
       await session.end();
       return;
     }
@@ -1283,7 +1357,11 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Ends every session and puts back anything that was only a test. Safe to
   /// call more than once; run on every way out.
-  Future<void> cleanUp() async {
+  Future<void>? _cleaning;
+
+  Future<void> cleanUp() => _cleaning ??= _cleanUp();
+
+  Future<void> _cleanUp() async {
     if (_cleaned) return;
     _cleaned = true;
     _gen++;
@@ -1291,7 +1369,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     _cancelFind?.call();
     _cancelFind = null;
     await _endTest();
-    if (!wrote && _snapshot != null) await _forgetSnapshot();
+    if (!wrote && !(_snapshot?.needsRestore ?? false)) await _forgetSnapshot();
     // Back onto the normal network; a slow answer must not hold anyone up.
     unawaited(wifi.release().catchError((Object _) {}));
   }
@@ -1302,10 +1380,8 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     if (away == !_resumed) return;
     _resumed = !away;
     if (away) {
-      if (_testReady || _session != null || _rlmOverridden) {
-        _suspended = true;
-        unawaited(_endTest());
-      }
+      _suspended = _isTest(_step) || _step == SetupStep.look;
+      unawaited(_endTest());
     } else if (_suspended) {
       _suspended = false;
       if (_isTest(_step)) unawaited(_prepareTest());
@@ -1324,19 +1400,12 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       final client = _client, setup = _setupClientCache;
       // Best effort: the device must not stay in a test state.
       unawaited(
-        (_cleaned ? Future<void>.value() : _cleanUpAfterDispose()).whenComplete(() {
+        cleanUp().whenComplete(() {
           client?.close();
           setup?.close();
         }),
       );
     }
     super.dispose();
-  }
-
-  Future<void> _cleanUpAfterDispose() async {
-    _cleaned = true;
-    unawaited(wifi.release().catchError((Object _) {}));
-    await _endTest();
-    if (!wrote && _snapshot != null) await _forgetSnapshot();
   }
 }

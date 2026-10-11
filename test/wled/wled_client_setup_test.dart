@@ -82,18 +82,65 @@ void main() {
     });
   });
 
-  test('joinWifi writes only ssid and psk, then reboots', () async {
+  test('joinWifi clears the BSSID pin, then reboots', () async {
     await client().joinWifi('Home Net', 's3cret-pass');
     expect(requests.map((r) => '${r.method} ${r.url.path}'), ['POST /json/cfg', 'POST /json/state']);
     expect(body(requests[0]), {
       'nw': {
         'ins': [
-          {'ssid': 'Home Net', 'psk': 's3cret-pass'}
+          {'ssid': 'Home Net', 'psk': 's3cret-pass', 'bssid': '000000000000'}
         ]
       }
     });
     expect(body(requests[1]), {'rb': true});
   });
+
+  test('joinWifi saves NTP with credentials before reboot', () async {
+    await client().joinWifi('Home', 'pw', tz: 14, offsetSeconds: 12);
+    expect(requests.length, 2);
+    expect(body(requests.first)['if'], {
+      'ntp': {'en': true, 'tz': 14, 'offset': 12},
+    });
+    expect(body(requests.last), {'rb': true});
+  });
+
+  test(
+    'undo restores every segment with geometry and both playback ids',
+    () async {
+      final state = {
+        'on': false,
+        'bri': 12,
+        'ps': 3,
+        'pl': 2,
+        'mainseg': 1,
+        'seg': [
+          {'id': 0, 'start': 0, 'stop': 8, 'startY': 1, 'stopY': 4, 'fx': 9},
+          {
+            'id': 1,
+            'start': 8,
+            'stop': 16,
+            'startY': 4,
+            'stopY': 8,
+            'grp': 2,
+            'spc': 1,
+            'fx': 4,
+          },
+        ],
+      };
+      await client().restoreSetupState(state);
+      expect(body(requests.first)['seg'], state['seg']);
+      expect(body(requests.first)['pd'], 3);
+      expect(body(requests[1]), {'mainseg': 1});
+      expect(body(requests[2]), {'ps': 2});
+      requests.clear();
+      await client().restorePlayback({...state, 'ps': -1, 'pl': -1});
+      expect(body(requests.single), {
+        'seg': [
+          {'id': 0, 'fx': 9},
+        ],
+      });
+    },
+  );
 
   test('joinWifi ignores a dropped reboot reply but not a refused config', () async {
     handler = (r) async => r.url.path == '/json/state'
@@ -238,6 +285,22 @@ void main() {
       expect((s.width, s.height, s.ledCount, s.currentLimitMa), (16, 8, 128, 1000));
       expect(s.support, SetupSupport.supported);
     });
+
+    for (final file in ['ledmap.json', 'ledmap12.json', '/ledmap3.json']) {
+      test('file listing detects $file even when info only has id 0', () async {
+        handler = (r) async => http.Response(
+          jsonEncode(switch (r.url.path) {
+            '/json/info' => info,
+            '/edit' => [
+              {'type': 'file', 'name': file, 'size': 10},
+            ],
+            _ => cfg,
+          }),
+          200,
+        );
+        expect((await client().setupState()).support, SetupSupport.customMap);
+      });
+    }
 
     test('reading never writes unless asked to check the lock', () async {
       handler = (r) async => http.Response(jsonEncode(r.url.path == '/json/info' ? info : cfg), 200);

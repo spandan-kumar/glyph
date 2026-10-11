@@ -24,7 +24,7 @@ final class SetupWifiUnavailable extends SetupWifiResult {
   const SetupWifiUnavailable();
 }
 
-/// Nearby-devices permission denied.
+/// Wi-Fi permission denied.
 final class SetupWifiDenied extends SetupWifiResult {
   const SetupWifiDenied();
 }
@@ -59,8 +59,10 @@ abstract class SetupWifi {
 typedef NearbyPermission = Future<bool> Function();
 
 class PlatformSetupWifi extends SetupWifi {
-  PlatformSetupWifi({int? sdk, NearbyPermission? requestNearby})
-      : _requestNearby = requestNearby ?? _defaultRequest {
+  PlatformSetupWifi({int? sdk, NearbyPermission? requestNearby,
+    NearbyPermission? requestLocation,
+  }) : _requestNearby = requestNearby ?? _defaultRequest,
+        _requestLocation = requestLocation ?? _defaultLocation {
     _sdk = sdk;
   }
 
@@ -68,7 +70,10 @@ class PlatformSetupWifi extends SetupWifi {
   static const _platform = MethodChannel('glyph/platform');
 
   int? _sdk;
-  final NearbyPermission _requestNearby;
+  final NearbyPermission _requestNearby, _requestLocation;
+
+  static Future<bool> _defaultLocation() async =>
+      (await Permission.locationWhenInUse.request()).isGranted;
 
   static Future<bool> _defaultRequest() async =>
       (await Permission.nearbyWifiDevices.request()).isGranted;
@@ -102,7 +107,7 @@ class PlatformSetupWifi extends SetupWifi {
     String password = 'wled1234',
   }) async {
     if (!assisted) return const SetupWifiUnsupported();
-    if (_sdk! >= 33 && !await _requestNearby()) return const SetupWifiDenied();
+    if (!await (_sdk! >= 33 ? _requestNearby() : _requestLocation())) return const SetupWifiDenied();
     try {
       final got = await _channel.invokeMethod<String>('connect', {
         'ssid': ssid,
@@ -114,6 +119,7 @@ class PlatformSetupWifi extends SetupWifi {
       return switch (e.code) {
         'unavailable' => const SetupWifiUnavailable(),
         'cancelled' => const SetupWifiCancelled(),
+        'denied' => const SetupWifiDenied(),
         'unsupported' => const SetupWifiUnsupported(),
         _ => SetupWifiFailed(e.code),
       };

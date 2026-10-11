@@ -16,6 +16,7 @@ class FakeSetupDevice {
     this.ledCount = 128,
     this.pin,
     this.customMap = false,
+    this.mapFiles = const [],
     int playingFx = 0,
     String? playingName,
   }) {
@@ -59,6 +60,10 @@ class FakeSetupDevice {
 
   /// Reports a custom LED map in `/json/info`.
   final bool customMap;
+  final List<String> mapFiles;
+  Future<void> Function(http.Request)? beforeRequest;
+  void Function(http.Request)? afterRequest;
+  int clientsClosed = 0;
   late Map<String, dynamic> cfg;
   bool unlocked = false;
 
@@ -95,7 +100,13 @@ class FakeSetupDevice {
   int get length => ((_led['ins'] as List).first as Map)['len'] as int;
 
   WledClient client(String host, {Future<void> Function(Duration)? delay}) =>
-      WledClient(host, delay: delay ?? (_) async {}, client: MockClient(_handle));
+      WledClient(host, delay: delay ?? (_) async {}, client: _SetupHttpClient((r) async {
+          await beforeRequest?.call(r);
+          final response = await _handle(r);
+          afterRequest?.call(r);
+          return response;
+        }, () => clientsClosed++),
+      );
 
   Map<String, dynamic> get info {
     final p = panel;
@@ -120,6 +131,14 @@ class FakeSetupDevice {
     if (r.method == 'GET') {
       gets.add(path);
       switch (path) {
+        case '/edit':
+          return http.Response(
+            jsonEncode([
+              for (final file in mapFiles)
+                {'type': 'file', 'name': file, 'size': 42},
+            ]),
+            200,
+          );
         case '/json/info':
           return http.Response(jsonEncode(info), 200);
         case '/json/cfg':
@@ -171,7 +190,7 @@ class FakeSetupDevice {
     writes.add(('POST $path', body));
     if (path == '/json/state') {
       if (body.containsKey('pin')) unlocked = body['pin'] == pin;
-      for (final k in ['on', 'bri']) {
+      for (final k in ['on', 'bri', 'mainseg']) {
         if (body.containsKey(k)) state[k] = body[k];
       }
       final ps = body['ps'];
@@ -180,9 +199,21 @@ class FakeSetupDevice {
         seg0['fx'] = presets[ps] ?? 0;
       }
       if (body['pl'] is int) state['pl'] = body['pl'];
+      if (body['pd'] is int) state['ps'] = body['pd'];
       final segs = body['seg'];
       if (segs is List && segs.isNotEmpty && segs.first is Map) {
-        seg0.addAll((segs.first as Map).cast<String, dynamic>());
+        for (final value in segs.whereType<Map>()) {
+          final patch = value.cast<String, dynamic>();
+          final current = (state['seg'] as List)
+              .whereType<Map>()
+              .where((s) => s['id'] == patch['id'])
+              .firstOrNull;
+          if (current != null) {
+            current.addAll(patch);
+          } else {
+            (state['seg'] as List).add(Map<String, dynamic>.from(patch));
+          }
+        }
       }
       return http.Response('{"success":true}', 200);
     }
@@ -213,5 +244,24 @@ class FakeSetupDevice {
         target[k] = v;
       }
     });
+  }
+}
+
+class _SetupHttpClient extends MockClient {
+  _SetupHttpClient(super.handler, this.onClose);
+  final void Function() onClose;
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    if (closed) throw http.ClientException('closed');
+    return super.send(request);
+  }
+
+  @override
+  void close() {
+    closed = true;
+    onClose();
+    super.close();
   }
 }

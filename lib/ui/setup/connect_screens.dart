@@ -106,15 +106,7 @@ class JoinScreen extends StatelessWidget {
             ],
           ),
         ] else
-          LbPanel(
-            child: Column(
-              children: [
-                _Kv('Network', name),
-                const SizedBox(height: 8),
-                _Kv('Password', pw),
-              ],
-            ),
-          ),
+          LbPanel(child: Column(children: [_Kv('Network', name), const SizedBox(height: 8), _Kv('Password', pw)])),
         if (c.joinError != null)
           Padding(
             padding: const EdgeInsets.only(top: 16),
@@ -165,7 +157,9 @@ class _Kv extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       SizedBox(width: 92, child: MonoLabel(k)),
-      Expanded(child: Text(v, style: LbType.mono.copyWith(color: Lb.text))),
+      Expanded(
+        child: Text(v, style: LbType.mono.copyWith(color: Lb.text)),
+      ),
     ],
   );
 }
@@ -181,7 +175,9 @@ class _RenamedFields extends StatefulWidget {
 
 class _RenamedFieldsState extends State<_RenamedFields> {
   late final _name = TextEditingController(text: widget.controller.setupSsid);
-  late final _pw = TextEditingController(text: widget.controller.setupSsid.isEmpty ? '' : widget.controller.setupPassword);
+  late final _pw = TextEditingController(
+    text: widget.controller.setupSsid.isEmpty ? '' : widget.controller.setupPassword,
+  );
 
   @override
   void dispose() {
@@ -314,11 +310,13 @@ class _NetworkRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = rssi;
-    final signal = r == null ? null : switch (bars(r)) {
-      3 => 'strong',
-      2 => 'fair',
-      _ => 'weak',
-    };
+    final signal = r == null
+        ? null
+        : switch (bars(r)) {
+            3 => 'strong',
+            2 => 'fair',
+            _ => 'weak',
+          };
     return Material(
       color: selected ? Lb.raised : Lb.panel,
       shape: RoundedRectangleBorder(
@@ -344,7 +342,9 @@ class _NetworkRow extends StatelessWidget {
                   child: Row(
                     children: [
                       if (r != null) ...[SignalDots(bars: bars(r)), const SizedBox(width: 14)],
-                      Expanded(child: Text(ssid, maxLines: 2, overflow: TextOverflow.ellipsis, style: LbType.bodyStrong)),
+                      Expanded(
+                        child: Text(ssid, maxLines: 2, overflow: TextOverflow.ellipsis, style: LbType.bodyStrong),
+                      ),
                       if (r != null && secure) const Icon(Icons.lock_sharp, size: 16, color: Lb.text2),
                     ],
                   ),
@@ -431,10 +431,7 @@ class JoiningScreen extends StatelessWidget {
     return StepLayout(
       title: 'Joining ${controller.joiningSsid}',
       children: [
-        StepStatusRow(
-          label: 'Sent the Wi-Fi details',
-          state: sending ? ProgressState.current : ProgressState.done,
-        ),
+        StepStatusRow(label: 'Sent the Wi-Fi details', state: sending ? ProgressState.current : ProgressState.done),
         StepStatusRow(
           label: 'Looking for it on your Wi-Fi…',
           state: sending ? ProgressState.waiting : ProgressState.current,

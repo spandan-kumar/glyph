@@ -30,7 +30,8 @@ Future<PhoneZone> Function() phoneZoneReader = _readPhoneZone;
 /// Makes the device know the time without anyone opening firmware settings:
 /// turns on internet time with the phone's timezone (unless it was already on,
 /// which keeps the owner's own choice) and always sets the clock from the phone
-/// so it is right before the first sync and with no internet. Never throws;
+/// so it is right before the first sync and with no internet. Newly enabled
+/// NTP takes over after the device next restarts or reconnects. Never throws;
 /// returns false when something failed.
 Future<bool> ensureDeviceTime(
   WledClient client, {
@@ -44,6 +45,7 @@ Future<bool> ensureDeviceTime(
     if (ntp?['en'] != true) {
       final z = phone ?? await phoneZoneReader();
       final m = wledTimezoneFor(z.iana, z.offset);
+      // The config API opens no NTP socket until the next restart/reconnect.
       await client.setInternetTime(tz: m.tz, offsetSeconds: m.offsetSeconds);
     }
   } catch (e) {

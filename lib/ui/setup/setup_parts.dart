@@ -190,11 +190,12 @@ class StepStatusRow extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
     child: Semantics(
-      label: '$label, ${switch (state) {
-        ProgressState.done => 'done',
-        ProgressState.current => 'in progress',
-        ProgressState.waiting => 'waiting',
-      }}',
+      label:
+          '$label, ${switch (state) {
+            ProgressState.done => 'done',
+            ProgressState.current => 'in progress',
+            ProgressState.waiting => 'waiting',
+          }}',
       excludeSemantics: true,
       child: Row(
         children: [
@@ -215,10 +216,7 @@ class StepStatusRow extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(
-              label,
-              style: LbType.body.copyWith(color: state == ProgressState.waiting ? Lb.text2 : Lb.text),
-            ),
+            child: Text(label, style: LbType.body.copyWith(color: state == ProgressState.waiting ? Lb.text2 : Lb.text)),
           ),
         ],
       ),

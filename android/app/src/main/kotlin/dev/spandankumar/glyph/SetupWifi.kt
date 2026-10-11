@@ -46,6 +46,14 @@ internal object SetupWifiLogic {
     fun supported(sdk: Int) = sdk >= MIN_SDK
 }
 
+/** Used only on the main thread, including queued network callbacks. */
+internal class SetupWifiRequest {
+    var active: Any? = null
+    fun run(request: Any, block: () -> Unit) {
+        if (active === request) block()
+    }
+}
+
 /**
  * Joins a WLED setup access point (no internet) with the system's approval dialog and
  * binds the process to it so Dart's HTTP/UDP reach 4.3.2.1. Needs API 29+.
@@ -54,7 +62,7 @@ class SetupWifi(private val context: Context, messenger: BinaryMessenger) {
     private val channel = MethodChannel(messenger, "glyph/setup_wifi")
     private val cm = context.applicationContext
         .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    private var callback: ConnectivityManager.NetworkCallback? = null
+    private val requests = SetupWifiRequest()
     private val main = Handler(Looper.getMainLooper())
 
     /** Answers the pending connect, if any: replaced or released requests must not leave Dart waiting. */
@@ -82,24 +90,34 @@ class SetupWifi(private val context: Context, messenger: BinaryMessenger) {
         }
         release() // a second connect replaces a pending first
         var replied = false
-        // Network callbacks arrive on a binder thread; channel replies must be on the main one.
+        // Callbacks and release share the main thread so obsolete requests cannot rebind.
         fun reply(block: () -> Unit) {
-            synchronized(this) { if (replied) return; replied = true }
-            main.post(block)
+            if (replied) return
+            replied = true
+            block()
         }
         settle = { reply { result.error("cancelled", "Released", null) } }
         val cb = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                cm.bindProcessToNetwork(network)
-                val raw = (cm.getNetworkCapabilities(network)?.transportInfo as? WifiInfo)?.ssid
-                reply { result.success(SetupWifiLogic.label(raw, args)) }
+                main.post {
+                    requests.run(this) {
+                        cm.bindProcessToNetwork(network)
+                        val raw = (cm.getNetworkCapabilities(network)?.transportInfo as? WifiInfo)?.ssid
+                        reply { result.success(SetupWifiLogic.label(raw, args)) }
+                    }
+                }
             }
 
-            override fun onUnavailable() =
-                reply { result.error(SetupWifiLogic.unavailableCode(), "Network unavailable", null) }
+            override fun onUnavailable() {
+                main.post {
+                    requests.run(this) {
+                        reply { result.error(SetupWifiLogic.unavailableCode(), "Network unavailable", null) }
+                    }
+                }
+            }
 
             override fun onLost(network: Network) {
-                if (callback === this) cm.bindProcessToNetwork(null)
+                main.post { requests.run(this) { cm.bindProcessToNetwork(null) } }
             }
         }
         try {
@@ -113,13 +131,13 @@ class SetupWifi(private val context: Context, messenger: BinaryMessenger) {
                 .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 .setNetworkSpecifier(spec)
                 .build()
-            callback = cb
+            requests.active = cb
             // No app-side timeout: the system dialog runs its own scan with "Try again",
             // and cancelling under it leaves an orphaned "Something came up" dialog.
             cm.requestNetwork(request, cb)
         } catch (e: Exception) {
-            callback = null
-            reply { result.error("failed", e.javaClass.simpleName, null) }
+            requests.active = null
+            reply { result.error(if (e is SecurityException) "denied" else "failed", e.javaClass.simpleName, null) }
         }
     }
 
@@ -141,8 +159,9 @@ class SetupWifi(private val context: Context, messenger: BinaryMessenger) {
         settle = null
         // Also undoes a guided bindWifi, which has no callback.
         try { cm.bindProcessToNetwork(null) } catch (_: Exception) {}
-        val cb = callback ?: return
-        callback = null
+        val cb = requests.active as? ConnectivityManager.NetworkCallback
+        requests.active = null
+        if (cb == null) return
         try { cm.unregisterNetworkCallback(cb) } catch (_: IllegalArgumentException) {}
     }
 

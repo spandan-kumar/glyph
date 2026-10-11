@@ -42,7 +42,9 @@ void main() {
     await _loadFont('Bricolage', ['assets/fonts/BricolageGrotesque.ttf']);
     await _loadFont('DMMono', ['assets/fonts/DMMono-Regular.ttf', 'assets/fonts/DMMono-Medium.ttf']);
     final home = Platform.environment['HOME'];
-    await _loadFont('MaterialIcons', ['$home/development/flutter/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf']);
+    await _loadFont('MaterialIcons', [
+      '$home/development/flutter/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
+    ]);
   });
 
   final key = GlobalKey();
@@ -240,7 +242,10 @@ void main() {
   });
 
   t('08_pin', (tester) async {
-    final rig = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false, pin: '1234'));
+    final rig = await SetupRig.create(
+      tester,
+      device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false, pin: '1234'),
+    );
     await pump(tester, rig);
     await settle(tester, 600);
     await shot(tester, '08_pin');
@@ -308,6 +313,51 @@ void main() {
     await shot(tester, '16_wiring_result_32x8');
     await tapText(tester, 'Choose it myself');
     await shot(tester, '17_manual_picker');
+    rig.playback.pause();
+  });
+
+  t('30_size_grid', (tester) async {
+    final rig = await SetupRig.create(tester, device: plain(w: 32, h: 8, leds: 256));
+    await pump(tester, rig);
+    await settle(tester, 600);
+    await tester.tap(find.bySemanticsLabel('32 by 8'));
+    await settle(tester, 300);
+    await shot(tester, '30_size_grid');
+    rig.playback.pause();
+  });
+
+  t('31_q2_q3_zoomed', (tester) async {
+    final rig = await SetupRig.create(tester, device: plain(w: 32, h: 8, leds: 256));
+    await toWiring(tester, rig, '32 by 8');
+    await tapLabel(tester, 'Top left corner');
+    await settle(tester, 1000);
+    await shot(tester, '31_q2_32x8');
+    await tapLabel(tester, 'Across');
+    await settle(tester, 300);
+    await shot(tester, '32_q3_32x8');
+    rig.playback.pause();
+  });
+
+  t('33_q3_8x32', (tester) async {
+    final rig = await SetupRig.create(tester, device: plain(w: 8, h: 32, leds: 256));
+    await toWiring(tester, rig, '8 by 32');
+    await tapLabel(tester, 'Top left corner');
+    await settle(tester, 1000);
+    await tapLabel(tester, 'Down');
+    await settle(tester, 300);
+    await shot(tester, '33_q3_8x32');
+    rig.playback.pause();
+  });
+
+  t('34_result_straight', (tester) async {
+    final rig = await SetupRig.create(tester, device: plain(leds: 256));
+    await toWiring(tester, rig, '16 by 16');
+    await tapLabel(tester, 'Top left corner');
+    await settle(tester, 1000);
+    await tapLabel(tester, 'Across');
+    await settle(tester, 300);
+    await tapLabel(tester, 'On the left');
+    await shot(tester, '34_result_straight_16x16');
     rig.playback.pause();
   });
 

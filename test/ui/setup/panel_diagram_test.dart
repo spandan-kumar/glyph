@@ -8,7 +8,11 @@ void main() {
   Future<void> pump(WidgetTester tester, Widget diagram, {double width = 320}) => tester.pumpWidget(
     MaterialApp(
       theme: buildTheme(),
-      home: Scaffold(body: Center(child: SizedBox(width: width, child: diagram))),
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(width: width, child: diagram),
+        ),
+      ),
     ),
   );
 
@@ -62,11 +66,52 @@ void main() {
     testWidgets('draws ${w}x$h with its path without errors and within its width', (tester) async {
       await pump(
         tester,
-        PanelDiagram(width: w, height: h, wiring: const PanelWiring(corner: StartCorner.bottomRight, vertical: true, zigzag: true), showPath: true),
+        PanelDiagram(
+          width: w,
+          height: h,
+          wiring: const PanelWiring(corner: StartCorner.bottomRight, vertical: true, zigzag: true),
+          showPath: true,
+        ),
       );
       expect(tester.takeException(), isNull);
       expect(tester.getSize(find.byType(PanelDiagram)).width, lessThanOrEqualTo(320));
       expect(tester.getSize(find.byType(CustomPaint).last).height, lessThanOrEqualTo(300 + 12));
     });
   }
+
+  testWidgets('zoom crops a wide display to a few runs with big dots and keeps targets tappable', (tester) async {
+    final handle = tester.ensureSemantics();
+    bool? far;
+    await pump(
+      tester,
+      PanelDiagram(
+        width: 64,
+        height: 8,
+        corner: StartCorner.topRight,
+        alongWidth: true,
+        zoom: true,
+        onJump: (f) => far = f,
+      ),
+    );
+    // Three rows at 14px or more: a short strip, not the whole panel.
+    expect(tester.getSize(find.byType(CustomPaint).last).height, lessThan(3 * 28 + 2 * PanelDiagram.margin + 1));
+    await tester.tap(find.bySemanticsLabel('Same end as the first light'));
+    expect(far, isFalse);
+    await tester.tap(find.bySemanticsLabel('The far end'));
+    expect(far, isTrue);
+    handle.dispose();
+  });
+
+  testWidgets('zoom leaves a small square display whole', (tester) async {
+    await pump(tester, PanelDiagram(width: 16, height: 16, corner: StartCorner.topLeft, zoom: true));
+    // The full 16 rows at (320 - 2 margins) / 16 px each, no crop.
+    expect(tester.getSize(find.byType(CustomPaint).last).height, 272 + 2 * PanelDiagram.margin);
+  });
+
+  testWidgets('every straight-wiring size draws with dashed returns', (tester) async {
+    for (final (w, h) in [(16, 16), (32, 8), (8, 32)]) {
+      await pump(tester, PanelDiagram(width: w, height: h, wiring: const PanelWiring(), showPath: true));
+      expect(tester.takeException(), isNull);
+    }
+  });
 }

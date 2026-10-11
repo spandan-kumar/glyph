@@ -54,11 +54,9 @@ class SetupWizard extends StatefulWidget {
     BuildContext context, {
     SetupServices services = const SetupServices(),
     SetupControllerBuilder? controllerBuilder,
-  }) => Navigator.of(context).push(
-    lbRoute<void>(
-      (_) => _WizardPage(services: services, controllerBuilder: controllerBuilder),
-    ),
-  );
+  }) =>
+      Navigator.of(context)
+          .push(lbRoute<void>((_) => _WizardPage(services: services, controllerBuilder: controllerBuilder)));
 
   @override
   State<SetupWizard> createState() => _SetupWizardState();
@@ -148,10 +146,7 @@ class _SetupWizardState extends State<SetupWizard> {
   Future<void> _exit() async {
     if (_leaving) return;
     if (c.needsDecision) {
-      final keep = await showModalBottomSheet<bool>(
-        context: context,
-        builder: (_) => const _KeepSheet(),
-      );
+      final keep = await showModalBottomSheet<bool>(context: context, builder: (_) => const _KeepSheet());
       if (keep == null || !mounted) return;
       if (!keep) {
         final messenger = ScaffoldMessenger.of(context);
@@ -159,9 +154,7 @@ class _SetupWizardState extends State<SetupWizard> {
         messenger
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            SnackBar(
-              content: Text(ok ? 'Your previous setup is back.' : 'Some changes couldn\'t be undone.'),
-            ),
+            SnackBar(content: Text(ok ? 'Your previous setup is back.' : 'Some changes couldn\'t be undone.')),
           );
         if (!mounted) return;
       }
@@ -204,10 +197,9 @@ class _SetupWizardState extends State<SetupWizard> {
     SetupStep.pin => PinScreen(controller: c),
     SetupStep.unsupported => UnsupportedScreen(controller: c),
     SetupStep.size => SizeScreen(controller: c),
-    SetupStep.wiringQ1 || SetupStep.wiringQ2 || SetupStep.wiringQ3 => WiringQuestionScreen(
-      controller: c,
-      question: step,
-    ),
+    SetupStep.wiringQ1 ||
+    SetupStep.wiringQ2 ||
+    SetupStep.wiringQ3 => WiringQuestionScreen(controller: c, question: step),
     SetupStep.wiringResult => WiringResultScreen(controller: c),
     SetupStep.wiringManual => WiringManualScreen(controller: c),
     SetupStep.review => ReviewScreen(controller: c),

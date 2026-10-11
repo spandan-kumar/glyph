@@ -127,6 +127,7 @@ class SetupRig {
   static Future<SetupRig> create(
     WidgetTester tester, {
     FakeSetupDevice? device,
+    Map<String, FakeSetupDevice> otherDevices = const {},
     FakeApDevice? ap,
     FakeSetupWifi? wifi,
     SetupEntry entry = SetupEntry.existing,
@@ -139,7 +140,7 @@ class SetupRig {
     SharedPreferences.setMockInitialValues({...prefs});
     final dev = device ?? FakeSetupDevice(width: 8, height: 8, ledCount: 64);
     final apDev = ap ?? FakeApDevice();
-    WledClient factory(String h) => h == '4.3.2.1' ? apDev.client(h) : dev.client(h);
+    WledClient factory(String h) => h == '4.3.2.1' ? apDev.client(h) : (otherDevices[h] ?? dev).client(h);
     final devices = DeviceStore(clientFactory: factory);
     final playback = PlaybackController();
     addTearDown(playback.dispose);

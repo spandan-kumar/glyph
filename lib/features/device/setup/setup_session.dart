@@ -29,6 +29,7 @@ class SetupSession with WidgetsBindingObserver {
     SetupSenderFactory? senderFactory,
     this.resendEvery = const Duration(milliseconds: 100),
     this.observeLifecycle = true,
+    this.canStart,
   }) : _factory = senderFactory ?? ((h) => DdpSender(h));
 
   final PlaybackController playback;
@@ -39,6 +40,9 @@ class SetupSession with WidgetsBindingObserver {
   final WledClient? client;
   final Duration resendEvery;
   final bool observeLifecycle;
+  final bool Function()? canStart;
+
+  bool get _canStart => !_ended && (canStart?.call() ?? true);
   final SetupSenderFactory _factory;
 
   DdpSender? _sender;
@@ -62,7 +66,7 @@ class SetupSession with WidgetsBindingObserver {
   /// Takes over the device. Throws when the DDP socket cannot be opened, with
   /// the app's playback already restored.
   Future<void> start() async {
-    if (_active || _ended) return;
+    if (_active || !_canStart) return;
     _active = true;
     _wasPlaying = playback.isPlaying;
     _wasStreaming = playback.isStreaming;
@@ -70,6 +74,10 @@ class SetupSession with WidgetsBindingObserver {
     playback.blockAlerts(this);
     playback.pause();
     await playback.stopStreaming();
+    if (!_canStart) {
+      await end();
+      return;
+    }
     final sender = _factory(host);
     try {
       await sender.open();
@@ -78,8 +86,9 @@ class SetupSession with WidgetsBindingObserver {
       await end();
       rethrow;
     }
-    if (_ended) {
+    if (!_canStart) {
       sender.close();
+      await end();
       return;
     }
     _sender = sender;
@@ -90,6 +99,10 @@ class SetupSession with WidgetsBindingObserver {
     try {
       await client?.prepareStream();
     } catch (_) {}
+    if (!_canStart) {
+      await end();
+      return;
+    }
     await _wake();
   }
 
@@ -99,6 +112,7 @@ class SetupSession with WidgetsBindingObserver {
     if (c == null) return;
     try {
       final st = await c.state();
+      if (!_canStart) return;
       final on = st['on'] != false;
       final bri = st['bri'] is num ? (st['bri'] as num).toInt() : 128;
       if (on && bri >= dimBelow) return;

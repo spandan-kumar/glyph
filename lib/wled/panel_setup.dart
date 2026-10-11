@@ -273,6 +273,7 @@ class DeviceSetupState {
   factory DeviceSetupState.fromJson({
     required Map<String, dynamic> cfg,
     required Map<String, dynamic> info,
+    Iterable<String> files = const [],
   }) {
     final led = _map(_map(cfg['hw'])['led']);
     final matrix = _map(led['matrix']);
@@ -308,7 +309,7 @@ class DeviceSetupState {
       realtimeMaps: live['rlm'] != false,
       realtimeOffset: _int(live['offset']) ?? 0,
       currentLimitMa: _int(led['maxpwr']),
-      hasCustomMap: [
+      hasCustomMap: files.any((f) => RegExp(r'^/?ledmap[0-9]*\.json$').hasMatch(f)) || [
         for (final m in _list(info['maps']))
           if (m is Map && (_int(m['id']) ?? 0) > 0) m
       ].isNotEmpty,
@@ -405,6 +406,7 @@ class SetupSnapshot {
     this.appLayout = MatrixLayout.identity,
     required this.takenAt,
     this.playback,
+    this.needsRestore = false,
   });
 
   /// Snapshot of [state] (which must be readable) taken now.
@@ -452,6 +454,12 @@ class SetupSnapshot {
   /// playback is restored from. Null when it could not be read.
   final Map<String, dynamic>? playback;
 
+  /// A temporary test setting could not yet be restored.
+  final bool needsRestore;
+
+  SetupSnapshot withNeedsRestore(bool value) =>
+      SetupSnapshot.fromJson({...toJson(), 'needsRestore': value});
+
   /// The display this snapshot had, when it was a matrix.
   DisplaySetup? get display => isMatrix && width != null && height != null && wiring != null
       ? DisplaySetup(width!, height!, wiring!)
@@ -470,10 +478,12 @@ class SetupSnapshot {
         if (currentLimitMa != null) 'currentLimitMa': currentLimitMa,
         'appLayout': appLayout.toJson(),
         'takenAt': takenAt.toIso8601String(),
+        'needsRestore': needsRestore,
         if (playback != null) 'playback': playback,
       };
 
   factory SetupSnapshot.fromJson(Map json) => SetupSnapshot(
+        needsRestore: json['needsRestore'] == true,
         mac: '${json['mac'] ?? ''}',
         host: '${json['host'] ?? ''}',
         isMatrix: json['isMatrix'] == true,

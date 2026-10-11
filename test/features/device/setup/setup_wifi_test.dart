@@ -28,7 +28,7 @@ void main() {
 
   test('connect passes arguments and returns the ssid', () async {
     native((_) async => 'WLED-AP');
-    final w = PlatformSetupWifi(sdk: 30);
+    final w = PlatformSetupWifi(sdk: 30, requestLocation: () async => true);
     final r = await w.connect();
     expect(r, isA<SetupWifiConnected>().having((c) => c.ssid, 'ssid', 'WLED-AP'));
     expect(calls.single.arguments, {'ssid': null, 'prefix': 'WLED', 'password': 'wled1234'});
@@ -45,17 +45,51 @@ void main() {
     expect(await ok.connect(ssid: 'Mine'), isA<SetupWifiConnected>());
   });
 
-  test('API 29-32 does not request the permission', () async {
+  test(
+    'API 29-32 requests location, not nearby; denial skips native', () async {
     native((_) async => 'x');
-    final w = PlatformSetupWifi(sdk: 31, requestNearby: () async => fail('no'));
-    expect(await w.connect(), isA<SetupWifiConnected>());
+      for (final sdk in [29, 30, 31, 32]) {
+        var asked = 0;
+        final w = PlatformSetupWifi(sdk: sdk, requestNearby: () async => fail('nearby'),
+          requestLocation: () async {
+            asked++;
+            return false;
+          },
+        );
+    expect(await w.connect(), isA<SetupWifiDenied>());
+        expect(asked, 1);
+        expect(calls, isEmpty);
+        final ok = PlatformSetupWifi(
+          sdk: sdk,
+          requestLocation: () async => true,
+        );
+        expect(await ok.connect(), isA<SetupWifiConnected>());
+        calls.clear();
+      }
+    },
+  );
+
+  test('API 31 uses permission_handler location permission before native connect', () async {
+    const permissions = MethodChannel('flutter.baseflow.com/permissions/methods');
+    final asked = <MethodCall>[];
+    messenger.setMockMethodCallHandler(permissions, (call) async {
+      asked.add(call);
+      return {5: 0};
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(permissions, null));
+    native((_) async => 'x');
+    expect(await PlatformSetupWifi(sdk: 31).connect(), isA<SetupWifiDenied>());
+    expect(asked.single.method, 'requestPermissions');
+    expect(asked.single.arguments, [5]);
+    expect(calls, isEmpty);
   });
 
   test('error codes map to results', () async {
-    final w = PlatformSetupWifi(sdk: 30);
+    final w = PlatformSetupWifi(sdk: 30, requestLocation: () async => true);
     for (final (code, type) in [
       ('unavailable', isA<SetupWifiUnavailable>()),
       ('cancelled', isA<SetupWifiCancelled>()),
+      ('denied', isA<SetupWifiDenied>()),
       ('unsupported', isA<SetupWifiUnsupported>()),
       ('failed', isA<SetupWifiFailed>()),
     ]) {
@@ -65,7 +99,9 @@ void main() {
   });
 
   test('missing plugin means unsupported; release/openSettings are safe', () async {
-    final w = PlatformSetupWifi(sdk: 30); // no handler registered
+    final w = PlatformSetupWifi(sdk: 30,
+        requestLocation: () async => true,
+      ); // no handler registered
     expect(await w.connect(), isA<SetupWifiUnsupported>());
     await w.release();
     await w.openSettings();
@@ -73,7 +109,7 @@ void main() {
 
   test('release and openSettings call native', () async {
     native((_) async => null);
-    final w = PlatformSetupWifi(sdk: 30);
+    final w = PlatformSetupWifi(sdk: 30, requestLocation: () async => true);
     await w.release();
     await w.openSettings();
     expect(calls.map((c) => c.method), ['release', 'openSettings']);

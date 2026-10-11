@@ -15,6 +15,9 @@ class SetupRestoreResult {
     this.failed = const {},
     this.unchanged = const {},
     this.hadSnapshot = true,
+    this.verificationFailed = false,
+    this.deviceMismatch = false,
+    this.playbackFailed = false,
   });
 
   final Set<SetupField> restored;
@@ -26,7 +29,10 @@ class SetupRestoreResult {
   /// False when there was nothing saved to restore.
   final bool hadSnapshot;
 
-  bool get ok => hadSnapshot && failed.isEmpty;
+  final bool verificationFailed, deviceMismatch, playbackFailed;
+
+  bool get ok => hadSnapshot && failed.isEmpty &&
+      !verificationFailed && !deviceMismatch && !playbackFailed;
 
   @override
   String toString() =>
@@ -114,6 +120,9 @@ class SetupStore {
         failed: {for (final f in SetupField.values) f: e.message},
       );
     }
+    if (snap.mac.isEmpty || _mac(snap.mac) != _mac(now.mac)) {
+      return const SetupRestoreResult(deviceMismatch: true);
+    }
     if (now.pinLocked) {
       return SetupRestoreResult(failed: {
         for (final f in SetupField.values) f: 'The device settings are locked',
@@ -142,6 +151,8 @@ class SetupStore {
         snap.currentLimitMa != null && snap.currentLimitMa != now.currentLimitMa,
         () => client.setCurrentLimit(snap.currentLimitMa!));
 
+    var verificationFailed = false;
+
     if (wrote.isNotEmpty) {
       try {
         final after = await client.setupState();
@@ -164,20 +175,25 @@ class SetupStore {
             'The device kept its old LED count');
         verify(SetupField.currentLimit, after.currentLimitMa == snap.currentLimitMa,
             'The device kept its old limit');
-      } on WledException {
-        // Could not re-read: report the writes as sent.
+      } catch (_) {
+        verificationFailed = true;
+        for (final f in wrote) {
+          failed[f] = 'Could not verify the restored setting';
+        }
+        wrote.clear();
       }
     }
     restored.addAll(wrote);
 
-    // A layout or LED-count write recreates WLED's segments: bring playback
-    // back (the caller has ended live mode by now).
+    // Restore playback on retries too, even if the geometry already went back.
+    var playbackFailed = false;
     final play = snap.playback;
-    if (play != null &&
-        (wrote.contains(SetupField.layout) || wrote.contains(SetupField.ledCount))) {
+    if (play != null) {
       try {
-        await client.restorePlayback(play);
-      } catch (_) {}
+        await client.restoreSetupState(play);
+      } catch (_) {
+        playbackFailed = true;
+      }
     }
 
     // The app's own layout (rotation/flip) for the device.
@@ -196,7 +212,8 @@ class SetupStore {
     }
 
     final result = SetupRestoreResult(
-        restored: restored, failed: failed, unchanged: unchanged);
+        restored: restored, failed: failed, unchanged: unchanged,
+        verificationFailed: verificationFailed, playbackFailed: playbackFailed);
     if (result.ok && clearOnSuccess) await clear(snap.mac);
     return result;
   }
@@ -208,3 +225,5 @@ class SetupStore {
       s.height == d.height &&
       s.wiring == d.wiring;
 }
+
+String _mac(String m) => m.toLowerCase().replaceAll(RegExp(r'[^0-9a-f]'), '');

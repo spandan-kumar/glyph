@@ -27,14 +27,15 @@ class LookScreen extends StatelessWidget {
       line: 'The arrow points up and the orange block sits in the top left corner.',
       gap: 16,
       children: [
-        Stage(
-          frame: c.lookFrame,
-          maxWidth: 220,
-        ),
+        Stage(frame: c.lookFrame, maxWidth: 220),
         const SizedBox(height: 14),
         Center(
           child: c.testError != null
-              ? Text(c.testError!, textAlign: TextAlign.center, style: LbType.small.copyWith(color: Lb.danger))
+              ? Text(
+                  c.testError!,
+                  textAlign: TextAlign.center,
+                  style: LbType.small.copyWith(color: Lb.danger),
+                )
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

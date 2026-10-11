@@ -70,7 +70,9 @@ void main() {
     // Q2: the chase moves along the first run.
     expect(find.text('Which way is it moving?'), findsOneWidget);
     await settle(tester, 1000);
-    final seen = {for (final b in rig.sender.sent) ...List.generate(b.length ~/ 3, (i) => i).where((i) => b[i * 3] != 0)};
+    final seen = {
+      for (final b in rig.sender.sent) ...List.generate(b.length ~/ 3, (i) => i).where((i) => b[i * 3] != 0),
+    };
     expect(seen.length, greaterThan(1));
     final (x0, y0) = truth.positionOf(0, w, h);
     final (x1, y1) = truth.positionOf(1, w, h);
@@ -128,9 +130,21 @@ void main() {
     });
 
     for (final (label, tweak, text) in <(String, void Function(FakeSetupDevice), String)>[
-      ('several outputs', (d) => ((d.cfg['hw'] as Map)['led'] as Map)['ins'].add({'len': 8, 'type': 22}), 'It uses more than one LED output.'),
-      ('an unsupported output', (d) => (((d.cfg['hw'] as Map)['led'] as Map)['ins'] as List).first['type'] = 80, 'Its LEDs aren\'t a type Glyph can set up.'),
-      ('a live offset', (d) => ((d.cfg['if'] as Map)['live'] as Map)['offset'] = 5, 'It has a live offset set in its settings.'),
+      (
+        'several outputs',
+        (d) => ((d.cfg['hw'] as Map)['led'] as Map)['ins'].add({'len': 8, 'type': 22}),
+        'It uses more than one LED output.',
+      ),
+      (
+        'an unsupported output',
+        (d) => (((d.cfg['hw'] as Map)['led'] as Map)['ins'] as List).first['type'] = 80,
+        'Its LEDs aren\'t a type Glyph can set up.',
+      ),
+      (
+        'a live offset',
+        (d) => ((d.cfg['if'] as Map)['live'] as Map)['offset'] = 5,
+        'It has a live offset set in its settings.',
+      ),
     ]) {
       testWidgets('unsupported: $label', (tester) async {
         final device = FakeSetupDevice(width: 8, height: 8, ledCount: 64);
@@ -157,7 +171,16 @@ void main() {
 
     testWidgets('multiple panels are named', (tester) async {
       final panels = FakeSetupDevice(width: 8, height: 8, ledCount: 64);
-      (panels.cfg['hw'] as Map)['led']['matrix']['panels'].add({'b': false, 'r': false, 'v': false, 's': false, 'x': 8, 'y': 0, 'w': 8, 'h': 8});
+      (panels.cfg['hw'] as Map)['led']['matrix']['panels'].add({
+        'b': false,
+        'r': false,
+        'v': false,
+        's': false,
+        'x': 8,
+        'y': 0,
+        'w': 8,
+        'h': 8,
+      });
       final rig = await SetupRig.create(tester, device: panels);
       await rig.pump(tester);
       await settle(tester, 600);
@@ -166,7 +189,10 @@ void main() {
     });
 
     testWidgets('a custom map is named', (tester) async {
-      final rig = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, customMap: true));
+      final rig = await SetupRig.create(
+        tester,
+        device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, customMap: true),
+      );
       await rig.pump(tester);
       await settle(tester, 600);
       expect(find.text('It uses a custom LED map.'), findsOneWidget);
@@ -204,10 +230,7 @@ void main() {
       expect(find.text('Your device is ready.'), findsOneWidget);
       expect(find.byType(TextField), findsNothing, reason: 'only new devices are named');
       expect(rig.sender.closed, isTrue);
-      expect(
-        rig.device.writes.where((w) => w.$1 == 'POST /json/state' && (w.$2 as Map)['live'] == false),
-        isNotEmpty,
-      );
+      expect(rig.device.writes.where((w) => w.$1 == 'POST /json/state' && (w.$2 as Map)['live'] == false), isNotEmpty);
       expect(rig.playback.isPlaying, isTrue, reason: 'previous playback is back');
       expect(rig.configWrites, hasLength(1));
       await tapText(tester, 'Done');
@@ -257,7 +280,10 @@ void main() {
 
   group('size', () {
     testWidgets('preselects from the device and explains a mismatch', (tester) async {
-      final rig = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false));
+      final rig = await SetupRig.create(
+        tester,
+        device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false),
+      );
       await rig.pump(tester);
       await settle(tester, 600);
       expect(find.text('How big is your display?'), findsOneWidget);
@@ -267,7 +293,11 @@ void main() {
       expect(find.text('Your device is set for 64 LEDs.'), findsOneWidget);
       expect(find.textContaining('Glyph will set it to'), findsNothing);
       for (final t in ['8×8', '16×16', '32×8', '8×32', '32×32', '16×32', 'Other size']) {
-        expect(find.text(t.toUpperCase()).evaluate().isNotEmpty || find.text(t).evaluate().isNotEmpty, isTrue, reason: t);
+        expect(
+          find.text(t.toUpperCase()).evaluate().isNotEmpty || find.text(t).evaluate().isNotEmpty,
+          isTrue,
+          reason: t,
+        );
       }
 
       await tester.tap(find.bySemanticsLabel('16 by 16'));
@@ -286,7 +316,10 @@ void main() {
     });
 
     testWidgets('no match: nothing preselected, Next waits', (tester) async {
-      final odd = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 70, matrix: false));
+      final odd = await SetupRig.create(
+        tester,
+        device: FakeSetupDevice(width: 8, height: 8, ledCount: 70, matrix: false),
+      );
       await odd.pump(tester);
       await settle(tester, 600);
       expect(odd.controller.hasSize, isFalse);
@@ -295,7 +328,10 @@ void main() {
     });
 
     testWidgets('a square count is a square', (tester) async {
-      final rig = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 100, matrix: false));
+      final rig = await SetupRig.create(
+        tester,
+        device: FakeSetupDevice(width: 8, height: 8, ledCount: 100, matrix: false),
+      );
       await rig.pump(tester);
       await settle(tester, 600);
       expect(rig.controller.draftWidth, 10);
@@ -343,7 +379,10 @@ void main() {
 
     testWidgets('the corner targets are labelled buttons', (tester) async {
       final handle = tester.ensureSemantics();
-      final rig = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false));
+      final rig = await SetupRig.create(
+        tester,
+        device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false),
+      );
       await rig.pump(tester);
       await settle(tester, 600);
       await tapText(tester, 'Next');
@@ -363,7 +402,10 @@ void main() {
     });
 
     testWidgets('result, then the manual picker with a live diagram', (tester) async {
-      final rig = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false));
+      final rig = await SetupRig.create(
+        tester,
+        device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false),
+      );
       await rig.pump(tester);
       await settle(tester, 600);
       await tapText(tester, 'Next');
@@ -395,7 +437,10 @@ void main() {
     });
 
     testWidgets('reduced motion: the chase shows all its lights at once and holds', (tester) async {
-      final rig = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false));
+      final rig = await SetupRig.create(
+        tester,
+        device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false),
+      );
       await rig.pump(tester, reduceMotion: true);
       await settle(tester, 600);
       await tapText(tester, 'Next');
@@ -413,7 +458,10 @@ void main() {
     });
 
     testWidgets('Test again restarts at the first question', (tester) async {
-      final rig = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false));
+      final rig = await SetupRig.create(
+        tester,
+        device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false),
+      );
       await rig.pump(tester);
       await settle(tester, 600);
       await tapText(tester, 'Next');
@@ -428,7 +476,10 @@ void main() {
     });
 
     testWidgets('Nothing lit up: help, then try again; more LEDs offered when short', (tester) async {
-      final rig = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 8, matrix: false));
+      final rig = await SetupRig.create(
+        tester,
+        device: FakeSetupDevice(width: 8, height: 8, ledCount: 8, matrix: false),
+      );
       await rig.pump(tester);
       await settle(tester, 600);
       expect(rig.controller.hasSize, isFalse);
@@ -469,7 +520,11 @@ void main() {
       expect(rig.device.rlmValue, 1);
       expect(rig.sender.closed, isTrue);
       expect(
-        rig.device.writes.map((w) => (w.$2 is Map && (w.$2 as Map)['if'] != null) ? ((w.$2 as Map)['if'] as Map)['live']['rlm'] : null).whereType<bool>(),
+        rig.device.writes
+            .map(
+              (w) => (w.$2 is Map && (w.$2 as Map)['if'] != null) ? ((w.$2 as Map)['if'] as Map)['live']['rlm'] : null,
+            )
+            .whereType<bool>(),
         [true, false, true],
       );
       // (the first is the harmless lock check)
@@ -538,7 +593,13 @@ void main() {
       await settle(tester, 300);
       await tapText(tester, 'Next');
       await settle(tester, 500);
-      await answerWiring(tester, rig, const PanelWiring(corner: StartCorner.bottomRight, vertical: true, zigzag: true), 16, 16);
+      await answerWiring(
+        tester,
+        rig,
+        const PanelWiring(corner: StartCorner.bottomRight, vertical: true, zigzag: true),
+        16,
+        16,
+      );
       await tapText(tester, 'Looks right');
       return rig;
     }
@@ -547,7 +608,10 @@ void main() {
       final device = FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false);
       ((device.cfg['hw'] as Map)['led'] as Map)['maxpwr'] = 0;
       final spy = SpyStore(
-        () => [for (final w in device.writes) if (w.$1 == 'POST /json/cfg' || w.$1 == 'POST /settings/2D') w],
+        () => [
+          for (final w in device.writes)
+            if (w.$1 == 'POST /json/cfg' || w.$1 == 'POST /settings/2D') w,
+        ],
       );
       final rig = await toReview(tester, store: spy, device: device);
       expect(find.text('Ready to set it up'), findsOneWidget);
@@ -584,17 +648,31 @@ void main() {
       final ledWrite = rig.configWrites[0].$2 as Map;
       expect(((ledWrite['hw'] as Map)['led'] as Map)['ins'], [entry]);
       expect(rig.configWrites[1].$2, {
-        'SOMP': '1', 'MPC': '1', 'P0B': '1', 'P0R': '1', 'P0V': '1', 'P0S': 'on',
-        'P0X': '0', 'P0Y': '0', 'P0W': '16', 'P0H': '16',
+        'SOMP': '1',
+        'MPC': '1',
+        'P0B': '1',
+        'P0R': '1',
+        'P0V': '1',
+        'P0S': 'on',
+        'P0X': '0',
+        'P0Y': '0',
+        'P0W': '16',
+        'P0H': '16',
       });
       expect(rig.configWrites[2].$2, {
-        'hw': {'led': {'maxpwr': 4250}},
+        'hw': {
+          'led': {'maxpwr': 4250},
+        },
       });
       // The backup was saved before the first change: all that had happened
       // was the lock check, a write of the realtime-map flag with its own value.
       expect(spy.savedAt, hasLength(1));
       expect(spy.savedAt.single.map((w) => w.$2), [
-        {'if': {'live': {'rlm': true}}},
+        {
+          'if': {
+            'live': {'rlm': true},
+          },
+        },
       ]);
       final snap = (await rig.store.load(rig.device.mac))!;
       expect(snap.ledCount, 64);
@@ -659,7 +737,8 @@ void main() {
       // The LED count was written, then put back; nothing else changed.
       final lens = [
         for (final w in rig.configWrites)
-          if (w.$2 is Map && (w.$2 as Map)['hw'] != null) (((((w.$2 as Map)['hw'] as Map)['led'] as Map)['ins'] as List).first as Map)['len'],
+          if (w.$2 is Map && (w.$2 as Map)['hw'] != null)
+            (((((w.$2 as Map)['hw'] as Map)['led'] as Map)['ins'] as List).first as Map)['len'],
       ];
       expect(lens, [256, 64]);
       expect(rig.device.length, 64);
@@ -676,7 +755,14 @@ void main() {
     });
 
     testWidgets('apply brings back what was playing (WLED resets segment 0)', (tester) async {
-      final dev = FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false, playingFx: 53, playingName: 'the-starry-night.gif');
+      final dev = FakeSetupDevice(
+        width: 8,
+        height: 8,
+        ledCount: 64,
+        matrix: false,
+        playingFx: 53,
+        playingName: 'the-starry-night.gif',
+      );
       final rig = await toReview(tester, device: dev);
       await tester.tap(find.widgetWithText(FilledButton, 'Set up device'));
       await settle(tester, 1500);
@@ -815,7 +901,10 @@ void main() {
 
     testWidgets('Close with nothing written leaves at once', (tester) async {
       var exits = 0;
-      final rig = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false));
+      final rig = await SetupRig.create(
+        tester,
+        device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false),
+      );
       await rig.pump(tester, onExit: () => exits++);
       await settle(tester, 600);
       await tester.tap(find.byTooltip('Close'));
@@ -839,7 +928,10 @@ void main() {
       (
         'size',
         (t) async {
-          final rig = await SetupRig.create(t, device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false));
+          final rig = await SetupRig.create(
+            t,
+            device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false),
+          );
           await rig.pump(t, size: const Size(360, 640), textScale: 1.6);
           await settle(t, 600);
           rig.controller.setSize(17, 9, click: false);
@@ -850,7 +942,10 @@ void main() {
       (
         'first wiring question',
         (t) async {
-          final rig = await SetupRig.create(t, device: FakeSetupDevice(width: 32, height: 8, ledCount: 256, matrix: false));
+          final rig = await SetupRig.create(
+            t,
+            device: FakeSetupDevice(width: 32, height: 8, ledCount: 256, matrix: false),
+          );
           await rig.pump(t, size: const Size(360, 640), textScale: 1.6);
           await settle(t, 600);
           rig.controller.sizeNext();
@@ -861,7 +956,10 @@ void main() {
       (
         'review',
         (t) async {
-          final rig = await SetupRig.create(t, device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false));
+          final rig = await SetupRig.create(
+            t,
+            device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false),
+          );
           await rig.pump(t, size: const Size(360, 640), textScale: 1.6);
           await settle(t, 600);
           rig.controller
@@ -885,7 +983,10 @@ void main() {
     }
 
     testWidgets('every control is at least 48px and words stay plain', (tester) async {
-      final rig = await SetupRig.create(tester, device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false));
+      final rig = await SetupRig.create(
+        tester,
+        device: FakeSetupDevice(width: 8, height: 8, ledCount: 64, matrix: false),
+      );
       await rig.pump(tester);
       await settle(tester, 600);
       for (final b in tester.widgetList(find.byType(InkWell)).toList().asMap().keys) {

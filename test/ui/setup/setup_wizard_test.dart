@@ -94,9 +94,8 @@ void main() {
         wifi: wifi,
         findTimeout: findTimeout ?? const Duration(seconds: 5),
         services: SetupServices(
-          discover: () => Stream.value(
-            const DiscoveredDevice(name: 'WLED-AP-9308', host: deviceHost, mac: '48:E7:29:A3:93:08'),
-          ),
+          discover: () =>
+              Stream.value(const DiscoveredDevice(name: 'WLED-AP-9308', host: deviceHost, mac: '48:E7:29:A3:93:08')),
           scan: () => const Stream.empty(),
         ),
       );
@@ -129,13 +128,12 @@ void main() {
       // The device was given the network and restarted; the setup network
       // was released before the search; the device was found by MAC.
       final cfg = rig.ap.writes.firstWhere((w) => w.$1 == 'POST /json/cfg').$2 as Map;
-      expect(cfg, {
-        'nw': {
-          'ins': [
-            {'ssid': 'Home', 'psk': 'hunter22'},
-          ],
-        },
+      expect(cfg['nw'], {
+        'ins': [
+          {'ssid': 'Home', 'psk': 'hunter22', 'bssid': '000000000000'},
+        ],
       });
+      expect((cfg['if'] as Map)['ntp'], containsPair('en', true));
       expect(rig.ap.writes.last.$1, 'POST /json/state');
       expect(rig.ap.writes.last.$2, {'rb': true});
       expect(rig.wifi.releases, greaterThanOrEqualTo(1));

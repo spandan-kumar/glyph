@@ -28,7 +28,10 @@ class WiringQuestionScreen extends StatelessWidget {
     final w = c.draftWidth ?? 8, h = c.draftHeight ?? 8;
     final (title, line) = switch (question) {
       SetupStep.wiringQ1 => ('Which corner lit up?', 'One light is on at the start of the wiring. Tap that corner.'),
-      SetupStep.wiringQ2 => ('Which way is it moving?', 'The lights run from that corner. Pick the way the arrows point.'),
+      SetupStep.wiringQ2 => (
+        'Which way is it moving?',
+        'The lights run from that corner. Pick the way the arrows point.',
+      ),
       _ => ('Where did the light jump to?', 'This is where the second row of wiring starts.'),
     };
     final diagram = switch (question) {
@@ -42,6 +45,7 @@ class WiringQuestionScreen extends StatelessWidget {
         width: w,
         height: h,
         corner: c.answerCorner,
+        zoom: true,
         showRunArrows: true,
         label: 'Display diagram, starting at the ${c.answerCorner?.label} corner. Pick the way the lights move below.',
       ),
@@ -50,6 +54,7 @@ class WiringQuestionScreen extends StatelessWidget {
         height: h,
         corner: c.answerCorner,
         alongWidth: c.answerAlongWidth,
+        zoom: true,
         onJump: (far) => c.pickJump(farEnd: far),
         label: 'Display diagram. Tap where the light jumped to, or pick below.',
       ),
@@ -163,7 +168,11 @@ class _DeviceStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     if (c.testError != null) {
-      return Text(c.testError!, textAlign: TextAlign.center, style: LbType.small.copyWith(color: Lb.danger));
+      return Text(
+        c.testError!,
+        textAlign: TextAlign.center,
+        style: LbType.small.copyWith(color: Lb.danger),
+      );
     }
     return Row(
       mainAxisSize: MainAxisSize.min,

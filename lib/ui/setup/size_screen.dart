@@ -141,12 +141,7 @@ class _SizeTile extends StatelessWidget {
               SizedBox(
                 height: 56,
                 child: Center(
-                  child: PanelDiagram(
-                    width: w,
-                    height: h,
-                    maxHeight: 52,
-                    dotColor: selected ? Lb.phosphor : Lb.text3,
-                  ),
+                  child: PanelDiagram(width: w, height: h, maxHeight: 52, dotColor: selected ? Lb.phosphor : Lb.text3),
                 ),
               ),
               const SizedBox(height: 8),
@@ -183,7 +178,9 @@ class _OtherTile extends StatelessWidget {
         onTap: onTap,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 92),
-          child: Center(child: Text('Other size', textAlign: TextAlign.center, style: LbType.bodyStrong)),
+          child: Center(
+            child: Text('Other size', textAlign: TextAlign.center, style: LbType.bodyStrong),
+          ),
         ),
       ),
     ),
@@ -206,11 +203,7 @@ class _Stepper extends StatelessWidget {
       const SizedBox(height: 8),
       Row(
         children: [
-          _HoldKey(
-            icon: Icons.remove_sharp,
-            label: 'Fewer $label'.toLowerCase(),
-            onStep: () => onChanged(value - 1),
-          ),
+          _HoldKey(icon: Icons.remove_sharp, label: 'Fewer $label'.toLowerCase(), onStep: () => onChanged(value - 1)),
           Expanded(
             child: Semantics(
               label: '$label $value',
@@ -218,11 +211,7 @@ class _Stepper extends StatelessWidget {
               child: Text('$value', textAlign: TextAlign.center, style: LbType.title),
             ),
           ),
-          _HoldKey(
-            icon: Icons.add_sharp,
-            label: 'More $label'.toLowerCase(),
-            onStep: () => onChanged(value + 1),
-          ),
+          _HoldKey(icon: Icons.add_sharp, label: 'More $label'.toLowerCase(), onStep: () => onChanged(value + 1)),
         ],
       ),
     ],
