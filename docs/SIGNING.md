@@ -27,7 +27,7 @@ apksigner use the oldest key for v1/v2. See the [Android apksigner reference](ht
 ## Status (11 October 2026)
 
 Rotation is set up. The new release key was created with
-`tool/setup_release_signing.sh` and all five `ANDROID_RELEASE_*` /
+a one-off setup script and all five `ANDROID_RELEASE_*` /
 `ANDROID_SIGNING_LINEAGE_BASE64` secrets are set; the next tagged release is the
 first signed with both keys.
 
@@ -84,50 +84,19 @@ directory and are removed when the signing step exits.
 release is not a safe fallback for phones that have already updated to the new
 key. The lineage deliberately does not grant rollback to the old key.
 
-## One-time procedure
+## How it was set up (done, 11 October 2026)
 
-**Quick path (recommended, decided 11 October 2026).** Run one command on the
-Mac that holds `~/.android/debug.keystore`:
+A one-off script (removed after use) generated a random password into the
+macOS Keychain, created the new PKCS12 key (`CN=Glyph, O=Glyph`, RSA 4096) and
+the rotation lineage from `~/.android/debug.keystore` in `~/glyph-release-keys/`,
+and set the five GitHub secrets. The same commands were dry-run with throwaway
+keys first: API 24–27 verified with the old certificate, API 28+ with the new
+one, and the APK's lineage listed both. To redo it from the backup, restore the
+files and set the secrets as `SECRETS.txt` describes.
 
-```bash
-./tool/setup_release_signing.sh
-```
+## Verifying a release
 
-It generates a random 40-character password that is never shown, stores it in
-the macOS Keychain ("Glyph release keystore"), creates the new PKCS12 key
-(`CN=Glyph, O=Glyph`, RSA 4096) and the rotation lineage in
-`~/glyph-release-keys/` (with a copy of the old debug keystore), and sets the
-five GitHub secrets using the `spandan-kumar` gh login. Afterwards, back up
-`~/glyph-release-keys` and the Keychain entry to two offline places. The
-commands were dry-run with throwaway keys on 11 October 2026: API 24–27
-verified with the old certificate, API 28+ with the new one, and the APK's
-lineage listed both. The manual path below does the same with your own prompts.
-
-### Manual path
-
-1. Confirm the old keystore matches the fingerprint above using
-   `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey`.
-   Let it prompt for its password. Use the original keystore, not a newly
-   generated debug key with the same name.
-2. In a local terminal run `tool/rotate_signing_key.sh`. You can instead run
-   `tool/rotate_signing_key.sh /path/to/old.keystore /path/to/new.jks old-alias`.
-   `--help` explains the defaults. It checks for keytool/apksigner, creates a
-   JKS keystore with an RSA 4096-bit key valid for 10000 days, and asks for your
-   certificate details and passwords. Use your own name, not Android Debug.
-   apksigner then prompts for the old and new passwords to create the lineage.
-   The Android debug password is `android` unless changed. Neither tool is
-   given passwords on the command line.
-3. Record the printed public certificate fingerprints: lineage signer #1 is
-   old and signer #2 is new. Run the script's exact `gh secret set` commands.
-   The keystore/lineage commands pipe base64 directly into GitHub; the password
-   and alias commands prompt for values. Set all five before releasing. Keep
-   passwords in your password manager, never in shell history or files in this
-   project. Never paste base64 key contents into logs or documentation.
-4. Back up the keys as described below, then follow the normal version and
-   changelog procedure in [AGENTS.md](../AGENTS.md) and push a `vX.Y.Z` tag.
-   Inspect the signing step: it must verify the old key on API 24–27, the new
-   key on modern Android, and both in the lineage read from the signed APK.
-5. Download the published APK and check it with build-tools 36.0.0 or newer:
+Download the published APK and check it with build-tools 36.0.0 or newer:
 
    ```sh
    apksigner verify --print-certs -v glyph-X.Y.Z-arm64-v8a.apk

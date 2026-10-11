@@ -21,7 +21,7 @@ stamp=$(date +%Y-%m-%d)
 if $encrypt; then image="$out_dir/glyph-secrets-$stamp.dmg"; else image="$out_dir/glyph-secrets-$stamp.zip"; fi
 [[ -e $image ]] && { echo "$image already exists." >&2; exit 1; }
 [[ -f $keys/glyph-release.jks && -f $keys/glyph-signing.lineage ]] \
-  || { echo "Missing $keys (run tool/setup_release_signing.sh first)." >&2; exit 1; }
+  || { echo "Missing $keys (restore it from your backup first)." >&2; exit 1; }
 
 umask 077
 work=$(mktemp -d)
