@@ -394,6 +394,12 @@ extract only the adapter boundary needed by WLED and that second device.
 
 ## Product decisions
 
+Confirmed on 11 October: release v1.4.0 (setup wizard with panel grids,
+automatic device time, Home Assistant blueprints, forecast and air quality)
+without the never-configured ESP32 check; no spare controller was available.
+The new-device path was exercised on a configured controller pointed at a
+missing network. Grid and iOS paths have automated coverage only.
+
 Confirmed on 10 October: keep full Send content. Larger displays will use
 additional hardware storage; the current format keeps ESP filesystem storage.
 Do not introduce automatic shorter-loop fallbacks. Device storage remains a

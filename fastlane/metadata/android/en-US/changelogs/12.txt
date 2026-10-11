@@ -1,0 +1,5 @@
+• New setup wizard: join a new device to your Wi-Fi, pick its size, find its wiring with three taps, and Glyph writes it to the device. Undo anytime.
+• Grids of panels: panel order, upside-down panels and power tips.
+• Devices set their own clock from your phone's time zone.
+• Home Assistant: show a Saved look or Show when something happens.
+• Glance adds forecast and air quality cards.

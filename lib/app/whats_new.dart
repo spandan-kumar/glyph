@@ -4,6 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.0': [
+    'Set up display: size and wiring are found with a quick light test and saved on your device. Undo anytime.',
+    'Several panels? The wizard works out their order and any upside-down panels.',
+    'Your device sets its clock from your phone, so routines run on time.',
+    'Home Assistant can show a Saved look or Show when something happens.',
+    'Glance adds forecast and air quality cards.',
+  ],
   '1.3.6': [
     'Check for new animations, with optional daily checks while Glyph is open.',
     'Send keeps complete sprite sequences and scrolling messages, even on weak Wi-Fi.',
