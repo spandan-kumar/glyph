@@ -39,7 +39,14 @@ first signed with both keys.
 Where they live: `~/glyph-release-keys/` on the maintainer's Mac (new key, old
 key copy, lineage, README); a zipped copy in the maintainer's Google Drive; the
 new key's password only in the macOS Keychain ("Glyph release keystore") and the
-maintainer's password manager, never in the same place as the key files.
+maintainer's password manager.
+
+**Full secrets backup.** `tool/backup_secrets.sh` (run by the maintainer)
+collects everything Glyph depends on into one AES-256 encrypted disk image for
+Google Drive: both Android keys, the lineage, the release key password, the
+catalog signing key (`CATALOG_SIGNING_KEY`, from Keychain) and optionally the
+Discord webhook, with restore instructions in `SECRETS.txt`. Only the image's
+passphrase must live outside Drive; with it, a lost laptop loses nothing.
 
 ## Keys and GitHub secrets
 
