@@ -7,6 +7,7 @@ import '../../engine/clip.dart';
 import '../../engine/frame.dart';
 import '../import/decode.dart';
 import 'boot_intro.dart';
+import 'device_time.dart';
 import '../../wled/presets.dart';
 import '../../wled/schedule.dart';
 import '../../wled/wled_client.dart';
@@ -138,6 +139,16 @@ class DeviceManager extends ChangeNotifier {
     _loading = false;
     _error = _scheduleError = null;
     if (h != null) scheduleMicrotask(load);
+  }
+
+  /// Tells the device the time (internet time plus the phone's clock), then
+  /// re-reads routines. True when the device took it.
+  Future<bool> setDeviceTime() async {
+    final c = _client;
+    if (c == null) return false;
+    final ok = await ensureDeviceTime(c);
+    await load();
+    return ok;
   }
 
   Future<void> load() async {

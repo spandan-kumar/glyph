@@ -45,6 +45,10 @@ class FakeWled {
   late Map<String, dynamic> presets;
   late Map<String, dynamic> state;
   late Map<String, dynamic> cfg;
+
+  /// Unix seconds the app pushed to /json/state "time", and `if.ntp` config writes.
+  final clockSets = <int>[];
+  final ntpWrites = <Map<String, dynamic>>[];
   final posts = <(String path, Map<String, dynamic> body)>[];
   final gets = <String>[];
 
@@ -84,6 +88,29 @@ class FakeWled {
       // Power-on preset changes (cfg.cpp: def.ps).
       if (path == '/json/cfg' && body['def'] is Map) {
         cfg['def'] = {...(cfg['def'] as Map? ?? const {}), ...(body['def'] as Map)};
+      }
+      // The app sets the device clock on its own; keep that out of `posts`.
+      if (path == '/json/state' &&
+          body.keys.length == 1 &&
+          body.containsKey('time')) {
+        clockSets.add((body['time'] as num).toInt());
+        return http.Response('{"success":true}', 200);
+      }
+      if (path == '/json/cfg' &&
+          body.keys.length == 1 &&
+          (body['if'] as Map?)?.keys.length == 1 &&
+          ((body['if'] as Map)['ntp'] is Map)) {
+        cfg['if'] = {
+          ...(cfg['if'] as Map? ?? const {}),
+          'ntp': {
+            ...(((cfg['if'] as Map?)?['ntp']) as Map? ?? const {}),
+            ...((body['if'] as Map)['ntp'] as Map),
+          },
+        };
+        ntpWrites.add(
+          Map<String, dynamic>.from((body['if'] as Map)['ntp'] as Map),
+        );
+        return http.Response('{"success":true}', 200);
       }
       posts.add((path, body));
       if (path == '/json/state') {

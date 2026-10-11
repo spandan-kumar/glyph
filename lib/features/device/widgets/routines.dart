@@ -82,14 +82,28 @@ class RoutinesSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Note(text: 'These run on your device, even when your phone is off.', lit: true, color: accent),
-        if (!s.ntpEnabled)
+        if (!s.ntpEnabled) ...[
           const Note(
             color: Lb.phosphor,
             lit: true,
-            text:
-                'Your device doesn\'t know the time yet. Turn on internet time in WLED '
-                'firmware settings → Time & Macros so routines start on time.',
+            text: 'Your device doesn\'t know the time yet.',
           ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton(
+                onPressed: () async {
+                  final ok = await manager.setDeviceTime();
+                  if (!context.mounted || ok) return;
+                  ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
+                      content: Text('Your device couldn\'t set its clock. Check it\'s online.')));
+                },
+                child: const Text('Set the time'),
+              ),
+            ),
+          ),
+        ],
         if (!s.isEditable)
           const Note(
             color: Lb.phosphor,

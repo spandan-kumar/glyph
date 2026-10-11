@@ -42,6 +42,7 @@ class MainActivity : FlutterActivity() {
                             "model" to "${Build.MANUFACTURER} ${Build.MODEL}",
                             "android" to Build.VERSION.RELEASE,
                             "sdk" to Build.VERSION.SDK_INT,
+                            "tz" to java.util.TimeZone.getDefault().id,
                         )
                     )
                     else -> result.notImplemented()

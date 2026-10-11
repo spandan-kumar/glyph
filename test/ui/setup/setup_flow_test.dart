@@ -149,6 +149,8 @@ void main() {
         await tester.tap(find.byTooltip('Back').last);
         await settle(tester, 700);
         expect(find.text('Glyph can\'t set up this display yet'), findsOneWidget);
+        await tapText(tester, 'Done', ms: 600);
+        expect(rig.device.clockSets, isNotEmpty, reason: 'even unsupported devices get the time');
         rig.playback.pause();
       });
     }
@@ -210,6 +212,8 @@ void main() {
       expect(rig.configWrites, hasLength(1));
       await tapText(tester, 'Done');
       expect(done, 1);
+      expect(rig.device.clockSets, isNotEmpty, reason: 'setup sets the device clock');
+      expect(rig.device.ntpWrites.single['en'], isTrue, reason: 'and turns internet time on');
       expect(tester.takeException(), isNull);
       rig.playback.pause();
     });

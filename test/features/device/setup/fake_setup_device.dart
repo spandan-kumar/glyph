@@ -47,7 +47,7 @@ class FakeSetupDevice {
           ],
         }
       },
-      'if': {
+      'if': <String, dynamic>{
         'live': {'en': true, 'rlm': true, 'offset': 0, 'timeout': 25, 'no-gc': true}
       },
     };
@@ -61,6 +61,10 @@ class FakeSetupDevice {
   final bool customMap;
   late Map<String, dynamic> cfg;
   bool unlocked = false;
+
+  /// Unix seconds pushed to `/json/state` "time", and `if.ntp` config writes.
+  final clockSets = <int>[];
+  final ntpWrites = <Map<String, dynamic>>[];
 
   /// `/json/state`: segment 0 falls back to Solid on every layout write, like
   /// WLED's makeAutoSegments.
@@ -152,6 +156,18 @@ class FakeSetupDevice {
       return http.Response('<html></html>', 200);
     }
     final body = jsonDecode(r.body) as Map<String, dynamic>;
+    // The app sets the device time as part of setup; recorded apart from `writes`.
+    if (path == '/json/state' && body.length == 1 && body.containsKey('time')) {
+      clockSets.add((body['time'] as num).toInt());
+      return http.Response('{"success":true}', 200);
+    }
+    if (path == '/json/cfg' && body.length == 1 && (body['if'] as Map?)?.length == 1 &&
+        (body['if'] as Map)['ntp'] is Map) {
+      if (_locked) return http.Response('denied', 401);
+      _merge(cfg, body);
+      ntpWrites.add(Map<String, dynamic>.from((body['if'] as Map)['ntp'] as Map));
+      return http.Response('{"success":true}', 200);
+    }
     writes.add(('POST $path', body));
     if (path == '/json/state') {
       if (body.containsKey('pin')) unlocked = body['pin'] == pin;

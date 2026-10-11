@@ -295,6 +295,37 @@ void main() {
       playback.pause();
     });
 
+    for (final ntpOn in [false, true]) {
+      testWidgets('Clock send sets the device time itself (internet time ${ntpOn ? 'on' : 'off'})',
+          (tester) async {
+        SharedPreferences.setMockInitialValues({
+          'devices.v1': jsonEncode([const SavedDevice(host: '192.168.29.6', name: 'Matrix').toJson()]),
+          'devices.selected': '192.168.29.6',
+        });
+        final fake = FakeWled();
+        fake.info = fake.info.replaceFirst('2026-10-2, 18:49:00', '1970-1-1, 00:00:03');
+        ((fake.cfg['if'] as Map)['ntp'] as Map)['en'] = ntpOn;
+        final devices = DeviceStore(clientFactory: fake.client);
+        await devices.load();
+        final (playback, _) = await pump(
+            tester, ToolHost(tool: () => const TextStudioScreen(mode: 'clock')),
+            devices: devices);
+        await openTool(tester);
+        await tapVisible(tester, find.text('Send to device'));
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+        expect(find.textContaining('Sent to your device'), findsWidgets);
+        expect(find.textContaining('doesn\'t know the time'), findsNothing);
+        expect(find.textContaining('couldn\'t set its clock'), findsNothing);
+        expect(fake.clockSets, hasLength(1));
+        expect(fake.ntpWrites, ntpOn ? isEmpty : hasLength(1));
+        if (!ntpOn) expect(fake.ntpWrites.single['en'], isTrue);
+        await leaveTool(tester);
+        playback.pause();
+      });
+    }
+
     testWidgets('without playing anything, what played before keeps playing', (tester) async {
       final (playback, _) =
           await pump(tester, ToolHost(tool: () => const TextStudioScreen()));

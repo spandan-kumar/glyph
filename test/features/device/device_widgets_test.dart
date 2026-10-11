@@ -78,6 +78,32 @@ void main() {
     );
   });
 
+  testWidgets('Routines: no internet time offers one tap to set the time', (
+    tester,
+  ) async {
+    ((wled.cfg['if'] as Map)['ntp'] as Map)['en'] = false;
+    await pump(tester, (_, m) => RoutinesSection(manager: m));
+    expect(
+      find.text('Your device doesn\'t know the time yet.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('internet time'), findsNothing);
+    await tester.tap(find.text('Set the time'));
+    await settle(tester, 800);
+    expect(wled.clockSets, hasLength(1));
+    expect(wled.ntpWrites.single['en'], isTrue);
+    expect(
+      find.text('Set the time'),
+      findsNothing,
+      reason: 'routines reloaded with NTP on',
+    );
+  });
+
+  testWidgets('Routines: internet time on shows no time note', (tester) async {
+    await pump(tester, (_, m) => RoutinesSection(manager: m));
+    expect(find.text('Set the time'), findsNothing);
+  });
+
   testWidgets('Routines: toggle saves, tap opens the editor', (tester) async {
     await pump(tester, (_, m) => RoutinesSection(manager: m));
     expect(find.text('Mon, Wed, Fri at 3:07 → something removed'), findsOneWidget);

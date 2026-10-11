@@ -22,6 +22,7 @@ import '../../ui/design/type.dart';
 import '../../ui/make/studio_kit.dart';
 import '../../ui/make/tool_session.dart';
 import '../../ui/widgets/led_matrix_view.dart';
+import '../device/device_time.dart';
 import 'native_text.dart';
 import 'text_baker.dart';
 import 'text_generators.dart';
@@ -264,7 +265,10 @@ class _TextStudioScreenState extends State<TextStudioScreen>
         msg = 'Sent to your device. It keeps playing without your phone.';
         HapticFeedback.lightImpact();
         if (_mode == 'clock' && _clockUnsynced(devices.info?.raw)) {
-          msg += ' Your device doesn\'t know the time yet: turn on internet time in its Time settings.';
+          // Instead of sending people to firmware settings, just set it.
+          if (!await ensureDeviceTime(client)) {
+            msg += ' Your device couldn\'t set its clock. Check it\'s online.';
+          }
         }
       } else {
         final clip = await _bake(caps.width, caps.height);

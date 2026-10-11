@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../features/device/device_time.dart';
 import '../wled/ddp_group.dart';
 import '../wled/device.dart';
 import '../wled/layout.dart';
@@ -168,6 +169,11 @@ class DeviceStore extends ChangeNotifier {
         : SavedDevice(host: host, name: name, layout: const MatrixLayout());
     if (existing.isEmpty) _saved = [..._saved, device];
     await select(device);
+    // A new device should know the time from the start (fire and forget).
+    final c = _client;
+    if (!_disposed && c != null && c.host == host && _info != null) {
+      unawaited(ensureDeviceTime(c));
+    }
   }
 
   Future<void> select(SavedDevice d) async {

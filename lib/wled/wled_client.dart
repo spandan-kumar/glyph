@@ -618,6 +618,20 @@ class WledClient {
     });
   }
 
+  /// Turns on internet time (NTP) with a timezone from WLED's table and an
+  /// extra offset in seconds (cfg if.ntp: en, tz, offset). The host is left
+  /// alone. Applies at runtime.
+  Future<void> setInternetTime({required int tz, required int offsetSeconds}) => setConfig({
+        'if': {
+          'ntp': {'en': true, 'tz': tz, 'offset': offsetSeconds}
+        }
+      });
+
+  /// Sets the device clock now (json.cpp setTimeFromAPI: unix seconds, UTC).
+  /// A backup source: correct before NTP syncs, and with no internet at all.
+  Future<void> setClock(DateTime nowUtc) =>
+      _setState({'time': nowUtc.toUtc().millisecondsSinceEpoch ~/ 1000});
+
   Future<WledSchedule> schedule() async => WledSchedule.fromConfig(await config());
 
   /// Replaces every timer (an empty list removes them all).
