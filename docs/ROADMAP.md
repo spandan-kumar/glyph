@@ -6,13 +6,17 @@ This plan merges product and marketing into one timeline, ordered for the
 most reach and community, based on research (October 2026) into what
 pixel-display owners want, which displays they own and where they talk.
 
-**Status, 11 October 2026.** v1.4.0+12 is published (11 October). It adds the
-device setup wizard, automatic device time, Home Assistant blueprints and
-forecast and air quality Glance cards. The library has 1,209 looks, 62
-procedural generators, 329 sprites and 22 categories.
+**Status, 11 October 2026.** v1.4.1+13 adds 27 credited CC0 animations,
+dependency updates and release-key rotation that preserves the existing
+Android signing history. The library has 1,236 looks, 62 procedural generators,
+356 sprites and 22 categories. [Release verification](QA_1_4_1.md).
 
-**Latest release: v1.4.0+12**
-([notes](https://github.com/spandan-kumar/glyph/releases/tag/v1.4.0)). The
+v1.4.0+12 was published on 11 October. It adds the
+device setup wizard, automatic device time, Home Assistant blueprints and
+forecast and air quality Glance cards.
+
+**Latest release: v1.4.1+13**
+([notes](https://github.com/spandan-kumar/glyph/releases/tag/v1.4.1)). The
 wizard covers Wi-Fi join, panel size, a three-tap wiring test, grids of equal
 panels up to WLED's 18-panel limit, and apply with undo. Home Assistant
 blueprints live in `homeassistant/` ([guide](HOME_ASSISTANT.md)). Crypto was

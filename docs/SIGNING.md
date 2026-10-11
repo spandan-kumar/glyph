@@ -28,8 +28,8 @@ apksigner use the oldest key for v1/v2. See the [Android apksigner reference](ht
 
 Rotation is set up. The new release key was created with
 a one-off setup script and all five `ANDROID_RELEASE_*` /
-`ANDROID_SIGNING_LINEAGE_BASE64` secrets are set; the next tagged release is the
-first signed with both keys.
+`ANDROID_SIGNING_LINEAGE_BASE64` secrets are set. v1.4.1 is the first release
+signed with both keys.
 
 | Key | Signs | Certificate SHA-256 |
 |---|---|---|
@@ -73,9 +73,10 @@ Add these five secrets for rotation:
 
 CI builds an unsigned APK using `--android-project-arg unsignedRelease=true`
 (Gradle `-PunsignedRelease=true`; `-Pfdroid=true` remains an alias). It then
-signs with apksigner. All four old secrets are always required. If any of the
-five new secrets are missing, CI emits a notice and signs with only the old
-key. Invalid complete rotation material fails the release, without fallback.
+signs with apksigner. All nine signing secrets are required. Missing rotation
+material fails before building; invalid keys or lineage fail before publishing.
+CI checks both certificates against the fingerprints above. It never falls
+back to the old key alone, which could strand installs after rotation.
 Passwords reach apksigner through `env:` references, never command arguments
 or properties files. Decoded keystores live only in a private runner temporary
 directory and are removed when the signing step exits.

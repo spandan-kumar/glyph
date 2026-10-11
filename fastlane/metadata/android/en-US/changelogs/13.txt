@@ -1,0 +1,3 @@
+• 27 new animations: floating jellies, soaring birds, flames and colourful bubbles.
+• Updated app dependencies and Android build tools.
+• Dedicated release signing key with a signed rotation history for existing installs.

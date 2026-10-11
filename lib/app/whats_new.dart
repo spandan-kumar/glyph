@@ -4,6 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.1': [
+    '27 new animations: floating jellies, soaring birds, flames and colourful bubbles.',
+  ],
   '1.4.0': [
     'Set up display: size and wiring are found with a quick light test and saved on your device. Undo anytime.',
     'Several panels? The wizard works out their order and any upside-down panels.',
