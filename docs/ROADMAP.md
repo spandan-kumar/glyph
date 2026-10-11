@@ -151,17 +151,17 @@ hardware or Apple setup have no date until the equipment exists.
 
 ### Week 1: assets and policies (12–18 Oct)
 
-- [ ] Privacy policy ([PRIVACY.md](PRIVACY.md), being written) and security
+- [x] Privacy policy ([PRIVACY.md](PRIVACY.md)) and security
       policy (`SECURITY.md`, being written); link both from README and the app.
-- [ ] Refreshed screenshots and store listing for 1.4.0 (in progress).
+- [x] Refreshed screenshots and store listing for 1.4.0.
 - [ ] Hero video 30–45 s (vertical + 16:9) and feature clips (setup wizard
       wiring test, Now Playing, swipe channels, draw live, a game, boot
       intro). Needs maintainer footage. Film in a dark room at a slow shutter
       so LEDs don't flicker; a diffuser photographs better.
 - [x] Social preview configured in GitHub repository settings; private vulnerability reporting enabled (11 Oct).
 - [ ] Android developer verification registration/status (external, confirm).
-- [ ] Technical blog post: phone-side rendering, DDP, the WLED GIF timer bug.
-- [ ] One-page creator kit: what it is, 3 clips, links, contact.
+- [x] Technical blog post drafted: [launch/blog-phone-renders-every-frame.md](launch/blog-phone-renders-every-frame.md).
+- [x] One-page creator kit: [launch/creator-kit.md](launch/creator-kit.md) (clips pending).
 
 ### Hardware and platform QA (no dates; blocked on equipment)
 
