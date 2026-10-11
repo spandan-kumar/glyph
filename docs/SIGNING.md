@@ -24,6 +24,23 @@ The app's minimum Android version remains API 24. CI explicitly sets
 at Android 13+. Supplying the old signer, the new signer and `--lineage` lets
 apksigner use the oldest key for v1/v2. See the [Android apksigner reference](https://developer.android.com/tools/apksigner).
 
+## Status (11 October 2026)
+
+Rotation is set up. The new release key was created with
+`tool/setup_release_signing.sh` and all five `ANDROID_RELEASE_*` /
+`ANDROID_SIGNING_LINEAGE_BASE64` secrets are set; the next tagged release is the
+first signed with both keys.
+
+| Key | Signs | Certificate SHA-256 |
+|---|---|---|
+| Old (Android debug keystore, `androiddebugkey`) | v1/v2, read by Android 7–8 | `8f7a1d1830d401866985253d480eb7f4748c4c1144a8eb77f0e11448c28f9b68` |
+| New (`glyph-release`, `CN=Glyph, O=Glyph`, RSA 4096, PKCS12) | v3 with lineage, read by Android 9+ | `d9f51a1f873db96bfec0be9c230e5ec2ead72660aa42abaf04389291ad84441e` |
+
+Where they live: `~/glyph-release-keys/` on the maintainer's Mac (new key, old
+key copy, lineage, README); a zipped copy in the maintainer's Google Drive; the
+new key's password only in the macOS Keychain ("Glyph release keystore") and the
+maintainer's password manager, never in the same place as the key files.
+
 ## Keys and GitHub secrets
 
 Keep these four existing secrets unchanged: they hold the **old signer**.
