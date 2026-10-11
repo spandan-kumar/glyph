@@ -33,7 +33,8 @@ jobs:
           name="${pub%%+*}"
           code="${pub##*+}"
           if [ "$name" != "$tag" ]; then
-            echo "::warning::Tag v$tag does not match pubspec version $name"
+            echo "::error::Tag v$tag does not match pubspec version $name"
+            exit 1
           fi
           echo "version=$tag" >> "$GITHUB_OUTPUT"
           echo "code=$code" >> "$GITHUB_OUTPUT"
@@ -46,8 +47,8 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-            echo "::warning::Signing secrets are not set; this release is debug-signed."
-            exit 0
+            echo "::error::All four Android signing secrets must be set for a release."
+            exit 1
           fi
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
           {

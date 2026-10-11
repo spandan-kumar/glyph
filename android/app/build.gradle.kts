@@ -52,7 +52,9 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
+            // F-Droid needs an unsigned APK to sign or copy the upstream signature.
+            signingConfig = if (providers.gradleProperty("fdroid").orNull == "true") null
+                else signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
         }
     }
 }
