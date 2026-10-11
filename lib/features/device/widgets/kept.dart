@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/devices.dart';
 import '../../../ui/design/parts.dart';
@@ -7,6 +8,7 @@ import '../../../ui/design/type.dart';
 import '../../../wled/presets.dart';
 import '../device_manager.dart';
 import 'common.dart';
+import 'home_assistant.dart';
 
 /// What's saved on the device: a grid of LED tiles. Tap plays it on the
 /// device; long-press to rename, delete or play it at power-on.
@@ -38,6 +40,13 @@ class KeptSection extends StatelessWidget {
       );
     }
     final accent = accentOf(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [_grid(context, items, accent), const SizedBox(height: 8), HomeAssistantLink(manager: manager)],
+    );
+  }
+
+  Widget _grid(BuildContext context, List<WledPreset> items, Color accent) {
     return LayoutBuilder(
       builder: (context, c) {
         final cols = c.maxWidth >= 520 ? 4 : 3;
@@ -60,7 +69,7 @@ class KeptSection extends StatelessWidget {
                   active: store.presetId == p.id && store.isOn == true && !store.playlistRunning,
                   onTap: manager.isFileMissing(p)
                       ? () => _menu(context, p)
-                      : () => guarded(context, () => onPlay(p.id)),
+                      : () => _play(context, p),
                   onLongPress: () => _menu(context, p),
                 ),
               ),
@@ -68,6 +77,12 @@ class KeptSection extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// The device changes what it shows, so the buzz is a firm one.
+  Future<bool> _play(BuildContext context, WledPreset p) {
+    HapticFeedback.mediumImpact();
+    return guarded(context, () => onPlay(p.id));
   }
 
   Future<void> _menu(BuildContext context, WledPreset p) async {
@@ -98,7 +113,7 @@ class KeptSection extends StatelessWidget {
     if (!context.mounted) return;
     switch (v) {
       case 'play':
-        await guarded(context, () => onPlay(p.id));
+        await _play(context, p);
       case 'rename':
         await _rename(context, p);
       case 'boot':
@@ -230,7 +245,6 @@ class KeptTile extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              if (active) ...[StatusDot(on: true, color: accent), const SizedBox(width: 6)],
               Expanded(
                 child: Text(
                   preset.name,

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import 'playback.dart';
@@ -11,10 +12,9 @@ import 'playback.dart';
 /// isolate keeps running Timers and sockets after the activity stops; what
 /// ends streaming is the OS freezing or killing a backgrounded process, the
 /// CPU sleeping, and Wi-Fi power-save. A foreground service puts the process
-/// at foreground-service priority (not frozen, keeps network in Doze), its
-/// partial wake lock keeps the CPU running and its Wi-Fi lock keeps latency
-/// low. The service isolate only exists to relay the notification's Stop
-/// button back here.
+/// at foreground-service priority. Glyph holds CPU/Wi-Fi locks only during
+/// live playback and alert handoffs; an idle notification monitor can sleep.
+/// The service isolate only relays the notification's Stop button back here.
 ///
 /// Must be started while the app is visible: Android 12+ refuses to start
 /// foreground services from the background, and Android 14+ also requires
@@ -25,9 +25,55 @@ abstract final class BackgroundStreaming {
 
   static VoidCallback? _onStop;
   static bool _ready = false;
+  static Future<void> _operations = Future.value();
+  static int _pendingOperations = 0;
+  static final _retainers = <Object, ({VoidCallback stop, String title, String text})>{};
   static PlaybackController? _watched;
+  static bool _micType = false;
+  static const _power = MethodChannel('glyph/power');
+  static bool _awake = false;
+  static bool _stopPending = false;
+  static final _work = <Object>{};
 
-  static bool get supported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  static bool get _needsLocks =>
+      _work.isNotEmpty || (_watched?.needsContinuousWork ?? (_onStop != null));
+
+  static Future<void> _syncPower() async {
+    final awake = isRunning && _needsLocks;
+    if (!supported || awake == _awake) return;
+    await _power.invokeMethod<void>('active', awake);
+    _awake = awake;
+  }
+
+  /// Keeps preparation and restoration awake before/after an alert's stream.
+  static Future<T> duringWork<T>(Future<T> Function() work) async {
+    final owner = Object();
+    _work.add(owner);
+    try {
+      await _serial(_syncPower);
+      return await work();
+    } finally {
+      _work.remove(owner);
+      await _serial(() async {
+        if (_work.isEmpty && _stopPending) {
+          _stopPending = false;
+          await _stop();
+        } else {
+          await _syncPower();
+        }
+      });
+    }
+  }
+
+  static bool get supported =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  static Future<T> _serial<T>(Future<T> Function() operation) {
+    _pendingOperations++;
+    final result = _operations.then((_) => operation()).whenComplete(() => _pendingOperations--);
+    _operations = result.then<void>((_) {}, onError: (Object e, StackTrace s) {});
+    return result;
+  }
 
   static const _stopId = 'stop';
 
@@ -40,9 +86,13 @@ abstract final class BackgroundStreaming {
     String text = 'Tap to open Glyph',
     bool microphone = false,
     VoidCallback? onStop,
-  }) async {
+  }) => _serial(() => _start(title: title, text: text, microphone: microphone, onStop: onStop));
+
+  static Future<bool> _start({required String title, required String text,
+    required bool microphone, VoidCallback? onStop}) async {
     if (!supported) return false;
-    _onStop = onStop;
+    _stopPending = false;
+    if (onStop != null) _onStop = onStop;
     _init();
     if (await FlutterForegroundTask.checkNotificationPermission() !=
         NotificationPermission.granted) {
@@ -67,7 +117,36 @@ abstract final class BackgroundStreaming {
       callback: _startCallback,
     );
     running.value = result is ServiceRequestSuccess;
+    _micType = running.value && microphone;
+    try {
+      await _syncPower();
+    } catch (e) {
+      if (e is! PlatformException && e is! MissingPluginException) rethrow;
+      running.value = false;
+      _micType = false;
+      _awake = false;
+      _onStop = null;
+      await FlutterForegroundTask.stopService();
+    }
     return running.value;
+  }
+
+  /// A live feature can own the service independently of other streaming tools.
+  static Future<bool> retain(Object owner, VoidCallback onStop, {
+    String title = 'Glyph notification alerts',
+    String text = 'Listening for your selected apps',
+  }) async {
+    _retainers[owner] = (stop: onStop, title: title, text: text);
+    if (isRunning) { await update(title: title, text: text); return true; }
+    final ok = await start(title: title, text: text);
+    if (!ok) _retainers.remove(owner);
+    return ok;
+  }
+
+  static Future<void> release(Object owner) async {
+    _retainers.remove(owner);
+    final p = _watched;
+    if (_retainers.isEmpty && (_onStop == null || p == null || !p.isPlaying || !p.isStreaming)) await stop();
   }
 
   static Future<void> update({String? title, String? text}) async {
@@ -75,15 +154,49 @@ abstract final class BackgroundStreaming {
     await FlutterForegroundTask.updateService(notificationTitle: title, notificationText: text);
   }
 
-  static Future<void> stop() async {
-    _onStop = null;
-    if (!running.value) return;
-    running.value = false;
-    await FlutterForegroundTask.stopService();
+  static Future<void> stop() {
+    if (_pendingOperations == 0 && !isRunning) {
+      _onStop = null;
+      return Future.value();
+    }
+    return _serial(_stop);
   }
 
-  /// Stops the service once [playback] pauses or stops streaming, so the
-  /// notification never outlives what it describes.
+  static Future<void> _stop() async {
+    _onStop = null;
+    if (_retainers.isNotEmpty) {
+      final owner = _retainers.values.last;
+      if (_micType && running.value) {
+        // The last microphone user left: the type can't change on a running
+        // service, so restart without it (no stale mic indicator/permission use).
+        await _start(title: owner.title, text: owner.text, microphone: false, onStop: null);
+      } else {
+        await update(title: owner.title, text: owner.text);
+      }
+      await _syncPower();
+      return;
+    }
+    if (!running.value) return;
+    if (_work.isNotEmpty) {
+      _stopPending = true;
+      return;
+    }
+    _micType = false;
+    running.value = false;
+    try {
+      await _syncPower();
+    } on PlatformException catch (e) {
+      debugPrint('Could not release streaming power locks: ${e.code}');
+    } on MissingPluginException {
+      debugPrint('Streaming power channel is unavailable during shutdown');
+    } finally {
+      _awake = false;
+      await FlutterForegroundTask.stopService();
+    }
+  }
+
+  /// Releases streaming ownership when playback ends. A notification monitor
+  /// may still need the service while the device plays on its own.
   static void watch(PlaybackController playback) {
     if (identical(_watched, playback)) return;
     _watched?.removeListener(_check);
@@ -93,7 +206,11 @@ abstract final class BackgroundStreaming {
   static void _check() {
     final p = _watched;
     if (p == null || !isRunning) return;
-    if (!p.isPlaying || !p.isStreaming) stop();
+    if (!p.isPlaying || !p.isStreaming) {
+      stop();
+    } else {
+      _serial(_syncPower);
+    }
   }
 
   static void _init() {
@@ -105,17 +222,20 @@ abstract final class BackgroundStreaming {
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'glyph_streaming',
         channelName: 'Streaming',
-        channelDescription: 'Shown while Glyph streams to a matrix in the background.',
+        channelDescription: 'Shown while Glyph streams or listens for logo alerts.',
         onlyAlertOnce: true,
       ),
       iosNotificationOptions: const IOSNotificationOptions(showNotification: false),
       foregroundTaskOptions: ForegroundTaskOptions(
         eventAction: ForegroundTaskEventAction.nothing(),
-        allowWakeLock: true,
-        allowWifiLock: true,
+        // The plugin only reapplies locks on service restart. Glyph controls
+        // them separately so each alert needn't restart the service isolate.
+        allowWakeLock: false,
+        allowWifiLock: false,
         // A restarted service would have no render loop behind it.
         allowAutoRestart: false,
-        stopWithTask: true,
+        // Use AndroidManifest's stopWithTask flag for task removal. Plugin
+        // 11's Dart override also stops on activity pause (Home/screen off).
       ),
     );
   }
@@ -124,8 +244,18 @@ abstract final class BackgroundStreaming {
     if (data != _stopId) return;
     final cb = _onStop;
     running.value = false;
+    _serial(_syncPower);
     _onStop = null;
+    final monitors = _retainers.values.toList();
+    _retainers.clear();
     cb?.call();
+    for (final stopMonitor in monitors) { stopMonitor.stop(); }
+    // Monitoring can keep a regular animation alive without a tool callback.
+    final p = _watched;
+    if (p != null && (p.isPlaying || p.isStreaming)) {
+      p.pause();
+      p.stopStreaming();
+    }
   }
 
   @visibleForTesting
@@ -133,6 +263,11 @@ abstract final class BackgroundStreaming {
     _watched?.removeListener(_check);
     _watched = null;
     _onStop = null;
+    _retainers.clear();
+    _micType = false;
+    _awake = false;
+    _stopPending = false;
+    _work.clear();
     running.value = false;
   }
 }

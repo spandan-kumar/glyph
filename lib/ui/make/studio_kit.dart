@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../app/community.dart';
 
 import '../design/ambient.dart';
 import '../design/knob.dart';
@@ -6,6 +9,8 @@ import '../design/parts.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 import '../screens/home_shell.dart';
+import '../widgets/preview_clock.dart';
+import '../widgets/preview_visibility.dart';
 
 // Shared chrome for the Make studio and the feature screens it opens
 // (editor, text, import, music, games). Lives here rather than in
@@ -35,6 +40,9 @@ final ButtonStyle studioIconStyle = IconButton.styleFrom(shape: studioShape);
 
 /// Square segmented buttons (M3 defaults to a stadium).
 final ButtonStyle studioSegmentStyle = SegmentedButton.styleFrom(shape: studioShape);
+
+/// A full-width primary action: one 52px key per studio (UX: Make).
+final ButtonStyle studioCtaStyle = FilledButton.styleFrom(minimumSize: const Size(0, Lb.cta));
 
 /// Square-cornered popup menus (matches the app theme's menus).
 const studioMenuShape = RoundedRectangleBorder(
@@ -178,13 +186,25 @@ class LivePulse extends StatefulWidget {
   State<LivePulse> createState() => _LivePulseState();
 }
 
-class _LivePulseState extends State<LivePulse> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
-    ..repeat();
+class _LivePulseState extends State<LivePulse> {
+  final _phase = ValueNotifier(0.0);
+  late final _ticker = PreviewTicker((elapsed) {
+    if (!previewIsVisible(context)) return;
+    _phase.value = elapsed.inMicroseconds % 1400000 / 1400000;
+  });
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final still = Lb.reduceMotion(context);
+    _ticker.bind(context, enabled: !still);
+    if (still) _phase.value = 0;
+  }
 
   @override
   void dispose() {
-    _c.dispose();
+    _ticker.dispose();
+    _phase.dispose();
     super.dispose();
   }
 
@@ -194,9 +214,8 @@ class _LivePulseState extends State<LivePulse> with SingleTickerProviderStateMix
     return Row(mainAxisSize: MainAxisSize.min, children: [
       SizedBox.square(
         dimension: 16,
-        child: AnimatedBuilder(
-          animation: _c,
-          builder: (context, _) => CustomPaint(painter: _PulsePainter(_c.value, accent)),
+        child: RepaintBoundary(
+          child: CustomPaint(painter: _PulsePainter(_phase, accent)),
         ),
       ),
       const SizedBox(width: 6),
@@ -211,9 +230,9 @@ class _LivePulseState extends State<LivePulse> with SingleTickerProviderStateMix
 }
 
 class _PulsePainter extends CustomPainter {
-  _PulsePainter(this.t, this.color);
+  _PulsePainter(this.t, this.color) : super(repaint: t);
 
-  final double t;
+  final ValueNotifier<double> t;
   final Color color;
 
   @override
@@ -221,11 +240,11 @@ class _PulsePainter extends CustomPainter {
     final c = size.center(Offset.zero);
     canvas.drawCircle(
         c,
-        3 + 5 * t,
+        3 + 5 * t.value,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.2
-          ..color = color.withValues(alpha: 0.7 * (1 - t)));
+          ..color = color.withValues(alpha: 0.7 * (1 - t.value)));
     canvas.drawCircle(c, 5, Paint()..color = color.withValues(alpha: 0.25));
     canvas.drawCircle(c, 3, Paint()..color = color);
   }
@@ -251,8 +270,9 @@ Future<void> showStudioActions(
   BuildContext context, {
   Widget? header,
   required List<StudioAction> actions,
-}) =>
-    showModalBottomSheet<void>(
+}) {
+  HapticFeedback.selectionClick(); // opening a sheet is a pick
+  return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => SafeArea(
@@ -278,6 +298,7 @@ Future<void> showStudioActions(
         ),
       ),
     );
+}
 
 class _ActionRow extends StatelessWidget {
   const _ActionRow({required this.action, required this.onTap});
@@ -314,6 +335,75 @@ void studioToast(BuildContext context, String msg, {SnackBarAction? action}) =>
       ?..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(msg), action: action));
 
+/// Toasts [msg] (what happened and what to do, in our words) and keeps the
+/// raw [error] for feedback reports instead of showing it.
+void studioFail(BuildContext context, String msg, Object error) {
+  LastError.record('$msg $error');
+  studioToast(context, msg);
+}
+
+/// Toasts that there is no device, with a **Connect** action. One wording
+/// for every Send.
+void studioNoDevice(BuildContext context, {VoidCallback? onConnect}) =>
+    studioToast(context, 'Connect a device to send this to it.',
+        action: SnackBarAction(label: 'Connect', onPressed: onConnect ?? () => goToMatrix(context)));
+
+/// One colour swatch for every studio: a flat [color] or a [gradient] in a
+/// 36px square (inside a 48px hit area), ringed in `text` when [selected].
+/// Without [onTap] it is a plain colour readout.
+class StudioSwatch extends StatelessWidget {
+  const StudioSwatch({
+    super.key,
+    this.color,
+    this.gradient,
+    required this.label,
+    this.selected = false,
+    this.onTap,
+    this.size = 36,
+  }) : assert(color != null || gradient != null);
+
+  final Color? color;
+  final Gradient? gradient;
+
+  /// Spoken name, e.g. "Red" or the palette's name.
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final box = AnimatedContainer(
+      duration: Lb.fast,
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(Lb.rTile),
+        border: Border.all(color: selected ? Lb.text : Lb.line, width: selected ? 2.5 : 1),
+      ),
+    );
+    if (onTap == null) return Semantics(label: label, image: true, child: box);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap!();
+          },
+          child: SizedBox(width: Lb.touch, height: Lb.touch, child: Center(child: box)),
+        ),
+      ),
+    );
+  }
+}
+
 /// Takes the person to the Device tab to connect. Works from a tab (the
 /// shell is an ancestor) and from a screen pushed over the shell (the shell
 /// is a sibling route underneath: switch its tab, then pop back to it).
@@ -341,4 +431,85 @@ void goToMatrix(BuildContext context) {
   }
   HomeShell.go(target, 2);
   nav.popUntil((r) => r.isFirst);
+}
+
+/// The one "Name it" dialog (Draw, Bring a GIF). [fallback] is the default
+/// name: shown as the hint and used when the field is left empty. Resolves
+/// to the trimmed name, or null on Cancel.
+Future<String?> showTitleDialog(BuildContext context, {String? initial, required String fallback}) =>
+    showDialog<String>(
+      context: context,
+      builder: (_) => _TitleDialog(initial: initial, fallback: fallback),
+    );
+
+/// Owns its text field's controller, so the controller outlives the
+/// dialog's closing animation.
+class _TitleDialog extends StatefulWidget {
+  const _TitleDialog({this.initial, required this.fallback});
+
+  final String? initial;
+  final String fallback;
+
+  @override
+  State<_TitleDialog> createState() => _TitleDialogState();
+}
+
+class _TitleDialogState extends State<_TitleDialog> {
+  late final _c = TextEditingController(text: widget.initial ?? '');
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _done() {
+    final t = _c.text.trim();
+    Navigator.pop(context, t.isEmpty ? widget.fallback : t);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text('Name it', style: LbType.title),
+        content: TextField(
+          controller: _c,
+          autofocus: true,
+          maxLength: 40,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(hintText: widget.fallback),
+          onSubmitted: (_) => _done(),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: _done, child: const Text('Save')),
+        ],
+      );
+}
+
+/// A mutually exclusive choice between a few short options (Fill / Fit /
+/// Stretch), as one themed segmented control that clicks on a change. Long
+/// or wrapping sets stay chips.
+class StudioSegments<T> extends StatelessWidget {
+  const StudioSegments({
+    super.key,
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final List<(T, String)> options;
+  final T selected;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) => SegmentedButton<T>(
+        style: SegmentedButton.styleFrom(shape: studioShape, minimumSize: const Size(0, Lb.touch)),
+        showSelectedIcon: false,
+        segments: [for (final (v, label) in options) ButtonSegment(value: v, label: Text(label))],
+        selected: {selected},
+        onSelectionChanged: (v) {
+          HapticFeedback.selectionClick();
+          onChanged(v.first);
+        },
+      );
 }

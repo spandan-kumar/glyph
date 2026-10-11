@@ -1,0 +1,279 @@
+blueprint:
+  name: "Glyph: play a Show when something happens"
+  description: >-
+    Starts one of your Shows (a playlist of Saved looks) on your Glyph device when something happens.
+
+
+    Pick what should start it (a doorbell, sunset, a person arriving, anything
+    Home Assistant can trigger on), choose your Glyph device and type the Show's name
+    exactly as it appears in Glyph. Optionally go back to what was playing
+    afterwards, after a set time or when something else happens.
+
+
+    Needs Home Assistant's built-in WLED integration (it adds your Glyph
+    device on its own) and Home Assistant 2024.10 or newer.
+  domain: automation
+  author: Glyph
+  source_url: https://github.com/spandan-kumar/glyph/blob/main/homeassistant/blueprints/automation/glyph/play_show.yaml
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    trigger:
+      name: When this happens
+      description: >-
+        Add one or more triggers, for example a doorbell button press, sunset,
+        or a person arriving home.
+      selector:
+        trigger: {}
+    light_entity:
+      name: Your Glyph device (light)
+      description: >-
+        The light of your Glyph device. Used to remember how the device looked
+        before, so it can go back.
+      selector:
+        entity:
+          filter:
+            - integration: wled
+              domain: light
+    playlist_entity:
+      name: Your Glyph device (Playlist)
+      description: >-
+        The "Playlist" selector of your device (for example
+        select.matrix_playlist).
+      selector:
+        entity:
+          filter:
+            - integration: wled
+              domain: select
+    preset_entity:
+      name: Your Glyph device (Preset, optional)
+      description: >-
+        Optional. The "Preset" selector of your device (for example
+        select.matrix_preset). Lets Glyph resume whatever was playing before,
+        whether a Saved look or a Show.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - integration: wled
+              domain: select
+    show_name:
+      name: Show name
+      description: >-
+        The name of the Show, exactly as shown in Glyph (use "Use with Home Assistant" on the Device tab to copy it).
+      default: ""
+      selector:
+        text: {}
+    go_back_after:
+      name: Go back after
+      description: >-
+        How long to show it before returning to what the device was doing.
+        Leave at 0 to stay on it.
+      default:
+        hours: 0
+        minutes: 0
+        seconds: 0
+      selector:
+        duration: {}
+    clear_trigger:
+      name: Until this happens (optional)
+      description: >-
+        Show it until one of these triggers fires, for example the washer
+        door opening. Only used when "Go back after" is 0. Leave empty to
+        stay on the look.
+      default: []
+      selector:
+        trigger: {}
+    max_wait:
+      name: Longest wait for that (optional)
+      description: >-
+        If nothing clears it, go back after this long. Only used with "Until
+        this happens".
+      default:
+        hours: 12
+        minutes: 0
+        seconds: 0
+      selector:
+        duration: {}
+    use_quiet_hours:
+      name: Use quiet hours
+      description: >-
+        Do nothing between the start and end times below.
+      default: false
+      selector:
+        boolean: {}
+    quiet_start:
+      name: Quiet hours start
+      default: "22:00:00"
+      selector:
+        time: {}
+    quiet_end:
+      name: Quiet hours end
+      default: "07:00:00"
+      selector:
+        time: {}
+    cooldown:
+      name: Cooldown (optional)
+      description: >-
+        Ignore triggers that come within this time of the last run. 0 means
+        no cooldown.
+      default:
+        hours: 0
+        minutes: 0
+        seconds: 0
+      selector:
+        duration: {}
+    brightness:
+      name: Brightness (optional)
+      description: >-
+        Brightness for this moment, in percent. 0 keeps the device's own
+        brightness.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+
+mode: restart
+max_exceeded: silent
+
+triggers: !input trigger
+
+variables:
+  light_entity: !input light_entity
+  select_entity: !input playlist_entity
+  preset_sel: !input preset_entity
+  playlist_sel: !input playlist_entity
+  look: !input show_name
+  go_back_after: !input go_back_after
+  clear_triggers: !input clear_trigger
+  max_wait: !input max_wait
+  use_quiet_hours: !input use_quiet_hours
+  quiet_start: !input quiet_start
+  quiet_end: !input quiet_end
+  cooldown: !input cooldown
+  brightness: !input brightness
+  go_back_seconds: >-
+    {{ (go_back_after.hours | default(0) | int) * 3600
+       + (go_back_after.minutes | default(0) | int) * 60
+       + (go_back_after.seconds | default(0) | int) }}
+  max_wait_seconds: >-
+    {{ (max_wait.hours | default(0) | int) * 3600
+       + (max_wait.minutes | default(0) | int) * 60
+       + (max_wait.seconds | default(0) | int) }}
+  cooldown_seconds: >-
+    {{ (cooldown.hours | default(0) | int) * 3600
+       + (cooldown.minutes | default(0) | int) * 60
+       + (cooldown.seconds | default(0) | int) }}
+  timed: "{{ go_back_seconds | int > 0 }}"
+  until_cleared: "{{ go_back_seconds | int == 0 and clear_triggers | count > 0 }}"
+  will_go_back: "{{ timed or until_cleared }}"
+  # One pair of snapshots per automation, so several can share a device.
+  light_scene: >-
+    scene.glyph_light_before_{{ this.entity_id.split('.')[1] }}
+  play_scene: >-
+    scene.glyph_play_before_{{ this.entity_id.split('.')[1] }}
+  # What to resume: the playlist select if a Show is running, else the preset.
+  restore_entity: >-
+    {% if playlist_sel != '' and states(playlist_sel) in (state_attr(playlist_sel, 'options') or []) %}
+      {{ playlist_sel }}
+    {% elif preset_sel != '' %}
+      {{ preset_sel }}
+    {% else %}
+      {{ select_entity }}
+    {% endif %}
+
+conditions:
+  - condition: template
+    value_template: "{{ look | trim | length > 0 }}"
+  # Quiet hours, including a window that crosses midnight.
+  - condition: template
+    value_template: >-
+      {% if not use_quiet_hours %}
+        true
+      {% else %}
+        {% set n = now().strftime('%H:%M:%S') %}
+        {% if quiet_start <= quiet_end %}
+          {{ not (quiet_start <= n < quiet_end) }}
+        {% else %}
+          {{ not (n >= quiet_start or n < quiet_end) }}
+        {% endif %}
+      {% endif %}
+  - condition: template
+    value_template: >-
+      {% set last = this.attributes.last_triggered %}
+      {{ cooldown_seconds | int == 0 or last is none
+         or (now() - last).total_seconds() >= cooldown_seconds | int }}
+
+actions:
+  # Remember the device so it can go back: the light in one scene, what was
+  # playing in another. Skipped when staying, and when a restarted run already
+  # holds the snapshot from the original state.
+  - if:
+      - condition: template
+        value_template: >-
+          {{ will_go_back
+             and states.scene | selectattr('entity_id', 'eq', light_scene) | list | count == 0 }}
+    then:
+      - action: scene.create
+        data:
+          scene_id: "{{ light_scene.split('.')[1] }}"
+          snapshot_entities:
+            - "{{ light_entity }}"
+      - action: scene.create
+        data:
+          scene_id: "{{ play_scene.split('.')[1] }}"
+          snapshot_entities:
+            - "{{ restore_entity | trim }}"
+  # Brightness first: setting it clears WLED's current preset, so the look
+  # is selected afterwards and stays selected.
+  - if:
+      - condition: template
+        value_template: "{{ brightness | int > 0 }}"
+    then:
+      - action: light.turn_on
+        target:
+          entity_id: "{{ light_entity }}"
+        data:
+          brightness_pct: "{{ brightness | int }}"
+  - action: select.select_option
+    target:
+      entity_id: "{{ select_entity }}"
+    data:
+      option: "{{ look | trim }}"
+  - if:
+      - condition: template
+        value_template: "{{ will_go_back }}"
+    then:
+      - if:
+          - condition: template
+            value_template: "{{ timed }}"
+        then:
+          - delay:
+              seconds: "{{ go_back_seconds | int }}"
+        else:
+          - wait_for_trigger: !input clear_trigger
+            timeout:
+              seconds: "{{ max_wait_seconds | int }}"
+            continue_on_timeout: true
+      # Only go back if the device still shows our look: if someone chose
+      # something else meanwhile, leave their choice alone.
+      - if:
+          - condition: template
+            value_template: "{{ states(select_entity) == look | trim }}"
+        then:
+          - action: scene.turn_on
+            target:
+              entity_id: "{{ light_scene }}"
+          - action: scene.turn_on
+            target:
+              entity_id: "{{ play_scene }}"
+      - action: scene.delete
+        target:
+          entity_id: "{{ light_scene }}"
+      - action: scene.delete
+        target:
+          entity_id: "{{ play_scene }}"

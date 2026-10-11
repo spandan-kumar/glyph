@@ -3,20 +3,25 @@ import 'package:flutter/material.dart';
 import '../../engine/clip.dart';
 import '../../engine/generator.dart';
 import '../../features/audio/audio_screen.dart';
+import '../../features/glance/glance_screen.dart';
 import '../../features/editor/editor_screen.dart';
 import '../../features/games/catalog.dart';
 import '../../features/games/games_screen.dart';
 import '../../features/import/import_screen.dart';
 import '../../features/now_playing/now_playing_screen.dart';
+import '../../features/notifications/notification_screen.dart';
+import '../../features/notifications/notification_logo.dart';
 import '../../features/text/text_studio_screen.dart';
 import '../design/parts.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 import '../scope.dart';
+import '../community/glyph_menu.dart';
 import 'creation_tile.dart';
 import 'demos.dart';
 import 'led_loop.dart';
 import 'studio_kit.dart';
+import '../design/route.dart';
 
 /// Make: a studio of tools that demo themselves, then everything you've made.
 class MakeScreen extends StatefulWidget {
@@ -28,6 +33,7 @@ class MakeScreen extends StatefulWidget {
 
 class _MakeScreenState extends State<MakeScreen> {
   // Built once so the previews keep running across rebuilds.
+  final _glance = glanceDemo();
   final _draw = ClipGenerator(drawDemoClip, title: 'Draw');
   final _write = writeDemo();
   final _clock = clockDemo();
@@ -36,9 +42,10 @@ class _MakeScreenState extends State<MakeScreen> {
   final _music = musicDemo();
   final _play = playDemo();
   final _nowPlaying = nowPlayingDemo();
+  final _notifications = NotificationLogoGenerator(NotificationLogo.fallback);
 
   void _open(Widget page) =>
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+      Navigator.of(context).push(lbRoute((_) => page));
 
   @override
   Widget build(BuildContext context) {
@@ -56,9 +63,12 @@ class _MakeScreenState extends State<MakeScreen> {
                 padding: const EdgeInsets.fromLTRB(Lb.gutter, 20, Lb.gutter, 20),
                 sliver: SliverToBoxAdapter(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Make', style: LbType.display),
+                    Row(children: [
+                      Expanded(child: Text('Make', style: LbType.display)),
+                      const GlyphMenuKey(),
+                    ]),
                     const SizedBox(height: 8),
-                    Text('Draw it, write it, bring it — it shows up on your device.',
+                    Text('Draw it, write it or bring it in. It shows up on your device.',
                         style: LbType.body.copyWith(color: Lb.text2)),
                   ]),
                 ),
@@ -105,11 +115,23 @@ class _MakeScreenState extends State<MakeScreen> {
                       generator: _music,
                       onTap: () => _open(const AudioScreen()),
                     ),
-                    nowPlaying: _StudioBanner(
+                    nowPlaying: _StudioTile(
                       label: 'Now Playing',
-                      line: 'Album art, live',
+                      line: 'Album art',
                       generator: _nowPlaying,
                       onTap: () => _open(const NowPlayingScreen()),
+                    ),
+                    glance: _StudioTile(
+                      label: 'Glance',
+                      line: 'Live cards',
+                      generator: _glance,
+                      onTap: () => _open(const GlanceScreen()),
+                    ),
+                    notifications: _StudioTile(
+                      label: 'Alerts',
+                      line: 'App logos',
+                      generator: _notifications,
+                      onTap: () => _open(const NotificationScreen()),
                     ),
                     play: _StudioBanner(
                       label: 'Play',
@@ -167,7 +189,7 @@ class _MakeScreenState extends State<MakeScreen> {
   }
 }
 
-/// Eight tools on a three-column grid, read in order:
+/// Ten tools on a three-column grid, read in order:
 ///
 ///     ┌───────────┬─────┐
 ///     │           │Write│
@@ -175,14 +197,17 @@ class _MakeScreenState extends State<MakeScreen> {
 ///     │           │Clock│
 ///     ├─────┬─────┼─────┤
 ///     │Timer│ GIF │Music│
+///     └─────┴─────┴─────┘
+///      LIVE FROM YOUR PHONE
+///     ┌─────┬─────┬─────┐
+///     │ Now │Glanc│Alert│
 ///     ├─────┴─────┴─────┤
-///     │ Now Playing ▸ ░ │   a cover and its song name, wide
-///     ├─────────────────┤
 ///     │ Play ▸ ░░░░░░░░ │   arcade marquee, game running wide
 ///     └─────────────────┘
 ///
 /// Draw is the big one (2×2); the text tools start beside it and spill into
-/// the row below; Now Playing and Play close the studio as full-width strips.
+/// the row below. The tools that need the phone to stay connected sit on
+/// their own labelled row; Play closes the studio as a full-width strip.
 class _StudioGrid extends StatelessWidget {
   const _StudioGrid({
     required this.draw,
@@ -192,10 +217,12 @@ class _StudioGrid extends StatelessWidget {
     required this.gif,
     required this.music,
     required this.nowPlaying,
+    required this.notifications,
+    required this.glance,
     required this.play,
   });
 
-  final Widget draw, write, clock, timer, gif, music, nowPlaying, play;
+  final Widget draw, write, clock, timer, gif, music, nowPlaying, notifications, glance, play;
 
   static const _gap = 10.0;
 
@@ -233,8 +260,13 @@ class _StudioGrid extends StatelessWidget {
               ),
               const SizedBox(height: _gap),
               row([timer, gif, music]),
-              const SizedBox(height: _gap),
-              SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: nowPlaying),
+              // Tools that stay live from the phone get their own shelf, so
+              // nobody expects them to run with the phone away.
+              const Padding(
+                padding: EdgeInsets.fromLTRB(2, 24, 2, 10),
+                child: Align(alignment: Alignment.centerLeft, child: MonoLabel('Live from your phone')),
+              ),
+              row([nowPlaying, glance, notifications]),
               const SizedBox(height: _gap),
               SizedBox(height: cell.clamp(0.0, 116.0), width: double.infinity, child: play),
             ]);
@@ -296,17 +328,18 @@ class _StudioBanner extends StatelessWidget {
         onTap: onTap,
         padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
         child: Row(children: [
-          Column(
+          Expanded(flex: 3, child: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, maxLines: 1, style: LbType.title),
+              FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+                  child: Text(label, maxLines: 1, style: LbType.title)),
               const SizedBox(height: 3),
               _toolLine(line),
             ],
-          ),
+          )),
           const SizedBox(width: 14),
-          Expanded(
+          Expanded(flex: 2,
             child: Align(
               alignment: Alignment.centerRight,
               child: LedLoop(

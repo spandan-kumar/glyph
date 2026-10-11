@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../ui/design/parts.dart';
 import '../../../ui/design/toggle.dart';
@@ -81,13 +82,28 @@ class RoutinesSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Note(text: 'These run on your device, even when your phone is off.', lit: true, color: accent),
-        if (!s.ntpEnabled)
+        if (!s.ntpEnabled) ...[
           const Note(
             color: Lb.phosphor,
             lit: true,
-            text: 'Your device doesn\'t know the time yet. Turn on internet time in Device '
-                'settings → Time & Macros so routines start on time.',
+            text: 'Your device doesn\'t know the time yet.',
           ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton(
+                onPressed: () async {
+                  final ok = await manager.setDeviceTime();
+                  if (!context.mounted || ok) return;
+                  ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
+                      content: Text('Your device couldn\'t set its clock. Check it\'s online.')));
+                },
+                child: const Text('Set the time'),
+              ),
+            ),
+          ),
+        ],
         if (!s.isEditable)
           const Note(
             color: Lb.phosphor,
@@ -99,43 +115,59 @@ class RoutinesSection extends StatelessWidget {
             color: Lb.phosphor,
             lit: true,
             text: 'Sunrise and sunset need your device to know where it is — set its location in '
-                'Device settings → Time & Macros.',
+                'WLED firmware settings → Time & Macros.',
           ),
-        RowGroup(
-          children: [
-            Row1(
-              leading: const Icon(Icons.power_sharp, color: Lb.text2, size: 20),
-              title: 'When it powers on → ${_powerOn(manager)}',
-              trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
-              onTap: () => _pickBoot(context, s),
-            ),
-            for (final (i, t) in s.timers.indexed)
-              Row1(
-                leading: Icon(
-                  _icon(t.trigger),
-                  size: 20,
-                  color: t.enabled ? accent : Lb.text3,
+        if (!manager.bootIntro.installed || manager.powerOnLook != 0 || s.timers.isNotEmpty)
+          RowGroup(
+            children: [
+              if (!manager.bootIntro.installed || manager.powerOnLook != 0)
+                Row1(
+                  leading: const Icon(Icons.power_sharp, color: Lb.text2, size: 20),
+                  title: 'When it powers on → ${_powerOn(manager)}',
+                  trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
+                  onTap: () => _pickBoot(context, s),
                 ),
-                title: describeRoutine(t, keptName(manager, t.presetId)),
-                onTap: s.isEditable ? () => _edit(context, s, i) : null,
-                trailing: LbToggle(
-                  value: t.enabled,
-                  onChanged: s.isEditable
-                      ? (v) => guarded(context, () {
-                          final list = [...s.timers]..[i] = t.copyWith(enabled: v);
-                          return manager.saveTimers(list);
-                        })
-                      : null,
+              for (final (i, t) in s.timers.indexed)
+                Row1(
+                  leading: Icon(
+                    _icon(t.trigger),
+                    size: 20,
+                    color: t.enabled ? accent : Lb.text3,
+                  ),
+                  title: describeRoutine(t, keptName(manager, t.presetId)),
+                  onTap: s.isEditable ? () => _edit(context, s, i) : null,
+                  trailing: LbToggle(
+                    value: t.enabled,
+                    onChanged: s.isEditable
+                        ? (v) => guarded(context, () {
+                            final list = [...s.timers]..[i] = t.copyWith(enabled: v);
+                            return manager.saveTimers(list);
+                          })
+                        : null,
+                  ),
                 ),
-              ),
-          ],
-        ),
+            ],
+          ),
         if (s.timers.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 10),
             child: Text(
-              'For example: “Every day at sunset → something calm”.',
+              'No routines yet. For example: “Every day at sunset → something calm”.',
               style: LbType.small,
+            ),
+          ),
+        if (manager.bootIntro.installed && manager.powerOnLook == 0 && pickable(manager).isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: RowGroup(
+              children: [
+                Row1(
+                  leading: const Icon(Icons.power_sharp, color: Lb.text2, size: 20),
+                  title: 'Choose a power-on look',
+                  trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
+                  onTap: () => _pickBoot(context, s),
+                ),
+              ],
             ),
           ),
         if (canAdd)
@@ -151,12 +183,8 @@ class RoutinesSection extends StatelessWidget {
     );
   }
 
-  /// "Glyph intro, then Sunrise", "its usual light", "Sunrise".
-  static String _powerOn(DeviceManager m) {
-    final look = m.powerOnLook;
-    if (m.bootIntro.installed) return look == 0 ? 'Glyph intro' : 'Glyph intro, then ${keptName(m, look)}';
-    return look == 0 ? 'its usual light' : keptName(m, look);
-  }
+  static String _powerOn(DeviceManager m) =>
+      m.powerOnLook == 0 ? 'its usual light' : keptName(m, m.powerOnLook);
 
   static IconData _icon(TimerTrigger t) => switch (t) {
     TimerTrigger.sunrise => Icons.wb_sunny_sharp,
@@ -175,7 +203,7 @@ class RoutinesSection extends StatelessWidget {
         title: 'When it powers on',
         selected: id,
         allowNone: true,
-        noneLabel: manager.bootIntro.installed ? 'Just the Glyph logo' : 'Its usual light',
+        noneLabel: manager.bootIntro.installed ? 'No saved look' : 'Its usual light',
       ),
     );
     if (choice == null || choice == id || !context.mounted) return;
@@ -207,7 +235,7 @@ class RoutinesSection extends StatelessWidget {
     await guarded(
       context,
       () => manager.saveTimers(list),
-      done: result.delete ? 'Routine removed' : 'Routine saved to your device',
+      done: result.delete ? 'Routine removed' : 'Routine sent to your device',
     );
   }
 }
@@ -343,7 +371,10 @@ class _RoutineEditorState extends State<RoutineEditor> {
                 ChoiceChip(
                   label: Text(label),
                   selected: _t.trigger == tr,
-                  onSelected: (_) => _setTrigger(tr),
+                  onSelected: (_) {
+                    HapticFeedback.selectionClick();
+                    _setTrigger(tr);
+                  },
                 ),
             ],
           ),
@@ -353,7 +384,7 @@ class _RoutineEditorState extends State<RoutineEditor> {
             const Note(
               color: Lb.phosphor,
               lit: true,
-              text: 'Your device needs its location for this (Device settings → Time & Macros).',
+              text: 'Your device needs its location for this (WLED firmware settings → Time & Macros).',
             ),
           const SizedBox(height: 16),
           const MonoLabel('Days'),
@@ -368,9 +399,16 @@ class _RoutineEditorState extends State<RoutineEditor> {
                   label: Text(_dayLetters[d - 1]),
                   tooltip: _dayNames[d - 1],
                   selected: _t.runsOn(d),
-                  onSelected: (on) => _set(
-                    _t.copyWith(weekdays: on ? _t.weekdays | (1 << (d - 1)) : _t.weekdays & ~(1 << (d - 1))),
-                  ),
+                  onSelected: (on) {
+                    HapticFeedback.selectionClick();
+                    _set(
+                      _t.copyWith(
+                        weekdays: on
+                            ? _t.weekdays | (1 << (d - 1))
+                            : _t.weekdays & ~(1 << (d - 1)),
+                      ),
+                    );
+                  },
                 ),
             ],
           ),
@@ -425,7 +463,7 @@ class _RoutineEditorState extends State<RoutineEditor> {
           if (err != null)
             Padding(
               padding: const EdgeInsets.only(top: 10),
-              child: Text(err, style: LbType.small.copyWith(color: Lb.phosphor)),
+              child: Text(err, style: LbType.small.copyWith(color: Lb.danger)),
             ),
           const SizedBox(height: 16),
           Row(
@@ -440,8 +478,13 @@ class _RoutineEditorState extends State<RoutineEditor> {
               ],
               Expanded(
                 child: FilledButton(
-                  onPressed: err == null ? () => Navigator.pop(context, RoutineEdit.save(_t)) : null,
-                  child: const Text('Save to device'),
+                  onPressed: err == null
+                      ? () {
+                          HapticFeedback.lightImpact();
+                          Navigator.pop(context, RoutineEdit.save(_t));
+                        }
+                      : null,
+                  child: const Text('Send to device'),
                 ),
               ),
             ],

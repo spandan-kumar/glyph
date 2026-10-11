@@ -101,10 +101,11 @@ class DdpGroupSender {
     }
   }
 
-  void send(Frame f) {
+  void send(Frame f, {Frame? overrideFrame, String? overrideHost}) {
     for (final MapEntry(key: t, value: s) in _senders.entries) {
-      final w = t.width ?? f.width, h = t.height ?? f.height;
-      final out = w == f.width && h == f.height ? f : (_scalers[t] ??= _Scaler()).scale(f, w, h);
+      final source = t.host == overrideHost && overrideFrame != null ? overrideFrame : f;
+      final w = t.width ?? source.width, h = t.height ?? source.height;
+      final out = w == source.width && h == source.height ? source : (_scalers[t] ??= _Scaler()).scale(source, w, h);
       final bytes = t.layout.apply(out);
       final c = _corrections[t];
       s.send(c == null ? bytes : c.apply(bytes));

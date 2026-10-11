@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/devices.dart';
 import '../../../ui/design/parts.dart';
+import '../../../ui/design/route.dart';
 import '../../../ui/design/tokens.dart';
 import '../../../ui/design/type.dart';
 import '../device_manager.dart';
@@ -41,9 +42,9 @@ class StorageSection extends StatelessWidget {
     final f = used / total;
     final unused = _unusedGifBytes(manager);
     return LbPanel(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => StoragePage(manager: manager, store: store)),
-      ),
+      onTap: () => Navigator.of(
+        context,
+      ).push(lbRoute<void>((_) => StoragePage(manager: manager, store: store))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -58,7 +59,7 @@ class StorageSection extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             f > 0.85
-                ? 'Almost full — delete something to make room for more.'
+                ? 'Your device is full. Make room in Device → Storage.'
                 : unused > 0
                 ? '${formatBytes(unused)} is used by old files that nothing plays anymore. Tap to free it up.'
                 : 'Room for ${total - used} KB more.',
@@ -85,7 +86,7 @@ String describeFile(String path) {
   if (name.endsWith('.gif')) return 'An animation';
   if (name == 'cfg.json') return 'Your device\'s settings';
   if (name == 'bkp.cfg.json') return 'A backup copy of its settings';
-  if (name == 'presets.json') return 'The list of everything saved on it — animations, shows, looks';
+  if (name == 'presets.json') return 'The list of everything saved on it';
   if (name == 'wsec.json') return 'Its Wi-Fi password and security settings';
   if (name == 'version-info.json') return 'Which WLED version it runs';
   if (RegExp(r'^ledmap\d*\.json$').hasMatch(name)) return 'How its lights are wired';
@@ -122,7 +123,7 @@ class StoragePage extends StatelessWidget {
         final used = info?.fsUsedKb, total = info?.fsTotalKb;
         final unused = _unusedGifs(manager);
         final unusedBytes = unused.fold<int>(0, (s, e) => s + e.value);
-        return RefreshIndicator(
+        return LedRefresh(
           onRefresh: () async {
             await store.refresh();
             await manager.load();
@@ -173,30 +174,69 @@ class StoragePage extends StatelessWidget {
   Widget _row(BuildContext context, String path, int size, {bool gif = false}) {
     final users = manager.presetsUsingFile(path);
     final locked = isProtectedFile(path);
+    final title = _friendlyTitle(
+      path,
+      users.map((p) => p.name).toList(),
+      gif: gif,
+    );
     final what = gif
         ? users.isEmpty
-              ? 'An old animation nothing plays anymore'
-              : 'Animation for ${users.map((p) => p.name).join(', ')}'
-        : describeFile(path);
+              ? 'Nothing plays it anymore'
+              : 'An animation'
+        : null;
     return Row1(
       key: ValueKey(path),
       leading: gif
-          ? SizedBox.square(dimension: 40, child: LedBezel(child: GifThumb(manager: manager, name: path)))
-          : Icon(locked ? Icons.lock_outline_sharp : Icons.insert_drive_file_sharp, color: Lb.text3),
-      title: path.substring(1),
-      subtitle: [what, if (locked) 'Your device needs this', formatBytes(size)].join(' · '),
+          ? SizedBox.square(
+              dimension: 40,
+              child: LedBezel(
+                child: GifThumb(manager: manager, name: path),
+              ),
+            )
+          : Icon(
+              locked ? Icons.lock_outline_sharp : Icons.insert_drive_file_sharp,
+              color: Lb.text3,
+            ),
+      title: title,
+      subtitle: [
+        ?what,
+        if (locked) 'Your device needs this',
+        formatBytes(size),
+      ].join(' · '),
+      detail: path.substring(1),
       trailing: locked
           ? null
           : IconButton(
               tooltip: 'Delete',
               icon: const Icon(Icons.delete_outline_sharp, color: Lb.text2),
-              onPressed: () => _delete(context, path, size, users.map((p) => p.name).toList()),
+              onPressed: () => _delete(
+                context,
+                path,
+                title,
+                size,
+                users.map((p) => p.name).toList(),
+              ),
             ),
     );
   }
 
-  Future<void> _delete(BuildContext context, String path, int size, List<String> users) async {
-    final name = path.substring(1);
+  /// What to call a file: the animation it belongs to, else what it is.
+  static String _friendlyTitle(
+    String path,
+    List<String> users, {
+    required bool gif,
+  }) {
+    if (!gif) return describeFile(path);
+    return users.isEmpty ? 'Old animation' : users.join(', ');
+  }
+
+  Future<void> _delete(
+    BuildContext context,
+    String path,
+    String name,
+    int size,
+    List<String> users,
+  ) async {
     final ok = await confirm(
       context,
       title: 'Delete $name?',

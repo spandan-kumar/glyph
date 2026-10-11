@@ -114,6 +114,11 @@ class LibraryItem {
 
   bool get isPixelArt => generatorId.startsWith('sprite:');
 
+  /// True when a takedown list names this item or its generator.
+  bool revokedBy(Set<String> revoked) =>
+      revoked.isNotEmpty &&
+      (revoked.contains(id) || revoked.contains(generatorId));
+
   /// How well [token] matches, 0 for no match. Title hits beat tag hits beat
   /// category hits beat generator/palette hits.
   int _score(String token) {
@@ -208,14 +213,31 @@ class Catalog {
     return null;
   }
 
-  /// Overlays [other] (e.g. a server catalog) on this one; items with the same
-  /// id are replaced, new ones appended.
-  Catalog merge(Catalog other) {
-    final merged = {for (final i in items) i.id: i, for (final i in other.items) i.id: i};
+  /// Overlays [other] (the downloaded catalog) on this bundled one.
+  ///
+  /// Bundled items always win: a download may add items but never changes an
+  /// existing item's metadata. The only way to remove or replace bundled
+  /// content is [revoked] (item ids or generator ids), which hides matching
+  /// items from both sides, e.g. art withdrawn after release.
+  Catalog merge(Catalog other, {Set<String> revoked = const {}}) {
+    final merged = <String, LibraryItem>{};
+    for (final i in items) {
+      if (!i.revokedBy(revoked)) merged[i.id] = i;
+    }
+    for (final i in other.items) {
+      if (!i.revokedBy(revoked)) merged.putIfAbsent(i.id, () => i);
+    }
+    final live = {for (final i in merged.values) i.category};
     return Catalog(
       version: other.version > version ? other.version : version,
       items: merged.values.toList(),
-      categories: [...categories, ...other.categories.where((c) => !categories.contains(c))],
+      categories: [
+        for (final c in [
+          ...categories,
+          ...other.categories.where((c) => !categories.contains(c)),
+        ])
+          if (revoked.isEmpty || live.contains(c)) c,
+      ],
     );
   }
 

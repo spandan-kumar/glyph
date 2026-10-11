@@ -5,11 +5,13 @@ import '../../ui/scope.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
 import '../../ui/make/studio_kit.dart';
+import '../../ui/make/tool_session.dart';
 import 'catalog.dart';
 import 'core/game.dart';
 import 'game_page.dart';
 import 'high_scores.dart';
 import 'widgets/attract_preview.dart';
+import '../../ui/design/route.dart';
 
 /// Size previews to the connected matrix (16×16 without one), shrunk to the
 /// same logical grid the game would use on big panels.
@@ -27,7 +29,7 @@ class GamesScreen extends StatefulWidget {
   State<GamesScreen> createState() => _GamesScreenState();
 }
 
-class _GamesScreenState extends State<GamesScreen> {
+class _GamesScreenState extends State<GamesScreen> with ToolSession<GamesScreen> {
   final _best = <String, int>{};
 
   @override
@@ -45,7 +47,7 @@ class _GamesScreenState extends State<GamesScreen> {
   }
 
   Future<void> _open(GameDef def) async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => GamePage(def: def)));
+    await Navigator.of(context).push(lbRoute((_) => GamePage(def: def)));
     _load();
   }
 
@@ -124,7 +126,7 @@ class _GameCard extends StatelessWidget {
                         maxLines: 1, overflow: TextOverflow.ellipsis, style: LbType.heading),
                   ),
                   if (best > 0)
-                    Text('$best', style: LbType.mono.copyWith(color: readAccent(context))),
+                    Text('$best', style: LbType.mono.copyWith(color: Lb.text)),
                 ]),
                 const SizedBox(height: 2),
                 Text(def.blurb, maxLines: 1, overflow: TextOverflow.ellipsis, style: LbType.small),

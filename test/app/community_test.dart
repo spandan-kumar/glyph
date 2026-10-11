@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/community.dart';
 import 'package:glyph/app/devices.dart';
@@ -63,11 +64,36 @@ void main() {
   test('other links: idea, animation, display, show-and-tell, roadmap', () {
     final idea = Community.idea(connected).queryParameters;
     expect(idea, {'template': 'feedback.yml', 'labels': 'feedback,community', 'app_version': '1.3.0 (5)'});
+    expect(Community.animationRequest(connected, idea: 'dancing peacock').queryParameters['idea'], 'dancing peacock');
     final anim = Community.animationRequest(connected).queryParameters;
     expect(anim, {'template': 'animation_request.yml', 'labels': 'animation-request,community', 'panel': '16×16'});
     expect(Community.displayRequest().queryParameters, {'template': 'display_request.yml'});
-    expect('${Community.showAndTell}', 'https://github.com/spandan-kumar/glyph/discussions/categories/show-and-tell');
-    expect('${Community.roadmap}', 'https://github.com/spandan-kumar/glyph/blob/main/docs/ROADMAP.md');
+    expect('${Community.showAndTell}', 'https://discord.gg/9EeCFZAFvk');
+    expect('${Community.roadmap}', 'https://github.com/users/spandan-kumar/projects/4');
+  });
+
+  test('sharing invite survives restarts and waits for ten sends and a week', () async {
+    SharedPreferences.setMockInitialValues({});
+    final start = DateTime.utc(2026, 10, 7);
+    expect(await Community.inviteAfterSend(now: start), isTrue);
+    for (var i = 0; i < 10; i++) {
+      expect(await Community.inviteAfterSend(now: start.add(const Duration(days: 1))), isFalse);
+    }
+    Community.resetForTest();
+    expect(await Community.inviteAfterSend(now: start.add(const Duration(days: 7))), isTrue);
+    for (var i = 0; i < 9; i++) {
+      expect(await Community.inviteAfterSend(now: start.add(const Duration(days: 14))), isFalse);
+    }
+    expect(await Community.inviteAfterSend(now: start.add(const Duration(days: 14))), isTrue);
+  });
+
+  test('an invite that is not going to be shown is kept for the next Send', () async {
+    SharedPreferences.setMockInitialValues({});
+    final start = DateTime.utc(2026, 10, 7);
+    expect(await Community.inviteAfterSend(now: start, stillShowing: () => false), isFalse);
+    // Still the first invite: nothing was spent.
+    expect(await Community.inviteAfterSend(now: start), isTrue);
+    expect(await Community.inviteAfterSend(now: start), isFalse);
   });
 
   test('a huge last error is cut so the URL stays under the limit', () {
@@ -136,5 +162,19 @@ void main() {
     expect(d.text, contains('WLED ${info.version}'));
     expect(d.text, contains('Last error: Couldn'));
     devices.dispose();
+  });
+
+  test('environment reads the iOS phone map', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('glyph/platform');
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      channel,
+      (_) async => {'model': 'iPhone16,2', 'ios': '18.1', 'tz': 'Asia/Kolkata'},
+    );
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    final e = await Community.readEnvForTest();
+    expect(e.phone, 'iPhone16,2');
+    expect(e.os, 'iOS 18.1');
   });
 }

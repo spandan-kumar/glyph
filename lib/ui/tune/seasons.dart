@@ -19,7 +19,7 @@ Season seasonFor(DateTime now) {
 
   if (from(12, 26, 1, 7)) return const Season('New Year Countdown', ['new year', 'nye', 'fireworks', 'celebrate']);
   if (from(1, 8, 1, 31)) return const Season('Winter Cozy', ['winter', 'snow', 'cozy', 'cold']);
-  if (from(2, 1, 2, 15)) return const Season("Valentine's Day", ['valentine', 'love', 'heart', 'romantic']);
+  if (from(2, 1, 2, 15)) return const Season("Valentine’s Day", ['valentine', 'love', 'heart', 'romantic']);
   if (from(2, 16, 3, 31)) return const Season('Spring Festivals', ['holi', 'eid', 'ramadan', 'spring', 'st patricks']);
   if (from(4, 1, 4, 30)) return const Season('Easter & Spring', ['easter', 'spring', 'bunny', 'flower']);
   if (from(5, 1, 5, 31)) return const Season('In Bloom', ['flower', 'garden', 'spring', 'butterfly']);

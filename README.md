@@ -6,8 +6,9 @@
 
 <p align="center">
   <b>Your matrix, alive.</b><br>
-  A fast, beautiful app for WLED LED matrices — 1,163 animations, a pixel
-  editor, text and clocks, GIF import, a music visualiser and games.
+  A fast, beautiful app for WLED LED matrices: guided setup, 1,209
+  animations, a pixel editor, text and clocks, GIF import, a music visualiser
+  and games. Free, open source, no account.
 </p>
 
 <p align="center">
@@ -15,6 +16,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <a href="https://github.com/spandan-kumar/glyph/actions/workflows/ci.yml"><img src="https://github.com/spandan-kumar/glyph/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph"><img src="https://img.shields.io/badge/Obtainium-get%20updates-5b3fd1" alt="Get it on Obtainium"></a>
+  <a href="https://discord.gg/9EeCFZAFvk"><img src="https://img.shields.io/badge/Discord-join-5865F2" alt="Discord"></a>
 </p>
 
 <p align="center">
@@ -40,8 +42,29 @@ phone. It works with any WLED controller, however little memory it has.
 | <img src="docs/media/display.png" width="240"> | <img src="docs/media/rails.png" width="240"> | <img src="docs/media/tweak.png" width="240"> |
 | **Make** | **Draw** | **Device** |
 | <img src="docs/media/make.png" width="240"> | <img src="docs/media/draw.png" width="240"> | <img src="docs/media/device.png" width="240"> |
+| **Set up** | **Glance** | **Home Assistant** |
+| <img src="docs/media/setup.png" width="240"> | <img src="docs/media/glance.png" width="240"> | <img src="docs/media/home-assistant.png" width="240"> |
 
 ## Features
+
+**Set up** (Device → **Set up display**) — get a new display working without
+touching WLED's settings pages. The wizard:
+
+- joins a new WLED device to your home Wi-Fi (assisted connect on Android,
+  guided Wi-Fi settings otherwise) and reads what it is;
+- offers size presets, then a **three-tap light test** that finds the wiring
+  (start corner, run direction, zig-zag);
+- handles **grids of panels**: panel order, upside-down panels, plus power
+  and frame-rate tips;
+- writes the layout into WLED's own config, so saved GIFs, WLED effects and
+  live streams all come out the right way up;
+- finishes with a visual check, and **undo** puts the old settings back.
+
+WLED must already be installed on the controller
+([install.wled.me](https://install.wled.me)). Complex setups, such as several
+outputs or custom LED maps, keep their existing configuration. Devices also
+set their own clock (internet time with your phone's time zone, and your
+phone's clock straight away), so Routines run on time.
 
 **Display** — your matrix lives at the top of the screen as a glowing live
 panel. Swipe it to flip through animations like TV channels, roll the dice
@@ -49,8 +72,8 @@ for a surprise, and tap **Send** to put an animation on the device. Tweak
 colours and motion with a palette reel and rotary knobs; the whole app glows
 with whatever is on your matrix.
 
-- **1,163 animations** in 22 categories: 62 procedural effects (plasma, fire,
-  aurora, reaction–diffusion, falling sand…), 313 original pixel-art sprites,
+- **1,209 animations** in 22 categories: 62 procedural effects (plasma, fire,
+  aurora, reaction–diffusion, falling sand…), 329 original pixel-art sprites,
   and **Famous Classics** — public-domain characters and paintings such as the
   1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night.
 - Seamless loops on the device, accurate colours (device gamma, true blacks,
@@ -73,6 +96,12 @@ with whatever is on your matrix.
 **Device**
 - Power, brightness and night light; **Saved** animations, **Shows**
   (playlists) and **Routines** (schedules) that run without your phone.
+- **Home Assistant**: blueprints show a Saved look or Show when something
+  happens, timed or until cleared, with quiet hours, and go back afterwards;
+  open **Use with Home Assistant** in the app, or see
+  [docs/HOME_ASSISTANT.md](docs/HOME_ASSISTANT.md).
+- **Glance** cards for weather, forecast, air quality and day counters (Open-Meteo,
+  CAMS); see [docs/GLANCE.md](docs/GLANCE.md).
 - The **Glyph intro** plays every time your device powers on.
 - Storage alerts, multiple devices, a home-screen widget, and the full WLED
   settings inside the app.
@@ -89,7 +118,8 @@ Each release lists the APK's SHA-256 next to it.
 
 - A WLED controller driving an LED matrix (developed on WLED 16.0.1, ESP32,
   16×16 WS2812B)
-- The matrix set up in WLED under **Settings → 2D Configuration**
+- WLED installed on the controller ([install.wled.me](https://install.wled.me));
+  Glyph's setup wizard configures the matrix layout for you
 - Your phone on the same Wi-Fi
 
 | Controller | Live streaming | Send to device |
@@ -101,8 +131,8 @@ Each release lists the APK's SHA-256 next to it.
 Glyph checks each controller when it connects and only offers what works.
 
 **Works with** any WLED 2D matrix: WS2812B/SK6812 panels and HUB75 panels
-(via WLED's ESP32_HUB75 builds), at whatever size you set in WLED's
-**2D Configuration** — 8×8, 16×16, 32×8, 32×32, 64×32 and beyond. ESP8266
+(via WLED's ESP32_HUB75 builds), at whatever size you set up in Glyph
+or in WLED's **2D Configuration** — 8×8, 16×16, 32×8, 32×32, 64×32 and beyond. ESP8266
 controllers stream live but can't hold sent animations.
 
 ## How it works
@@ -122,6 +152,13 @@ controllers stream live but can't hold sent animations.
 - The library is data: an effect id plus parameters and a palette, or a
   sprite, so new items can ship as a catalog file.
 
+## Privacy and security
+
+No account, no cloud, no ads, no tracking: Glyph talks to the devices on your
+Wi-Fi, and drawings and audio stay on your phone. Details, including the few
+optional internet lookups, are in [docs/PRIVACY.md](docs/PRIVACY.md).
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
 ## Build from source
 
 Requires Flutter 3.47+ (Dart 3.13) and the Android SDK.
@@ -140,16 +177,20 @@ an animation or send a pull request. Glyph is released under the
 
 ## Community
 
+- **Chat** — the [Glyph Discord](https://discord.gg/9EeCFZAFvk): help, ideas, beta builds
 - **Questions and help** — [Discussions](https://github.com/spandan-kumar/glyph/discussions)
 - **Show your setup** — photos and clips of your matrix in
-  [Show and tell](https://github.com/spandan-kumar/glyph/discussions/categories/show-and-tell)
+  [Discord’s #show-your-setup](https://discord.gg/9EeCFZAFvk)
 - **Bugs, animation and display requests** — use **Send feedback** in the
   app, or the [issue forms](https://github.com/spandan-kumar/glyph/issues/new/choose);
   👍 the requests you want most
-- **What's next** — the [roadmap](docs/ROADMAP.md)
+- **What's next** — the [roadmap board](https://github.com/users/spandan-kumar/projects/4) (plan: [docs/ROADMAP.md](docs/ROADMAP.md))
 - **Contribute** — draw a sprite in a few minutes, see
   [CONTRIBUTING.md](CONTRIBUTING.md); everyone follows the
   [Code of Conduct](CODE_OF_CONDUCT.md)
+- **Let your AI agent draw one** — the
+  [glyph-animation skill](skills/README.md) helps Claude Code, Codex, Cursor
+  and other agents draw a sprite and open the pull request
 
 ## Content and credits
 

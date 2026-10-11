@@ -1,0 +1,26 @@
+{
+  "name": "glyph",
+  "description": "Agent skills for Glyph, the WLED LED-matrix app",
+  "owner": {
+    "name": "Spandan Kumar",
+    "url": "https://github.com/spandan-kumar"
+  },
+  "plugins": [
+    {
+      "name": "glyph-animation",
+      "source": "./",
+      "description": "Draw a new pixel-art animation for Glyph, validate and preview it, and open a pull request",
+      "version": "1.0.0",
+      "author": {
+        "name": "Spandan Kumar"
+      },
+      "homepage": "https://github.com/spandan-kumar/glyph",
+      "repository": "https://github.com/spandan-kumar/glyph",
+      "license": "MIT",
+      "keywords": ["glyph", "wled", "pixel-art", "led-matrix", "sprite", "animation"],
+      "category": "design",
+      "strict": false,
+      "skills": ["./skills/glyph-animation"]
+    }
+  ]
+}

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 
 import '../../ui/design/parts.dart';
 import '../../ui/design/tokens.dart';
@@ -32,7 +34,10 @@ class EditorToolBar extends StatelessWidget {
               child: _ToggleIcon(
                 tooltip: label,
                 selected: model.tool == t,
-                onTap: () => model.tool = t,
+                onTap: () {
+                  if (model.tool != t) HapticFeedback.selectionClick();
+                  model.tool = t;
+                },
                 child: icon == null ? const _EraserIcon() : Icon(icon, size: 22),
               ),
             ),
@@ -61,7 +66,7 @@ class _ToggleIcon extends StatelessWidget {
             onTap: onTap,
             child: AnimatedContainer(
               duration: Lb.fast,
-              height: 44,
+              height: Lb.touch,
               margin: const EdgeInsets.symmetric(horizontal: 2),
               decoration: BoxDecoration(
                 color: selected ? Lb.raised : null,
@@ -129,8 +134,9 @@ class ColorStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = model.color;
     final erasing = model.tool == EditorTool.eraser;
-    Widget swatch(int c) => _Swatch(
-          color: c,
+    Widget swatch(int c) => StudioSwatch(
+          color: Color(0xFF000000 | c),
+          label: _hex(c),
           selected: !erasing && c == current,
           onTap: () => model.color = c,
         );
@@ -142,11 +148,15 @@ class ColorStrip extends StatelessWidget {
         children: [
           Tooltip(
             message: 'Colour picker',
-            child: GestureDetector(
+            child: Semantics(
+              button: true,
+              label: 'Colour picker',
+              value: _hex(current),
+              child: GestureDetector(
               onTap: onOpenPicker,
               child: Container(
                 width: 52,
-                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   color: Color(0xFF000000 | current),
                   borderRadius: BorderRadius.circular(Lb.rControl),
@@ -154,8 +164,9 @@ class ColorStrip extends StatelessWidget {
                 ),
                 child: Icon(Icons.palette_sharp,
                     size: 20,
-                    color: _luma(current) > 140 ? Colors.black87 : Colors.white),
+                    color: _luma(current) > 140 ? Lb.ink : Lb.text),
               ),
+            ),
             ),
           ),
           for (final c in model.recent) swatch(c),
@@ -168,34 +179,10 @@ class ColorStrip extends StatelessWidget {
     );
   }
 
+  static String _hex(int c) => '#${c.toRadixString(16).padLeft(6, '0').toUpperCase()}';
+
   static int _luma(int c) =>
       (((c >> 16) & 0xFF) * 299 + ((c >> 8) & 0xFF) * 587 + (c & 0xFF) * 114) ~/ 1000;
-}
-
-class _Swatch extends StatelessWidget {
-  const _Swatch({required this.color, required this.selected, required this.onTap});
-
-  final int color;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: Lb.fast,
-          width: 30,
-          margin: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
-          decoration: BoxDecoration(
-            color: Color(0xFF000000 | color),
-            borderRadius: BorderRadius.circular(Lb.rTile),
-            border: Border.all(
-              color: selected ? Lb.text : Lb.line,
-              width: selected ? 2.5 : 1,
-            ),
-          ),
-        ),
-      );
 }
 
 /// Frame strip with playback, FPS, onion skin and frame operations.
@@ -252,7 +239,7 @@ class _FrameTimelineState extends State<FrameTimeline> {
       StudioAction(Icons.content_copy_sharp, 'Duplicate frame', m.duplicateFrame),
       StudioAction(Icons.add_box_sharp, 'Insert blank frame after', m.addFrame),
       StudioAction(Icons.layers_clear_sharp, 'Clear frame', m.clearFrame),
-      StudioAction(Icons.delete_sharp, m.frameCount > 1 ? 'Delete frame' : 'Delete frame (clears it)',
+      StudioAction(Icons.delete_outline_sharp, m.frameCount > 1 ? 'Delete frame' : 'Delete frame (clears it)',
           m.deleteFrame,
           danger: true),
     ]);
@@ -261,7 +248,6 @@ class _FrameTimelineState extends State<FrameTimeline> {
   @override
   Widget build(BuildContext context) {
     final m = widget.model;
-    final accent = readAccent(context);
     return Container(
       decoration: const BoxDecoration(
         color: Lb.panel,
@@ -276,21 +262,28 @@ class _FrameTimelineState extends State<FrameTimeline> {
             tooltip: 'Onion skin',
             style: studioIconStyle,
             isSelected: m.onion,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => m.onion = !m.onion,
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              m.onion = !m.onion;
+            },
             icon: const Icon(Icons.layers_sharp, color: Lb.text3),
-            selectedIcon: Icon(Icons.layers_sharp, color: readAccent(context)),
+            selectedIcon: const Icon(Icons.layers_sharp, color: Lb.text),
           ),
           TextButton(
-            onPressed: widget.onFps,
-            style: TextButton.styleFrom(visualDensity: VisualDensity.compact, shape: studioShape),
+            onPressed: () {
+              HapticFeedback.selectionClick(); // opens the Speed sheet
+              widget.onFps();
+            },
+            style: TextButton.styleFrom(minimumSize: const Size(Lb.touch, Lb.touch), shape: studioShape),
             child: Text('${m.fps} fps', style: LbType.mono.copyWith(color: Lb.text)),
           ),
           IconButton.filled(
             tooltip: widget.playing ? 'Pause' : 'Play',
-            visualDensity: VisualDensity.compact,
             style: IconButton.styleFrom(backgroundColor: Lb.text, foregroundColor: Lb.ink, shape: studioShape),
-            onPressed: widget.onPlay,
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              widget.onPlay();
+            },
             icon: Icon(widget.playing ? Icons.pause_sharp : Icons.play_arrow_sharp),
           ),
         ]),
@@ -311,10 +304,26 @@ class _FrameTimelineState extends State<FrameTimeline> {
                   return ReorderableDelayedDragStartListener(
                     key: ObjectKey(f),
                     index: i,
-                    child: GestureDetector(
-                      onTap: () => i == m.index && !widget.playing
-                          ? _frameMenu(context)
-                          : widget.onSelect(i),
+                    child: Semantics(
+                      button: true,
+                      selected: selected,
+                      label: 'Frame ${i + 1} of ${m.frameCount}',
+                      hint: selected ? 'Opens the frame menu' : 'Selects this frame',
+                      customSemanticsActions: {
+                        if (i > 0)
+                          const CustomSemanticsAction(label: 'Move earlier'): () => m.moveFrame(i, i - 1),
+                        if (i < m.frameCount - 1)
+                          const CustomSemanticsAction(label: 'Move later'): () => m.moveFrame(i, i + 1),
+                      },
+                      child: GestureDetector(
+                      onTap: () {
+                        if (i == m.index && !widget.playing) {
+                          _frameMenu(context);
+                        } else {
+                          HapticFeedback.selectionClick();
+                          widget.onSelect(i);
+                        }
+                      },
                       child: Container(
                         width: _thumb,
                         margin: const EdgeInsets.only(right: 6, top: 2, bottom: 2),
@@ -323,12 +332,13 @@ class _FrameTimelineState extends State<FrameTimeline> {
                           color: Lb.ink,
                           borderRadius: BorderRadius.circular(Lb.rTile),
                           border: Border.all(
-                            color: selected ? accent : Lb.line,
+                            color: selected ? Lb.text : Lb.line,
                             width: selected ? 1.5 : 1,
                           ),
                         ),
                         child: Center(child: FrameThumb(frame: f, repaint: m.pixels)),
                       ),
+                    ),
                     ),
                   );
                 },
@@ -337,13 +347,19 @@ class _FrameTimelineState extends State<FrameTimeline> {
             IconButton(
               tooltip: 'Duplicate frame',
               style: studioIconStyle,
-              onPressed: m.duplicateFrame,
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                m.duplicateFrame();
+              },
               icon: const Icon(Icons.content_copy_sharp, size: 20),
             ),
             IconButton.outlined(
               tooltip: 'Add frame',
               style: IconButton.styleFrom(side: Lb.hairline, shape: studioShape),
-              onPressed: m.addFrame,
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                m.addFrame();
+              },
               icon: const Icon(Icons.add_sharp),
             ),
           ]),

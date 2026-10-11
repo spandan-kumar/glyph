@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'bake_limits.dart';
 import 'frame.dart';
 import 'led_gamma.dart';
 
@@ -36,6 +37,7 @@ Uint8List encodeGif(List<Frame> frames, List<int> delays,
   // the device blanks whatever plays next. Cap device frames at 1 s.
   final maxCs = forLeds ? deviceMaxFrameCs : 0xFFFF;
   if (frames.isEmpty) throw ArgumentError('No frames to encode');
+  checkBakeSize(frames.first.width, frames.first.height, frames.length);
   if (forLeds) frames = ledFramesForDevice(frames);
   if (delays.length != frames.length) {
     throw ArgumentError('Expected ${frames.length} delays, got ${delays.length}');

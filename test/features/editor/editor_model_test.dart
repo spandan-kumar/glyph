@@ -292,6 +292,25 @@ void main() {
       m.markSaved();
       expect(m.isDirty, isFalse);
     });
+
+    test('undoing back to what was saved is not unsaved', () {
+      final m = EditorModel(width: 2, height: 2);
+      m.strokeStart(0, 0);
+      m.strokeEnd();
+      m.undo();
+      expect(m.isDirty, isFalse, reason: 'back to the blank canvas it opened with');
+      m.redo();
+      expect(m.isDirty, isTrue);
+      m.markSaved();
+      m.strokeStart(1, 1);
+      m.strokeEnd();
+      m.undo();
+      expect(m.isDirty, isFalse, reason: 'back to the last save');
+      m.fps = m.fps + 1;
+      expect(m.isDirty, isTrue);
+      m.fps = m.fps - 1;
+      expect(m.isDirty, isFalse);
+    });
   });
 
   test('templates fit any size and are not empty', () {

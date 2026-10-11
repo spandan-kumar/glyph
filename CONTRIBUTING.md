@@ -5,6 +5,7 @@ reports a bug or fixes one. You don't need to know Flutter to contribute art:
 sprites are plain text files.
 
 - [Add an animation in 5 minutes](#add-an-animation-in-5-minutes)
+- [Let your AI agent draw it](#let-your-ai-agent-draw-it)
 - [Licensing: original or public domain only](#licensing-original-or-public-domain-only)
 - [Code contributions](#code-contributions)
 - [Reporting bugs and ideas](#reporting-bugs-and-ideas)
@@ -150,6 +151,14 @@ dart run tool/build_catalog.dart    # adds your sprite to assets/catalog/catalog
 flutter test test/engine/sprite_test.dart test/library
 ```
 
+After a published catalog exists, bump `revision` in
+`assets/catalog/content_revision.json` when changing catalog content (also
+for a takedown, which lists ids in `assets/catalog/revoked.json`). Changed
+drawings need new sprite **and item** IDs. `dart run tool/build_remote_catalog.dart`
+builds the unsigned site into `build/catalog-site/`; only the maintainers'
+protected `catalog` workflow environment signs and publishes it. See
+[delivery, rollback and takedown](docs/CATALOG_DELIVERY.md).
+
 Never edit `sprite_data.g.dart` or `catalog.json` by hand. The tests fail if
 either is stale ("compiled data matches the JSON sources") or if your sprite
 has a problem (unknown colour letter, frames of different sizes, duplicate
@@ -159,6 +168,29 @@ Then open a pull request with the JSON change, the two regenerated files and
 a screenshot or clip. Credit yourself in the PR description; animation PRs
 are listed under **New animations** in the release notes.
 
+## Let your AI agent draw it
+
+The [`glyph-animation`](skills/glyph-animation/SKILL.md) agent skill walks
+Claude Code, Codex, Cursor or any other coding agent through the whole flow:
+fork, draw the sprite, check the licensing, validate and preview it, and open
+the pull request. In Claude Code:
+
+```
+/plugin marketplace add spandan-kumar/glyph
+/plugin install glyph-animation@glyph
+```
+
+then ask for the animation you want. Other agents: point them at
+`skills/glyph-animation/SKILL.md` (see [skills/README.md](skills/README.md)).
+The skill's validator also works on its own, with just Python 3:
+
+```bash
+python3 skills/glyph-animation/scripts/validate_sprite.py --pack assets/catalog/sprites/animals.json --only fish --preview build/fish.png
+```
+
+You're still the author: look at the preview, and make sure the drawing is
+original or public domain before you send it.
+
 ## Licensing: original or public domain only
 
 Glyph is MIT-licensed (see [LICENSE](LICENSE)) and everything in it must be
@@ -166,10 +198,12 @@ safe to share:
 
 - **Original work** — you drew it yourself and are happy to release it under
   the project's MIT license.
-- **Public domain** — based on a work whose copyright has expired.
+- **Public domain** — based on a work whose copyright has expired, or art
+  explicitly released under **CC0 1.0** by its creator.
 - **No trademarked or copyrighted characters**: no game, film, TV or brand
   mascots, logos or fan art of them, however small the sprite.
-- No pixels traced or copied from other people's sprite sheets.
+- No pixels traced or copied from other people's sprite sheets without an
+  explicit CC0 release. A free download alone is not permission to bundle art.
 
 Drawings based on public-domain works carry a `source` block so the app can
 show where they come from (see `masterpieces.json` and
@@ -192,13 +226,22 @@ the `notice` also says Glyph isn't affiliated with or endorsed by the owner,
 and the drawing must follow the public-domain version, not the modern
 design. In your PR, explain why the work is public domain.
 
+For CC0 imports, also include `license: "CC0-1.0"`, `url` (the creator's
+source page), `licenseUrl`, `downloadUrl`, `sha256` (the original download),
+and `file` (the image or archive member). Explain cropping, frame selection
+and timing in `basis`; credit the artist in `notice`. See the
+[artist collection and import instructions](docs/CATALOG_ART.md).
+
 ## Code contributions
 
 [AGENTS.md](AGENTS.md) is the guide for the codebase: layout, conventions,
 commands, testing rules and WLED quirks. The short version:
 
 - `flutter analyze` must report no issues and `flutter test` must pass; CI
-  runs both on every pull request.
+  runs both on every pull request. Android CI also compiles the app and runs
+  bridge unit tests. For native changes, build with
+  `flutter build apk --debug --target-platform android-arm64`, then run
+  `cd android && ./gradlew :app:testDebugUnitTest`.
 - The engine (`lib/engine`) stays pure Dart; the UI uses the design kit in
   `lib/ui/design`.
 - In the app's words it's a **device**, you **Send** an animation, and the

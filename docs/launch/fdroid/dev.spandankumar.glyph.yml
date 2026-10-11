@@ -1,0 +1,81 @@
+# Submission draft: resolve TODOs and remove drafting comments before the MR.
+Categories:
+  - Connectivity
+  - Multimedia
+License: MIT
+AuthorName: Spandan Kumar
+SourceCode: https://github.com/spandan-kumar/glyph
+IssueTracker: https://github.com/spandan-kumar/glyph/issues
+Changelog: https://github.com/spandan-kumar/glyph/releases
+
+AutoName: Glyph
+# Listing text and images are imported from upstream fastlane metadata.
+AntiFeatures:
+  NonFreeNet:
+    en-US: Promotes Discord and GitHub for community, feedback and the roadmap;
+      optional animation catalog downloads use GitHub Pages. Core device control
+      works locally without these services.
+
+RepoType: git
+Repo: https://github.com/spandan-kumar/glyph.git
+
+# TODO: Choose signing before publication. This baseline lets F-Droid sign.
+# For rotated upstream signatures, see ../fdroid-submission.md and ../../SIGNING.md.
+# TODO: Test the first ROTATED release, updating versionName/versionCode/commit
+# below; v1.4.0 is only the original packaging baseline, not proof of rotation.
+# Enable BOTH fields only after reproducibility AND fdroid build/publish/update
+# accept old-v2/new-v3 certificates and preserve the embedded lineage.
+# Current fdroidserver common.get_first_signer_certificate rejects different
+# v2/v3 certificates; listing both fingerprints does not fix this blocker.
+# Sources: https://github.com/f-droid/fdroidserver/blob/master/fdroidserver/common.py
+# https://f-droid.org/docs/Build_Metadata_Reference/#AllowedAPKSigningKeys
+# Pin the NEW v3 certificate for rotated-only builds after testing server support.
+# Add the OLD fingerprint only if also accepting pre-rotation releases:
+# 8f7a1d1830d401866985253d480eb7f4748c4c1144a8eb77f0e11448c28f9b68
+# TODO: Confirm acceptance of CN=Android Debug in the old signer/lineage;
+# inspected server checks reject manifest debuggable/testOnly, not that DN.
+# Binaries: https://github.com/spandan-kumar/glyph/releases/download/v%v/glyph-%v-arm64-v8a.apk
+# AllowedAPKSigningKeys:
+#   - d9f51a1f873db96bfec0be9c230e5ec2ead72660aa42abaf04389291ad84441e  # new release key (v3); see docs/SIGNING.md
+
+Builds:
+  - versionName: 1.4.0
+    versionCode: 2012
+    commit: v1.4.0
+    sudo:
+      - apt-get update
+      - apt-get install -y openjdk-17-jdk-headless
+    output: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+    srclibs:
+      - flutter@3.47.6
+    rm:
+      - ios
+    # Only ios exists upstream; add linux/macos/web/windows here if introduced.
+    prebuild:
+      - export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+      - export PATH=$JAVA_HOME/bin:$$flutter$$/bin:$PATH
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
+    # Do not scanignore .pub-cache: downloaded plugin source must be scanned.
+    # Delete flagged binaries in that cache; do not blanket-ignore dependencies.
+    scandelete:
+      - .pub-cache
+    build:
+      - export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+      - export PATH=$JAVA_HOME/bin:$$flutter$$/bin:$PATH
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter build apk --release --no-pub --split-per-abi --target-platform android-arm64 --android-project-arg fdroid=true
+    ndk: 28.2.13676358
+    # TODO: For reproducibility, compare CI paths/JDK/SDK with F-Droid and add
+    # matching path setup in BOTH prebuild and build if APK differences require it.
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
+# Flutter's default split code is base + 1000 * ABI index (arm64 = 2).
+# Arm64-only avoids overlapping codes across ABI builds as the base increases.
+VercodeOperation:
+  - '%c + 2000'
+UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
+CurrentVersion: 1.4.0
+CurrentVersionCode: 2012

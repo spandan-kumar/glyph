@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../app/background.dart';
@@ -40,6 +41,9 @@ mixin ToolSession<T extends StatefulWidget> on State<T> {
   /// (e.g. "Keep running in background" is on and running). Read on leaving.
   bool get keepAfterLeaving => false;
 
+  /// Only Now Playing allows brief alerts while its screen is open.
+  bool get allowsNotificationAlerts => false;
+
   /// Whether something was sent to the device since this tool last started
   /// playing.
   bool get sentFromTool => _toolSent;
@@ -50,6 +54,7 @@ mixin ToolSession<T extends StatefulWidget> on State<T> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _toolScope = context.dependOnInheritedWidgetOfExactType<AppScope>();
+    if (!allowsNotificationAlerts) _toolScope?.playback.blockAlerts(this);
     // Outlives this screen, so the cleanup can still reach the app's actions.
     _toolRoot = Navigator.maybeOf(context, rootNavigator: true)?.context;
   }
@@ -75,8 +80,12 @@ mixin ToolSession<T extends StatefulWidget> on State<T> {
   }
 
   /// Sends [clip] to the device and remembers whether it got there.
-  Future<String?> sendClipFromTool(FrameClip clip, String title) async =>
-      noteSent(await clipSender(context, clip, title));
+  Future<String?> sendClipFromTool(FrameClip clip, String title) async {
+    HapticFeedback.lightImpact(); // Send pressed
+    final message = noteSent(await clipSender(context, clip, title));
+    if (_toolSent && message != null && message.startsWith('Sent')) HapticFeedback.lightImpact(); // Send done
+    return message;
+  }
 
   /// Records a send's outcome: success messages start with "Sent".
   String? noteSent(String? message) {
@@ -86,6 +95,7 @@ mixin ToolSession<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
+    _toolScope?.playback.unblockAlerts(this);
     _endToolSession();
     super.dispose();
   }

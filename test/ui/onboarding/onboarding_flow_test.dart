@@ -6,17 +6,18 @@ import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
 import 'package:glyph/engine/generators/intro.dart';
+import 'package:glyph/features/device/setup/setup_controller.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/onboarding/onboarding_flow.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:glyph/wled/discovery.dart';
-import 'package:glyph/wled/layout.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/device/fake_wled.dart';
+import '../../features/device/setup/setup_rig.dart';
 import '../../wled/fixtures.dart';
 
 void main() {
@@ -61,7 +62,7 @@ void main() {
     var done = 0;
     final (devices, playback) = await pump(tester, onDone: () => done++);
     await settle(tester, 1800); // the wordmark sweep
-    expect(find.text('Your matrix, alive.'), findsOneWidget);
+    expect(find.text('Your device, alive.'), findsOneWidget);
     expect(find.text('Find my device'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
@@ -73,66 +74,73 @@ void main() {
     playback.pause();
   });
 
-  testWidgets('find → hello → guided fix → first vibe', (tester) async {
+  Future<SetupRig> pumpRig(
+    WidgetTester tester, {
+    required VoidCallback onDone,
+    required SetupServices services,
+  }) async {
+    final rig = await SetupRig.create(tester, entry: SetupEntry.newDevice, services: services);
+    tester.view.physicalSize = const Size(360, 740) * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      AppScope(
+        playback: rig.playback,
+        devices: rig.devices,
+        catalog: rig.catalog,
+        creations: rig.creations,
+        child: MaterialApp(
+          theme: buildTheme(),
+          home: OnboardingFlow(onDone: onDone, services: services, controllerBuilder: (_) => rig.controller),
+        ),
+      ),
+    );
+    await settle(tester);
+    return rig;
+  }
+
+  testWidgets('find → connect → ready → first vibe', (tester) async {
     var done = 0;
     final services = SetupServices(
-      discover: () => Stream.value(const DiscoveredDevice(name: 'Desk matrix', host: '192.168.29.6')),
+      discover: () => Stream.value(const DiscoveredDevice(name: 'Desk matrix', host: deviceHost, mac: '48e729a39308')),
       scan: () => const Stream.empty(),
     );
-    final (devices, playback) = await pump(tester, onDone: () => done++, services: services);
-
+    final rig = await pumpRig(tester, onDone: () => done++, services: services);
     await tester.tap(find.text('Find my device'));
+    await settle(tester);
+    expect(find.text('Is your device on your Wi-Fi?'), findsOneWidget);
+    await tester.tap(find.text('Yes, it\'s on my Wi-Fi'));
     await settle(tester);
     expect(find.text('Looking for your device'), findsOneWidget);
     expect(find.text('Desk matrix'), findsOneWidget);
-    expect(find.text('192.168.29.6'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+    expect(find.text(deviceHost), findsOneWidget);
 
-    // Connect → the device plays the Glyph intro.
+    // It is already set up: check it, then the intro plays on it.
     await tester.tap(find.text('Desk matrix'));
-    await settle(tester, 800);
-    expect(devices.isConnected, isTrue);
-    expect(devices.selected!.host, '192.168.29.6');
-    expect(find.text('Look up.'), findsOneWidget);
-    expect(find.text('That\'s your device saying hi.'), findsOneWidget);
-    expect(playback.generator, isA<GlyphIntro>());
-    expect(playback.generator!.name, 'Glyph intro');
-    expect(tester.takeException(), isNull);
+    await settle(tester, 1200);
+    expect(rig.devices.isConnected, isTrue);
+    expect(find.text('Does it match?'), findsOneWidget);
+    await tester.tap(find.text('It matches'));
+    await settle(tester, 1000);
+    expect(find.text('Your device is ready.'), findsOneWidget);
+    expect(rig.playback.generator, isA<GlyphIntro>());
+    expect(rig.playback.generator!.name, 'Glyph intro');
+    await tester.tap(find.text('Done'));
+    await settle(tester, 700);
 
-    // Something looks off → arrow question → the arrow pointed right.
-    await tester.tap(find.text('Something looks off'));
-    await settle(tester);
-    expect(find.text('Which way is the arrow pointing on your device?'), findsOneWidget);
-    expect(playback.generator!.name, 'Arrow');
-    await tester.tap(find.bySemanticsLabel('Right'));
-    await settle(tester);
-    expect(devices.selected!.layout, const MatrixLayout(rotation: 3));
-    expect(find.text('Does it look mirrored?'), findsOneWidget);
-    expect(playback.generator!.name, 'Letter L');
-
-    // …and it was backwards too.
-    await tester.tap(find.text('Yes, it\'s backwards'));
-    await settle(tester);
-    expect(devices.selected!.layout, const MatrixLayout(rotation: 3, flipX: true));
-    expect(find.text('Look up.'), findsOneWidget);
-    expect(find.text('TURNED THE RIGHT WAY'), findsOneWidget);
-    expect(playback.generator!.name, 'Glyph intro');
-
-    // Looks right → first vibe.
-    await tester.tap(find.text('Looks right'));
-    await settle(tester);
     expect(find.text('Pick a first vibe'), findsOneWidget);
     expect(find.text('It plays on your device straight away.'), findsOneWidget);
     expect(find.text('Calm'), findsOneWidget);
     expect(find.text('Party'), findsOneWidget);
     expect(find.text('Classic'), findsOneWidget);
+    expect(find.byTooltip('Back'), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Calm'));
     await settle(tester);
     expect(done, 1);
     expect(await OnboardingFlow.isDone(), isTrue);
-    expect(playback.item?.category, 'Chill');
-    playback.pause();
+    expect(rig.playback.item?.category, 'Chill');
+    rig.playback.pause();
   });
 
   testWidgets('can\'t see it → typed address connects', (tester) async {
@@ -150,8 +158,10 @@ void main() {
         );
       },
     );
-    final (devices, playback) = await pump(tester, onDone: () {}, services: services);
+    final rig = await pumpRig(tester, onDone: () {}, services: services);
     await tester.tap(find.text('Find my device'));
+    await settle(tester);
+    await tester.tap(find.text('Yes, it\'s on my Wi-Fi'));
     await settle(tester);
 
     // After a few quiet seconds the help opens up by itself.
@@ -168,17 +178,18 @@ void main() {
     expect(find.textContaining('Nothing answered at 10.0.0.9'), findsOneWidget);
     await tester.enterText(find.byType(TextField), '192.168.29.6');
     await tester.tap(find.widgetWithText(FilledButton, 'Connect'));
-    await settle(tester, 800);
+    await settle(tester, 1200);
     expect(probed, ['10.0.0.9', '192.168.29.6']);
-    expect(devices.selected?.host, '192.168.29.6');
-    expect(find.text('Look up.'), findsOneWidget);
+    expect(rig.devices.selected?.host, '192.168.29.6');
+    expect(find.text('Does it match?'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    // Back goes to the search again.
+    // Back goes to the first question again, and ends the picture.
     await tester.tap(find.byTooltip('Back'));
     await settle(tester);
-    expect(find.text('Looking for your device'), findsOneWidget);
-    playback.pause();
+    expect(find.text('Is your device on your Wi-Fi?'), findsOneWidget);
+    expect(rig.sender.closed, isTrue);
+    rig.playback.pause();
   });
 }
 

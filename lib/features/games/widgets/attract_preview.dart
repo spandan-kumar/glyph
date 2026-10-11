@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
 import '../../../engine/frame.dart';
 import '../../../ui/design/tokens.dart';
 import '../../../ui/widgets/led_matrix_view.dart';
+import '../../../ui/widgets/live_preview.dart';
+import '../../../ui/widgets/preview_clock.dart';
 import '../core/game.dart';
 
 /// A game playing itself, for the picker grid.
@@ -17,10 +18,10 @@ class AttractPreview extends StatefulWidget {
   State<AttractPreview> createState() => _AttractPreviewState();
 }
 
-class _AttractPreviewState extends State<AttractPreview> with SingleTickerProviderStateMixin {
+class _AttractPreviewState extends State<AttractPreview> {
   late GameView _view;
   late Frame _frame;
-  late final Ticker _ticker;
+  late final PreviewTicker _ticker;
   final _tick = ValueNotifier(0);
   Duration _last = Duration.zero;
 
@@ -28,7 +29,13 @@ class _AttractPreviewState extends State<AttractPreview> with SingleTickerProvid
   void initState() {
     super.initState();
     _setup();
-    _ticker = createTicker(_onTick)..start();
+    _ticker = PreviewTicker(_onTick);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ticker.bind(context);
   }
 
   void _setup() {
@@ -47,8 +54,9 @@ class _AttractPreviewState extends State<AttractPreview> with SingleTickerProvid
   }
 
   void _onTick(Duration elapsed) {
-    // ~30 fps keeps a grid of previews cheap.
-    if ((elapsed - _last).inMilliseconds < 33) return;
+    if ((elapsed - _last).inMilliseconds < 83) return;
+    if (Scrollable.recommendDeferredLoadingForContext(context)) return;
+    if (!PreviewBudget.take(context)) return;
     final dt = ((elapsed - _last).inMicroseconds / 1e6).clamp(0.0, 0.1);
     _last = elapsed;
     _view
@@ -59,6 +67,7 @@ class _AttractPreviewState extends State<AttractPreview> with SingleTickerProvid
 
   @override
   void dispose() {
+    PreviewBudget.forget(context);
     _ticker.dispose();
     _tick.dispose();
     super.dispose();

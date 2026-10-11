@@ -67,7 +67,7 @@ class LbPanel extends StatelessWidget {
 
 /// A status dot (lit when [on]).
 class StatusDot extends StatelessWidget {
-  const StatusDot({super.key, required this.on, this.color = Lb.ok, this.size = 6});
+  const StatusDot({super.key, required this.on, this.color = Lb.ok, this.size = Lb.statusDot});
 
   final bool on;
   final Color color;
@@ -86,7 +86,8 @@ class StatusDot extends StatelessWidget {
 }
 
 /// A busy indicator drawn as a 3×3 block of LEDs with one lit dot chasing
-/// round the edge — the matrix stand-in for a circular spinner.
+/// round the edge — the matrix stand-in for a circular spinner. It means
+/// busy, so it keeps spinning under reduced motion.
 class LedSpinner extends StatefulWidget {
   const LedSpinner({super.key, this.size = 20, this.color = Lb.text});
 

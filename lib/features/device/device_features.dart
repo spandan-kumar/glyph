@@ -25,6 +25,9 @@ abstract final class DeviceFeatures {
     final intro = _BootIntroSync(devices);
     devices.addListener(intro.update);
     intro.update();
+    final power = _PowerSync(devices, playback);
+    devices.addListener(power.update);
+    power.update();
   }
 
   /// Recomputes the mirror targets now (e.g. right after toggling one).
@@ -63,6 +66,25 @@ class _MirrorSync {
     } catch (_) {
       // Mirrors are best effort; the primary keeps streaming.
     }
+  }
+}
+
+/// Holds the live stream while the device is switched off (from the app, the
+/// widget or a refresh that finds it off) and lets it flow again when it's
+/// back on. Without this a running look — Now Playing, a visualiser — keeps
+/// streaming, and WLED turns itself back on the next time live frames resume.
+class _PowerSync {
+  _PowerSync(this.devices, this.playback);
+
+  final DeviceStore devices;
+  final PlaybackController playback;
+
+  void update() {
+    final off = devices.isConnected && devices.isOn == false;
+    if (off == playback.streamHeld) return;
+    playback.streamHeld = off;
+    // Leave live mode now rather than after WLED's timeout.
+    if (off && playback.isStreaming) unawaited(devices.client?.exitLive().catchError((Object _) {}));
   }
 }
 

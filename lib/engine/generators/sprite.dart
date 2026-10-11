@@ -87,8 +87,8 @@ class Sprite {
   final List<int> seq;
   final List<int> ms;
 
-  /// Provenance for drawings based on public-domain works: work, year,
-  /// creator, basis, jurisdiction and a user-facing notice.
+  /// Provenance for public-domain bases and CC0 art: work, year, creator,
+  /// basis, jurisdiction, notice and optional licence/source verification.
   final Map<String, dynamic>? source;
 
   String? get notice => source?['notice'] as String?;
@@ -143,6 +143,33 @@ class Sprite {
 
   /// Raw ink grid, for tests and tools.
   List<int> frameAt(int f) => _frames[f];
+
+  /// Rendering identity, independent of editorial titles and attribution.
+  bool sameDrawing(Sprite other) {
+    if (width != other.width || height != other.height ||
+        palette != other.palette || motion != other.motion ||
+        backdrop != other.backdrop || _frames.length != other._frames.length ||
+        _inks.length != other._inks.length || seq.length != other.seq.length ||
+        ms.length != other.ms.length) {
+      return false;
+    }
+    for (var i = 0; i < _inks.length; i++) {
+      final a = _inks[i], b = other._inks[i];
+      if (a.kind != b.kind || a.rgb != b.rgb || a.v != b.v || a.k != b.k ||
+          a.vivid != b.vivid) {
+        return false;
+      }
+    }
+    for (var i = 0; i < seq.length; i++) {
+      if (seq[i] != other.seq[i] || ms[i] != other.ms[i]) return false;
+    }
+    for (var f = 0; f < _frames.length; f++) {
+      for (var p = 0; p < _frames[f].length; p++) {
+        if (_frames[f][p] != other._frames[f][p]) return false;
+      }
+    }
+    return true;
+  }
 
   static List<Sprite> parsePack(String json) =>
       parsePackJson(jsonDecode(json) as Map<String, dynamic>);
@@ -310,23 +337,8 @@ class SpriteGenerator extends Generator {
   /// no practical period and are ignored.
   double? loopSeconds(Params p, int width, int height, {double maxSeconds = 12}) {
     final speed = p['speed'].clamp(0.05, 10).toDouble();
-    final motion = SpriteMotion.values[p['motion'].round().clamp(0, 6)];
-    // Periods as exact fractions of a second (numerator, denominator).
-    // A sequence that shows one frame throughout (scrolling text) has no
-    // period of its own.
     final seq = {...sprite.seq}.length > 1 ? _Ratio(sprite.loopMs, 1000) : null;
-    final move = switch (motion) {
-      SpriteMotion.bounce => _Ratio(7, 10), // |sin(t·π/0.7)|
-      SpriteMotion.float => _Ratio(13, 5),
-      SpriteMotion.sway => _Ratio(11, 5),
-      SpriteMotion.pulse => _Ratio(11, 10),
-      SpriteMotion.scroll => () {
-          // travel px at max(4, 0.45·w) px/s, as in render().
-          final travel = width + _fit(sprite, width, height).$2 + 2;
-          return width * 0.45 > 4 ? _Ratio(20 * travel, 9 * width) : _Ratio(travel, 4);
-        }(),
-      SpriteMotion.still || SpriteMotion.shake => null,
-    };
+    final move = _motionPeriod(p, width, height);
     final cycles = sprite._inks.any((i) => i.kind == 2); // pal.at(v + t/4)
     for (final parts in [
       [?seq, ?move, if (cycles) _Ratio(4, 1)],
@@ -338,6 +350,28 @@ class SpriteGenerator extends Generator {
       if (s.isFinite && s <= maxSeconds) return s;
     }
     return null;
+  }
+
+  /// Enough effect time to show every authored step and a complete motion
+  /// pass, even when their common multiple would make an impractical GIF.
+  double contentSeconds(Params p, int width, int height) =>
+      max(sprite.loopMs / 1000, _motionPeriod(p, width, height)?.seconds ?? 0) /
+      p['speed'].clamp(0.05, 10);
+
+  _Ratio? _motionPeriod(Params p, int width, int height) {
+    final motion = SpriteMotion.values[p['motion'].round().clamp(0, 6)];
+    return switch (motion) {
+      SpriteMotion.bounce => _Ratio(7, 10), // |sin(t·π/0.7)|
+      SpriteMotion.float => _Ratio(13, 5),
+      SpriteMotion.sway => _Ratio(11, 5),
+      SpriteMotion.pulse => _Ratio(11, 10),
+      SpriteMotion.scroll => () {
+          // travel px at max(4, 0.45·w) px/s, as in render().
+          final travel = width + _fit(sprite, width, height).$2 + 2;
+          return width * 0.45 > 4 ? _Ratio(20 * travel, 9 * width) : _Ratio(travel, 4);
+        }(),
+      SpriteMotion.still || SpriteMotion.shake => null,
+    };
   }
 }
 

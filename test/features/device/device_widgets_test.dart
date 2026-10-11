@@ -11,12 +11,14 @@ import 'package:glyph/features/device/widgets/shows.dart';
 import 'package:glyph/features/device/widgets/storage.dart';
 import 'package:glyph/ui/design/knob.dart';
 import 'package:glyph/ui/design/toggle.dart';
+import 'package:glyph/ui/design/tokens.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:glyph/wled/device.dart';
 import 'package:glyph/wled/schedule.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_wled.dart';
+import '../../ui/design/turn_knob.dart';
 
 void main() {
   late FakeWled wled;
@@ -76,6 +78,32 @@ void main() {
     );
   });
 
+  testWidgets('Routines: no internet time offers one tap to set the time', (
+    tester,
+  ) async {
+    ((wled.cfg['if'] as Map)['ntp'] as Map)['en'] = false;
+    await pump(tester, (_, m) => RoutinesSection(manager: m));
+    expect(
+      find.text('Your device doesn\'t know the time yet.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('internet time'), findsNothing);
+    await tester.tap(find.text('Set the time'));
+    await settle(tester, 800);
+    expect(wled.clockSets, hasLength(1));
+    expect(wled.ntpWrites.single['en'], isTrue);
+    expect(
+      find.text('Set the time'),
+      findsNothing,
+      reason: 'routines reloaded with NTP on',
+    );
+  });
+
+  testWidgets('Routines: internet time on shows no time note', (tester) async {
+    await pump(tester, (_, m) => RoutinesSection(manager: m));
+    expect(find.text('Set the time'), findsNothing);
+  });
+
   testWidgets('Routines: toggle saves, tap opens the editor', (tester) async {
     await pump(tester, (_, m) => RoutinesSection(manager: m));
     expect(find.text('Mon, Wed, Fri at 3:07 → something removed'), findsOneWidget);
@@ -89,6 +117,13 @@ void main() {
     await settle(tester, 600);
     expect(find.text('Edit routine'), findsOneWidget);
     expect(find.text('Pick what to play'), findsOneWidget, reason: 'its kept item is gone');
+    // A blocking problem is an error, so it reads in danger (not amber).
+    await tester.scrollUntilVisible(
+      find.text('Pick what to play.'),
+      200,
+      scrollable: find.descendant(of: find.byType(RoutineEditor), matching: find.byType(Scrollable)).first,
+    );
+    expect(tester.widget<Text>(find.text('Pick what to play.')).style?.color, Lb.danger);
     expect(tester.takeException(), isNull);
   });
 
@@ -104,6 +139,9 @@ void main() {
     await tester.tap(find.text('Ocean Plasma').last);
     await settle(tester, 600);
     expect(find.byIcon(Icons.drag_indicator_sharp), findsOneWidget);
+    // The duration chip's glyph is small but its hit area is a full key.
+    final chip = find.ancestor(of: find.byIcon(Icons.timer_sharp), matching: find.byType(ConstrainedBox));
+    expect(tester.getSize(chip.first).height, greaterThanOrEqualTo(Lb.touch));
     await tester.tap(find.text('Save'));
     await settle(tester, 1600);
     final save = wled.posts.firstWhere((p) => p.$2.containsKey('playlist'));
@@ -144,12 +182,16 @@ void main() {
     expect(find.text('Storage'), findsOneWidget);
     expect(find.textContaining('your device\'s own memory'), findsOneWidget);
     expect(find.text('duck.gif'), findsOneWidget);
-    expect(find.textContaining('Animation for Ocean Plasma'), findsOneWidget);
-    expect(find.textContaining('An old animation nothing plays anymore'), findsWidgets);
-    await tester.drag(find.text('duck.gif'), const Offset(0, -600));
+    // A friendly title leads; the raw file name is the small mono line.
+    expect(find.text('Ocean Plasma'), findsOneWidget);
+    expect(find.text('Old animation'), findsWidgets);
+    expect(find.textContaining('Nothing plays it anymore'), findsWidgets);
+    await tester.scrollUntilVisible(find.text('Your device\'s settings'), 300);
     await settle(tester);
-    // Every other file says what it is.
-    expect(find.textContaining('Your device\'s settings · Your device needs this'), findsOneWidget);
+    // Every other file says what it is, with its raw name underneath.
+    expect(find.text('Your device\'s settings'), findsOneWidget);
+    expect(find.textContaining('Your device needs this'), findsWidgets);
+    expect(find.text('cfg.json'), findsOneWidget);
     expect(find.textContaining('An extra tool for its web page'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
@@ -161,7 +203,7 @@ void main() {
     await settle(tester);
     expect(wled.posts.last.$2, {'on': false});
 
-    await tester.drag(find.byType(Knob), const Offset(0, -60));
+    await turnKnob(tester, find.byType(Knob));
     await settle(tester);
     expect(store.brightness, greaterThan(128));
     expect(wled.posts.last.$2.keys, contains('bri'));

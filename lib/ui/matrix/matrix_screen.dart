@@ -17,7 +17,7 @@ import '../../features/device/widgets/shows.dart';
 import '../../features/device/widgets/storage.dart';
 import '../../wled/device.dart';
 import '../actions.dart';
-import '../community/community_section.dart';
+import '../community/glyph_menu.dart';
 import '../design/parts.dart';
 import '../design/stage.dart';
 import '../design/tokens.dart';
@@ -40,7 +40,7 @@ class MatrixScreen extends StatefulWidget {
   /// Discovery used by "Add a device" / "Connect your device".
   final SetupServices services;
 
-  /// Stands in for the "Device settings" web view in tests.
+  /// Stands in for the "WLED firmware settings" web view in tests.
   final SettingsViewBuilder? settingsView;
 
   @override
@@ -91,7 +91,7 @@ class _MatrixScreenState extends State<MatrixScreen> {
           }
           final connected = devices.isConnected;
           if (connected) manager.syncHost();
-          return RefreshIndicator(
+          return LedRefresh(
             onRefresh: () async {
               await devices.refresh();
               if (devices.isConnected) await manager.load();
@@ -144,7 +144,6 @@ class _MatrixScreenState extends State<MatrixScreen> {
                     settingsView: widget.settingsView,
                   ),
                 ),
-                const CommunitySection(padding: EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 0)),
               ],
             ),
           );
@@ -174,13 +173,17 @@ class _Header extends StatelessWidget {
           Row(
             children: [
               const Expanded(child: MonoLabel('Device')),
-              StatusDot(on: connected, size: 7),
+              StatusDot(on: connected, size: Lb.statusDot),
               const SizedBox(width: 8),
               MonoLabel(connected ? 'Connected' : (store.isLoading ? 'Connecting…' : 'Not reachable')),
             ],
           ),
           const SizedBox(height: 10),
-          Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: LbType.display),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: LbType.display)),
+            const SizedBox(width: 12),
+            const GlyphMenuKey(),
+          ]),
           if (info != null) ...[
             const SizedBox(height: 10),
             Text(factsLine(info), style: LbType.mono),
@@ -229,7 +232,10 @@ class _NowShowing extends StatelessWidget {
     } else if (!on) {
       kind = 'Resting';
       title = 'Off';
-      stage = Opacity(opacity: 0.5, child: Stage(frame: Frame(w, h), maxWidth: 300));
+      stage = Opacity(
+        opacity: Lb.opacityDeviceOff,
+        child: Stage(frame: Frame(w, h), maxWidth: 300),
+      );
     } else {
       final intro = manager.bootIntro;
       final startingUp = (store.playlistRunning && store.playlistId != null && intro.isSystem(store.playlistId!)) ||
@@ -309,7 +315,7 @@ class _GifStage extends StatelessWidget {
         aspectRatio: aspect,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: const Color(0xFF050403),
+            color: Lb.bezel,
             borderRadius: BorderRadius.circular(Lb.rControl),
             border: Border.all(color: Lb.line),
           ),
@@ -375,8 +381,8 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.fromLTRB(Lb.gutter, 32, Lb.gutter, 128),
     children: [
-      const MonoLabel('Device'),
-      const SizedBox(height: 32),
+      const Row(children: [Expanded(child: MonoLabel('Device')), GlyphMenuKey()]),
+      const SizedBox(height: 20),
       Center(
         child: SizedBox(
           width: 220,
@@ -394,11 +400,19 @@ class _EmptyState extends StatelessWidget {
       ),
       const SizedBox(height: 28),
       FilledButton(
-        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(Lb.cta),
+        ),
         onPressed: onConnect,
         child: const Text('Connect your device'),
       ),
-      const CommunitySection(padding: EdgeInsets.only(top: 48)),
+      const SizedBox(height: 20),
+      Center(
+        child: TextButton(
+          onPressed: () => requestDisplaySupport(context),
+          child: const Text('Not WLED? Ask for your display'),
+        ),
+      ),
     ],
   );
 }
@@ -412,9 +426,21 @@ class _BusyLed extends StatefulWidget {
   State<_BusyLed> createState() => _BusyLedState();
 }
 
-class _BusyLedState extends State<_BusyLed> with SingleTickerProviderStateMixin {
-  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 700))
-    ..repeat(reverse: true);
+class _BusyLedState extends State<_BusyLed>
+    with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(vsync: this, duration: Lb.slow);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced motion holds a lit, still dot.
+    if (Lb.reduceMotion(context)) {
+      _c.stop();
+      _c.value = 1;
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -424,7 +450,7 @@ class _BusyLedState extends State<_BusyLed> with SingleTickerProviderStateMixin 
 
   @override
   Widget build(BuildContext context) => FadeTransition(
-    opacity: CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+    opacity: CurvedAnimation(parent: _c, curve: Lb.easeInOut),
     child: StatusDot(on: true, color: accentOf(context)),
   );
 }
