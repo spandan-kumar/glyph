@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.6.0
   bonsoir: ^7.1.0
-  shared_preferences: ^2.5.5
+  shared_preferences: ^2.5.6
   image: ^4.10.1
   file_picker: ^13.1.0
   path_provider: ^2.1.6
