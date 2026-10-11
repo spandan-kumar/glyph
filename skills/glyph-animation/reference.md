@@ -188,7 +188,7 @@ animate scenery in the frames and keep `still`.
 
 ## Categories (`categoryOrder`)
 
-`Classic Cartoons` · `Storybook` · `Monsters & Legends` · `Masterpieces` ·
+`Community` · `Classic Cartoons` · `Storybook` · `Monsters & Legends` · `Masterpieces` ·
 `Chill` · `Party` · `Emoji` · `Love` · `Holidays` · `Nature` · `Animals` ·
 `Water` · `Weather` · `Space` · `Fire & Energy` · `Abstract` · `Hypnotic` ·
 `Retro & Digital` · `Gaming` · `Science & Sims` · `Food & Drink` · `Symbols`
@@ -294,6 +294,17 @@ on the source page; a download marked "free" is insufficient.
 | `downloadUrl` | string | HTTPS URL of the original downloaded file. |
 | `sha256` | string | Lowercase 64-character SHA-256 of that download. |
 | `file` | string | Original image filename or member path inside the archive. |
+
+Community drawings use `community.json` (pack `community`, category
+`Community`) and the same six provenance keys, `license: "CC0-1.0"`, and
+`licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/"`.
+Their `url` must be exactly `https://github.com/spandan-kumar/glyph/issues/N`
+with a positive issue number. That public issue records the creator's release;
+there is no imported file, so **omit** `downloadUrl`, `sha256` and `file`.
+This exception applies only to Community sprites with that issue URL; all
+imported art still requires its pinned download provenance. The submission
+CLI creates the pack on the first approved drawing. See
+[community submissions](../../docs/COMMUNITY.md).
 
 Use `basis` to describe adaptations and `notice` to credit the artist.
 Keep original colours fixed when importing art. Native 32×32 art is supported;

@@ -1,0 +1,40 @@
+name: Share a community design
+description: Share your Glyph drawing with everyone.
+labels: [community-design]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing your drawing! We'll preview it here and review it before adding it to Glyph.
+        Your submission is public. Please share only your own work.
+  - type: input
+    id: name
+    attributes:
+      label: Design name
+      description: Give your drawing a short title.
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Design
+      description: Filled in by Glyph. Don't edit it.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: credit
+    attributes:
+      label: How should we credit you?
+      description: Leave empty to use your GitHub username.
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Before sharing
+      options:
+        - label: I drew this myself in Glyph
+          required: true
+        - label: I release it under CC0 (anyone may use it, no credit required)
+          required: true
+        - label: It contains no trademarked or copyrighted characters, logos, hateful or adult content
+          required: true

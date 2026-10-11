@@ -1,0 +1,130 @@
+name: Check community design
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+  contents: write # Used only to publish GIFs on community-previews.
+
+concurrency:
+  group: community-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: contains(github.event.issue.labels.*.name, 'community-design')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ISSUE: ${{ github.event.issue.number }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Read issue as data
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/community"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          Path(os.environ['RUNNER_TEMP'] + '/community/body.txt').write_text(os.environ['ISSUE_BODY'])
+          PY
+      - name: Check design
+        id: check
+        run: |
+          status=0
+          dart run tool/community_design.dart check --body "$RUNNER_TEMP/community/body.txt" --out "$RUNNER_TEMP/community" || status=$?
+          if [ "$status" -gt 1 ]; then exit "$status"; fi
+          test -f "$RUNNER_TEMP/community/report.md"
+          echo "valid=$([ "$status" -eq 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Publish preview and update the bot comment
+        uses: actions/github-script@v8
+        env:
+          VALID: ${{ steps.check.outputs.valid }}
+        with:
+          script: |
+            const fs = require('fs');
+            const {owner, repo} = context.repo;
+            const issue_number = context.issue.number;
+            const dir = process.env.RUNNER_TEMP + '/community';
+            const live = (await github.rest.issues.get({owner, repo, issue_number})).data;
+            if (live.body !== fs.readFileSync(dir + '/body.txt', 'utf8') ||
+                !live.labels.some(l => l.name === 'community-design') || live.state !== 'open') {
+              core.notice('Issue changed during validation; leaving feedback to the newer run.');
+              return;
+            }
+            let body = fs.readFileSync(dir + '/report.md', 'utf8');
+            if (process.env.VALID === 'true') {
+              const branch = 'community-previews';
+              const path = `${issue_number}/${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}.gif`;
+              const blob = (await github.rest.git.createBlob({owner, repo,
+                content: fs.readFileSync(dir + '/preview.gif').toString('base64'), encoding: 'base64'})).data;
+              // No main-branch history or files: the first commit is an orphan.
+              // Retry non-fast-forward updates when another issue publishes a GIF.
+              for (let attempt = 0; ; attempt++) {
+                try {
+                  let parent;
+                  try {
+                    parent = (await github.rest.git.getRef({owner, repo, ref: `heads/${branch}`})).data.object.sha;
+                  } catch (e) { if (e.status !== 404) throw e; }
+                  const base_tree = parent ? (await github.rest.git.getCommit({owner, repo, commit_sha: parent})).data.tree.sha : undefined;
+                  const tree = (await github.rest.git.createTree({owner, repo, ...(base_tree ? {base_tree} : {}),
+                    tree: [{path, mode: '100644', type: 'blob', sha: blob.sha}]})).data;
+                  const commit = (await github.rest.git.createCommit({owner, repo,
+                    message: `Preview community issue #${issue_number}`, tree: tree.sha, parents: parent ? [parent] : []})).data;
+                  if (parent) await github.rest.git.updateRef({owner, repo, ref: `heads/${branch}`, sha: commit.sha, force: false});
+                  else await github.rest.git.createRef({owner, repo, ref: `refs/heads/${branch}`, sha: commit.sha});
+                  break;
+                } catch (e) {
+                  if (attempt >= 4 || ![409, 422].includes(e.status)) throw e;
+                }
+              }
+              body += `\n![Your drawing](https://raw.githubusercontent.com/spandan-kumar/glyph/${branch}/${path})\n`;
+            }
+            const marker = '<!-- glyph-community-check -->';
+            const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number, per_page: 100});
+            const previous = comments.filter(c => c.user.login === 'github-actions[bot]' && c.body.includes(marker));
+            if (previous.length) {
+              await github.rest.issues.updateComment({owner, repo, comment_id: previous[0].id, body});
+              for (const duplicate of previous.slice(1)) await github.rest.issues.deleteComment({owner, repo, comment_id: duplicate.id});
+            } else await github.rest.issues.createComment({owner, repo, issue_number, body});
+      - name: Set review labels
+        env:
+          VALID: ${{ steps.check.outputs.valid }}
+        run: |
+          # Create labels idempotently; API failures remain failures.
+          gh label create needs-changes --color D93F0B --description 'Please share the drawing again' --force
+          gh label create ready-for-review --color 0E8A16 --description 'Design validated; awaiting moderation' --force
+          gh label create approved --color 5319E7 --description 'Approved by an admin or maintainer' --force
+          gh api "repos/$GH_REPO/issues/$ISSUE" > "$RUNNER_TEMP/community/current.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'community'
+          issue = json.loads((root / 'current.json').read_text())
+          fresh = issue['body'] == (root / 'body.txt').read_text() and issue['state'] == 'open' and any(l['name'] == 'community-design' for l in issue['labels'])
+          (root / 'fresh').write_text('yes' if fresh else 'no')
+          PY
+          if [ "$(cat "$RUNNER_TEMP/community/fresh")" != yes ]; then exit 0; fi
+          if [ "$VALID" = true ]; then
+            gh issue edit "$ISSUE" --add-label ready-for-review --remove-label needs-changes
+          else
+            gh issue edit "$ISSUE" --add-label needs-changes --remove-label ready-for-review
+          fi
+          # An edit needs a fresh human approval, even when the token is valid.
+          if [ "$GITHUB_EVENT_NAME" = issues ] && [ "$(jq -r .action "$GITHUB_EVENT_PATH")" = edited ]; then
+            gh issue edit "$ISSUE" --remove-label approved
+          fi

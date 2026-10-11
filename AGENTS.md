@@ -320,6 +320,7 @@ content. Report vulnerabilities per `SECURITY.md`.
 | Screens, journeys, visual language | `docs/design/UX.md` |
 | Setup wizard, panel grids, WLED setup internals | `docs/DEVICE_SETUP.md` |
 | Glance cards and Rotations | `docs/GLANCE.md` |
+| Community drawings and moderation | `docs/COMMUNITY.md` |
 | Notification alerts | `docs/NOTIFICATIONS.md` |
 | Home Assistant blueprints | `docs/HOME_ASSISTANT.md` |
 | Catalog signing and delivery | `docs/CATALOG_DELIVERY.md`, `docs/CATALOG_ART.md` |

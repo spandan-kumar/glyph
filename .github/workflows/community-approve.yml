@@ -1,0 +1,194 @@
+name: Approve community design
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: community-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  permission:
+    if: github.event.label.name == 'approved' && contains(github.event.issue.labels.*.name, 'community-design')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      allowed: ${{ steps.permission.outputs.allowed }}
+    steps:
+      - name: Verify the person approving
+        id: permission
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            let allowed = false;
+            try {
+              const result = (await github.rest.repos.getCollaboratorPermissionLevel({
+                owner, repo, username: context.payload.sender.login})).data;
+              // Maintain is reported as write in permission; use role_name too.
+              allowed = result.permission === 'admin' || ['admin', 'maintain'].includes(result.role_name);
+            } catch (e) {
+              if (![403, 404].includes(e.status)) throw e;
+            }
+            if (!allowed) {
+              await github.rest.issues.removeLabel({owner, repo,
+                issue_number: context.issue.number, name: 'approved'});
+              core.notice('Only a repository admin or maintainer can approve a design.');
+            }
+            if (allowed) {
+              const prs = (await github.rest.pulls.list({owner, repo, state: 'all',
+                head: `${owner}:community/${context.issue.number}`, per_page: 100})).data;
+              if (prs.length) {
+                await github.rest.issues.createComment({owner, repo, issue_number: context.issue.number,
+                  body: `This drawing already has a pull request: ${prs[0].html_url}`});
+                allowed = false;
+              }
+            }
+            core.setOutput('allowed', String(allowed));
+
+  approve:
+    needs: permission
+    if: needs.permission.outputs.allowed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ISSUE: ${{ github.event.issue.number }}
+      AUTHOR: ${{ github.event.issue.user.login }}
+      ISSUE_URL: ${{ github.event.issue.html_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Snapshot the approved body
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/community"
+          gh api "repos/$GH_REPO/issues/$ISSUE" > "$RUNNER_TEMP/community/current.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'community'
+          issue = json.loads((root / 'current.json').read_text())
+          labels = {l['name'] for l in issue['labels']}
+          if issue['state'] != 'open' or not {'approved', 'community-design'} <= labels or issue['body'] != os.environ['ISSUE_BODY']:
+              raise SystemExit('Issue changed after approval. Review it and approve again.')
+          (root / 'body.txt').write_text(os.environ['ISSUE_BODY'])
+          PY
+      - name: Recheck the approved drawing
+        run: |
+          if ! dart run tool/community_design.dart check --body "$RUNNER_TEMP/community/body.txt" --out "$RUNNER_TEMP/community"; then
+            gh label create needs-changes --color D93F0B --description 'Please share the drawing again' --force
+            gh issue edit "$ISSUE" --add-label needs-changes --remove-label approved --remove-label ready-for-review
+            comment="$(gh api --paginate "repos/$GH_REPO/issues/$ISSUE/comments" --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- glyph-community-check -->"))) | .id' | head -n 1)"
+            jq -Rs '{body: .}' "$RUNNER_TEMP/community/report.md" > "$RUNNER_TEMP/community/comment.json"
+            if [ -n "$comment" ]; then
+              gh api --method PATCH "repos/$GH_REPO/issues/comments/$comment" --input "$RUNNER_TEMP/community/comment.json"
+            else
+              gh api --method POST "repos/$GH_REPO/issues/$ISSUE/comments" --input "$RUNNER_TEMP/community/comment.json"
+            fi
+            exit 1
+          fi
+      - name: Publish the approved preview
+        id: preview
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const {owner, repo} = context.repo;
+            const branch = 'community-previews';
+            const path = `${context.issue.number}/${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}.gif`;
+            const blob = (await github.rest.git.createBlob({owner, repo,
+              content: fs.readFileSync(process.env.RUNNER_TEMP + '/community/preview.gif').toString('base64'), encoding: 'base64'})).data;
+            // Start with an orphan tree; keep all previous previews on retries.
+            for (let attempt = 0; ; attempt++) {
+              try {
+                let parent;
+                try {
+                  parent = (await github.rest.git.getRef({owner, repo, ref: `heads/${branch}`})).data.object.sha;
+                } catch (e) { if (e.status !== 404) throw e; }
+                const base_tree = parent ? (await github.rest.git.getCommit({owner, repo, commit_sha: parent})).data.tree.sha : undefined;
+                const tree = (await github.rest.git.createTree({owner, repo, ...(base_tree ? {base_tree} : {}),
+                  tree: [{path, mode: '100644', type: 'blob', sha: blob.sha}]})).data;
+                const commit = (await github.rest.git.createCommit({owner, repo,
+                  message: `Preview approved community issue #${context.issue.number}`,
+                  tree: tree.sha, parents: parent ? [parent] : []})).data;
+                if (parent) await github.rest.git.updateRef({owner, repo, ref: `heads/${branch}`, sha: commit.sha, force: false});
+                else await github.rest.git.createRef({owner, repo, ref: `refs/heads/${branch}`, sha: commit.sha});
+                break;
+              } catch (e) {
+                if (attempt >= 4 || ![409, 422].includes(e.status)) throw e;
+              }
+            }
+            core.setOutput('url', `https://raw.githubusercontent.com/spandan-kumar/glyph/${branch}/${path}`);
+      - name: Add the drawing and regenerate
+        run: |
+          # Credit is parsed from the issue-form section by Dart, never shell.
+          dart run tool/community_design.dart add --body "$RUNNER_TEMP/community/body.txt" --issue "$ISSUE" --author "$AUTHOR" --url "$ISSUE_URL"
+          # add also bumps content_revision.json and stamps that revision on the drawing.
+          dart run tool/build_sprites.dart
+          dart run tool/build_catalog.dart
+          python3 skills/glyph-animation/scripts/validate_sprite.py --all
+      # PRs opened with GITHUB_TOKEN do not trigger ci.yml. Run the relevant
+      # checks here; a maintainer can trigger full CI with a subsequent push.
+      - name: Test generated catalog
+        run: |
+          flutter analyze
+          flutter test test/engine/sprite_test.dart test/library test/tool
+      - name: Open the community PR
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+        run: |
+          branch="community/$ISSUE"
+          existing="$(gh pr list --head "$branch" --state all --json url --jq '.[0].url // empty')"
+          if [ -n "$existing" ]; then
+            printf 'This drawing already has a pull request: %s\n' "$existing" > "$RUNNER_TEMP/community/pr-link.md"
+            gh issue comment "$ISSUE" --body-file "$RUNNER_TEMP/community/pr-link.md"
+            exit 0
+          fi
+          # Recheck after tests so an edit cannot silently change what was approved.
+          gh api "repos/$GH_REPO/issues/$ISSUE" > "$RUNNER_TEMP/community/current.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'community'
+          issue = json.loads((root / 'current.json').read_text())
+          labels = {l['name'] for l in issue['labels']}
+          if issue['state'] != 'open' or issue['body'] != (root / 'body.txt').read_text() or not {'approved', 'community-design'} <= labels:
+              raise SystemExit('Issue changed during approval. Review it and approve again.')
+          design = json.loads((root / 'design.json').read_text())
+          (root / 'pr-title.txt').write_text(f"Add community design: {design['title']} (#{os.environ['ISSUE']})")
+          (root / 'pr-body.md').write_text(
+              f"Adds the original CC0 drawing submitted in {os.environ['ISSUE_URL']}.\n\n"
+              f"Closes #{os.environ['ISSUE']}\n\n"
+              f"![Drawing preview]({os.environ['PREVIEW_URL']})\n\n"
+              "Validated the sprite, regenerated assets, and ran Flutter analysis and sprite/library/tool tests.\n\n"
+              "The catalog revision is bumped here. If another catalog change merged first, bump "
+              "assets/catalog/content_revision.json once more before merging (docs/CATALOG_DELIVERY.md). "
+              "Publishing still needs approval in the protected catalog environment.\n")
+          PY
+          git switch -c "$branch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/catalog/sprites/community.json assets/catalog/content_revision.json lib/engine/generators/sprite_data.g.dart assets/catalog/catalog.json
+          git commit -m "Add community drawing from issue #$ISSUE" -m 'Include the creator’s CC0 release and regenerated catalog assets.'
+          gh auth setup-git
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title "$(cat "$RUNNER_TEMP/community/pr-title.txt")" --body-file "$RUNNER_TEMP/community/pr-body.md" > "$RUNNER_TEMP/community/pr-url.txt"
+          printf 'Your drawing is ready for review: %s\n' "$(cat "$RUNNER_TEMP/community/pr-url.txt")" > "$RUNNER_TEMP/community/pr-link.md"
+          gh issue comment "$ISSUE" --body-file "$RUNNER_TEMP/community/pr-link.md"

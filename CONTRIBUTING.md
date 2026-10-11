@@ -4,6 +4,7 @@ Thanks for being here. Glyph gets better every time someone adds a drawing,
 reports a bug or fixes one. You don't need to know Flutter to contribute art:
 sprites are plain text files.
 
+- [Share a drawing with the community](#share-a-drawing-with-the-community)
 - [Add an animation in 5 minutes](#add-an-animation-in-5-minutes)
 - [Let your AI agent draw it](#let-your-ai-agent-draw-it)
 - [Licensing: original or public domain only](#licensing-original-or-public-domain-only)
@@ -11,6 +12,17 @@ sprites are plain text files.
 - [Reporting bugs and ideas](#reporting-bugs-and-ideas)
 - [Good first issues](#good-first-issues)
 - [Code of conduct](#code-of-conduct)
+
+## Share a drawing with the community
+
+Draw on Glyph's canvas and tap **Share with the community**. Review the
+prefilled GitHub issue, choose a credit name if you like, and confirm that
+it's your own work released under CC0. Leave the design token as Glyph
+filled it in. A maintainer reviews the preview before adding it to the
+signed catalog, where apps receive it on their next catalog check.
+
+Submissions are public under your GitHub account. See
+[how sharing works, limits and moderation](docs/COMMUNITY.md).
 
 ## Add an animation in 5 minutes
 

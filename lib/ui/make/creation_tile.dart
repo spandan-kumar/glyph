@@ -15,6 +15,7 @@ import '../design/tokens.dart';
 import '../design/type.dart';
 import '../scope.dart';
 import 'led_loop.dart';
+import 'community_share.dart';
 import 'studio_kit.dart';
 import '../design/route.dart';
 
@@ -125,6 +126,9 @@ Future<void> showCreationActions(BuildContext context, Creation c) {
       StudioAction(Icons.gif_box_sharp, 'Share as GIF', () => shareCreationAsGif(context, c)),
       StudioAction(Icons.ios_share_sharp, 'Share Glyph file', () => shareCreationFile(context, c),
           subtitle: 'Opens editable in Glyph'),
+      if (c.kind == 'drawing')
+        StudioAction(Icons.public_sharp, 'Share with the community', () => showCommunityShare(context, c),
+            subtitle: 'Everyone with Glyph can play it'),
       StudioAction(Icons.photo_camera_sharp, 'Show it off', () => openCommunityLink(context, Community.showAndTell),
           subtitle: 'Post it in Show and tell'),
       StudioAction(Icons.delete_outline_sharp, 'Delete', () => deleteCreation(context, c), danger: true),

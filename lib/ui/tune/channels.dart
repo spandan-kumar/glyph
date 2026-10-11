@@ -122,7 +122,7 @@ const moods = ['cozy', 'spooky', 'space', 'party', 'calm', 'retro', 'love', 'nat
 const classicCategories = {'Classic Cartoons', 'Storybook', 'Monsters & Legends', 'Masterpieces'};
 
 /// Categories that already have their own named rail.
-const _railCategories = {...classicCategories, 'Chill', 'Party', 'Space'};
+const _railCategories = {...classicCategories, 'Chill', 'Party', 'Space', 'Community'};
 
 /// A part of the day, with tags that suit it.
 class Daypart {
@@ -198,6 +198,8 @@ class CatalogChannels {
     final fresh = bundledRevision > 0 ? c.items.where((i) => i.added > bundledRevision).toList() : const <LibraryItem>[];
     lead = [
       if (fresh.isNotEmpty) make('new', 'Just added', fresh, limit: 30),
+      // Drawn by people using Glyph; arrives through the remote catalog.
+      make('community', 'Community', c.inCategory('Community'), limit: 30),
       make('classics', 'Famous Classics', c.items.where((i) => classicCategories.contains(i.category)), limit: 30),
       make('pals', 'Pixel Pals', union(cute, sprites), limit: 30),
       make('calm', 'Calm', union(c.inCategory('Chill'), c.tagged(['calm']))),
@@ -213,7 +215,7 @@ class CatalogChannels {
   final Catalog catalog;
   late final Channel nowChannel;
 
-  /// Just added (when there is something new), Famous Classics, Pixel Pals,
+  /// Just added (when there is something new), Community (when there is any), Famous Classics, Pixel Pals,
   /// Calm, Party, Space.
   late final List<Channel> lead;
 

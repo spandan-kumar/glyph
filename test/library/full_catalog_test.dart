@@ -17,7 +17,7 @@ void main() {
     expect(catalog.items.length, greaterThanOrEqualTo(1000));
     expect(catalog.categories.length, greaterThanOrEqualTo(12));
     for (final c in catalog.categories) {
-      expect(catalog.inCategory(c).length, greaterThanOrEqualTo(10), reason: c);
+      expect(catalog.inCategory(c).length, greaterThanOrEqualTo(c == 'Community' ? 1 : 10), reason: c);
     }
     expect(catalog.items.where((i) => i.isPixelArt).length, greaterThanOrEqualTo(300));
   });

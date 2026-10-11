@@ -31,4 +31,25 @@ void main() {
     bundledRevision = 0;
     expect(CatalogChannels(catalog, now).lead.any((c) => c.id == 'new'), isFalse);
   });
+
+  test('Community has its own rail after Just added, only when there are items', () {
+    LibraryItem made(String id, String category, int added) => LibraryItem(
+      id: id,
+      title: id,
+      category: category,
+      generatorId: id,
+      paletteId: 'ocean',
+      added: added,
+      notice: 'By @someone · CC0',
+    );
+    bundledRevision = 3;
+    final withCommunity = Catalog(items: [item('old', 3), made('fresh', 'Community', 4), made('fresh2', 'Community', 4)]);
+    final c = CatalogChannels(withCommunity, now);
+    expect(c.lead.map((e) => e.id).take(2), ['new', 'community']);
+    expect(c.lead[1].name, 'Community');
+    expect(c.lead[1].all.map((e) => e.title).toSet(), {'fresh', 'fresh2'});
+    expect(c.rest.any((e) => e.name == 'Community'), isFalse);
+
+    expect(CatalogChannels(catalog, now).lead.any((e) => e.id == 'community'), isFalse);
+  });
 }

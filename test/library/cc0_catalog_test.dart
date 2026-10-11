@@ -12,8 +12,9 @@ void main() {
     File('assets/catalog/catalog.json').readAsStringSync(),
   );
   final artists = SpriteLibrary.all
-      .where((g) => g.sprite.source?['license'] == 'CC0-1.0')
+      .where((g) => g.sprite.source?['license'] == 'CC0-1.0' && g.sprite.category != 'Community')
       .toList();
+  final community = SpriteLibrary.all.where((g) => g.sprite.category == 'Community').toList();
 
   test('CC0 art has one credited new item and source provenance', () {
     expect(artists, isNotEmpty);
@@ -32,6 +33,16 @@ void main() {
       expect(item.tags, isNot(contains('classic')));
       expect(item.added, 4);
       expect(catalog.search(item.title).first.id, item.id);
+    }
+  });
+
+  test('community drawings are credited and land on Just added', () {
+    for (final g in community) {
+      final source = g.sprite.source!;
+      expect(source['url'], startsWith('https://github.com/spandan-kumar/glyph/issues/'));
+      final item = catalog.items.where((i) => i.generatorId == g.id).single;
+      expect(item.notice, 'By ${source['creator']} · CC0');
+      expect(item.added, int.parse(source['added'] as String));
     }
   });
 

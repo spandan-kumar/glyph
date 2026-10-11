@@ -73,7 +73,7 @@ PALETTES = [
 ]
 
 CATEGORY_ORDER = [
-    'Classic Cartoons', 'Storybook', 'Monsters & Legends', 'Masterpieces',
+    'Community', 'Classic Cartoons', 'Storybook', 'Monsters & Legends', 'Masterpieces',
     'Chill', 'Party', 'Emoji', 'Love', 'Holidays', 'Nature', 'Animals', 'Water',
     'Weather', 'Space', 'Fire & Energy', 'Abstract', 'Hypnotic', 'Retro & Digital',
     'Gaming', 'Science & Sims', 'Food & Drink', 'Symbols',
@@ -394,13 +394,31 @@ def validate_sprite(j, pack_ctx, tables, rep, catalog_titles):
             if 'license' in src:
                 if src['license'] != 'CC0-1.0':
                     rep.err(where, 'imported art must declare license "CC0-1.0"')
-                for k in ('url', 'licenseUrl', 'downloadUrl'):
+                community = (category == 'Community' and
+                             isinstance(src.get('url'), str) and
+                             re.fullmatch(r'https://github\.com/spandan-kumar/glyph/issues/[1-9][0-9]*', src['url']))
+                if category == 'Community' and not community:
+                    rep.err(where, 'community source must link a Glyph GitHub issue')
+                for k in ('url', 'licenseUrl') if community else ('url', 'licenseUrl', 'downloadUrl'):
                     if not isinstance(src.get(k), str) or not src[k].startswith('https://'):
                         rep.err(where, f'CC0 source "{k}" must be an HTTPS URL')
-                if not isinstance(src.get('sha256'), str) or not re.fullmatch(r'[0-9a-f]{64}', src['sha256']):
-                    rep.err(where, 'CC0 source "sha256" must identify the original download')
-                if not isinstance(src.get('file'), str) or not src['file'].strip():
-                    rep.err(where, 'CC0 source "file" must name the original sprite sheet')
+                if community:
+                    for k in ('downloadUrl', 'sha256', 'file'):
+                        if k in src:
+                            rep.err(where, f'community source must not have "{k}"')
+                    if src.get('licenseUrl') != 'https://creativecommons.org/publicdomain/zero/1.0/':
+                        rep.err(where, 'community source must link the CC0 1.0 licence')
+                    if not (isinstance(src.get('added'), str) and re.fullmatch(r'[1-9][0-9]*', src['added'])):
+                        rep.err(where, 'community source "added" must be the catalog revision it arrived in')
+                else:
+                    if not isinstance(src.get('sha256'), str) or not re.fullmatch(r'[0-9a-f]{64}', src['sha256']):
+                        rep.err(where, 'CC0 source "sha256" must identify the original download')
+                    if not isinstance(src.get('file'), str) or not src['file'].strip():
+                        rep.err(where, 'CC0 source "file" must name the original sprite sheet')
+            elif category == 'Community':
+                rep.err(where, 'community source must declare license "CC0-1.0"')
+    elif category == 'Community':
+        rep.err(where, 'community sprites require a CC0 source')
     sprite_colors = check_colors(j.get('colors'), where, rep)
     colors = dict(pack_colors)
     colors.update(sprite_colors)

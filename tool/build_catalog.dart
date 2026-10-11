@@ -23,6 +23,7 @@ const classicsRevision = 3;
 const cc0Revision = 4;
 
 const categoryOrder = [
+  'Community',
   'Classic Cartoons', 'Storybook', 'Monsters & Legends', 'Masterpieces',
   'Chill', 'Party', 'Emoji', 'Love', 'Holidays', 'Nature', 'Animals', 'Water',
   'Weather', 'Space', 'Fire & Energy', 'Abstract', 'Hypnotic', 'Retro & Digital',
@@ -785,7 +786,8 @@ void main() {
           if (cc0) 'cc0' else 'classic',
           'public domain', 'pixel art', 'sprite',
         ], s.palette),
-        added: cc0 ? cc0Revision : classicsRevision,
+        // Community drawings carry the revision they were added in.
+        added: int.tryParse('${s.source!['added'] ?? ''}') ?? (cc0 ? cc0Revision : classicsRevision),
         notice: s.notice,
       ));
       spriteItems++;
