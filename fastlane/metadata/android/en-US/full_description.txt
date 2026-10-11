@@ -1,6 +1,12 @@
-Glyph brings your WLED LED matrix to life. Swipe through more than a thousand animations like TV channels, draw your own pixel art, show the time, put your music on the wall and play games, all from your phone.
+Glyph sets up your WLED LED matrix and brings it to life. A guided wizard gets a new display working, then you swipe through more than a thousand animations like TV channels, draw your own pixel art, show the time, put your music on the wall and play games, all from your phone. Free, open source, no account.
 
 Your matrix lives at the top of the screen as a glowing live panel. Swipe it to flip through animations, roll the dice for a surprise, and tap Send to put an animation on the device so it keeps playing with your phone off.
+
+SET UP
+• Join a new device to your home Wi-Fi, pick its size, and find its wiring with three taps of a light test. Glyph writes the layout to the device for you.
+• Grids of panels: panel order, upside-down panels, power and frame-rate tips.
+• Saved animations, WLED effects and live streams all come out the right way up. A final check, and undo anytime.
+• Devices set their own clock from your phone's time zone, so Routines run on time.
 
 DISPLAY
 • 1,209 animations in 22 categories: 62 procedural effects (plasma, fire, aurora, reaction–diffusion, falling sand…), 329 original pixel-art sprites, and Famous Classics: public-domain characters and paintings such as the 1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night.
@@ -19,14 +25,16 @@ DEVICE
 • Power, brightness and night light.
 • Saved animations, Shows and Routines that run without your phone.
 • The Glyph intro plays every time your device powers on.
+• Home Assistant blueprints show a Saved look or Show when something happens, then go back afterwards.
+• Glance cards for weather, forecast and air quality.
 • Storage alerts, multiple devices, a home-screen widget, and the full WLED settings inside the app.
 
 PRIVATE, FREE AND OPEN SOURCE
-• No account, no cloud, no ads, no tracking. Glyph talks straight to the devices on your Wi-Fi; your drawings and audio stay on your phone.
+• No account, no cloud, no ads, no tracking. Glyph talks straight to the devices on your Wi-Fi; your drawings and audio stay on your phone. Weather cards look up your forecast only if you turn them on.
 • Free and open source under the MIT license.
 
 WHAT YOU NEED
-• A WLED controller driving an LED matrix, set up under Settings → 2D Configuration. Any panel size works, including HUB75 panels on WLED's HUB75 builds.
+• A controller with WLED already installed (install.wled.me), driving an LED matrix. Glyph sets up the layout. Complex setups, such as several outputs or custom LED maps, keep their existing configuration. Any panel size works, including HUB75 panels on WLED's HUB75 builds.
 • Your phone on the same Wi-Fi.
 • Live streaming works on every WLED controller; sending animations to the device needs an ESP32 on WLED 16 or newer.
 

@@ -6,33 +6,35 @@ This plan merges product and marketing into one timeline, ordered for the
 most reach and community, based on research (October 2026) into what
 pixel-display owners want, which displays they own and where they talk.
 
-**Status, 10 October 2026.** v1.3.6+11 is published. v1.3.2 shipped the
-bug/polish bundle; v1.3.3 shipped logo Alerts, weather/day-counter Glance
-cards and phone Rotations; v1.3.4–1.3.5 added interaction polish and lower
-resource use. The library still has 1,209 looks, 62 procedural generators,
-329 sprites and 22 categories.
+**Status, 11 October 2026.** v1.4.0+12 is published (11 October). It adds the
+device setup wizard, automatic device time, Home Assistant blueprints and
+forecast and air quality Glance cards. The library has 1,209 looks, 62
+procedural generators, 329 sprites and 22 categories.
 
-**Latest release: v1.3.6+11.** Activates the signed GitHub Pages catalog with
-manual checks and optional foreground daily checks, fixes background Music
-activity pauses, and preserves complete Send content. Full CI and phone/controller
-QA passed, including offline catalog recovery, complete Send, resource limits
-and background Music. Actions published the arm64 APK and checksum; both the
-checksum and signing-certificate continuity with v1.3.5 were verified.
-[PLAN.md](PLAN.md) owns the release gates and implementation details;
-[the QA record](QA_1_3_6.md) states the physical coverage and its limits.
+**Latest release: v1.4.0+12**
+([notes](https://github.com/spandan-kumar/glyph/releases/tag/v1.4.0)). The
+wizard covers Wi-Fi join, panel size, a three-tap wiring test, grids of equal
+panels up to WLED's 18-panel limit, and apply with undo. Home Assistant
+blueprints live in `homeassistant/` ([guide](HOME_ASSISTANT.md)). Crypto was
+dropped: CoinGecko needs an API key and the keyless alternatives forbid
+redistribution. Planes overhead is deferred by the maintainer.
 
-**Strategy.** Soft-launch the shipped WLED product, then prioritize the device
-setup wizard and an independent Home Assistant Saved-trigger blueprint.
-Weather, counters, notifications and phone Rotations are shipped foundations,
-not future v1.4 promises. Additional feeds need provider validation.
-The setup wizard and HA blueprint can progress independently. The seasonal launch
-window is a target, conditional on readiness. Later display adapters each
-create a new community launch; dates remain provisional until hardware and
-protocol checks pass.
+**Known gaps in this release.** It shipped without a never-configured-ESP32
+check (no spare hardware). Panel grids and iOS have automated coverage only;
+the iOS test plan is [QA_IOS.md](QA_IOS.md). v1.3.6 QA is in
+[the QA record](QA_1_3_6.md). [PLAN.md](PLAN.md) owns release gates.
+
+**Strategy.** Refresh the screenshots and listing, publish the privacy and
+security policies, film the hero video, then soft-launch to r/WLED with the
+setup wizard as the lead. Wider posts follow once feedback is triaged and the
+hardware QA below is done or honestly disclosed as missing. Distribution is
+GitHub Releases and Obtainium; F-Droid later. The Play Store is not planned
+yet. Later display adapters each create a new community launch; dates stay
+provisional until hardware and protocol checks pass.
 
 **Privacy promise.** Free, no account and no Glyph backend. Rendering,
-creations and notification contents stay local. Optional weather/aircraft/
-market feeds contact external providers; remote catalog checks contact the
+creations and notification contents stay local. Optional weather and air quality
+feeds contact Open-Meteo; remote catalog checks contact the
 static host. Say what each feature sends and whether it needs the phone and
 internet, rather than promising that all future features are offline.
 
@@ -78,18 +80,18 @@ Ranked from forum, Reddit and GitHub evidence.
 
 | # | Need | Who | Glyph |
 |---|---|---|---|
-| 1 | Notifications / smart-home values on the display | AWTRIX, WLED, Pixoo | logo Alerts shipped in v1.3.3; HA entity watcher later |
-| 2 | Weather (now, forecast, air quality) | Tidbyt, AWTRIX | current weather shipped; forecast and air quality cards built (Open-Meteo, validated 11 Oct 2026), not yet released |
-| 3 | Planes overhead (top Tidbyt request) | Tidbyt | skipped for now (no suitable free feed validated) |
+| 1 | Notifications / smart-home values on the display | AWTRIX, WLED, Pixoo | logo Alerts shipped in v1.3.3; Home Assistant blueprints (trigger Saved looks and Shows from automations) shipped in v1.4.0; entity watcher later |
+| 2 | Weather (now, forecast, air quality) | Tidbyt, AWTRIX | current weather (v1.3.3) plus forecast and air quality cards (v1.4.0, Open-Meteo) shipped |
+| 3 | Planes overhead (top Tidbyt request) | Tidbyt | deferred by the maintainer (no suitable free feed validated) |
 | 4 | Sports scores | Tidbyt | skipped (free APIs keep dying) |
-| 5 | Panel setup/mapping is confusing | WLED | orientation fix shipped; full wizard independently planned |
+| 5 | Panel setup/mapping is confusing | WLED | setup wizard shipped in v1.4.0 (Wi-Fi, size, wiring test, panel grids, undo); fresh-ESP32 and real multi-panel QA pending hardware |
 | 6 | Local, no cloud, no account | Pixoo, LaMetric, Tidbyt | core works locally; future external feeds explicitly optional |
 | 7 | Easy custom pixel art | WLED | yes |
 | 8 | Now Playing album art | Tidbyt, Pixoo | yes |
 | 9 | Content rotation with a UI, not YAML | WLED, Tidbyt | device Shows shipped; phone Rotations shipped in v1.3.3 |
 | 10 | Counters (days until/since) | Tidbyt, AWTRIX | shipped in v1.3.3 (phone timezone) |
 | 11 | Busy light, night modes | Tidbyt, AWTRIX | Routines and logo Alerts shipped |
-| 12 | Stocks/crypto | Tidbyt | stocks skipped; crypto blocked: CoinGecko's docs now require an API key (Demo plan), see GLANCE.md |
+| 12 | Stocks/crypto | Tidbyt | stocks skipped; crypto dropped (CoinGecko needs a key, keyless alternatives forbid redistribution), see GLANCE.md |
 | 13 | Calendar, transit, RSS | Tidbyt | later |
 | 14 | Non-Latin text | AWTRIX, WLED | gap → 2027 |
 | 15 | Ambient scenes | Tidbyt | yes |
@@ -125,116 +127,75 @@ straight into them.
 
 ## 4. Timeline
 
-Starting Monday 5 October 2026.
+Re-dated on Sunday 11 October 2026. Dates are targets. Items that need
+hardware or Apple setup have no date until the equipment exists.
 
-### Week 0 — Launch-ready (5–11 Oct)
+### Done by 11 October
 
-Verified repository/release work:
-
-- [x] MIT LICENSE.
-- [x] Release-signing configuration and CI secrets used by the successful
-      v1.3.1 release job (4 Oct UTC / 5 Oct IST); APK and SHA-256 published.
-      Keep the release key stable for future updates.
-- [x] README intro GIF/screenshots, release/license/Obtainium badges,
-      supported WLED/panel list, and community/roadmap links.
+- [x] MIT LICENSE; signed release workflow; APK and SHA-256 published.
+- [x] README intro GIF, badges, supported WLED/panel list, community links.
 - [x] Social preview asset (`docs/media/social_preview.png`) and GitHub topics.
-- [ ] Confirm the social preview is configured in GitHub repository settings;
-      the asset's presence alone does not verify that setting.
 - [x] CONTRIBUTING, sprite agent skill, issue forms, PR template and
       13 `good first issue`s (#7–#19).
-- [x] Discussions on. Glyph Discord: https://discord.gg/9EeCFZAFvk
+- [x] Discussions on; Glyph Discord https://discord.gg/9EeCFZAFvk
 - [x] Public roadmap board: https://github.com/users/spandan-kumar/projects/4
-- [x] Discord webhook setup recorded in the existing plan; release
-      announcements are implemented in the workflows. Other webhook
-      delivery has not been re-verified by this reconciliation.
 - [x] In-app feedback, animation requests, sharing link, What's new and
-      Discord/roadmap links in the Glyph menu. Refinements are in #20–#24.
+      Discord/roadmap links in the Glyph menu.
 - [x] CI (analyze + test), tagged APK/checksum releases, release-note
-      categories and Dependabot.
+      categories and Dependabot; Discord release announcements.
+- [x] v1.3.2 polish bundle (#20 to #24), v1.3.3 Alerts/Glance/Rotations,
+      v1.3.6 signed catalog delivery.
+- [x] **v1.4.0** (11 Oct): setup wizard with panel grids, automatic device
+      time, Home Assistant blueprints, forecast and air quality cards.
+- [x] Home Assistant blueprint built and documented (`homeassistant/`).
 
-External status to confirm (not infer from repository files):
+### Week 1: assets and policies (12–18 Oct)
 
-- [ ] Android developer verification registration/status.
-- [ ] Play account/closed-test start and tester eligibility. Record the
-      actual start date before calculating a production application date.
-
-Remaining launch assets:
-
-- [ ] Hero video 30–45 s (vertical + 16:9) and feature clips (Now Playing,
-      swipe channels, draw live, a game, boot intro). Film in a dark room at
-      a slow shutter so LEDs don't flicker; a diffuser photographs better.
+- [ ] Privacy policy ([PRIVACY.md](PRIVACY.md), being written) and security
+      policy (`SECURITY.md`, being written); link both from README and the app.
+- [ ] Refreshed screenshots and store listing for 1.4.0 (in progress).
+- [ ] Hero video 30–45 s (vertical + 16:9) and feature clips (setup wizard
+      wiring test, Now Playing, swipe channels, draw live, a game, boot
+      intro). Needs maintainer footage. Film in a dark room at a slow shutter
+      so LEDs don't flicker; a diffuser photographs better.
+- [ ] Confirm the social preview is configured in GitHub repository settings.
+- [ ] Android developer verification registration/status (external, confirm).
 - [ ] Technical blog post: phone-side rendering, DDP, the WLED GIF timer bug.
 - [ ] One-page creator kit: what it is, 3 clips, links, contact.
 
-### Week 1 — Soft launch to the core (12–18 Oct)
+### Hardware and platform QA (no dates; blocked on equipment)
 
-- [ ] **Tue 13 Oct: r/WLED** (~52k) video post (draft below). Reply to every
-      comment for 48 h. Ask for Play testers and non-16×16 feedback.
-- [ ] PR to the **WLED docs compatible-software list** (kno.wled.ge,
-      `wled/WLED-Docs`): permanent, high-intent traffic.
+- [ ] Fresh-ESP32 check: run the wizard on a never-configured controller
+      (skipped for 1.4.0, no spare hardware).
+- [ ] Real multi-panel grid QA on physical panels.
+- [ ] iOS build and a run of [QA_IOS.md](QA_IOS.md) (needs Apple setup).
+- [ ] v1.4.x fixes from whatever these find; say in posts that grids and iOS
+      were covered by automated tests only until then.
+
+### Week 2: soft launch to the core (19–25 Oct, once screenshots and video exist)
+
+- [ ] **r/WLED** (~52k) video post (draft below). Reply to every comment for
+      48 h. Lead with the setup wizard. Ask for non-16×16 and multi-panel
+      feedback, since those are the least tested.
+- [ ] PR to the **WLED docs compatible-software list** (draft below).
 - [ ] **WLED forum** (*Projects* and *Integrations*) and the WLED Discord.
-- [x] Implement the known polish bundle for v1.3.2 (7 Oct):
-      [#20](https://github.com/spandan-kumar/glyph/issues/20) collapsed-Stage Send,
-      [#21](https://github.com/spandan-kumar/glyph/issues/21) sharing frequency,
-      [#22](https://github.com/spandan-kumar/glyph/issues/22) Discord sharing,
-      [#23](https://github.com/spandan-kumar/glyph/issues/23) system intro in Routines,
-      [#24](https://github.com/spandan-kumar/glyph/issues/24) unchanged re-send.
-      All five and audit fixes A1–A3 are bundled in v1.3.2+7 with regression
-      coverage. Actions builds/publishes the APK and checksum; physical
-      Android/controller QA was not performed during release preparation.
+- [ ] Post in Glyph Discord #announcements.
 
-### Weeks 2–3 — Catalog and device setup (19 Oct – 1 Nov target)
+### Weeks 3–4: feedback and the Home Assistant crowd (26 Oct – 8 Nov)
 
-Confirmed product answers and remaining proposals are recorded in [PLAN.md](PLAN.md).
-Remaining work builds on the shipped features:
-
-1. **Signed catalog delivery** — activate the v1.3.6 production verification
-   key, protected signing and Pages hosting. Verify the public artifact,
-   caching and optional daily cadence; finish deferred phone QA before
-   releasing the app (see [delivery runbook](CATALOG_DELIVERY.md)).
-2. **Device setup wizard** — the next product priority: assisted home Wi-Fi
-   onboarding with guided fallback, single-panel size/wiring, optional power
-   limits and visible tests, with snapshot/write/reconnect/verify/restore.
-   Panel grids (several equal panels on one controller) are built, not
-   released; both await physical QA. See the [setup plan](DEVICE_SETUP.md).
-3. **Regression coverage** — Alerts, Glance and phone Rotations shipped in
-   v1.3.3. Keep interruption/restoration, permission revocation, freshness,
-   foreground/background transitions and phone-timezone counters working.
-   The source has automated coverage and prior phone/controller QA; visual
-   checks and new catalog phone QA must not be inferred from those tests.
-
-Independent work, ship when verified:
-
-- **Device setup wizard** — Wi-Fi onboarding, size presets, start corner,
-  zig-zag wiring, optional power limits and live visual tests with recovery.
-  Single panel and grids of equal panels built, not released; gaps and mixed
-  sizes come later.
-- **Home Assistant blueprint** — *built, not released* (`homeassistant/`,
-  guide in [HOME_ASSISTANT.md](HOME_ASSISTANT.md), in-app "Use with Home
-  Assistant" sheet). Triggers Saved looks and Shows by name from automations.
-  Needs a check against a live Home Assistant. Entity watching is a later
-  feature.
-- **Seasonal promotion** — Halloween + Diwali packs shipped in v1.3.1;
-  film clips for 24 Oct. An automatic seasonal Routine remains planned.
-
-Follow-on candidates: forecast/air quality, sunrise/sunset/moon phase,
-crypto and planes overhead. Verify each provider's availability, coverage,
-usage limits and required disclosures before assigning it to a release.
-Aircraft route data is not promised before feed validation.
-
-Apply for Play production only after the actual required closed-test period
-and account requirements are confirmed. The old ~27 Oct estimate assumed
-a test start that has not been verified.
-
-### Week 4 — Wider launch (2–8 Nov target)
-
-Target one 72-hour window, **Tue 3 – Thu 5 Nov**, if the release gates in
-PLAN.md pass. Otherwise move the launch; posts must show only shipped
-features. This is a promotion target; ship only features that meet their gates:
-
+- [ ] Triage r/WLED feedback onto the board; ship v1.4.1 fixes.
 - [ ] **r/homeassistant** (~388k) + HA forum *Share your Projects*: lead with
-      notifications/weather actually shipped, the HA blueprint if ready, and
-      local rendering with explicit optional internet feeds.
+      the blueprint and local, no-cloud control. Needs a live-HA check first
+      (see [HOME_ASSISTANT.md](HOME_ASSISTANT.md)).
+- [ ] Optional daily catalog checks and signed catalog regression: keep
+      [CATALOG_DELIVERY.md](CATALOG_DELIVERY.md) current.
+- [ ] **Sun 8 Nov: Diwali** clip on r/WLED and Discord.
+
+### Weeks 5–6: wider launch (target Tue 10 – Thu 12 Nov, if gates pass)
+
+One 72-hour window. Posts show only shipped features; move the window if
+the soft launch turns up serious bugs.
+
 - [ ] **r/esp32** (~109k), **r/arduino** (~767k), **r/led**: lead with how it
       works (phone renders, DDP, any ESP).
 - [ ] **r/androidapps** (~560k): screenshots + clip.
@@ -244,10 +205,10 @@ features. This is a promotion target; ship only features that meet their gates:
 - [ ] **awesome-flutter** PR (`SOURCE.md`, bottom of the category, with a GIF).
 - [ ] **F-Droid** submission with an honest AI-assistance disclosure
       (F-Droid's interim policy allows reviewed AI help; IzzyOnDroid doesn't,
-      so skip it). Obtainium badge already live.
-- [ ] **Sun 8 Nov: Diwali** clip on r/WLED and Discord.
+      so skip it). Obtainium badge already live. The Play Store is not planned
+      yet; revisit after the F-Droid submission.
 
-### Weeks 5–6 — Amplify (9–22 Nov)
+### Weeks 7–8: amplify (16–29 Nov)
 
 - [ ] Pitch **5 YouTubers** (WLED/Home Assistant/maker space, e.g. DrZzs, The
       Hook Up, Everything Smart Home, QuinLED, Andreas Spiess, Core
@@ -255,9 +216,8 @@ features. This is a promotion target; ship only features that meet their gates:
 - [ ] **r/PixelArt** (2.7M): art made in Glyph on a real matrix; app link only
       in a comment.
 - [ ] First **monthly community pack** + "you asked, we built" post.
-- [ ] Triage launch feedback onto the board; ship 1.4.x fixes.
 
-### Weeks 7–9 — v1.5 "AWTRIX" (23 Nov – 13 Dec)
+### Weeks 9–11: v1.5 "AWTRIX" (30 Nov – 20 Dec, provisional)
 
 - [ ] Generic **Art-Net / E1.31 sender**, then **AWTRIX NG** on Ulanzi TC001
       (Art-Net live on UDP 6454, GIF upload to `/ICONS`, mDNS
@@ -266,7 +226,7 @@ features. This is a promotion target; ship only features that meet their gates:
 - [ ] Launch to the AWTRIX/Home Assistant crowd (HA forum, AWTRIX GitHub
       discussions) and a r/homeassistant follow-up.
 
-### Weeks 10–12 — v1.6 "Pixoo" (14 Dec – 3 Jan)
+### Weeks 12–14: v1.6 "Pixoo" (21 Dec – 10 Jan, provisional)
 
 - [ ] **Divoom Pixoo 64/16** — HTTP `Draw/SendHttpGif` upload (16/32/64 px,
       < 60 frames, loops on its own); upload only (live is ~1 fps).
@@ -288,7 +248,7 @@ features. This is a promotion target; ship only features that meet their gates:
       your matrix live in any browser, streamed peer-to-peer from the phone
       with PeerJS/WebRTC — no Glyph server, a static viewer page draws the
       LED dots. For showing friends, people without hardware, embeds.
-- [ ] **iOS** build.
+- [ ] **iOS** release (the build and QA run are in the hardware list above).
 
 Not planned: AI image generation (paid cloud keys), sports scores (fragile
 APIs), a full web/desktop editor/controller (PixelForge covers the browser).
@@ -316,8 +276,8 @@ The browser preview above is a viewer-only idea, not a web app commitment.
   rendering, LED colour accuracy, the WLED GIF timer bug).
 - **YouTube creators:** short personal email: why *their* viewers care, the
   hero video, the repo. Five good pitches, not fifty.
-- **Distribution:** GitHub Releases + Obtainium now; Play (closed →
-  production); F-Droid.
+- **Distribution:** GitHub Releases + Obtainium now; F-Droid later.
+  The Play Store is not planned yet.
 
 ---
 
@@ -361,52 +321,140 @@ numbers and double down there.
 
 ## 8. Ready-to-post drafts
 
+Written for v1.4.0. Replace the bracketed placeholders. Plain claims only:
+Android first, free, MIT. Say plainly that grids and iOS have had automated
+tests but no physical QA yet. Do not post anything until the screenshots and
+video exist.
+
 ### r/WLED (soft launch)
 
-> **I made a free, open-source app for WLED matrices — 1,200+ animations,
-> album art from Spotify, games, pixel editor**
+> **Title:** Free, open-source Android app that sets up a WLED matrix for you
+> (size, wiring, panel grids) and has 1,200+ animations
 >
-> [video]
+> [video link]
 >
-> I wanted my 16×16 matrix to feel alive without fiddling, so I built Glyph.
-> Your phone draws every frame and streams it, so it works on any ESP
-> running WLED, or it saves animations to the device so they play without
-> the phone.
+> I got tired of fixing 2D settings by hand every time I built a matrix, so
+> the Glyph setup wizard does it: it joins the controller to your Wi-Fi,
+> asks for the panel size, lights up three corners so you tap the one that
+> is first, works out the wiring, and writes the 2D layout. It handles grids
+> of equal panels up to WLED's 18-panel limit, and it keeps a snapshot so you
+> can undo the change.
 >
-> - 1,200+ original animations, plus public-domain classics (1928
->   Steamboat Willie, The Starry Night)
-> - Now Playing: your music's album art with a progress bar
-> - Pixel editor that draws live on the matrix, scrolling text, clocks that
->   run on the device
-> - Music visualiser, 7 games with your phone as the controller
-> - Shows and schedules that run without your phone
-> - Local rendering, no account or Glyph backend. MIT licensed.
+> After setup it is a content app. Your phone draws every frame and streams
+> it, or sends a GIF to the controller so it plays without the phone.
 >
-> Android APK: [release] · Code: [repo] · Discord: [invite]
+> - 1,200+ original animations plus public-domain pieces (1928 Steamboat
+>   Willie, The Starry Night)
+> - Now Playing album art, pixel editor that draws live, text and clocks,
+>   music visualisers, seven games
+> - Shows and schedules that run on the device
+> - Weather, forecast and air quality cards (Open-Meteo, optional)
+> - Free, MIT licensed, no account, no Glyph server. Android first.
 >
-> Would love feedback, especially from people with non-16×16 panels. Want to
-> help get it on the Play Store? I need testers — reply or DM.
+> Honest limits: I had no spare ESP32, so the wizard has not been run on a
+> never-configured controller, and grids are tested in software only. iOS is
+> not out yet. If you try it on a multi-panel build, please tell me what
+> broke.
+>
+> APK: [release link] (also on Obtainium) · Code: [repo] · Discord: [invite]
+
+### WLED forum, Projects
+
+> **Title:** Glyph: a free Android app with a setup wizard and a content
+> library for WLED matrices
+>
+> Glyph is an MIT-licensed Android app for WLED displays. The phone renders
+> every frame. It either streams over DDP or bakes a GIF and uploads it for
+> the Image effect.
+>
+> v1.4.0 adds a setup wizard: Wi-Fi join, panel size, a three-tap wiring test
+> and grids of equal panels up to the 18-panel limit, with a config snapshot
+> and undo. The rest is a library of 1,200+ looks, a pixel editor, clocks,
+> Now Playing and Shows.
+>
+> Notes for people who care about internals: streamed frames get gamma and
+> white balance in the app because live mode skips WLED's, and device GIFs
+> cap every frame at one second because of the carried-over frame delay in
+> the GIF loader. Grids and the never-configured-device path have only
+> automated tests so far. Feedback on multi-panel layouts is the most useful
+> thing I could get. Code: [repo] · Release: [release link] · Video: [video link]
+
+### Glyph Discord #announcements
+
+> **Glyph 1.4.0 is out.**
+> The setup wizard is the headline: join Wi-Fi, set the panel size, tap
+> through a three-corner wiring test, build grids of up to 18 panels, and
+> undo if it goes wrong. Also new: the controller's clock sets itself,
+> Home Assistant blueprints (docs/HOME_ASSISTANT.md), and forecast and air
+> quality cards. Crypto prices were dropped (the providers need keys or forbid
+> redistribution). Not tested on real multi-panel builds or a fresh ESP32
+> yet, so tell us in #help what you see.
+> Download: [release link]
+
+### r/homeassistant
+
+> **Title:** Blueprints to trigger looks on a WLED pixel matrix from
+> automations, local only, no cloud
+>
+> I made an Android app called Glyph for WLED matrices. It has a Saved look
+> and Shows model, and I added Home Assistant blueprints that trigger them by
+> name from automations (door opens, washer finishes, presence changes). The
+> blueprints are in `homeassistant/` with a guide in docs/HOME_ASSISTANT.md.
+> Everything runs on your network: Home Assistant talks to the controller,
+> and Glyph has no account and no server.
+>
+> It is free and MIT licensed, Android first. Glyph also has a setup wizard
+> for the matrix itself, if you are still wiring one up. Watching Home
+> Assistant entities directly is not built; the blueprints trigger existing
+> looks only. Feedback on the blueprint inputs is welcome.
+>
+> Guide: [link] · Code: [repo] · Video: [video link]
+
+### PR to wled/WLED-Docs, compatible software
+
+The kno.wled.ge page is https://kno.wled.ge/basics/compatible-software/. Its
+source should be `docs/basics/compatible-software.md` in the `wled/WLED-Docs`
+repo (default branch `main`). Check the file name and read CONTRIBUTING.md and
+STYLE_GUIDE.md first, and add the entry under the controllers group,
+matching the existing format.
+
+> **Title:** Add Glyph to compatible software (controllers)
+>
+> Adds Glyph, a free open-source (MIT) Android app for WLED displays, to the
+> controllers list on the compatible software page.
+>
+> What it does with WLED: uses the JSON API for state, presets and file
+> upload, streams frames over DDP, and uploads GIFs for the Image effect. It
+> includes a 2D setup wizard (size, wiring, panel grids) that writes the
+> LED/2D settings and restores a snapshot on undo.
+>
+> Link: https://github.com/spandan-kumar/glyph
+> Tested with WLED 16.0.1. I am the author. Happy to adjust wording or move
+> the entry.
 
 ### Hackaday tip
 
-Add planes to this draft only after that feature ships.
-
-> **Subject:** Open-source phone app renders every frame for any WLED LED
-> matrix (and found a WLED GIF timing bug)
+> **Subject:** Open-source phone app sets up and drives WLED LED matrices
+> (and found a WLED GIF timing bug)
 >
-> Glyph is a free Android app that turns a cheap WS2812B matrix into a pixel
-> display: the phone renders and streams frames over DDP, so even an ESP8266
-> runs animations, games and live album art.
-> While building it we found WLED's GIF player carries one file's frame
-> timer into the next, blanking the display for minutes; the app works
-> around it. Video: […] Code (MIT): […]
+> Glyph is a free Android app (MIT). The phone renders every frame and
+> streams it over DDP, so even an ESP8266 runs animations, games and live
+> album art. A new setup wizard configures the 2D layout, including grids of
+> panels, from a three-tap wiring test. While building it I found WLED's GIF
+> player carries one file's frame delay into the next, which can blank the
+> display for minutes; the app caps frames to work around it.
+> Video: [video link] Code: [repo]
 
 ### Show HN
 
-> **Show HN: Glyph – open-source phone app that turns a $15 LED matrix into a
-> pixel display**
+> **Show HN: Glyph, an open-source Android app that sets up and drives WLED matrices**
 >
-> First comment: why phone-side rendering (any ESP, one engine for previews
-> and LEDs), the stack (Flutter, pure-Dart engine, custom GIF encoder), what
-> was hard (LED colour accuracy at low brightness, seamless GIF loops, WLED
-> quirks), and what's next (AWTRIX, Divoom, Tronbyt).
+> First comment: I build with LED matrices and kept fixing 2D settings by
+> hand, so v1.4.0 has a setup wizard (Wi-Fi, size, three-tap wiring test,
+> panel grids, undo). The rest is a content app: the phone renders frames in
+> pure Dart and either streams them over DDP or uploads a baked GIF. Stack:
+> Flutter, a pure-Dart engine, a custom GIF encoder. Hard parts: LED colour
+> accuracy at low brightness, seamless GIF loops, WLED's carried-over GIF
+> frame delay. Limits: Android only for now, grids and the fresh-device path
+> are untested on real hardware, and I have no analytics, so I do not know
+> who uses it. Code: [repo]. Feedback welcome.

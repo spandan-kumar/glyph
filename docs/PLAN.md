@@ -1,8 +1,11 @@
 # Glyph — engineering plan
 
-Updated on 10 October 2026 after publishing v1.3.6+11 from `032c357`.
-Full CI and the phone/controller checks below passed. The published arm64 APK,
-checksum and signature were verified; the setup wizard is next.
+Updated on 11 October 2026 after publishing v1.4.0+12 (setup wizard with
+panel grids, automatic device time, Home Assistant blueprints, forecast and
+air quality cards). The v1.3.6+11 checks below still describe that release.
+Open work: fresh-ESP32 and real multi-panel QA (need hardware), the iOS build
+and [QA_IOS.md](QA_IOS.md) run (needs Apple setup), then launch per
+[ROADMAP.md](ROADMAP.md).
 [ROADMAP.md](ROADMAP.md) owns product priorities and launch plans; this file
 owns implementation order, dependencies and acceptance criteria. Dates are
 targets, not reasons to ship unfinished behaviour.
@@ -18,7 +21,7 @@ features must name their providers and explain what they send.
 
 ## Current baseline
 
-| Area | Shipped by v1.3.5 |
+| Area | Shipped by v1.3.5 (v1.4.0 additions in the history below) |
 |---|---|
 | Display | Lightbox Stage, channels, search, favourites/recents, palette and motion controls, streaming, Send |
 | Library | 1,209 curated looks, 62 procedural generators, 329 sprites, 22 categories; Halloween and Diwali packs |
@@ -27,7 +30,8 @@ features must name their providers and explain what they send.
 | Device | Discovery/manual address, capabilities, Saved, Shows, Routines, storage, boot intro, orientation fix, switching/mirroring, Android widget |
 | Community/release | MIT licence, contributor guide/agent skill, diagnostics, Glyph menu, What's new, issue forms, CI, signed APK/checksum workflow, Discord announcements, Dependabot |
 
-Release history: v1.3.2 shipped the Send/polish fixes; v1.3.3 shipped Alerts,
+Release history: v1.4.0 (11 October) shipped the setup wizard, device time,
+Home Assistant blueprints and forecast/air quality; v1.3.2 shipped the Send/polish fixes; v1.3.3 shipped Alerts,
 Glance and Rotations; v1.3.4 refined interaction; v1.3.5 reduced resource use
 and completed the Lightbox polish. The older acceptance criteria below are
 retained as regression requirements, not promises for an unbuilt v1.4.
@@ -106,22 +110,24 @@ shortening is applied.
 
 ## Next product work
 
-1. [Device setup wizard](DEVICE_SETUP.md): assisted home Wi-Fi onboarding with
+1. Shipped in v1.4.0, QA pending: [device setup wizard](DEVICE_SETUP.md): assisted home Wi-Fi onboarding with
    guided fallback, one panel, dimensions/wiring, optional power limits and
    visual tests; snapshot, apply, reconnect, verify and restore. Panel grids
-   (equal panels in a regular grid, up to WLED's 18 panels) are built, not
-   released; both need physical QA. Keep app orientation separate from
+   (equal panels in a regular grid, up to WLED's 18 panels) shipped too; both
+   need physical QA (fresh ESP32, real multi-panel). Keep app orientation separate from
    hardware wiring.
-2. Home Assistant blueprint for triggering existing Saved looks by name (built,
-   not released: `homeassistant/`, `docs/HOME_ASSISTANT.md`; needs a live-HA
+2. Home Assistant blueprint for triggering existing Saved looks by name (shipped in
+   v1.4.0: `homeassistant/`, `docs/HOME_ASSISTANT.md`; needs a live-HA
    check); entity watching is a later integration.
 3. Additional Glance feeds only after provider/coverage/usage validation.
    Weather, phone-timezone day counters and Rotations already shipped.
-   Forecast and air quality cards are built, not released (Open-Meteo,
-   validated 11 Oct 2026; see GLANCE.md). Crypto prices are blocked: CoinGecko
-   now documents an API key for all access. Planes and stocks are skipped.
+   Forecast and air quality cards shipped in v1.4.0 (Open-Meteo, validated
+   11 Oct 2026; see GLANCE.md). Crypto was dropped: CoinGecko needs an API
+   key and keyless alternatives forbid redistribution. Planes overhead is
+   deferred by the maintainer; stocks are skipped.
 
-The iOS build and further display adapters remain future work. The Wi-Fi
+The iOS build (run [QA_IOS.md](QA_IOS.md)) and further display adapters
+remain future work. The Play Store is not planned yet. The Wi-Fi
 investigation supports a weak RF path; antenna/PCB interference has not been
 proven without a controlled hardware-clearance comparison.
 
@@ -413,8 +419,8 @@ with an assisted Android connection and guided fallback; start with a single
 panel and add grids later; offer an optional supply/current-limit step.
 The [setup plan](DEVICE_SETUP.md) records the flow, recovery, implementation
 order and automated/physical acceptance gates. A first implementation was
-built on 11 October (DEVICE_SETUP.md, "As built"); physical QA is pending.
-Panel grids were built the same week and are also not released.
+built and released on 11 October (DEVICE_SETUP.md, "As built"); physical QA is pending.
+Panel grids were built the same week and shipped in v1.4.0 with it.
 
 Confirmed on 9 October: activate catalog delivery and prepare v1.3.6 with the
 Music and complete-Send fixes. Phone/controller catalog QA happens later;
