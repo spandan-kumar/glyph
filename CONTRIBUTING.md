@@ -198,10 +198,12 @@ safe to share:
 
 - **Original work** — you drew it yourself and are happy to release it under
   the project's MIT license.
-- **Public domain** — based on a work whose copyright has expired.
+- **Public domain** — based on a work whose copyright has expired, or art
+  explicitly released under **CC0 1.0** by its creator.
 - **No trademarked or copyrighted characters**: no game, film, TV or brand
   mascots, logos or fan art of them, however small the sprite.
-- No pixels traced or copied from other people's sprite sheets.
+- No pixels traced or copied from other people's sprite sheets without an
+  explicit CC0 release. A free download alone is not permission to bundle art.
 
 Drawings based on public-domain works carry a `source` block so the app can
 show where they come from (see `masterpieces.json` and
@@ -223,6 +225,12 @@ works such as 1928 films). When a character is still a trademark today,
 the `notice` also says Glyph isn't affiliated with or endorsed by the owner,
 and the drawing must follow the public-domain version, not the modern
 design. In your PR, explain why the work is public domain.
+
+For CC0 imports, also include `license: "CC0-1.0"`, `url` (the creator's
+source page), `licenseUrl`, `downloadUrl`, `sha256` (the original download),
+and `file` (the image or archive member). Explain cropping, frame selection
+and timing in `basis`; credit the artist in `notice`. See the
+[artist collection and import instructions](docs/CATALOG_ART.md).
 
 ## Code contributions
 

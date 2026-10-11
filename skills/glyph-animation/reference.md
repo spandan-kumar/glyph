@@ -33,6 +33,8 @@ from the code that reads them:
 | `sprites` | list | required | The sprites. |
 
 Existing packs and their category: `animals.json` Animals ·
+`artist_animals.json` Animals (jellies override to Gaming) ·
+`artist_fire.json` Fire & Energy · `emotion_bubbles.json` Emoji ·
 `classic_cartoons.json` Classic Cartoons · `faces.json` Emoji · `food.json`
 Food & Drink · `gaming.json` Gaming · `holidays.json` Holidays ·
 `legends.json` Monsters & Legends · `love.json` Love · `masterpieces.json`
@@ -57,7 +59,7 @@ Fire & Energy…) are reached with a per-sprite `"category"` override, as
 | `colors` | | object | `{}` | Extra or overriding colours for this sprite (merged over the pack's). |
 | `category` | | string | the pack's | Per-sprite shelf override; must be in `categoryOrder`. |
 | `backdrop` | | number 0–1 | `0` | Default for the "Backdrop" control: fills transparent pixels with a soft palette glow. Rarely used (one sprite). |
-| `source` | | object | — | Required for drawings based on public-domain works. See Source. |
+| `source` | | object | — | Required for public-domain bases and imported CC0 art. See Source. |
 
 Unknown fields are ignored by the parser; the validator warns.
 
@@ -250,9 +252,9 @@ Good tag set: what it is (`boat`, `paper`), synonyms (`origami`), setting
   (or `(Float)` if the sprite already bounces) over a soft glow. **This title
   must be free**, or the catalog build fails with a duplicate title.
 - Banners get a `<Title> (Rainbow)` (or `(Neon)`) item.
-- Sprites with `source` get exactly one item, tagged `classic`,
-  `public domain`, with the notice shown in the app; `(Classic)` is appended
-  if the title is taken.
+- Sprites with `source` get exactly one item, tagged `classic` (or `cc0`
+  when `source.license` is `CC0-1.0`) and `public domain`, with the notice
+  shown in the app; `(Classic)` is appended if the title is taken.
 
 The validator checks these title clashes against the current `catalog.json`.
 
@@ -280,6 +282,24 @@ The validator checks these title clashes against the current `catalog.json`.
 
 All six keys are present on every existing `source`; the validator requires
 them. The app shows `notice`; the rest documents provenance for reviewers.
+
+CC0 imports also carry the following fields. Verify the creator's release
+on the source page; a download marked "free" is insufficient.
+
+| Key | Type | Notes |
+|---|---|---|
+| `license` | string | `CC0-1.0`; other imported licences are outside Glyph's content policy. |
+| `url` | string | HTTPS page showing the work, creator and CC0 release. |
+| `licenseUrl` | string | `https://creativecommons.org/publicdomain/zero/1.0/`. |
+| `downloadUrl` | string | HTTPS URL of the original downloaded file. |
+| `sha256` | string | Lowercase 64-character SHA-256 of that download. |
+| `file` | string | Original image filename or member path inside the archive. |
+
+Use `basis` to describe adaptations and `notice` to credit the artist.
+Keep original colours fixed when importing art. Native 32×32 art is supported;
+inspect playback at 16×16 too, because thin details can vanish when scaled.
+The pinned importer and artist collection are documented in
+[`docs/CATALOG_ART.md`](../../docs/CATALOG_ART.md).
 
 ## Generated files
 

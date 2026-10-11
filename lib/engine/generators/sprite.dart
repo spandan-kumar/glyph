@@ -87,8 +87,8 @@ class Sprite {
   final List<int> seq;
   final List<int> ms;
 
-  /// Provenance for drawings based on public-domain works: work, year,
-  /// creator, basis, jurisdiction and a user-facing notice.
+  /// Provenance for public-domain bases and CC0 art: work, year, creator,
+  /// basis, jurisdiction, notice and optional licence/source verification.
   final Map<String, dynamic>? source;
 
   String? get notice => source?['notice'] as String?;

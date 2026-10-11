@@ -391,6 +391,16 @@ def validate_sprite(j, pack_ctx, tables, rep, catalog_titles):
                     rep.err(where, f'source "{k}" must be a non-empty string')
             if 'year' in src and src['year'] is not None and not is_int(src['year']):
                 rep.err(where, 'source "year" must be an integer (or null for folklore)')
+            if 'license' in src:
+                if src['license'] != 'CC0-1.0':
+                    rep.err(where, 'imported art must declare license "CC0-1.0"')
+                for k in ('url', 'licenseUrl', 'downloadUrl'):
+                    if not isinstance(src.get(k), str) or not src[k].startswith('https://'):
+                        rep.err(where, f'CC0 source "{k}" must be an HTTPS URL')
+                if not isinstance(src.get('sha256'), str) or not re.fullmatch(r'[0-9a-f]{64}', src['sha256']):
+                    rep.err(where, 'CC0 source "sha256" must identify the original download')
+                if not isinstance(src.get('file'), str) or not src['file'].strip():
+                    rep.err(where, 'CC0 source "file" must name the original sprite sheet')
     sprite_colors = check_colors(j.get('colors'), where, rep)
     colors = dict(pack_colors)
     colors.update(sprite_colors)

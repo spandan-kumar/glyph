@@ -76,13 +76,20 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final doc = remoteDocument();
+      final nextRevision =
+          base.items.fold<int>(
+            0,
+            (revision, item) => item.added > revision ? item.added : revision,
+          ) +
+          1;
+      doc['revision'] = nextRevision;
       (doc['items'] as List)[1]['title'] = 'Collector Dot';
       (doc['items'] as List)[1]['category'] = 'Chill';
       (doc['items'] as List)[1] = {
         ...(doc['items'] as List)[1] as Map,
-        'added': 9,
+        'added': nextRevision,
       };
-      bundledRevision = 3;
+      bundledRevision = nextRevision - 1;
       final store = makeStore(FakeHost(await key.publish(doc)).client);
       final playback = PlaybackController(), devices = DeviceStore();
       addTearDown(store.dispose);

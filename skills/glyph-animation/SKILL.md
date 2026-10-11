@@ -63,6 +63,13 @@ The validator re-checks both.
 
 ## 4. Design for LEDs
 
+For imported art, use only a creator's explicit CC0 release. Preserve its
+source page, download hash, archive member and adaptation details in `source`
+(see `reference.md` → Source). Credit the artist in the user-facing notice.
+Existing curated imports can be reproduced with `tool/import_cc0_sprites.py`;
+see `docs/CATALOG_ART.md`. Check both 16×16 and 32×32 playback before accepting
+an import.
+
 - **Grid**: 16×16 unless asked otherwise; 8×8 minis and N×8 scrolling
   banners also work. Fill most of the grid with one big, simple silhouette.
 - **Black is off.** Transparent (`.`) pixels are dark LEDs. Dark colours
@@ -213,6 +220,7 @@ Frame 0:
 
 <Original artwork, drawn for this PR and released under the project's MIT license.>
 <or: Based on <work> (<year>) by <creator>, public domain because <reason>; see the `source` block.>
+<or: Adapted from <work> by <creator>, explicitly released under CC0 1.0 at <source URL>; see the pinned source and adaptation details.>
 
 ## Checks
 
