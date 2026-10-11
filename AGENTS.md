@@ -107,11 +107,22 @@ files. Don't flash test streams on someone's display without saying so.
 - Commit messages: imperative summary line, a body explaining why.
 - Releases: bump `version:` in `pubspec.yaml` (`X.Y.Z+N`), add
   `fastlane/metadata/android/en-US/changelogs/<N>.txt` (≤500 chars) and an
-  identical `changelogs/<2000+N>.txt`, then push a `vX.Y.Z` tag.
-  `.github/workflows/release.yml` builds the signed
-  arm64 APK and its `.sha256` and publishes the GitHub release; don't commit
-  APKs to `release/` any more. CI (`ci.yml`) runs analyze + test on every PR.
-- Android release keys, rotation and backups: [docs/SIGNING.md](docs/SIGNING.md).
+  identical `changelogs/<2000+N>.txt`, and a `lib/app/whats_new.dart` entry.
+  Push to `main`, wait for CI (`ci.yml`, analyze + test) to pass on that
+  commit, then push a `vX.Y.Z` tag. `.github/workflows/release.yml` builds the
+  signed arm64 APK and its `.sha256` and publishes the GitHub release; don't
+  commit APKs to `release/` any more.
+- If the release workflow fails before a GitHub release exists, fix it on
+  `main` and move the tag (`git tag -f vX.Y.Z && git push -f origin vX.Y.Z`).
+  Once a release is published, never move its tag; bump the patch instead.
+- After publishing, download the APK, check its `.sha256` and run the three
+  `apksigner` checks in [docs/SIGNING.md](docs/SIGNING.md#verifying-a-release):
+  API 28+ must show `d9f51a1f…`, API 24–27 `8f7a1d18…`, and the lineage both.
+- Signing: every release is signed with the old key, the new key and the
+  lineage; never fall back to old-key-only. Don't change the signing steps,
+  keys or secrets unless the maintainer asks. Keys, rotation and backups:
+  [docs/SIGNING.md](docs/SIGNING.md).
+- Commit from the main checkout; don't leave work only in an agent worktree.
 
 ## Licence and contributing
 
