@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/features/device/setup/setup_controller.dart';
 import 'package:glyph/wled/panel_grid.dart';
+import 'package:glyph/ui/setup/grid_diagram.dart';
 import 'package:glyph/wled/panel_setup.dart';
 
 import '../../features/device/setup/fake_setup_device.dart';
@@ -94,6 +95,7 @@ void main() {
     int h, {
     String result = 'Here\'s how the first panel is wired',
   }) async {
+    if (rig.controller.step == SetupStep.orderConfirm) await tapText(tester, 'Yes, in order');
     expect(find.text('Which corner lit up?'), findsOneWidget);
     expect(rig.sender.lit, [0]);
     final (cx, cy) = truth.positionOf(0, w, h);
@@ -357,11 +359,12 @@ void main() {
       c.setSize(16, 16, click: false);
       c.setGrid(4, 5, click: false); // 20 panels: WLED builds at most 18
       await settle(tester, 300);
-      expect(find.text('That\'s more than this device can drive.'), findsOneWidget);
+      expect(find.text('That\'s more lights than this device can drive.'), findsOneWidget);
       expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Next')).onPressed, isNull);
+      c.setSize(8, 8, click: false);
       c.setGrid(3, 6, click: false);
       await settle(tester, 300);
-      expect(find.text('That\'s more than this device can drive.'), findsNothing);
+      expect(find.text('That\'s more lights than this device can drive.'), findsNothing);
       expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Next')).onPressed, isNotNull);
       c.setGrid(1, 1, click: false);
       await settle(tester, 300);
@@ -372,6 +375,26 @@ void main() {
       rig.playback.pause();
     });
   });
+
+  for (final arch in ['esp8266', 'esp32s2', 'esp32', 'esp32s3', 'esp32c3', 'unknown']) {
+    testWidgets('$arch refuses sizes beyond its single-output ceiling', (tester) async {
+      final rig = await SetupRig.create(tester, device: FakeSetupDevice(arch: arch, matrix: false, ledCount: 64));
+      await rig.pump(tester, size: tall);
+      await settle(tester, 600);
+      final c = rig.controller;
+      final limit = arch == 'esp8266' || arch == 'unknown' ? 1536 : 2048;
+      c.setSize(16, limit ~/ 16, click: false);
+      expect(c.sizeProblem, isNull);
+      c.setSize(limit == 1536 ? 29 : 33, limit == 1536 ? 53 : 63, click: false);
+      await settle(tester, 200);
+      expect(find.text('That\'s more lights than this device can drive.'), findsOneWidget);
+      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Next')).onPressed, isNull);
+      rig.device.writes.clear();
+      await c.setLedsNow();
+      expect(rig.configWrites, isEmpty);
+      rig.playback.pause();
+    });
+  }
 
   group('the panel order test', () {
     final truth = grid(2, 2, const PanelWiring(zigzag: true), const PanelWiring());
@@ -442,6 +465,8 @@ void main() {
       expect(rig.controller.draftChain, const PanelWiring(corner: StartCorner.bottomRight, vertical: true));
       await tester.scrollUntilVisible(find.text('Use this'), -120, scrollable: list);
       await tapText(tester, 'Use this');
+      expect(find.text('Do they follow the numbers?'), findsOneWidget);
+      await tapText(tester, 'Yes, in order');
       expect(find.text('Which corner lit up?'), findsOneWidget);
       rig.playback.pause();
     });
@@ -497,6 +522,78 @@ void main() {
       expect(rig.controller.testRunning, isTrue);
       expect(rig.sender.lit, [0, 1, 2, 3]);
       await rig.controller.cleanUp();
+      rig.playback.pause();
+    });
+  });
+
+  group('every panel verifies the order', () {
+    for (final vertical in [false, true]) {
+      testWidgets('custom ${vertical ? 'vertical' : 'one-row'} order reaches the device', (tester) async {
+        final positions = [
+          for (final i in [0, 4, 2, 3, 1, 5]) vertical ? (0, i) : (i, 0),
+        ];
+        final truth = PanelGrid(
+          cols: vertical ? 1 : 6,
+          rows: vertical ? 6 : 1,
+          panelW: 8,
+          panelH: 8,
+          positions: positions,
+          wiring: List.filled(6, const PanelWiring()),
+        );
+        final rig = await startGrid(tester, truth);
+        await layOut(tester, rig, truth);
+        await tapLabel(tester, where(0, 0));
+        await tapText(tester, 'Looks right');
+        expect(find.text('Do they follow the numbers?'), findsOneWidget);
+        expect(find.text('The panels light up one by one in the order shown.'), findsOneWidget);
+        await tapText(tester, 'No');
+        for (var k = 0; k < 6; k++) {
+          expect(rig.sender.lit, [for (var i = 0; i < 4; i++) k * 64 + i]);
+          if (k > 0) {
+            rig.controller.pickLitPanel(positions.first);
+            expect(rig.controller.orderPanel, k, reason: 'a position cannot repeat');
+          }
+          final cell = positions[k];
+          await tapLabel(tester, where(cell.$1, cell.$2));
+        }
+        await answerWiring(tester, rig, const PanelWiring(), 8, 8);
+        await tapText(tester, 'Looks right');
+        await tapText(tester, 'Done');
+        expect(rig.controller.draftGrid, truth);
+        await tapText(tester, 'Set up device', ms: 1500);
+        expect(rig.device.panels, truth.panels());
+        expect((await rig.device.client('x').setupState()).grid, truth);
+        rig.playback.pause();
+      });
+    }
+
+    testWidgets('number highlight and device step together, looping every 600 ms', (tester) async {
+      final truth = grid(2, 1, const PanelWiring(), const PanelWiring());
+      final rig = await startGrid(tester, truth);
+      await layOut(tester, rig, truth);
+      await answerOrder(tester, rig, truth);
+      rig.controller.orderLooksRight();
+      await settle(tester, 100);
+      final start = rig.controller.orderPanel;
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(rig.controller.orderPanel, (start + 1) % 2);
+      final k = rig.controller.orderPanel;
+      expect(rig.sender.lit, [for (var i = 0; i < 4; i++) k * 64 + i]);
+      final diagram = tester.widget<GridDiagram>(find.byType(GridDiagram).last);
+      expect(diagram.selected, {truth.cellOf(k)});
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(rig.controller.orderPanel, start);
+      rig.controller.back();
+      await settle(tester, 600);
+      await rig.pump(tester, onePanel: false, size: tall, reduceMotion: true);
+      rig.controller.orderLooksRight();
+      await settle(tester, 100);
+      await tester.pump(const Duration(milliseconds: 1800));
+      expect(rig.controller.orderPanel, 0);
+      rig.controller.nextOrderPanel();
+      await tester.pump();
+      expect(rig.controller.orderPanel, 1);
+      expect(rig.sender.lit, [64, 65, 66, 67]);
       rig.playback.pause();
     });
   });
@@ -691,6 +788,8 @@ void main() {
       c.draftWiring = const PanelWiring();
       c.draftChain = const PanelWiring(zigzag: true);
       c.orderLooksRight();
+      await settle(tester, 300);
+      c.orderConfirmed();
       await settle(tester, 300);
       c.looksRight();
       await settle(tester, 300);

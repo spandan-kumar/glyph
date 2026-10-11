@@ -204,6 +204,8 @@ class _SetupWizardState extends State<SetupWizard> {
     SetupStep.orderQ2 ||
     SetupStep.orderQ3 => OrderQuestionScreen(controller: c, question: step),
     SetupStep.orderResult => OrderResultScreen(controller: c),
+    SetupStep.orderConfirm => OrderConfirmScreen(controller: c),
+    SetupStep.orderTap => OrderTapScreen(controller: c),
     SetupStep.orderManual => OrderManualScreen(controller: c),
     SetupStep.orientation => OrientationScreen(controller: c),
     SetupStep.wiringQ1 ||
@@ -291,6 +293,8 @@ class _TopBar extends StatelessWidget {
     SetupStep.orderQ3 ||
     SetupStep.orderResult ||
     SetupStep.orderManual ||
+    SetupStep.orderConfirm ||
+    SetupStep.orderTap ||
     SetupStep.orientation ||
     SetupStep.wiringQ1 ||
     SetupStep.wiringQ2 ||

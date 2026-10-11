@@ -275,10 +275,71 @@ void main() {
       expect(PanelGrid.fromPanels([panel(0, 0), panel(0, 0)]), isNull);
       // Not on the panel grid.
       expect(PanelGrid.fromPanels([panel(0, 0), panel(4, 0)]), isNull);
-      // A custom order: top left, bottom right, top right, bottom left.
-      expect(PanelGrid.fromPanels([panel(0, 0), panel(8, 8), panel(8, 0), panel(0, 8)]), isNull);
+      // Explicit offsets also describe a custom chain.
+      expect(PanelGrid.fromPanels([panel(0, 0), panel(8, 8), panel(8, 0), panel(0, 8)])!.positions, [
+        (0, 0),
+        (1, 1),
+        (1, 0),
+        (0, 1),
+      ]);
       // An offset single panel.
       expect(PanelGrid.fromPanels([panel(8, 0)]), isNull);
+    });
+
+    for (final flag in ['v', 's']) {
+      test('different $flag wiring cannot be represented by half turns', () {
+        final cfg = cfg2D();
+        (((cfg['hw'] as Map)['led'] as Map)['matrix'] as Map)['panels'] = [
+          panel(0, 0),
+          {...panel(8, 0), flag: true},
+        ];
+        final state = DeviceSetupState.fromJson(cfg: cfg, info: info());
+        expect(state.grid, isNotNull);
+        expect(state.support, SetupSupport.differentPanelWiring);
+      });
+    }
+
+    test('explicit positions survive JSON, mapping, forms and snapshots', () {
+      for (final vertical in [false, true]) {
+        final cells = [
+          for (final k in [0, 4, 2, 3, 1, 5]) vertical ? (0, k) : (k, 0),
+        ];
+        final g = PanelGrid(
+          cols: vertical ? 1 : 6,
+          rows: vertical ? 6 : 1,
+          panelW: 8,
+          panelH: 8,
+          positions: cells,
+          wiring: List.filled(6, const PanelWiring()),
+        );
+        expect(PanelGrid.tryFromJson(g.toJson()), g);
+        expect(PanelGrid.fromPanels([for (final p in g.panels()) Map<String, dynamic>.from(p)]), g);
+        final form = panelForm(DisplaySetup.grid(g));
+        for (var k = 0; k < 6; k++) {
+          expect(form['P${k}X'], '${cells[k].$1 * 8}');
+          expect(form['P${k}Y'], '${cells[k].$2 * 8}');
+        }
+        final map = wledMapPanels(g.panels());
+        for (var i = 0; i < g.ledCount; i++) {
+          final (x, y) = g.positionOf(i);
+          expect(g.physicalIndex(x, y), i);
+          expect(map[y * g.width + x], i);
+        }
+        final cfg = cfg2D();
+        (((cfg['hw'] as Map)['led'] as Map)['matrix'] as Map)['panels'] = g.panels();
+        final state = DeviceSetupState.fromJson(
+          cfg: cfg,
+          info: info(count: g.ledCount, w: g.width, h: g.height),
+        );
+        final snap = SetupSnapshot.of(state, host: 'h');
+        expect(SetupSnapshot.decode(snap.encode()).grid, g);
+        final bad = g.toJson()..['positions'] = List.filled(6, [0, 0]);
+        expect(PanelGrid.tryFromJson(bad), isNull);
+        expect(
+          () => PanelGrid(cols: 6, rows: 1, panelW: 8, panelH: 8, positions: List.filled(6, (0, 0)), wiring: g.wiring),
+          throwsArgumentError,
+        );
+      }
     });
 
     test('DeviceSetupState reads a grid and supports it; odd layouts keep the old reason', () {

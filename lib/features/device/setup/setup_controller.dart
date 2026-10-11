@@ -43,6 +43,8 @@ enum SetupStep {
   orderQ3,
   orderResult,
   orderManual,
+  orderConfirm,
+  orderTap,
   wiringQ1,
   wiringQ2,
   wiringQ3,
@@ -76,6 +78,8 @@ bool _isTest(SetupStep s) => switch (s) {
   SetupStep.orderQ1 ||
   SetupStep.orderQ2 ||
   SetupStep.orderQ3 ||
+  SetupStep.orderConfirm ||
+  SetupStep.orderTap ||
   SetupStep.orientation => true,
   _ => false,
 };
@@ -145,7 +149,13 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   bool get isNewDevice => entry == SetupEntry.newDevice;
 
   /// Set by the host from the system's reduced-motion setting.
-  bool reduceMotion = false;
+  bool _reduceMotion = false;
+  bool get reduceMotion => _reduceMotion;
+  set reduceMotion(bool value) {
+    if (_reduceMotion == value) return;
+    _reduceMotion = value;
+    if (_step == SetupStep.orderConfirm) _showTestPattern();
+  }
 
   /// The Check step's chapter and Close button start here.
   bool get canClose => _step.index >= SetupStep.check.index && _step != SetupStep.applying && _step != SetupStep.done;
@@ -185,6 +195,8 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
 
   void _leave(SetupStep from, SetupStep to) {
     _stopGuided();
+    _chase?.cancel();
+    _chase = null;
     _cancelFind?.call();
     _cancelFind = null;
     if ((_isTest(from) && !_isTest(to)) || (from == SetupStep.look && to != SetupStep.look)) {
@@ -211,6 +223,8 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
           SetupStep.orderQ1 ||
           SetupStep.orderQ2 ||
           SetupStep.orderQ3 ||
+          SetupStep.orderConfirm ||
+          SetupStep.orderTap ||
           SetupStep.orientation:
         unawaited(_prepareTest());
       case SetupStep.look:
@@ -235,7 +249,9 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       SetupStep.orderQ3 => SetupStep.orderQ2,
       SetupStep.orderResult => _lastOrderQuestion,
       SetupStep.orderManual => SetupStep.orderResult,
-      SetupStep.wiringQ1 => isGrid ? SetupStep.orderResult : SetupStep.size,
+      SetupStep.orderConfirm => SetupStep.orderResult,
+      SetupStep.orderTap => SetupStep.orderConfirm,
+      SetupStep.wiringQ1 => isGrid ? SetupStep.orderConfirm : SetupStep.size,
       SetupStep.wiringQ2 => SetupStep.wiringQ1,
       SetupStep.wiringQ3 => SetupStep.wiringQ2,
       SetupStep.wiringResult => _lastQuestion,
@@ -299,6 +315,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     draftWidth = draftHeight = null;
     draftWiring = null;
     draftChain = null;
+    draftPositions = null;
     draftCols = draftRows = 1;
     severalPanels = _fromChoice = false;
     _resetAnswers();
@@ -806,6 +823,15 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
 
   /// How the panels are chained (see [PanelGrid.chain]); null until known.
   PanelWiring? draftChain;
+  List<(int, int)>? draftPositions;
+  final List<(int, int)> _tappedPanels = [];
+  int orderPanel = 0;
+
+  Set<(int, int)> get untappedPanels => {
+    for (var y = 0; y < draftRows; y++)
+      for (var x = 0; x < draftCols; x++)
+        if (!_tappedPanels.contains((x, y))) (x, y),
+  };
 
   /// Grid cells (column, row) of panels that sit upside down.
   final Set<(int, int)> flippedCells = {};
@@ -823,6 +849,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       draftCols = g.cols;
       draftRows = g.rows;
       draftChain = g.chain;
+      draftPositions = g.positions;
       severalPanels = !g.isSingle;
       final base = g.wiring.first;
       flippedCells
@@ -868,20 +895,19 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   /// Why the layout can't be driven, in plain words; null when it can.
   String? get sizeProblem {
     if (!hasSize) return null;
-    if (!isGrid) return draftPanelLeds > maxDisplayLeds ? tooBigWords : null;
-    return PanelGrid.uniform(
-      cols: draftCols,
-      rows: draftRows,
-      panelW: draftWidth!,
-      panelH: draftHeight!,
-    ).limitProblem;
+    if (!(state ?? const DeviceSetupState()).canDrive(draftLeds)) return tooBigWords;
+    if (!isGrid) return null;
+    return PanelGrid.uniform(cols: draftCols, rows: draftRows, panelW: draftWidth!, panelH: draftHeight!).limitProblem;
   }
 
   /// A tile or the steppers picked a size (of one panel).
   void setSize(int w, int h, {bool click = true}) {
     if (click) HapticFeedback.selectionClick();
     final nw = w.clamp(1, _maxSide), nh = h.clamp(1, _maxSide);
-    if (nw != draftWidth || nh != draftHeight) _resetAnswers();
+    if (nw != draftWidth || nh != draftHeight) {
+      _resetAnswers();
+      draftPositions = null;
+    }
     draftWidth = nw;
     draftHeight = nh;
     _notify();
@@ -905,6 +931,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   void _setSeveral(bool several) {
     if (several == severalPanels && (!several || draftCols * draftRows > 1)) return;
     _resetAnswers();
+    draftPositions = null;
     if (several) {
       severalPanels = true;
       if (draftCols * draftRows < 2) _guessGrid();
@@ -957,6 +984,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     final nc = cols.clamp(1, maxGridSide), nr = rows.clamp(1, maxGridSide);
     if (nc != draftCols || nr != draftRows) {
       _resetAnswers();
+      draftPositions = null;
       draftChain = null;
     }
     draftCols = nc;
@@ -969,6 +997,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   void gridNext() {
     if (!canGridNext) return;
     _resetAnswers();
+    draftPositions = null;
     _go(SetupStep.orderQ1);
   }
 
@@ -1106,6 +1135,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _finishOrder() {
+    draftPositions = null;
     draftChain = normalizeChain(
       PanelWiring.fromAnswers(
         corner: answerPanelCorner!,
@@ -1121,6 +1151,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
 
   void orderTestAgain() {
     _resetOrderAnswers();
+    draftPositions = null;
     draftChain = null;
     flippedCells.clear();
     _go(SetupStep.orderQ1, dir: -1);
@@ -1134,19 +1165,51 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   void setManualOrder({StartCorner? corner, bool? vertical, bool? zigzag}) {
     if (corner != null) HapticFeedback.selectionClick();
     final c = draftChain ?? const PanelWiring(zigzag: true);
-    draftChain = PanelWiring(
-      corner: corner ?? c.corner,
-      vertical: vertical ?? c.vertical,
-      zigzag: zigzag ?? c.zigzag,
-    );
+    draftPositions = null;
+    draftChain = PanelWiring(corner: corner ?? c.corner, vertical: vertical ?? c.vertical, zigzag: zigzag ?? c.zigzag);
     flippedCells.clear();
     _notify();
   }
 
-  /// "Looks right" or "Use this" for the panel order: on to the LED wiring.
+  /// Verify the inferred route against every panel before wiring its LEDs.
   void orderLooksRight() {
     if (draftChain == null) return;
+    orderPanel = 0;
+    _go(SetupStep.orderConfirm);
+  }
+
+  void nextOrderPanel() {
+    if (_step != SetupStep.orderConfirm || !_testReady) return;
+    orderPanel = (orderPanel + 1) % draftPanels;
+    _session!.showRaw(litLeds(_ledCount, _panelLeds(orderPanel)));
+    testNeedsMoreLeds = _panelLeds(orderPanel).any((i) => i >= _ledCount);
+    _notify();
+  }
+
+  void orderConfirmed() {
+    if (_step != SetupStep.orderConfirm) return;
     _go(SetupStep.wiringQ1);
+  }
+
+  void orderIncorrect() {
+    _tappedPanels.clear();
+    orderPanel = 0;
+    _go(SetupStep.orderTap);
+  }
+
+  void pickLitPanel((int, int) cell) {
+    if (_step != SetupStep.orderTap || !untappedPanels.contains(cell)) return;
+    HapticFeedback.selectionClick();
+    _tappedPanels.add(cell);
+    if (_tappedPanels.length == draftPanels) {
+      draftPositions = List.unmodifiable(_tappedPanels);
+      flippedCells.clear();
+      _go(SetupStep.wiringQ1);
+    } else {
+      orderPanel = _tappedPanels.length;
+      _showTestPattern();
+      _notify();
+    }
   }
 
   // --- Upside-down panels ---------------------------------------------------------
@@ -1195,6 +1258,8 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     answerChainSnake = null;
     _askedOrderRun = false;
     _askedOrderJump = false;
+    _tappedPanels.clear();
+    orderPanel = 0;
   }
 
   void _resetAnswers() {
@@ -1301,9 +1366,12 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       panelW: draftWidth!,
       panelH: draftHeight!,
       chain: chain,
+      positions: draftPositions,
       wiring: [
         for (var k = 0; k < draftCols * draftRows; k++)
-          k > 0 && flippedCells.contains(chain.positionOf(k, draftCols, draftRows)) ? base.turnedUpsideDown : base,
+          k > 0 && flippedCells.contains(draftPositions?[k] ?? chain.positionOf(k, draftCols, draftRows))
+              ? base.turnedUpsideDown
+              : base,
       ],
     );
   }
@@ -1482,6 +1550,13 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
         show(_panelLeds(1));
       case SetupStep.orderQ3:
         show(_panelLeds(chainRunPanels));
+      case SetupStep.orderConfirm:
+        show(_panelLeds(orderPanel));
+        if (!reduceMotion) {
+          _chase = Timer.periodic(const Duration(milliseconds: 600), (_) => nextOrderPanel());
+        }
+      case SetupStep.orderTap:
+        show(_panelLeds(orderPanel));
       case SetupStep.orientation:
         // LED 0 of every panel at once.
         show([for (var k = 0; k < draftPanels; k++) k * draftPanelLeds]);
@@ -1500,7 +1575,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   /// "Set it to M LEDs now" when the device has fewer LEDs than the display.
   Future<void> setLedsNow() async {
     final s = state;
-    if (s == null || s.outputs.isEmpty || !hasSize) return;
+    if (s == null || s.outputs.isEmpty || !hasSize || sizeProblem != null) return;
     final g = _gen, c = client, count = draftLeds;
     bool stale() => _disposed || g != _gen;
     try {
@@ -1614,7 +1689,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> apply() async {
     final setup = draftSetup;
     if ((_step != SetupStep.review && _step != SetupStep.applyFailed) || setup == null) return;
-    if (setup.grid.limitProblem != null) return;
+    if (setup.grid.limitProblem != null || sizeProblem != null) return;
     HapticFeedback.lightImpact();
     rollbackFailed = false;
     applyPhase = ApplyPhase.backup;

@@ -68,6 +68,38 @@ Map<String, dynamic> info({int count = 128, int? w = 16, int? h = 8, List maps =
     };
 
 void main() {
+  test(
+    'architecture ceilings and the single bus boundary follow WLED 16.0.1',
+    () {
+      for (final (arch, total) in [
+        ('esp8266', 1536),
+        ('esp32s2', 2048),
+        ('esp32', 16384),
+        ('esp32s3', 16384),
+        ('esp32c3', 16384),
+        ('unknown', 1536),
+        ('', 1536),
+      ]) {
+        final state = DeviceSetupState.fromJson(
+          cfg: cfg2D(),
+          info: {...info(), 'arch': arch},
+        );
+        expect(state.arch, arch);
+        expect(state.maxLeds, total);
+        final limit = total < 2048 ? total : 2048;
+        expect(state.canDrive(limit), isTrue);
+        expect(state.canDrive(limit + 1), isFalse);
+        expect(state.canDrive(total + 1), isFalse);
+        final locked = DeviceSetupState.lockedFromInfo({
+          ...info(),
+          'arch': arch,
+        });
+        expect(locked.maxLeds, total);
+      }
+    },
+  );
+
+
   group('PanelWiring', () {
     test('mapping matches WLED setUpMatrix for all 16 wirings and many sizes', () {
       for (final wiring in PanelWiring.all) {

@@ -505,6 +505,7 @@ void main() {
   Future<SetupRig> toOrientation(WidgetTester t) async {
     final rig = await toOrder(t, stopAt: 4);
     await tapText(t, 'Looks right');
+    await tapText(t, 'Yes, in order');
     await tapLabel(t, 'Top left corner');
     await settle(t, 1000);
     await tapLabel(t, 'Across');

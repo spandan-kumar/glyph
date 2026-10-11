@@ -26,7 +26,7 @@ class ReviewScreen extends StatelessWidget {
     final limit = c.newLimitMa;
     final grid = setup?.grid;
     final several = grid != null && !grid.isSingle;
-    final problem = grid?.limitProblem;
+    final problem = c.sizeProblem ?? grid?.limitProblem;
     final leds = c.draftLeds;
     return StepLayout(
       title: 'Ready to set it up',

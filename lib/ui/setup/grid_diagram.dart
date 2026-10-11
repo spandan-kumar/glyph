@@ -24,6 +24,7 @@ class GridDiagram extends StatelessWidget {
     required this.panelH,
     this.maxHeight = 260,
     this.chain,
+    this.positions,
     this.numbers = false,
     this.showPath = false,
     this.targets = const {},
@@ -40,6 +41,7 @@ class GridDiagram extends StatelessWidget {
 
   /// With [numbers] or [showPath]: the order the panels are chained in.
   final PanelWiring? chain;
+  final List<(int, int)>? positions;
   final bool numbers, showPath;
 
   /// Panels that can be tapped (drawn with a brighter outline); the rest
@@ -70,8 +72,8 @@ class GridDiagram extends StatelessWidget {
       final pitch = math.max(1.0, math.min(availW / totalW, maxHeight / totalH));
       final geo = _GridGeo(cols, rows, panelW, panelH, pitch, Offset(m + (availW - totalW * pitch) / 2, m));
       final size = Size(availW + 2 * m, totalH * pitch + 2 * m);
-      // Panels narrower than a touch target get a row of chips as well.
-      final dense = _interactive && targets.isNotEmpty && panelW * pitch < Lb.touch;
+      // Cells too small in either direction get chips as well.
+      final dense = _interactive && targets.isNotEmpty && math.min(panelW, panelH) * pitch < Lb.touch;
       final desc = label ?? 'Display diagram, $cols by $rows panels of $panelW by $panelH lights';
       final diagram = SizedBox(
         width: size.width,
@@ -87,6 +89,7 @@ class GridDiagram extends StatelessWidget {
                 painter: _GridPainter(
                   geo: geo,
                   chain: chain,
+                  positions: positions,
                   numbers: numbers,
                   showPath: showPath,
                   targets: _interactive ? targets : const {},
@@ -134,9 +137,8 @@ class GridDiagram extends StatelessWidget {
 
   Widget _target(_GridGeo g, (int, int) cell, VoidCallback onTap, String label) {
     final r = g.rect(cell);
-    // Taller than drawn when short, never wider than the panel, so a target
-    // can't reach into a neighbour's visual; dense grids add chips instead.
-    final w = r.width, h = math.max(Lb.touch, r.height);
+    // Small cells get chips; expanding here would cover neighbouring panels.
+    final w = r.width, h = r.height;
     return Positioned(
       left: r.center.dx - w / 2,
       top: r.center.dy - h / 2,
@@ -172,6 +174,7 @@ class _GridPainter extends CustomPainter {
   _GridPainter({
     required this.geo,
     required this.chain,
+    required this.positions,
     required this.numbers,
     required this.showPath,
     required this.targets,
@@ -182,6 +185,7 @@ class _GridPainter extends CustomPainter {
 
   final _GridGeo geo;
   final PanelWiring? chain;
+  final List<(int, int)>? positions;
   final bool numbers, showPath;
   final Set<(int, int)> targets, selected;
   final Map<(int, int), StartCorner> firstLights;
@@ -260,7 +264,7 @@ class _GridPainter extends CustomPainter {
     }
 
     final c = chain;
-    if (c != null && (numbers || showPath)) _paintChain(canvas, g, c);
+    if ((c != null || positions != null) && (numbers || showPath)) _paintChain(canvas, g, c);
 
     for (final e in firstLights.entries) {
       final r = g.rect(e.key);
@@ -274,9 +278,10 @@ class _GridPainter extends CustomPainter {
     }
   }
 
-  void _paintChain(Canvas canvas, _GridGeo g, PanelWiring c) {
+  void _paintChain(Canvas canvas, _GridGeo g, PanelWiring? c) {
+    (int, int) cellOf(int k) => positions?[k] ?? c!.positionOf(k, g.cols, g.rows);
     final n = g.cols * g.rows;
-    final centers = [for (var k = 0; k < n; k++) g.rect(c.positionOf(k, g.cols, g.rows)).center];
+    final centers = [for (var k = 0; k < n; k++) g.rect(cellOf(k)).center];
     if (showPath) {
       final solid = Path()..moveTo(centers.first.dx, centers.first.dy);
       final dashed = Paint()
@@ -284,7 +289,7 @@ class _GridPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1;
       for (var k = 1; k < n; k++) {
-        final a = c.positionOf(k - 1, g.cols, g.rows), b = c.positionOf(k, g.cols, g.rows);
+        final a = cellOf(k - 1), b = cellOf(k);
         final step = (a.$1 - b.$1).abs() + (a.$2 - b.$2).abs() == 1;
         if (step) {
           solid.lineTo(centers[k].dx, centers[k].dy);
@@ -319,7 +324,7 @@ class _GridPainter extends CustomPainter {
     }
     if (numbers) {
       for (var k = 0; k < n; k++) {
-        final r = g.rect(c.positionOf(k, g.cols, g.rows));
+        final r = g.rect(cellOf(k));
         final size = (math.min(r.width, r.height) * 0.42).clamp(10.0, 20.0);
         final first = k == 0;
         final tp = TextPainter(
@@ -368,6 +373,7 @@ class _GridPainter extends CustomPainter {
       old.geo.pitch != geo.pitch ||
       old.geo.origin != geo.origin ||
       old.chain != chain ||
+      old.positions != positions ||
       old.numbers != numbers ||
       old.showPath != showPath ||
       old.dotColor != dotColor ||

@@ -194,6 +194,9 @@ enum SetupSupport {
   /// Several panels that aren't equal panels in a simple grid.
   multiplePanels,
 
+  /// Panels differ by more than a half turn of the first panel.
+  differentPanelWiring,
+
   /// More than one LED output.
   multipleOutputs,
 
@@ -231,6 +234,7 @@ class DeviceSetupState {
     this.mac = '',
     this.name = '',
     this.version = '',
+    this.arch = '',
   });
 
   /// The config was refused (HTTP 401): only the info fields are known.
@@ -241,6 +245,7 @@ class DeviceSetupState {
     this.mac = '',
     this.name = '',
     this.version = '',
+    this.arch = '',
   })  : isMatrix = false,
         wiring = null,
         grid = null,
@@ -285,6 +290,18 @@ class DeviceSetupState {
   final String mac;
   final String name;
   final String version;
+  final String arch;
+
+  /// WLED 16.0.1 const.h defaults, before the single-output bus ceiling.
+  int get maxLeds => switch (arch.toLowerCase()) {
+    'esp32s2' => 2048,
+    'esp32' || 'esp32s3' || 'esp32c3' => 16384,
+    _ => 1536,
+  };
+
+  static const maxLedsPerBus = 2048;
+
+  bool canDrive(int count) => count <= maxLeds && count <= maxLedsPerBus;
 
   /// Parses [cfg] (`/json/cfg`) and [info] (`/json/info`).
   factory DeviceSetupState.fromJson({
@@ -335,6 +352,7 @@ class DeviceSetupState {
       mac: _str(info['mac']),
       name: _str(info['name']),
       version: _str(info['ver']),
+      arch: _str(info['arch']),
     );
   }
 
@@ -348,6 +366,7 @@ class DeviceSetupState {
       mac: _str(info['mac']),
       name: _str(info['name']),
       version: _str(info['ver']),
+      arch: _str(info['arch']),
     );
   }
 
@@ -361,6 +380,10 @@ class DeviceSetupState {
       return SetupSupport.unsupportedOutput;
     }
     if (panelCount > 1 && grid == null) return SetupSupport.multiplePanels;
+    final g = grid;
+    if (g != null && g.wiring.any((w) => w != g.wiring.first && w != g.wiring.first.turnedUpsideDown)) {
+      return SetupSupport.differentPanelWiring;
+    }
     if (hasCustomMap) return SetupSupport.customMap;
     if (realtimeOffset != 0) return SetupSupport.realtimeOffset;
     return SetupSupport.supported;

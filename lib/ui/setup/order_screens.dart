@@ -180,6 +180,85 @@ class OrderResultScreen extends StatelessWidget {
   }
 }
 
+class OrderConfirmScreen extends StatelessWidget {
+  const OrderConfirmScreen({super.key, required this.controller});
+
+  final SetupController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    final chain = c.draftChain ?? const PanelWiring();
+    final cell = c.draftPositions?[c.orderPanel] ?? chain.positionOf(c.orderPanel, c.draftCols, c.draftRows);
+    return StepLayout(
+      title: 'Do they follow the numbers?',
+      line: 'The panels light up one by one in the order shown.',
+      children: [
+        Center(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: c.reduceMotion ? c.nextOrderPanel : null,
+            child: GridDiagram(
+              cols: c.draftCols,
+              rows: c.draftRows,
+              panelW: c.draftWidth!,
+              panelH: c.draftHeight!,
+              chain: chain,
+              positions: c.draftPositions,
+              numbers: true,
+              selected: {cell},
+              label: 'Panel ${c.orderPanel + 1} is lit',
+            ),
+          ),
+        ),
+        if (c.reduceMotion) SetupSecondary('Next panel', onPressed: c.nextOrderPanel),
+        Center(child: DeviceTestStatus(controller: c)),
+        if (c.testNeedsMoreLeds) ...[
+          Note(text: 'Your device is set for ${c.deviceLeds} LEDs, so these lights can\'t show yet.'),
+          SetupSecondary('Set it to ${c.draftLeds} LEDs now', onPressed: c.setLedsNow),
+        ],
+      ],
+      primary: SetupPrimary('Yes, in order', onPressed: c.orderConfirmed),
+      secondary: SetupSecondary('No', onPressed: c.orderIncorrect),
+    );
+  }
+}
+
+class OrderTapScreen extends StatelessWidget {
+  const OrderTapScreen({super.key, required this.controller});
+
+  final SetupController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    return StepLayout(
+      title: 'Which panel lit up?',
+      line: 'Panel ${c.orderPanel + 1} of ${c.draftPanels}. Tap the panel that lit up.',
+      children: [
+        Center(
+          child: GridDiagram(
+            cols: c.draftCols,
+            rows: c.draftRows,
+            panelW: c.draftWidth!,
+            panelH: c.draftHeight!,
+            chain: const PanelWiring(),
+            numbers: true,
+            targets: c.untappedPanels,
+            onPanel: c.pickLitPanel,
+            cellLabel: _where,
+          ),
+        ),
+        Center(child: DeviceTestStatus(controller: c)),
+        if (c.testNeedsMoreLeds) ...[
+          Note(text: 'Your device is set for ${c.deviceLeds} LEDs, so these lights can\'t show yet.'),
+          SetupSecondary('Set it to ${c.draftLeds} LEDs now', onPressed: c.setLedsNow),
+        ],
+      ],
+    );
+  }
+}
+
 /// Picking the panel order by hand with a live diagram.
 class OrderManualScreen extends StatelessWidget {
   const OrderManualScreen({super.key, required this.controller});

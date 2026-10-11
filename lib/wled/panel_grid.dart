@@ -19,7 +19,7 @@ const maxDisplaySide = 255;
 const slowWireLeds = 1024;
 
 /// Plain-words reason a layout can't be driven.
-const tooBigWords = 'That\'s more than this device can drive.';
+const tooBigWords = 'That\'s more lights than this device can drive.';
 
 /// Milliamps one LED draws at full white.
 const ledFullWhiteMa = 60;
@@ -46,8 +46,14 @@ class PanelGrid {
     required this.panelH,
     this.chain = const PanelWiring(),
     required List<PanelWiring> wiring,
+    List<(int, int)>? positions,
   }) : wiring = List.unmodifiable(wiring),
-       assert(wiring.length == cols * rows);
+       positions = positions == null ? null : List.unmodifiable(positions),
+       assert(wiring.length == cols * rows) {
+    if (positions != null && !_validPositions(positions, cols, rows)) {
+      throw ArgumentError.value(positions, 'positions', 'Must be a grid permutation');
+    }
+  }
 
   /// Every panel wired the same way.
   factory PanelGrid.uniform({
@@ -77,6 +83,9 @@ class PanelGrid {
   /// whether it snakes back on every second run.
   final PanelWiring chain;
 
+  /// Explicit grid cells in chain order, when the chain has a custom route.
+  final List<(int, int)>? positions;
+
   /// LED wiring inside each panel, in chain order.
   final List<PanelWiring> wiring;
 
@@ -105,10 +114,10 @@ class PanelGrid {
   }
 
   /// Grid cell (column, row) of the [k]-th panel in the chain.
-  (int, int) cellOf(int k) => chain.positionOf(k, cols, rows);
+  (int, int) cellOf(int k) => positions?[k] ?? chain.positionOf(k, cols, rows);
 
   /// Chain position of the panel at grid cell ([cx], [cy]).
-  int panelAt(int cx, int cy) => chain.physicalIndex(cx, cy, cols, rows);
+  int panelAt(int cx, int cy) => positions?.indexOf((cx, cy)) ?? chain.physicalIndex(cx, cy, cols, rows);
 
   /// LED index at display column [x], row [y] (origin top-left).
   int physicalIndex(int x, int y) {
@@ -147,7 +156,7 @@ class PanelGrid {
   String describeSize() => isSingle ? '$panelW×$panelH' : '$cols × $rows panels of $panelW×$panelH ($width×$height)';
 
   /// "Starts top left, runs across, snakes".
-  String describeChain() => describeChainOf(chain, cols, rows);
+  String describeChain() => positions == null ? describeChainOf(chain, cols, rows) : 'Custom panel order';
 
   Map<String, dynamic> toJson() => {
     'cols': cols,
@@ -155,6 +164,10 @@ class PanelGrid {
     'panelW': panelW,
     'panelH': panelH,
     'chain': chain.toJson(),
+    if (positions != null)
+      'positions': [
+        for (final p in positions!) [p.$1, p.$2],
+      ],
     'wiring': [for (final w in wiring) w.toJson()],
   };
 
@@ -167,19 +180,30 @@ class PanelGrid {
       return null;
     }
     if (list.length != cols * rows) return null;
+    List<(int, int)>? positions;
+    if (j.containsKey('positions')) {
+      final cells = j['positions'];
+      if (cells is! List) return null;
+      positions = [];
+      for (final cell in cells) {
+        if (cell is! List || cell.length != 2 || cell[0] is! int || cell[1] is! int) return null;
+        positions.add((cell[0] as int, cell[1] as int));
+      }
+      if (!_validPositions(positions, cols, rows)) return null;
+    }
     return PanelGrid(
       cols: cols,
       rows: rows,
       panelW: pw,
       panelH: ph,
+      positions: positions,
       chain: j['chain'] is Map ? PanelWiring.fromJson(j['chain'] as Map) : const PanelWiring(),
       wiring: [for (final w in list) w is Map ? PanelWiring.fromJson(w) : const PanelWiring()],
     );
   }
 
   /// Reads WLED's panel list (`hw.led.matrix.panels`) as a grid, or null
-  /// when it isn't equal panels tiling a rectangle in a chain this model
-  /// can describe (mixed sizes, gaps, overlaps, a custom order).
+  /// when it isn't equal panels tiling a rectangle (mixed sizes, gaps or overlaps).
   static PanelGrid? fromPanels(List<Map<String, dynamic>> panels) {
     if (panels.isEmpty) return null;
     int? n(Object? v) => v is num ? v.toInt() : null;
@@ -210,13 +234,13 @@ class PanelGrid {
         break;
       }
     }
-    if (found == null) return null;
     return PanelGrid(
       cols: cols,
       rows: rows,
       panelW: pw,
       panelH: ph,
-      chain: found,
+      chain: found ?? const PanelWiring(),
+      positions: found == null ? cells : null,
       wiring: [
         for (final p in panels)
           PanelWiring.fromFlags(
@@ -236,17 +260,27 @@ class PanelGrid {
       other.rows == rows &&
       other.panelW == panelW &&
       other.panelH == panelH &&
-      other.chain == chain &&
+      _sameList(
+        [for (var k = 0; k < panelCount; k++) other.cellOf(k)],
+        [for (var k = 0; k < panelCount; k++) cellOf(k)],
+      ) &&
       _sameList(other.wiring, wiring);
 
   @override
-  int get hashCode => Object.hash(cols, rows, panelW, panelH, chain, Object.hashAll(wiring));
+  int get hashCode => Object.hash(
+    cols,
+    rows,
+    panelW,
+    panelH,
+    Object.hashAll([for (var k = 0; k < panelCount; k++) cellOf(k)]),
+    Object.hashAll(wiring),
+  );
 
   @override
   String toString() => 'PanelGrid($cols×$rows of $panelW×$panelH, ${describeChain()})';
 }
 
-bool _sameList(List<PanelWiring> a, List<PanelWiring> b) {
+bool _sameList<T>(List<T> a, List<T> b) {
   if (a.length != b.length) return false;
   for (var i = 0; i < a.length; i++) {
     if (a[i] != b[i]) return false;
@@ -287,3 +321,8 @@ extension PanelWiringTurn on PanelWiring {
     zigzag: zigzag,
   );
 }
+
+bool _validPositions(List<(int, int)> cells, int cols, int rows) =>
+    cells.length == cols * rows &&
+    cells.toSet().length == cells.length &&
+    cells.every((c) => c.$1 >= 0 && c.$1 < cols && c.$2 >= 0 && c.$2 < rows);

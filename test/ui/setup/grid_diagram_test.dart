@@ -16,7 +16,7 @@ void main() {
     ),
   );
 
-  testWidgets('tappable panels are labelled buttons of at least 48px and report their cell', (tester) async {
+  testWidgets('tappable panels are labelled buttons report their cell and offer 48px chips when small', (tester) async {
     final handle = tester.ensureSemantics();
     (int, int)? got;
     await pump(
@@ -36,9 +36,9 @@ void main() {
       expect(f, findsOneWidget);
       expect(tester.getSemantics(f).getSemanticsData().flagsCollection.isButton, isTrue);
       final size = tester.getSize(f);
-      // 8 across is ~39 px per panel: the hit area grows taller, not into neighbours.
+      // The diagram hit area stays inside its visual cell.
       expect(size.width, lessThan(48));
-      expect(size.height, greaterThanOrEqualTo(48));
+      expect(size.height, lessThan(48));
       await tester.tap(f);
       expect(got, cell);
     }
@@ -55,11 +55,48 @@ void main() {
     handle.dispose();
   });
 
+  for (final (cols, rows, pw, ph) in [(4, 4, 8, 32), (8, 2, 16, 16), (2, 8, 32, 8)]) {
+    testWidgets('cells never overlap: $cols×$rows of $pw×$ph', (tester) async {
+      final handle = tester.ensureSemantics();
+      final got = <(int, int)>[];
+      await pump(
+        tester,
+        SingleChildScrollView(
+          child: GridDiagram(
+            cols: cols,
+            rows: rows,
+            panelW: pw,
+            panelH: ph,
+            targets: {
+              for (var y = 0; y < rows; y++)
+                for (var x = 0; x < cols; x++) (x, y),
+            },
+            onPanel: got.add,
+            cellLabel: (x, y) => 'Cell $x $y',
+          ),
+        ),
+      );
+      final rects = <Rect>[];
+      for (var y = 0; y < rows; y++) {
+        for (var x = 0; x < cols; x++) {
+          final rect = tester.getRect(find.bySemanticsLabel('Cell $x $y'));
+          for (final other in rects) {
+            expect(rect.overlaps(other), isFalse);
+          }
+          rects.add(rect);
+          got.clear();
+          await tester.tapAt(rect.center);
+          expect(got, [(x, y)]);
+        }
+      }
+      expect(find.widgetWithText(InkWell, 'Panel 1'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      handle.dispose();
+    });
+  }
+
   testWidgets('roomy grids have no chips', (tester) async {
-    await pump(
-      tester,
-      GridDiagram(cols: 2, rows: 1, panelW: 8, panelH: 8, targets: const {(0, 0)}, onPanel: (_) {}),
-    );
+    await pump(tester, GridDiagram(cols: 2, rows: 1, panelW: 8, panelH: 8, targets: const {(0, 0)}, onPanel: (_) {}));
     expect(find.byType(InkWell), findsNothing);
   });
 

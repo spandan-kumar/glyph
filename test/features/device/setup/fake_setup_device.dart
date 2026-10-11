@@ -10,6 +10,7 @@ import 'package:http/testing.dart';
 class FakeSetupDevice {
   FakeSetupDevice({
     this.mac = '48e729a39308',
+    this.arch = 'esp32',
     int width = 16,
     int height = 8,
     bool matrix = true,
@@ -56,7 +57,7 @@ class FakeSetupDevice {
     };
   }
 
-  final String mac;
+  final String mac, arch;
   int ledCount;
   final String? pin;
 
@@ -118,7 +119,7 @@ class FakeSetupDevice {
   Map<String, dynamic> get info {
     final p = panel;
     return {
-      'ver': '16.0.1', 'name': 'Desk', 'mac': mac, 'brand': 'WLED', 'arch': 'esp32',
+      'ver': '16.0.1', 'name': 'Desk', 'mac': mac, 'brand': 'WLED', 'arch': arch,
       'leds': {
         'count': length,
         if (p != null)

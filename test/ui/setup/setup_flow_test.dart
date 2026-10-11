@@ -201,6 +201,20 @@ void main() {
       rig.playback.pause();
     });
 
+    for (final flag in ['v', 's']) {
+      testWidgets('panels with different $flag wiring are refused', (tester) async {
+        final device = FakeSetupDevice(panels: [
+          {'b': false, 'r': false, 'v': false, 's': false, 'x': 0, 'y': 0, 'w': 8, 'h': 8},
+          {'b': false, 'r': false, 'v': flag == 'v', 's': flag == 's', 'x': 8, 'y': 0, 'w': 8, 'h': 8},
+        ]);
+        final rig = await SetupRig.create(tester, device: device);
+        await rig.pump(tester);
+        await settle(tester, 600);
+        expect(find.text('Its panels are wired in different ways.'), findsOneWidget);
+        rig.playback.pause();
+      });
+    }
+
     test('every reason has plain words', () {
       for (final r in SetupSupport.values.where((r) => r != SetupSupport.supported)) {
         expect(unsupportedReason(r), isNotEmpty);
