@@ -42,11 +42,13 @@ new key's password only in the macOS Keychain ("Glyph release keystore") and the
 maintainer's password manager.
 
 **Full secrets backup.** `tool/backup_secrets.sh` (run by the maintainer)
-collects everything Glyph depends on into one AES-256 encrypted disk image for
-Google Drive: both Android keys, the lineage, the release key password, the
+collects everything Glyph depends on into one zip for the maintainer's Google
+Drive (plain by choice, 11 October 2026; `--encrypt` makes an AES-256 disk image
+instead): both Android keys, the lineage, the release key password, the
 catalog signing key (`CATALOG_SIGNING_KEY`, from Keychain) and optionally the
-Discord webhook, with restore instructions in `SECRETS.txt`. Only the image's
-passphrase must live outside Drive; with it, a lost laptop loses nothing.
+Discord webhook, with restore instructions in `SECRETS.txt`. With it, a lost
+laptop loses nothing; anyone with access to that Drive file can sign Glyph
+releases and catalogs.
 
 ## Keys and GitHub secrets
 

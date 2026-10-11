@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Back up every secret Glyph depends on into ONE encrypted disk image you can keep
-# in Google Drive: both Android signing keys, the rotation lineage, the release key
-# password, the catalog signing key and (if you paste it) the Discord webhook.
-# The image is AES-256 encrypted with a passphrase you choose and must remember;
-# without it a Drive leak would let someone ship fake Glyph updates and catalogs.
-# Usage: tool/backup_secrets.sh [OUTPUT_DIR]   (default: ~/Desktop)
+# Back up every secret Glyph depends on into ONE zip for your Google Drive: both
+# Android signing keys, the rotation lineage, the release key password, the catalog
+# signing key and (if you paste it) the Discord webhook, plus restore steps.
+# The zip is plain (anyone who can open it can sign Glyph updates and catalogs);
+# pass --encrypt for an AES-256 disk image with a passphrase instead.
+# Usage: tool/backup_secrets.sh [--encrypt] [OUTPUT_DIR]   (default: ~/Desktop)
 set -euo pipefail
 
 if [[ ${1:-} == -h || ${1:-} == --help ]]; then
   sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 fi
-[[ -t 0 ]] || { echo 'Run in a terminal: it asks for a passphrase.' >&2; exit 1; }
+encrypt=false
+if [[ ${1:-} == --encrypt ]]; then encrypt=true; shift; fi
+[[ -t 0 ]] || { echo 'Run in a terminal: it asks for the Discord webhook.' >&2; exit 1; }
 
 out_dir=${1:-"$HOME/Desktop"}
 keys="$HOME/glyph-release-keys"
 stamp=$(date +%Y-%m-%d)
-image="$out_dir/glyph-secrets-$stamp.dmg"
+if $encrypt; then image="$out_dir/glyph-secrets-$stamp.dmg"; else image="$out_dir/glyph-secrets-$stamp.zip"; fi
 [[ -e $image ]] && { echo "$image already exists." >&2; exit 1; }
 [[ -f $keys/glyph-release.jks && -f $keys/glyph-signing.lineage ]] \
   || { echo "Missing $keys (run tool/setup_release_signing.sh first)." >&2; exit 1; }
@@ -35,7 +37,7 @@ read -r -s -p 'Paste the Discord webhook URL to include it (or press Return to s
 echo
 
 {
-  echo "Glyph secrets backup, $stamp. Keep this image encrypted."
+  echo "Glyph secrets backup, $stamp. Anyone with these can sign Glyph releases and catalogs."
   echo
   echo "== Android signing (GitHub repo secrets) =="
   echo "New key file:      glyph-release.jks (PKCS12)"
@@ -61,9 +63,12 @@ echo
 } > "$dir/SECRETS.txt"
 unset release_pass catalog_key discord
 
-echo 'Choose a passphrase for the backup image (you will need it to open the backup).'
-hdiutil create -quiet -fs HFS+ -encryption AES-256 -volname glyph-secrets -srcfolder "$dir" "$image"
+if $encrypt; then
+  echo 'Choose a passphrase for the backup image (you will need it to open the backup).'
+  hdiutil create -quiet -fs HFS+ -encryption AES-256 -volname glyph-secrets -srcfolder "$dir" "$image"
+else
+  (cd "$work" && zip -qr -X "$image" glyph-secrets)
+fi
 chmod 600 "$image"
 echo
-echo "Created $image (AES-256). Upload it to Google Drive, then delete the local copy."
-echo 'Keep the passphrase somewhere other than Drive (your memory or password manager).'
+echo "Created $image. Upload it to Google Drive, then delete the local copy."
