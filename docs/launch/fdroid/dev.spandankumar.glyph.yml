@@ -36,7 +36,7 @@ Repo: https://github.com/spandan-kumar/glyph.git
 # inspected server checks reject manifest debuggable/testOnly, not that DN.
 # Binaries: https://github.com/spandan-kumar/glyph/releases/download/v%v/glyph-%v-arm64-v8a.apk
 # AllowedAPKSigningKeys:
-#   - TODO_REPLACE_WITH_NEW_V3_CERTIFICATE_SHA256_64_LOWERCASE_HEX_DIGITS
+#   - d9f51a1f873db96bfec0be9c230e5ec2ead72660aa42abaf04389291ad84441e  # new release key (v3); see docs/SIGNING.md
 
 Builds:
   - versionName: 1.4.0
