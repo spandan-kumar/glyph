@@ -190,6 +190,7 @@ class SetupRig {
     VoidCallback? onExit,
     VoidCallback? onDone,
     SetupServices? services,
+    bool onePanel = true,
   }) async {
     tester.view.physicalSize = size * 3;
     tester.view.devicePixelRatio = 3;
@@ -224,6 +225,22 @@ class SetupRig {
       ),
     );
     await settle(tester);
+    // Most tests are about a single panel: a strip first asks "one or
+    // several?", so answer it. Pass `onePanel: false` to see that question.
+    if (onePanel) await chooseOnePanel(tester);
+  }
+}
+
+/// Answers "Is your display one panel or several?" with One panel, when it
+/// is showing (waits a moment for a device that is still being read).
+Future<void> chooseOnePanel(WidgetTester tester) async {
+  for (var i = 0; i < 4; i++) {
+    if (find.text('Is your display one panel or several?').evaluate().isNotEmpty) {
+      await tester.tap(find.text('One panel'));
+      await settle(tester, 400);
+      return;
+    }
+    await settle(tester, 200);
   }
 }
 

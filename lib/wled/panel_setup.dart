@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'layout.dart';
+import 'panel_grid.dart';
 
 /// Pure logic for the device setup wizard: how a single panel is wired, how
 /// WLED describes that in its config, and what the app needs to remember to
@@ -151,28 +152,38 @@ class PanelWiring {
 }
 
 /// A display Glyph is asked to set up: one panel, [width]×[height], wired as
-/// [wiring].
+/// [wiring], or a grid of panels ([DisplaySetup.grid]). A single panel is a
+/// 1×1 grid; [width], [height] and [ledCount] always describe the whole
+/// display and [wiring] the first panel.
 class DisplaySetup {
-  const DisplaySetup(this.width, this.height, this.wiring);
+  const DisplaySetup(this.width, this.height, this.wiring) : _grid = null;
+
+  DisplaySetup.grid(PanelGrid g)
+    : width = g.width,
+      height = g.height,
+      wiring = g.wiring.first,
+      _grid = g;
 
   final int width;
   final int height;
   final PanelWiring wiring;
+  final PanelGrid? _grid;
+
+  /// The panels, even for a single one.
+  PanelGrid get grid => _grid ?? PanelGrid.single(width, height, wiring);
 
   int get ledCount => width * height;
 
   @override
-  bool operator ==(Object other) =>
-      other is DisplaySetup &&
-      other.width == width &&
-      other.height == height &&
-      other.wiring == wiring;
+  bool operator ==(Object other) => other is DisplaySetup && other.grid == grid;
 
   @override
-  int get hashCode => Object.hash(width, height, wiring);
+  int get hashCode => grid.hashCode;
 
   @override
-  String toString() => 'DisplaySetup(${width}x$height, ${wiring.describe()})';
+  String toString() => _grid != null && !_grid.isSingle
+      ? 'DisplaySetup($_grid)'
+      : 'DisplaySetup(${width}x$height, ${wiring.describe()})';
 }
 
 /// Why a device can't be set up by the wizard (it can still be fixed with the
@@ -180,7 +191,7 @@ class DisplaySetup {
 enum SetupSupport {
   supported,
 
-  /// More than one panel is configured.
+  /// Several panels that aren't equal panels in a simple grid.
   multiplePanels,
 
   /// More than one LED output.
@@ -207,6 +218,7 @@ class DeviceSetupState {
     this.width,
     this.height,
     this.wiring,
+    this.grid,
     this.panelCount = 0,
     this.ledCount = 0,
     this.outputs = const [],
@@ -231,6 +243,7 @@ class DeviceSetupState {
     this.version = '',
   })  : isMatrix = false,
         wiring = null,
+        grid = null,
         panelCount = 0,
         outputs = const [],
         realtimeMaps = true,
@@ -248,6 +261,10 @@ class DeviceSetupState {
 
   /// Wiring of the first panel; null when not a matrix.
   final PanelWiring? wiring;
+
+  /// The panels as a regular grid (a single panel is 1×1); null when not a
+  /// matrix, or when the panels aren't a simple grid.
+  final PanelGrid? grid;
   final int panelCount;
   final int ledCount;
 
@@ -300,6 +317,7 @@ class DeviceSetupState {
               serpentine: _flag(panel0['s']),
             )
           : null,
+      grid: isMatrix ? PanelGrid.fromPanels(panels) : null,
       panelCount: isMatrix ? (panels.isEmpty ? 1 : panels.length) : 0,
       ledCount: _int(leds['count']) ?? 0,
       outputs: [
@@ -342,42 +360,43 @@ class DeviceSetupState {
     if (outputs.isEmpty || !_supportedOutputType(_int(outputs.first['type']))) {
       return SetupSupport.unsupportedOutput;
     }
-    if (panelCount > 1) return SetupSupport.multiplePanels;
+    if (panelCount > 1 && grid == null) return SetupSupport.multiplePanels;
     if (hasCustomMap) return SetupSupport.customMap;
     if (realtimeOffset != 0) return SetupSupport.realtimeOffset;
     return SetupSupport.supported;
   }
 
-  /// The device already shows [s]: 2D on with that size and wiring, and
-  /// streamed pixels going through the map.
+  /// The device already shows [s]: 2D on with these panels, and streamed
+  /// pixels going through the map.
   bool isConfigured(DisplaySetup s) =>
-      isMatrix &&
-      panelCount == 1 &&
-      width == s.width &&
-      height == s.height &&
-      wiring == s.wiring &&
-      realtimeMaps;
+      isMatrix && grid != null && grid == s.grid && width == s.width && height == s.height && realtimeMaps;
 }
 
 /// Digital strips (WS281x family, 16–39) and two-wire strips (48–63) only.
 bool _supportedOutputType(int? type) =>
     type != null && ((type >= 16 && type <= 39) || (type >= 48 && type <= 63));
 
-/// Form fields for `POST /settings/2D` that make the device a single
-/// [s.width]×[s.height] panel. WLED reads serpentine by presence, so `P0S`
-/// is left out when off.
-Map<String, String> panelForm(DisplaySetup s) => {
-      'SOMP': '1',
-      'MPC': '1',
-      'P0B': s.wiring.bottomStart ? '1' : '0',
-      'P0R': s.wiring.rightStart ? '1' : '0',
-      'P0V': s.wiring.vertical ? '1' : '0',
-      if (s.wiring.zigzag) 'P0S': 'on',
-      'P0X': '0',
-      'P0Y': '0',
-      'P0W': '${s.width}',
-      'P0H': '${s.height}',
-    };
+/// Form fields for `POST /settings/2D` that make the device the panels of
+/// [s]: always the whole layout, every panel with its offset, width and
+/// height. WLED reads serpentine by presence, so `P{i}S` is left out when
+/// off.
+Map<String, String> panelForm(DisplaySetup s) {
+  final panels = s.grid.panels();
+  return {
+    'SOMP': '1',
+    'MPC': '${panels.length}',
+    for (final (i, p) in panels.indexed) ...{
+      'P${i}B': p['b'] == true ? '1' : '0',
+      'P${i}R': p['r'] == true ? '1' : '0',
+      'P${i}V': p['v'] == true ? '1' : '0',
+      if (p['s'] == true) 'P${i}S': 'on',
+      'P${i}X': '${p['x']}',
+      'P${i}Y': '${p['y']}',
+      'P${i}W': '${p['w']}',
+      'P${i}H': '${p['h']}',
+    },
+  };
+}
 
 /// Form fields that turn 2D off (a plain strip).
 Map<String, String> stripForm() => {'SOMP': '0'};
@@ -399,6 +418,7 @@ class SetupSnapshot {
     this.width,
     this.height,
     this.wiring,
+    this.grid,
     required this.ledCount,
     required this.outputEntry,
     required this.realtimeMaps,
@@ -424,6 +444,7 @@ class SetupSnapshot {
         width: state.width,
         height: state.height,
         wiring: state.wiring,
+        grid: state.grid != null && !state.grid!.isSingle ? state.grid : null,
         ledCount: state.ledCount,
         outputEntry:
             state.outputs.isEmpty ? const {} : Map.of(state.outputs.first),
@@ -440,6 +461,9 @@ class SetupSnapshot {
   final int? width;
   final int? height;
   final PanelWiring? wiring;
+
+  /// All panels when the device had several; null for a single panel.
+  final PanelGrid? grid;
   final int ledCount;
 
   /// The complete first `hw.led.ins` entry (empty when unknown).
@@ -461,7 +485,11 @@ class SetupSnapshot {
       SetupSnapshot.fromJson({...toJson(), 'needsRestore': value});
 
   /// The display this snapshot had, when it was a matrix.
-  DisplaySetup? get display => isMatrix && width != null && height != null && wiring != null
+  DisplaySetup? get display => !isMatrix
+      ? null
+      : grid != null
+      ? DisplaySetup.grid(grid!)
+      : width != null && height != null && wiring != null
       ? DisplaySetup(width!, height!, wiring!)
       : null;
 
@@ -472,6 +500,7 @@ class SetupSnapshot {
         if (width != null) 'width': width,
         if (height != null) 'height': height,
         if (wiring != null) 'wiring': wiring!.toJson(),
+        if (grid != null) 'grid': grid!.toJson(),
         'ledCount': ledCount,
         'outputEntry': outputEntry,
         'realtimeMaps': realtimeMaps,
@@ -492,6 +521,7 @@ class SetupSnapshot {
         wiring: json['wiring'] is Map
             ? PanelWiring.fromJson(json['wiring'] as Map)
             : null,
+        grid: PanelGrid.tryFromJson(json['grid']),
         ledCount: _int(json['ledCount']) ?? 0,
         outputEntry: json['outputEntry'] is Map
             ? Map<String, dynamic>.from(json['outputEntry'] as Map)

@@ -26,8 +26,14 @@ class WiringQuestionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     final w = c.draftWidth ?? 8, h = c.draftHeight ?? 8;
+    final grid = c.isGrid;
     final (title, line) = switch (question) {
-      SetupStep.wiringQ1 => ('Which corner lit up?', 'One light is on at the start of the wiring. Tap that corner.'),
+      SetupStep.wiringQ1 => (
+        'Which corner lit up?',
+        grid
+            ? 'One light is on at the start of the first panel\'s wiring. Tap that corner of the panel.'
+            : 'One light is on at the start of the wiring. Tap that corner.',
+      ),
       SetupStep.wiringQ2 => (
         'Which way is it moving?',
         'The lights run from that corner. Pick the way the arrows point.',
@@ -66,10 +72,11 @@ class WiringQuestionScreen extends StatelessWidget {
       gap: 16,
       children: [
         if (c.wiringNote != null) Note(color: Lb.phosphor, lit: true, text: c.wiringNote!),
+        if (grid) ...[MonoLabel('Inside panel 1 of ${c.draftPanels}'), const SizedBox(height: 4)],
         Center(child: diagram),
         if (question != SetupStep.wiringQ1) ...[const SizedBox(height: 16), ..._options(c)],
         const SizedBox(height: 12),
-        Center(child: _DeviceStatus(controller: c)),
+        Center(child: DeviceTestStatus(controller: c)),
         if (showHelp) ...[
           const SizedBox(height: 16),
           Note(
@@ -81,7 +88,7 @@ class WiringQuestionScreen extends StatelessWidget {
         ],
       ],
       link: question == SetupStep.wiringQ1
-          ? SetupLink('Nothing lit up', onPressed: () => _nothingLit(context, c))
+          ? SetupLink('Nothing lit up', onPressed: () => showNothingLit(context, c))
           : null,
     );
   }
@@ -93,14 +100,14 @@ List<Widget> _options(SetupController c) {
   if (c.step == SetupStep.wiringQ2) {
     rows
       ..add(
-        _OptionRow(
+        OptionRow(
           icon: corner.isRight ? Icons.arrow_back_sharp : Icons.arrow_forward_sharp,
           label: 'Across',
           onTap: () => c.pickRun(alongWidth: true),
         ),
       )
       ..add(
-        _OptionRow(
+        OptionRow(
           icon: corner.isBottom ? Icons.arrow_upward_sharp : Icons.arrow_downward_sharp,
           label: corner.isBottom ? 'Up' : 'Down',
           onTap: () => c.pickRun(alongWidth: false),
@@ -117,8 +124,8 @@ List<Widget> _options(SetupController c) {
         : corner.isBottom
         ? (Icons.arrow_downward_sharp, 'At the bottom', Icons.arrow_upward_sharp, 'At the top')
         : (Icons.arrow_upward_sharp, 'At the top', Icons.arrow_downward_sharp, 'At the bottom');
-    final near = _OptionRow(icon: nearIcon, label: nearLabel, onTap: () => c.pickJump(farEnd: false));
-    final far = _OptionRow(icon: farIcon, label: farLabel, onTap: () => c.pickJump(farEnd: true));
+    final near = OptionRow(icon: nearIcon, label: nearLabel, onTap: () => c.pickJump(farEnd: false));
+    final far = OptionRow(icon: farIcon, label: farLabel, onTap: () => c.pickJump(farEnd: true));
     // Fixed order: left before right, top before bottom.
     final nearFirst = rowsRun ? !corner.isRight : !corner.isBottom;
     rows.addAll(nearFirst ? [near, far] : [far, near]);
@@ -129,8 +136,8 @@ List<Widget> _options(SetupController c) {
 }
 
 /// A full-width answer: icon and label in a panel, at least 56px tall.
-class _OptionRow extends StatelessWidget {
-  const _OptionRow({required this.icon, required this.label, required this.onTap});
+class OptionRow extends StatelessWidget {
+  const OptionRow({super.key, required this.icon, required this.label, required this.onTap});
 
   final IconData icon;
   final String label;
@@ -159,8 +166,9 @@ class _OptionRow extends StatelessWidget {
   );
 }
 
-class _DeviceStatus extends StatelessWidget {
-  const _DeviceStatus({required this.controller});
+/// "Lit on your device", or why the test couldn't start.
+class DeviceTestStatus extends StatelessWidget {
+  const DeviceTestStatus({super.key, required this.controller});
 
   final SetupController controller;
 
@@ -185,7 +193,8 @@ class _DeviceStatus extends StatelessWidget {
   }
 }
 
-Future<void> _nothingLit(BuildContext context, SetupController c) => showModalBottomSheet<void>(
+/// The "Nothing lit up?" help sheet shared by every test question.
+Future<void> showNothingLit(BuildContext context, SetupController c) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
   builder: (ctx) => SafeArea(
@@ -237,7 +246,7 @@ class WiringResultScreen extends StatelessWidget {
     final w = c.draftWidth ?? 8, h = c.draftHeight ?? 8;
     final wiring = c.draftWiring ?? const PanelWiring();
     return StepLayout(
-      title: 'Here\'s how it\'s wired',
+      title: c.isGrid ? 'Here\'s how the first panel is wired' : 'Here\'s how it\'s wired',
       line: wiring.describe(),
       children: [
         Center(

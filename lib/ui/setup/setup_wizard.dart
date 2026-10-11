@@ -14,6 +14,7 @@ import '../scope.dart';
 import 'check_screens.dart';
 import 'connect_screens.dart';
 import 'look_done_screens.dart';
+import 'order_screens.dart';
 import 'review_screens.dart';
 import 'setup_parts.dart';
 import 'size_screen.dart';
@@ -196,7 +197,15 @@ class _SetupWizardState extends State<SetupWizard> {
     SetupStep.check => CheckScreen(controller: c),
     SetupStep.pin => PinScreen(controller: c),
     SetupStep.unsupported => UnsupportedScreen(controller: c),
+    SetupStep.panelsChoice => PanelsChoiceScreen(controller: c),
     SetupStep.size => SizeScreen(controller: c),
+    SetupStep.grid => GridScreen(controller: c),
+    SetupStep.orderQ1 ||
+    SetupStep.orderQ2 ||
+    SetupStep.orderQ3 => OrderQuestionScreen(controller: c, question: step),
+    SetupStep.orderResult => OrderResultScreen(controller: c),
+    SetupStep.orderManual => OrderManualScreen(controller: c),
+    SetupStep.orientation => OrientationScreen(controller: c),
     SetupStep.wiringQ1 ||
     SetupStep.wiringQ2 ||
     SetupStep.wiringQ3 => WiringQuestionScreen(controller: c, question: step),
@@ -276,7 +285,13 @@ class _TopBar extends StatelessWidget {
 
   /// Which chapter a step belongs to; 4 once everything is done.
   static int chapterOf(SetupStep s) => switch (s) {
-    SetupStep.size => 1,
+    SetupStep.panelsChoice || SetupStep.size || SetupStep.grid => 1,
+    SetupStep.orderQ1 ||
+    SetupStep.orderQ2 ||
+    SetupStep.orderQ3 ||
+    SetupStep.orderResult ||
+    SetupStep.orderManual ||
+    SetupStep.orientation ||
     SetupStep.wiringQ1 ||
     SetupStep.wiringQ2 ||
     SetupStep.wiringQ3 ||

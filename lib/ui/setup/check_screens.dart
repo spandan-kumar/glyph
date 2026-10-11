@@ -67,7 +67,7 @@ class _PinScreenState extends State<PinScreen> {
 }
 
 String unsupportedReason(SetupSupport s) => switch (s) {
-  SetupSupport.multiplePanels => 'It\'s made of several panels.',
+  SetupSupport.multiplePanels => 'Its panels aren\'t in a simple grid.',
   SetupSupport.multipleOutputs => 'It uses more than one LED output.',
   SetupSupport.unsupportedOutput => 'Its LEDs aren\'t a type Glyph can set up.',
   SetupSupport.customMap => 'It uses a custom LED map.',

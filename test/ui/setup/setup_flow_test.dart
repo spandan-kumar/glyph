@@ -111,6 +111,7 @@ void main() {
       expect(find.text('That PIN didn\'t work. Try again.'), findsOneWidget);
       await tester.enterText(find.byType(TextField), '1234');
       await tapText(tester, 'Unlock', ms: 900);
+      await chooseOnePanel(tester);
       expect(find.text('How big is your display?'), findsOneWidget);
       rig.playback.pause();
     });
@@ -125,6 +126,7 @@ void main() {
       expect(find.text('Check it\'s plugged in and on the same Wi-Fi as your phone.'), findsOneWidget);
       device.offline = false;
       await tapText(tester, 'Try again', ms: 800);
+      await chooseOnePanel(tester);
       expect(find.text('How big is your display?'), findsOneWidget);
       rig.playback.pause();
     });
@@ -176,7 +178,7 @@ void main() {
         'r': false,
         'v': false,
         's': false,
-        'x': 8,
+        'x': 16, // a gap between the two panels
         'y': 0,
         'w': 8,
         'h': 8,
@@ -184,7 +186,7 @@ void main() {
       final rig = await SetupRig.create(tester, device: panels);
       await rig.pump(tester);
       await settle(tester, 600);
-      expect(find.text('It\'s made of several panels.'), findsOneWidget);
+      expect(find.text('Its panels aren\'t in a simple grid.'), findsOneWidget);
       rig.playback.pause();
     });
 
@@ -300,6 +302,7 @@ void main() {
         );
       }
 
+      haptics.clear();
       await tester.tap(find.bySemanticsLabel('16 by 16'));
       await settle(tester, 300);
       expect(haptics, ['HapticFeedbackType.selectionClick']);
@@ -311,6 +314,8 @@ void main() {
       await tester.tap(find.bySemanticsLabel('more across'));
       await settle(tester, 200);
       expect(rig.controller.draftWidth, 17);
+      await tester.drag(find.byType(ListView).first, const Offset(0, -300));
+      await settle(tester, 200);
       expect(find.text('Glyph will set it to 272 LEDs.'), findsOneWidget);
       rig.playback.pause();
     });
@@ -841,6 +846,7 @@ void main() {
       expect(rig.device.panel, isNull);
       expect(find.text('Put back the previous setup.'), findsOneWidget);
       expect(haptics, ['HapticFeedbackType.mediumImpact']);
+      await chooseOnePanel(tester);
       expect(find.text('How big is your display?'), findsOneWidget);
       expect(await rig.store.has(rig.device.mac), isFalse);
       rig.playback.pause();

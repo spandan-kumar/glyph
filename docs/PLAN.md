@@ -109,7 +109,9 @@ shortening is applied.
 1. [Device setup wizard](DEVICE_SETUP.md): assisted home Wi-Fi onboarding with
    guided fallback, one panel, dimensions/wiring, optional power limits and
    visual tests; snapshot, apply, reconnect, verify and restore. Panel grids
-   follow later. Keep app orientation separate from hardware wiring.
+   (equal panels in a regular grid, up to WLED's 18 panels) are built, not
+   released; both need physical QA. Keep app orientation separate from
+   hardware wiring.
 2. Home Assistant blueprint for triggering existing Saved looks by name (built,
    not released: `homeassistant/`, `docs/HOME_ASSISTANT.md`; needs a live-HA
    check); entity watching is a later integration.
@@ -406,6 +408,7 @@ panel and add grids later; offer an optional supply/current-limit step.
 The [setup plan](DEVICE_SETUP.md) records the flow, recovery, implementation
 order and automated/physical acceptance gates. A first implementation was
 built on 11 October (DEVICE_SETUP.md, "As built"); physical QA is pending.
+Panel grids were built the same week and are also not released.
 
 Confirmed on 9 October: activate catalog delivery and prepare v1.3.6 with the
 Music and complete-Send fixes. Phone/controller catalog QA happens later;

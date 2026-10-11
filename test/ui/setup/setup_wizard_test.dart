@@ -78,6 +78,7 @@ void main() {
       await tapText(tester, 'Yes, it\'s on my Wi-Fi');
       await tapText(tester, 'Desk', ms: 1200);
       expect(rig.devices.selected?.host, deviceHost);
+      await chooseOnePanel(tester);
       expect(find.text('How big is your display?'), findsOneWidget);
       expect(find.byTooltip('Close'), findsOneWidget);
       expect(haptics, contains('HapticFeedbackType.mediumImpact'));
@@ -138,6 +139,7 @@ void main() {
       expect(rig.ap.writes.last.$2, {'rb': true});
       expect(rig.wifi.releases, greaterThanOrEqualTo(1));
       expect(rig.devices.selected?.host, deviceHost);
+      await chooseOnePanel(tester);
       expect(find.text('How big is your display?'), findsOneWidget);
       expect(find.byTooltip('Close'), findsOneWidget);
       expect(haptics, contains('HapticFeedbackType.lightImpact'));

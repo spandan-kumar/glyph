@@ -195,7 +195,8 @@ Remaining work builds on the shipped features:
 2. **Device setup wizard** — the next product priority: assisted home Wi-Fi
    onboarding with guided fallback, single-panel size/wiring, optional power
    limits and visible tests, with snapshot/write/reconnect/verify/restore.
-   Panel grids come later. See the [setup plan](DEVICE_SETUP.md).
+   Panel grids (several equal panels on one controller) are built, not
+   released; both await physical QA. See the [setup plan](DEVICE_SETUP.md).
 3. **Regression coverage** — Alerts, Glance and phone Rotations shipped in
    v1.3.3. Keep interruption/restoration, permission revocation, freshness,
    foreground/background transitions and phone-timezone counters working.
@@ -206,7 +207,8 @@ Independent work, ship when verified:
 
 - **Device setup wizard** — Wi-Fi onboarding, size presets, start corner,
   zig-zag wiring, optional power limits and live visual tests with recovery.
-  Single panel first; tiling follows later.
+  Single panel and grids of equal panels built, not released; gaps and mixed
+  sizes come later.
 - **Home Assistant blueprint** — *built, not released* (`homeassistant/`,
   guide in [HOME_ASSISTANT.md](HOME_ASSISTANT.md), in-app "Use with Home
   Assistant" sheet). Triggers Saved looks and Shows by name from automations.

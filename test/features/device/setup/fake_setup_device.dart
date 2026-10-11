@@ -19,6 +19,7 @@ class FakeSetupDevice {
     this.mapFiles = const [],
     int playingFx = 0,
     String? playingName,
+    List<Map<String, dynamic>>? panels,
   }) {
     state = {
       'on': true,
@@ -35,10 +36,11 @@ class FakeSetupDevice {
           'maxpwr': 1000,
           if (matrix)
             'matrix': {
-              'mpc': 1,
-              'panels': [
-                {'b': false, 'r': false, 'v': false, 's': false, 'x': 0, 'y': 0, 'w': width, 'h': height}
-              ]
+              'mpc': panels?.length ?? 1,
+              'panels': panels ??
+                  [
+                    {'b': false, 'r': false, 'v': false, 's': false, 'x': 0, 'y': 0, 'w': width, 'h': height}
+                  ]
             },
           'ins': [
             {
@@ -95,6 +97,11 @@ class FakeSetupDevice {
   Map get _led => (cfg['hw'] as Map)['led'] as Map;
   Map get _live => (cfg['if'] as Map)['live'] as Map;
   Map? get panel => (_led['matrix'] as Map?)?['panels'][0] as Map?;
+
+  /// Every panel the device has, in chain order (empty for a strip).
+  List<Map> get panels => [
+    for (final p in ((_led['matrix'] as Map?)?['panels'] as List? ?? const [])) p as Map,
+  ];
   int get rlmValue => _live['rlm'] == true ? 1 : 0;
   int? get limit => _led['maxpwr'] as int?;
   int get length => ((_led['ins'] as List).first as Map)['len'] as int;
@@ -114,7 +121,11 @@ class FakeSetupDevice {
       'ver': '16.0.1', 'name': 'Desk', 'mac': mac, 'brand': 'WLED', 'arch': 'esp32',
       'leds': {
         'count': length,
-        if (p != null) 'matrix': {'w': p['w'], 'h': p['h']},
+        if (p != null)
+          'matrix': {
+            'w': panels.map((q) => (q['x'] as int) + (q['w'] as int)).reduce((a, b) => a > b ? a : b),
+            'h': panels.map((q) => (q['y'] as int) + (q['h'] as int)).reduce((a, b) => a > b ? a : b),
+          },
       },
       'maps': [
         {'id': 0},
@@ -159,14 +170,17 @@ class FakeSetupDevice {
       if (ignoreLayout) return http.Response('<html></html>', 200);
       _recreateSegments();
       if (form['SOMP'] == '1') {
+        // Like set.cpp: read panels until the first missing P{i}B, at most 18.
+        final count = int.parse(form['MPC']!).clamp(1, 18);
         _led['matrix'] = {
-          'mpc': 1,
+          'mpc': count,
           'panels': [
-            {
-              'b': form['P0B'] == '1', 'r': form['P0R'] == '1', 'v': form['P0V'] == '1',
-              's': form.containsKey('P0S'), 'x': 0, 'y': 0,
-              'w': int.parse(form['P0W']!), 'h': int.parse(form['P0H']!),
-            }
+            for (var i = 0; i < count && form.containsKey('P${i}B'); i++)
+              {
+                'b': form['P${i}B'] == '1', 'r': form['P${i}R'] == '1', 'v': form['P${i}V'] == '1',
+                's': form.containsKey('P${i}S'), 'x': int.parse(form['P${i}X']!), 'y': int.parse(form['P${i}Y']!),
+                'w': int.parse(form['P${i}W']!), 'h': int.parse(form['P${i}H']!),
+              },
           ]
         };
       } else {

@@ -11,6 +11,7 @@ import '../../../engine/setup_frames.dart';
 import '../../../ui/onboarding/search_step.dart' show SetupServices;
 import '../../../wled/discovery.dart';
 import '../../../wled/layout.dart';
+import '../../../wled/panel_grid.dart';
 import '../../../wled/panel_setup.dart';
 import '../../../wled/device.dart' show WledInfo;
 import '../../../wled/wled_client.dart';
@@ -34,12 +35,20 @@ enum SetupStep {
   check,
   pin,
   unsupported,
+  panelsChoice,
   size,
+  grid,
+  orderQ1,
+  orderQ2,
+  orderQ3,
+  orderResult,
+  orderManual,
   wiringQ1,
   wiringQ2,
   wiringQ3,
   wiringResult,
   wiringManual,
+  orientation,
   review,
   applying,
   applyFailed,
@@ -60,8 +69,22 @@ const commonSizes = <(int, int)>[(8, 8), (16, 16), (32, 8), (8, 32), (32, 32), (
 
 const _maxSide = 128;
 
-bool _isTest(SetupStep s) =>
-    s == SetupStep.wiringQ1 || s == SetupStep.wiringQ2 || s == SetupStep.wiringQ3;
+bool _isTest(SetupStep s) => switch (s) {
+  SetupStep.wiringQ1 ||
+  SetupStep.wiringQ2 ||
+  SetupStep.wiringQ3 ||
+  SetupStep.orderQ1 ||
+  SetupStep.orderQ2 ||
+  SetupStep.orderQ3 ||
+  SetupStep.orientation => true,
+  _ => false,
+};
+
+/// The panel presets of the grid screen: the common ones, then "Other".
+const panelSizes = <(int, int)>[(8, 8), (16, 16), (32, 8), (8, 32)];
+
+/// Most panels across or down.
+const maxGridSide = 8;
 
 String _normMac(String? m) => (m ?? '').toLowerCase().replaceAll(RegExp(r'[^0-9a-f]'), '');
 
@@ -167,7 +190,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     if ((_isTest(from) && !_isTest(to)) || (from == SetupStep.look && to != SetupStep.look)) {
       unawaited(_endTest());
     }
-    if (from == SetupStep.wiringQ1) wiringNote = null;
+    if (from == SetupStep.wiringQ1 || from == SetupStep.orderQ1) wiringNote = null;
   }
 
   void _enter(SetupStep s) {
@@ -181,7 +204,13 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
         unawaited(scan());
       case SetupStep.check:
         unawaited(_runCheck());
-      case SetupStep.wiringQ1 || SetupStep.wiringQ2 || SetupStep.wiringQ3:
+      case SetupStep.wiringQ1 ||
+          SetupStep.wiringQ2 ||
+          SetupStep.wiringQ3 ||
+          SetupStep.orderQ1 ||
+          SetupStep.orderQ2 ||
+          SetupStep.orderQ3 ||
+          SetupStep.orientation:
         unawaited(_prepareTest());
       case SetupStep.look:
         unawaited(_startLook());
@@ -198,13 +227,20 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       SetupStep.connect => null,
       SetupStep.search || SetupStep.join => SetupStep.connect,
       SetupStep.wifi || SetupStep.joining || SetupStep.joinFailed => SetupStep.join,
-      SetupStep.check || SetupStep.pin || SetupStep.unsupported || SetupStep.size => root,
-      SetupStep.wiringQ1 => SetupStep.size,
+      SetupStep.check || SetupStep.pin || SetupStep.unsupported || SetupStep.panelsChoice => root,
+      SetupStep.size || SetupStep.grid => _fromChoice ? SetupStep.panelsChoice : root,
+      SetupStep.orderQ1 => SetupStep.grid,
+      SetupStep.orderQ2 => SetupStep.orderQ1,
+      SetupStep.orderQ3 => SetupStep.orderQ2,
+      SetupStep.orderResult => _lastOrderQuestion,
+      SetupStep.orderManual => SetupStep.orderResult,
+      SetupStep.wiringQ1 => isGrid ? SetupStep.orderResult : SetupStep.size,
       SetupStep.wiringQ2 => SetupStep.wiringQ1,
       SetupStep.wiringQ3 => SetupStep.wiringQ2,
       SetupStep.wiringResult => _lastQuestion,
       SetupStep.wiringManual => SetupStep.wiringResult,
-      SetupStep.review => SetupStep.wiringResult,
+      SetupStep.orientation => SetupStep.wiringResult,
+      SetupStep.review => isGrid ? SetupStep.orientation : SetupStep.wiringResult,
       SetupStep.applying || SetupStep.done => _step,
       SetupStep.applyFailed => SetupStep.review,
       SetupStep.look => fastPath ? root : SetupStep.review,
@@ -217,6 +253,12 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     }
     _go(to, dir: -1);
     return true;
+  }
+
+  SetupStep get _lastOrderQuestion {
+    if (_askedOrderJump) return SetupStep.orderQ3;
+    if (_askedOrderRun) return SetupStep.orderQ2;
+    return SetupStep.orderQ1;
   }
 
   SetupStep get _lastQuestion {
@@ -255,6 +297,9 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     _snapshotting = null;
     draftWidth = draftHeight = null;
     draftWiring = null;
+    draftChain = null;
+    draftCols = draftRows = 1;
+    severalPanels = _fromChoice = false;
     _resetAnswers();
     supplyAmps = null;
     wrote = confirmed = fastPath = rollbackFailed = false;
@@ -666,13 +711,22 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
     _initDraft(s);
-    final w = s.width, h = s.height, wiring = s.wiring;
-    if (w != null && h != null && wiring != null && s.isConfigured(DisplaySetup(w, h, wiring))) {
+    final g = s.grid;
+    _fromChoice = false;
+    if (g != null && s.isConfigured(DisplaySetup.grid(g))) {
       fastPath = true;
       _go(SetupStep.look);
     } else {
       fastPath = false;
-      _go(SetupStep.size);
+      // A display Glyph can't tell apart from one panel starts with the
+      // question; one it already knows goes to its own screen.
+      _go(
+        g != null && !g.isSingle
+            ? SetupStep.grid
+            : s.isMatrix
+            ? SetupStep.size
+            : SetupStep.panelsChoice,
+      );
     }
   }
 
@@ -713,13 +767,45 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
 
   // --- Size -------------------------------------------------------------------
 
+  /// The size of one panel (of the whole display when it is one panel).
   int? draftWidth, draftHeight;
   PanelWiring? draftWiring;
 
+  /// Panels across and down. 1 × 1 is a single panel.
+  int draftCols = 1, draftRows = 1;
+
+  /// The person said the display is made of several panels (set even while
+  /// the grid is still 1 × 1, so the grid screen stays the grid screen).
+  bool severalPanels = false;
+
+  /// How the panels are chained (see [PanelGrid.chain]); null until known.
+  PanelWiring? draftChain;
+
+  /// Grid cells (column, row) of panels that sit upside down.
+  final Set<(int, int)> flippedCells = {};
+
+  /// Came to Size or Grid from the one-or-several question.
+  bool _fromChoice = false;
+
   void _initDraft(DeviceSetupState s) {
     if (draftWidth != null) return;
+    final g = s.grid;
     final w = s.width, h = s.height;
-    if (s.isMatrix && w != null && h != null) {
+    if (s.isMatrix && g != null) {
+      draftWidth = g.panelW;
+      draftHeight = g.panelH;
+      draftCols = g.cols;
+      draftRows = g.rows;
+      draftChain = g.chain;
+      severalPanels = !g.isSingle;
+      final base = g.wiring.first;
+      flippedCells
+        ..clear()
+        ..addAll({
+          for (var k = 1; k < g.panelCount; k++)
+            if (g.wiring[k] != base && g.wiring[k] == base.turnedUpsideDown) g.cellOf(k),
+        });
+    } else if (s.isMatrix && w != null && h != null) {
       draftWidth = w;
       draftHeight = h;
     } else {
@@ -741,10 +827,31 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
 
   int get deviceLeds => state?.ledCount ?? 0;
   bool get hasSize => draftWidth != null && draftHeight != null;
-  int get draftLeds => (draftWidth ?? 0) * (draftHeight ?? 0);
+
+  /// Several panels were chosen and there are at least two.
+  bool get isGrid => severalPanels && draftCols * draftRows > 1;
+  int get draftPanels => isGrid ? draftCols * draftRows : 1;
+  int get draftPanelLeds => (draftWidth ?? 0) * (draftHeight ?? 0);
+  int get draftLeds => draftPanelLeds * draftPanels;
+
+  /// The whole display, in LEDs across and down.
+  int get displayWidth => (draftWidth ?? 0) * (isGrid ? draftCols : 1);
+  int get displayHeight => (draftHeight ?? 0) * (isGrid ? draftRows : 1);
   bool get changesLeds => hasSize && deviceLeds != draftLeds;
 
-  /// A tile or the steppers picked a size.
+  /// Why the layout can't be driven, in plain words; null when it can.
+  String? get sizeProblem {
+    if (!hasSize) return null;
+    if (!isGrid) return draftPanelLeds > maxDisplayLeds ? tooBigWords : null;
+    return PanelGrid.uniform(
+      cols: draftCols,
+      rows: draftRows,
+      panelW: draftWidth!,
+      panelH: draftHeight!,
+    ).limitProblem;
+  }
+
+  /// A tile or the steppers picked a size (of one panel).
   void setSize(int w, int h, {bool click = true}) {
     if (click) HapticFeedback.selectionClick();
     final nw = w.clamp(1, _maxSide), nh = h.clamp(1, _maxSide);
@@ -754,10 +861,284 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     _notify();
   }
 
-  void sizeNext() {
-    if (!hasSize) return;
+  /// "One panel" or "Several panels" on the first Size question.
+  void choosePanels({required bool several}) {
+    HapticFeedback.selectionClick();
+    _fromChoice = true;
+    _setSeveral(several);
+    _go(several ? SetupStep.grid : SetupStep.size);
+  }
+
+  /// The quiet link on Size and Grid that switches between the two.
+  void switchPanels({required bool several}) {
+    HapticFeedback.selectionClick();
+    _setSeveral(several);
+    _go(several ? SetupStep.grid : SetupStep.size, dir: several ? 1 : -1);
+  }
+
+  void _setSeveral(bool several) {
+    if (several == severalPanels && (!several || draftCols * draftRows > 1)) return;
     _resetAnswers();
+    if (several) {
+      severalPanels = true;
+      if (draftCols * draftRows < 2) _guessGrid();
+    } else {
+      // One panel: the size is the whole display.
+      final w = displayWidth, h = displayHeight;
+      severalPanels = false;
+      if (hasSize && _fitsSide(w, h)) {
+        draftWidth = w;
+        draftHeight = h;
+      }
+      draftCols = draftRows = 1;
+      flippedCells.clear();
+      draftChain = null;
+    }
+  }
+
+  bool _fitsSide(int w, int h) => w >= 1 && h >= 1 && w <= _maxSide && h <= _maxSide;
+
+  /// A first guess for the grid from the LEDs the device already has: a
+  /// common panel size that divides the count, laid out wider than tall.
+  void _guessGrid() {
+    final n = deviceLeds;
+    for (final (pw, ph) in panelSizes) {
+      final panels = n ~/ (pw * ph);
+      if (n % (pw * ph) != 0 || panels < 2 || panels > maxPanels) continue;
+      var rows = math.sqrt(panels).floor();
+      while (rows > 1 && panels % rows != 0) {
+        rows--;
+      }
+      final cols = panels ~/ rows;
+      if (cols > maxGridSide || rows > maxGridSide) continue;
+      draftWidth = pw;
+      draftHeight = ph;
+      draftCols = cols;
+      draftRows = rows;
+      return;
+    }
+    if (!hasSize || displayWidth * displayHeight > 1024) {
+      draftWidth = 16;
+      draftHeight = 16;
+    }
+    draftCols = 2;
+    draftRows = 1;
+  }
+
+  /// The grid steppers.
+  void setGrid(int cols, int rows, {bool click = true}) {
+    if (click) HapticFeedback.selectionClick();
+    final nc = cols.clamp(1, maxGridSide), nr = rows.clamp(1, maxGridSide);
+    if (nc != draftCols || nr != draftRows) {
+      _resetAnswers();
+      draftChain = null;
+    }
+    draftCols = nc;
+    draftRows = nr;
+    _notify();
+  }
+
+  bool get canGridNext => hasSize && draftCols * draftRows >= 2 && sizeProblem == null;
+
+  void gridNext() {
+    if (!canGridNext) return;
+    _resetAnswers();
+    _go(SetupStep.orderQ1);
+  }
+
+  void sizeNext() {
+    if (!hasSize || sizeProblem != null) return;
+    if (severalPanels && draftCols * draftRows < 2) severalPanels = false;
+    _resetAnswers();
+    _go(isGrid ? SetupStep.orderQ1 : SetupStep.wiringQ1);
+  }
+
+  // --- Panel order test ---------------------------------------------------------
+
+  /// Q1: the corner of the grid the first panel sits in.
+  StartCorner? answerPanelCorner;
+
+  /// Q2: the chain runs across (the next panel is beside the first) or down.
+  bool? answerChainAcross;
+
+  /// Q3: the second run starts at the far end (snake) or on the same side.
+  bool? answerChainSnake;
+  bool _askedOrderRun = false, _askedOrderJump = false;
+
+  /// The grid cell of the corner [c].
+  (int, int) cornerCell(StartCorner c) => (
+    c.isRight && draftCols > 1 ? draftCols - 1 : 0,
+    c.isBottom && draftRows > 1 ? draftRows - 1 : 0,
+  );
+
+  /// The corner a first-panel cell is in, or null when it isn't a corner.
+  StartCorner? cornerOfCell((int, int) cell) {
+    final (cx, cy) = cell;
+    final xs = {0, draftCols - 1}, ys = {0, draftRows - 1};
+    if (!xs.contains(cx) || !ys.contains(cy)) return null;
+    return StartCorner.of(bottom: draftRows > 1 && cy == draftRows - 1, right: draftCols > 1 && cx == draftCols - 1);
+  }
+
+  /// The cells a first panel can be in: the corners of the grid.
+  Set<(int, int)> get firstPanelCells => {for (final c in StartCorner.values) cornerCell(c)};
+
+  /// The panels beside the first one: next across and next down.
+  Set<(int, int)> get nextPanelCells {
+    final c = answerPanelCorner;
+    if (c == null) return const {};
+    final (fx, fy) = cornerCell(c);
+    final dx = fx == 0 ? 1 : -1, dy = fy == 0 ? 1 : -1;
+    return {if (draftCols > 1) (fx + dx, fy), if (draftRows > 1) (fx, fy + dy)};
+  }
+
+  /// The cell of the first panel as answered.
+  (int, int)? get firstCell {
+    final c = answerPanelCorner;
+    return c == null ? null : cornerCell(c);
+  }
+
+  /// Q3's two places the second run can start: [near] on the same side the
+  /// first run started (the chain goes straight on), [far] at the other end
+  /// (it snakes back).
+  ({(int, int) near, (int, int) far})? get jumpCells {
+    final c = answerPanelCorner, across = answerChainAcross;
+    if (c == null || across == null) return null;
+    if (across) {
+      final y = c.isBottom ? draftRows - 2 : 1;
+      final nearX = c.isRight ? draftCols - 1 : 0;
+      return (near: (nearX, y), far: (draftCols - 1 - nearX, y));
+    }
+    final x = c.isRight ? draftCols - 2 : 1;
+    final nearY = c.isBottom ? draftRows - 1 : 0;
+    return (near: (x, nearY), far: (x, draftRows - 1 - nearY));
+  }
+
+  /// The corners of the grid that give different first panels (one row or
+  /// column has fewer).
+  List<StartCorner> get firstPanelCorners {
+    final seen = <(int, int)>{};
+    return [
+      for (final c in StartCorner.values)
+        if (seen.add(cornerCell(c))) c,
+    ];
+  }
+
+  /// Q1: a panel was tapped. Only the grid's corner panels can start a chain.
+  void pickFirstPanel((int, int) cell) {
+    final c = cornerOfCell(cell);
+    if (c == null) return;
+    HapticFeedback.selectionClick();
+    answerPanelCorner = c;
+    answerChainAcross = null;
+    answerChainSnake = null;
+    _askedOrderRun = false;
+    _askedOrderJump = false;
+    if (draftCols == 1 || draftRows == 1) {
+      // Only one way to run: no question to ask.
+      answerChainAcross = draftCols > 1;
+      _afterOrderRun();
+    } else {
+      _askedOrderRun = true;
+      _go(SetupStep.orderQ2);
+    }
+  }
+
+  /// Q2: the next panel, by tapping it or by picking Across or Down.
+  void pickNextPanel((int, int) cell) {
+    final c = answerPanelCorner;
+    if (c == null || !nextPanelCells.contains(cell)) return;
+    pickChainRun(across: cell.$2 == cornerCell(c).$2);
+  }
+
+  void pickChainRun({required bool across}) {
+    HapticFeedback.selectionClick();
+    answerChainAcross = across;
+    answerChainSnake = null;
+    _afterOrderRun();
+  }
+
+  /// Runs of panels for the answered direction.
+  int get chainRunCount => (answerChainAcross ?? true) ? draftRows : draftCols;
+
+  /// Panels in the first run for the answered direction.
+  int get chainRunPanels => (answerChainAcross ?? true) ? draftCols : draftRows;
+
+  void _afterOrderRun() {
+    if (chainRunCount < 2) {
+      answerChainSnake = false;
+      _finishOrder();
+    } else {
+      _askedOrderJump = true;
+      _go(SetupStep.orderQ3);
+    }
+  }
+
+  void pickChainJump({required bool snake}) {
+    HapticFeedback.selectionClick();
+    answerChainSnake = snake;
+    _finishOrder();
+  }
+
+  void _finishOrder() {
+    draftChain = normalizeChain(
+      PanelWiring.fromAnswers(
+        corner: answerPanelCorner!,
+        firstRunAlongWidth: answerChainAcross!,
+        secondRunStartsAtFarEnd: answerChainSnake ?? false,
+      ),
+      draftCols,
+      draftRows,
+    );
+    flippedCells.clear();
+    _go(SetupStep.orderResult);
+  }
+
+  void orderTestAgain() {
+    _resetOrderAnswers();
+    draftChain = null;
+    flippedCells.clear();
+    _go(SetupStep.orderQ1, dir: -1);
+  }
+
+  void chooseManualOrder() {
+    draftChain ??= const PanelWiring(zigzag: true);
+    _go(SetupStep.orderManual);
+  }
+
+  void setManualOrder({StartCorner? corner, bool? vertical, bool? zigzag}) {
+    if (corner != null) HapticFeedback.selectionClick();
+    final c = draftChain ?? const PanelWiring(zigzag: true);
+    draftChain = PanelWiring(
+      corner: corner ?? c.corner,
+      vertical: vertical ?? c.vertical,
+      zigzag: zigzag ?? c.zigzag,
+    );
+    flippedCells.clear();
+    _notify();
+  }
+
+  /// "Looks right" or "Use this" for the panel order: on to the LED wiring.
+  void orderLooksRight() {
+    if (draftChain == null) return;
     _go(SetupStep.wiringQ1);
+  }
+
+  // --- Upside-down panels ---------------------------------------------------------
+
+  /// A panel was tapped on "Are any panels upside down?". The first panel
+  /// defines the wiring, so it can't be marked.
+  void toggleFlipped((int, int) cell) {
+    final g = draftGrid;
+    if (g == null || g.cellOf(0) == cell) return;
+    HapticFeedback.selectionClick();
+    if (!flippedCells.add(cell)) flippedCells.remove(cell);
+    _notify();
+  }
+
+  void orientationDone() {
+    if (_step != SetupStep.orientation) return;
+    HapticFeedback.lightImpact();
+    _go(SetupStep.review);
   }
 
   // --- Wiring test ------------------------------------------------------------
@@ -774,7 +1155,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   bool testNeedsMoreLeds = false;
   String? testError;
 
-  void _resetAnswers() {
+  void _resetWiringAnswers() {
     answerCorner = null;
     answerAlongWidth = null;
     answerFarEnd = null;
@@ -782,6 +1163,20 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     _askedJump = false;
   }
 
+  void _resetOrderAnswers() {
+    answerPanelCorner = null;
+    answerChainAcross = null;
+    answerChainSnake = null;
+    _askedOrderRun = false;
+    _askedOrderJump = false;
+  }
+
+  void _resetAnswers() {
+    _resetWiringAnswers();
+    _resetOrderAnswers();
+  }
+
+  /// The size of one panel: the wiring questions are asked inside it.
   int get _w => draftWidth ?? state?.width ?? 1;
   int get _h => draftHeight ?? state?.height ?? 1;
 
@@ -841,7 +1236,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void testAgain() {
-    _resetAnswers();
+    _resetWiringAnswers();
     _go(SetupStep.wiringQ1, dir: -1);
   }
 
@@ -861,13 +1256,37 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     _notify();
   }
 
+  /// "Looks right" or "Use this" for the wiring inside a panel.
   void looksRight() {
     if (draftWiring == null) return;
-    _go(SetupStep.review);
+    _go(isGrid ? SetupStep.orientation : SetupStep.review);
   }
 
-  DisplaySetup? get draftSetup =>
-      hasSize && draftWiring != null ? DisplaySetup(draftWidth!, draftHeight!, draftWiring!) : null;
+  /// The panels as drawn so far: [draftWiring] in every panel, turned
+  /// upside down where marked. Null until the size and wiring are known.
+  PanelGrid? get draftGrid {
+    final base = draftWiring;
+    if (!hasSize || base == null) return null;
+    if (!isGrid) return PanelGrid.single(draftWidth!, draftHeight!, base);
+    final chain = normalizeChain(draftChain ?? const PanelWiring(zigzag: true), draftCols, draftRows);
+    return PanelGrid(
+      cols: draftCols,
+      rows: draftRows,
+      panelW: draftWidth!,
+      panelH: draftHeight!,
+      chain: chain,
+      wiring: [
+        for (var k = 0; k < draftCols * draftRows; k++)
+          k > 0 && flippedCells.contains(chain.positionOf(k, draftCols, draftRows)) ? base.turnedUpsideDown : base,
+      ],
+    );
+  }
+
+  DisplaySetup? get draftSetup {
+    final g = draftGrid;
+    if (g == null) return null;
+    return g.isSingle ? DisplaySetup(draftWidth!, draftHeight!, draftWiring!) : DisplaySetup.grid(g);
+  }
 
   // --- Test session -------------------------------------------------------------
 
@@ -982,8 +1401,14 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
 
   int get _ledCount {
     final n = state?.ledCount ?? 0;
-    return n > 0 ? n : _w * _h;
+    return n > 0 ? n : draftLeds;
   }
+
+  /// The first (up to four) LEDs of the [k]-th panel in the chain: enough
+  /// to spot on a big panel.
+  List<int> _panelLeds(int k) => [
+    for (var i = 0; i < math.min(4, draftPanelLeds); i++) k * draftPanelLeds + i,
+  ];
 
   void _showTestPattern() {
     final session = _session;
@@ -992,6 +1417,14 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     _chase = null;
     final n = _ledCount;
     testNeedsMoreLeds = false;
+
+    /// Shows [lit]; when the device has fewer LEDs than the highest one,
+    /// says so and lights what can be lit.
+    void show(List<int> lit) {
+      testNeedsMoreLeds = lit.any((i) => i >= n);
+      session.showRaw(litLeds(n, lit));
+    }
+
     switch (_step) {
       case SetupStep.wiringQ1:
         session.showRaw(litLeds(n, const [0]));
@@ -1017,6 +1450,15 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
         } else {
           session.showRaw(litLeds(n, [run]));
         }
+      case SetupStep.orderQ1:
+        show(_panelLeds(0));
+      case SetupStep.orderQ2:
+        show(_panelLeds(1));
+      case SetupStep.orderQ3:
+        show(_panelLeds(chainRunPanels));
+      case SetupStep.orientation:
+        // LED 0 of every panel at once.
+        show([for (var k = 0; k < draftPanels; k++) k * draftPanelLeds]);
       default:
         break;
     }
@@ -1146,6 +1588,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> apply() async {
     final setup = draftSetup;
     if ((_step != SetupStep.review && _step != SetupStep.applyFailed) || setup == null) return;
+    if (setup.grid.limitProblem != null) return;
     HapticFeedback.lightImpact();
     rollbackFailed = false;
     applyPhase = ApplyPhase.backup;
@@ -1230,7 +1673,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
 
   // --- Look -------------------------------------------------------------------
 
-  Frame get lookFrame => cornerCheckFrame(_w, _h);
+  Frame get lookFrame => cornerCheckFrame(displayWidth, displayHeight);
 
   Future<void> _startLook() => _start(_startLookNow);
 
@@ -1271,7 +1714,7 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
         wrote = true;
       } catch (_) {}
     }
-    await _endTest(width: _w, height: _h);
+    await _endTest(width: displayWidth, height: displayHeight);
     if (_disposed || g != _gen) return;
     try {
       await devices.refresh();
@@ -1285,7 +1728,10 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
     if (_step != SetupStep.look) return;
     _resetAnswers();
     if (fastPath) {
-      _go(SetupStep.size, dir: -1);
+      _go(isGrid ? SetupStep.grid : (state?.isMatrix ?? true) ? SetupStep.size : SetupStep.panelsChoice, dir: -1);
+    } else if (isGrid) {
+      wiringNote = 'Let\'s test the panels again.';
+      _go(SetupStep.orderQ1, dir: -1);
     } else {
       wiringNote = 'Let\'s test the wiring again.';
       _go(SetupStep.wiringQ1, dir: -1);
@@ -1334,6 +1780,10 @@ class SetupController extends ChangeNotifier with WidgetsBindingObserver {
       draftWidth = null;
       draftHeight = null;
       draftWiring = null;
+      draftChain = null;
+      draftCols = draftRows = 1;
+      severalPanels = false;
+      flippedCells.clear();
       _resetAnswers();
       supplyAmps = null;
       fastPath = false;

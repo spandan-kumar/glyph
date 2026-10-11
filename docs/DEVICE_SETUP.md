@@ -48,16 +48,76 @@ Where they differ from the plan below, these win.
   Size → Wiring → Review (optional power limit) → Applying → Look → Done.
   Device → "Set up display" replaces "Fix orientation", which stays reachable
   for displays the wizard can't set up.
-- Code: `lib/wled/panel_setup.dart`, the setup methods in `WledClient`,
-  `lib/engine/setup_frames.dart`, `lib/features/device/setup/`,
-  `lib/ui/setup/`, `android/.../SetupWifi.kt`.
+- Code: `lib/wled/panel_setup.dart`, `lib/wled/panel_grid.dart`, the setup
+  methods in `WledClient`, `lib/engine/setup_frames.dart`,
+  `lib/features/device/setup/`, `lib/ui/setup/`, `android/.../SetupWifi.kt`.
+
+### Panel grids (built 11 October, not released)
+
+Several equal panels in a regular grid on one output (physical QA pending).
+Decisions, checked against WLED 16.0.1 (`setUpMatrix`, settings_2D.htm
+`gen()`, set.cpp `SUBPAGE_2D`, const.h):
+
+- **Model** (`PanelGrid`, pure Dart): `cols × rows` panels of `panelW×panelH`,
+  a panel-level `chain` (a `PanelWiring`: corner of the first panel, chain
+  runs down columns, chain snakes) and a `PanelWiring` per panel in chain
+  order. A single panel is a 1×1 grid, so every single-panel API and test
+  still holds (`DisplaySetup(w, h, wiring)` is unchanged; `DisplaySetup.grid`
+  adds grids). Offsets follow `gen()` exactly and LED numbers follow
+  `setUpMatrix` panel by panel; tests port both C++ loops and compare every
+  chain, wiring and several grid sizes. One row or column normalises (only
+  one way to run, no second run to snake into) so equal chains compare equal.
+- **Reading a device:** `PanelGrid.fromPanels` accepts equal panels that tile
+  a rectangle in an order a chain can describe. Anything else (gaps, mixed
+  sizes, overlaps, custom order) keeps the unsupported reason, now worded
+  "Its panels aren't in a simple grid."
+- **Always the whole layout** is posted in one form (every panel with its
+  offsets, width and height), then read back and compared panel by panel; a
+  mismatch rolls back. Snapshots store all panels (`grid`, only when there is
+  more than one) and undo writes them all.
+- **Limits, in plain words** ("That's more than this device can drive."): at
+  most **18 panels** (`WLED_MAX_PANELS` in const.h; the settings page offers
+  64 but `set.cpp` and `cfg.cpp` constrain to 18), 16384 LEDs (`MAX_LEDS`
+  on an ESP32), 255 across or down, and a display at least 2×2.
+  Grid steppers go 1 to 8 each way.
+- **Journey:** Size starts with "Is your display one panel or several?"
+  (a device already known as one panel, or as a grid, skips it; quiet links
+  switch). One panel → the usual size screen. Several → "How are the panels
+  laid out?" (panel presets 8×8, 16×16, 32×8, 8×32, Other; panels across and
+  down; a live diagram; LED count and mismatch note; first guess from the
+  device's LED count) → **panel order** test (first four LEDs of the panel
+  asked about, test-first like the LED wiring, realtime map off): Q1 "Which
+  panel lit up?" (corner panels only), Q2 "Which panel is next?" (tap it or
+  Across/Down), Q3 "Where did it jump to?" (only when there is a second
+  run), a numbered result with the chain path, "Looks right" / "Test again"
+  / "Choose it myself" (manual preselects: top left, across, snake) → the
+  usual three LED questions inside the first panel → **"Are any panels
+  upside down?"** (LED 0 of every panel lit at once; tap the panels whose
+  first light isn't in the first panel's corner; marked panels use the first
+  panel's wiring turned 180°, corner flipped, rows/columns and snake kept;
+  none marked by default) → Review → Apply → Look. 90° rotation is not
+  supported (the help sheet says so).
+- **Review:** "3 × 2 panels of 16×16 (48×32)", Panel order, Wiring ("Same in
+  every panel" or "Varies by panel"), LEDs, the power limit row; with more
+  than one panel an estimate at 60 mA per LED ("At full white this could
+  draw up to N A. Typical animations use about a third.") and "Power each
+  panel from the supply directly, not through the next panel."; above 1024
+  LEDs on the one output a note with `floor(800000 / 24 / leds)` frames a
+  second, capped at 60. Neither blocks.
+- Look sends "It doesn't match" back to the panel order test for grids.
+- Deferred: gaps, mixed sizes, custom ledmaps, 90° panels, several outputs,
+  and a hard check of the real chip's `MAX_LEDS` / per-bus limits (read from
+  the device). Panels 8 across are ~39 px wide on a phone; the order
+  questions also offer Across/Down rows, but upside-down marking is
+  tap-only.
 
 ## Decisions and scope
 
 - Include joining home Wi-Fi, with an assisted Android connection and a
   guided Android Wi-Fi settings fallback.
-- Support one rectangular panel first. Several panels on one controller,
-  irregular shapes, gaps and layout-file editing come later. This is separate
+- Support one rectangular panel first (grids of equal panels followed, see
+  "Panel grids" under "As built"). Irregular shapes, gaps, mixed sizes and
+  layout-file editing come later. This is separate
   from Glyph's existing groups of independent devices.
 - Offer an optional power-supply/current-limit step using an entered rating.
 - Assume WLED is already installed and the hardware is connected. Firmware
@@ -283,8 +343,9 @@ Physical acceptance requires a disposable/spare WLED controller for new-device
 provisioning; do not factory-reset the maintainer's working display. On the
 working display, snapshot state/config/presets, prove streaming and saved GIF
 orientation, inject a recoverable failure, verify restoration, clean test files
-and check that the phone is idle after exit. Multi-panel behavior is only an
-unsupported-config preservation test in this version.
+and check that the phone is idle after exit. Panel grids need a real multi-panel controller (or a
+spare one with at least two panels) for the same checks, and an irregular
+multi-panel config must still be preserved untouched.
 
 ## Primary references and unresolved technical checks
 

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph/wled/panel_grid.dart';
 import 'package:glyph/wled/panel_setup.dart';
 import 'package:glyph/wled/wled_client.dart';
 import 'package:http/http.dart' as http;
@@ -206,6 +207,20 @@ void main() {
         'SOMP': '1', 'MPC': '1', 'P0B': '1', 'P0R': '1', 'P0V': '0', 'P0S': 'on',
         'P0X': '0', 'P0Y': '0', 'P0W': '16', 'P0H': '8',
       });
+    });
+
+    test('several panels go in one form, all of them', () async {
+      handler = (r) async => http.Response('<html></html>', 200);
+      final grid = PanelGrid.uniform(
+          cols: 2, rows: 2, panelW: 8, panelH: 32, chain: const PanelWiring(zigzag: true));
+      await client().setPanelLayout(DisplaySetup.grid(grid));
+      expect(requests, hasLength(1));
+      final form = Uri.splitQueryString(requests.single.body);
+      expect(form['MPC'], '4');
+      expect([for (var i = 0; i < 4; i++) '${form['P${i}X']},${form['P${i}Y']}'],
+          ['0,0', '8,0', '8,32', '0,32']);
+      expect([for (var i = 0; i < 4; i++) '${form['P${i}W']}x${form['P${i}H']}'], everyElement('8x32'));
+      expect(form.length, 2 + 4 * 8 - 4, reason: 'no serpentine flag inside the panels');
     });
 
     test('null turns 2D off and a failure throws', () async {

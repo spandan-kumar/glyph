@@ -425,6 +425,119 @@ void main() {
     rig.playback.pause();
   });
 
+  // --- Several panels ---------------------------------------------------------
+
+  /// A 4x2 grid of 16x16 panels on a device with 2048 LEDs, at the grid screen.
+  Future<SetupRig> toGridScreen(WidgetTester t) async {
+    final rig = await SetupRig.create(t, device: plain(leds: 2048));
+    await pump(t, rig);
+    await settle(t, 600);
+    await tapText(t, 'Several panels');
+    return rig;
+  }
+
+  /// Through the order questions of a snake of 4x2 panels, to [stopAt].
+  Future<SetupRig> toOrder(WidgetTester t, {int stopAt = 3}) async {
+    final rig = await toGridScreen(t);
+    await tapText(t, 'Next', ms: 900);
+    if (stopAt == 1) return rig;
+    await tapLabel(t, 'Panel in row 1, column 1');
+    if (stopAt == 2) return rig;
+    await tapLabel(t, 'Panel in row 1, column 2');
+    if (stopAt == 3) return rig;
+    await tapLabel(t, 'On the right');
+    return rig;
+  }
+
+  t('40_panels_choice', (tester) async {
+    final rig = await SetupRig.create(tester, device: plain(leds: 2048));
+    await pump(tester, rig);
+    await settle(tester, 600);
+    await shot(tester, '40_panels_choice');
+    rig.playback.pause();
+  });
+
+  t('41_grid_layout', (tester) async {
+    final rig = await toGridScreen(tester);
+    await shot(tester, '41_grid_layout');
+    await tester.drag(find.byType(ListView).first, const Offset(0, -420));
+    await settle(tester, 300);
+    await shot(tester, '41b_grid_layout_scrolled');
+    rig.playback.pause();
+  });
+
+  t('42_grid_other_and_limit', (tester) async {
+    final rig = await toGridScreen(tester);
+    rig.controller.setGrid(4, 5, click: false);
+    await tapText(tester, 'Other size');
+    await tester.drag(find.byType(ListView).first, const Offset(0, -200));
+    await settle(tester, 300);
+    await shot(tester, '42_grid_limit_over');
+    rig.playback.pause();
+  });
+
+  t('43_order_q1', (tester) async {
+    final rig = await toOrder(tester, stopAt: 1);
+    await shot(tester, '43_order_q1');
+    rig.playback.pause();
+  });
+
+  t('44_order_q2', (tester) async {
+    final rig = await toOrder(tester, stopAt: 2);
+    await shot(tester, '44_order_q2');
+    rig.playback.pause();
+  });
+
+  t('45_order_q3', (tester) async {
+    final rig = await toOrder(tester, stopAt: 3);
+    await shot(tester, '45_order_q3');
+    rig.playback.pause();
+  });
+
+  t('46_order_result', (tester) async {
+    final rig = await toOrder(tester, stopAt: 4);
+    await shot(tester, '46_order_result');
+    await tapText(tester, 'Choose it myself');
+    await shot(tester, '46b_order_manual');
+    rig.playback.pause();
+  });
+
+  Future<SetupRig> toOrientation(WidgetTester t) async {
+    final rig = await toOrder(t, stopAt: 4);
+    await tapText(t, 'Looks right');
+    await tapLabel(t, 'Top left corner');
+    await settle(t, 1000);
+    await tapLabel(t, 'Across');
+    await tapLabel(t, 'On the left');
+    await tapText(t, 'Looks right');
+    return rig;
+  }
+
+  t('47_orientation', (tester) async {
+    final rig = await toOrientation(tester);
+    await shot(tester, '47_orientation_none');
+    await tapLabel(tester, 'Panel 6');
+    await tapLabel(tester, 'Panel 7');
+    await shot(tester, '47b_orientation_marked');
+    rig.playback.pause();
+  });
+
+  t('48_review_grid', (tester) async {
+    final rig = await toOrientation(tester);
+    await tapLabel(tester, 'Panel 6');
+    await tapLabel(tester, 'Panel 7');
+    await tapText(tester, 'Done');
+    await shot(tester, '48_review_grid_4x2');
+    rig.playback.pause();
+  });
+
+  t('49_wiring_in_panel', (tester) async {
+    final rig = await toOrder(tester, stopAt: 4);
+    await tapText(tester, 'Looks right');
+    await shot(tester, '49_wiring_q1_in_panel');
+    rig.playback.pause();
+  });
+
   t('26_scale_connect', (tester) async {
     final rig = await SetupRig.create(tester, entry: SetupEntry.newDevice);
     await pump(tester, rig, size: const Size(360, 640), textScale: 1.6);

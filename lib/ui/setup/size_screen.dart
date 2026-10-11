@@ -11,6 +11,7 @@ import '../../features/device/widgets/common.dart';
 import '../design/parts.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
+import 'grid_diagram.dart';
 import 'panel_diagram.dart';
 import 'setup_parts.dart';
 
@@ -104,8 +105,236 @@ class _SizeScreenState extends State<SizeScreen> {
           const SizedBox(height: 10),
           Note(color: Lb.phosphor, lit: true, text: 'Glyph will set it to ${c.draftLeds} LEDs.'),
         ],
+        if (c.sizeProblem != null) ...[
+          const SizedBox(height: 10),
+          Note(color: Lb.danger, lit: true, text: c.sizeProblem!),
+        ],
       ],
-      primary: SetupPrimary('Next', onPressed: c.hasSize ? c.sizeNext : null),
+      primary: SetupPrimary('Next', onPressed: c.hasSize && c.sizeProblem == null ? c.sizeNext : null),
+      link: SetupLink('It\'s made of several panels', onPressed: () => c.switchPanels(several: true)),
+    );
+  }
+}
+
+/// "Is your display one panel or several?": the first Size question.
+class PanelsChoiceScreen extends StatelessWidget {
+  const PanelsChoiceScreen({super.key, required this.controller});
+
+  final SetupController controller;
+
+  @override
+  Widget build(BuildContext context) => StepLayout(
+    title: 'Is your display one panel or several?',
+    line: 'Several means separate panels joined into one big display.',
+    children: [
+      _PanelsChoice(
+        title: 'One panel',
+        line: 'A single block of lights',
+        diagram: const PanelDiagram(width: 8, height: 8, maxHeight: 56, dotColor: Lb.text3),
+        onTap: () => controller.choosePanels(several: false),
+      ),
+      const SizedBox(height: 12),
+      _PanelsChoice(
+        title: 'Several panels',
+        line: 'Panels side by side, joined together',
+        diagram: const GridDiagram(cols: 3, rows: 2, panelW: 4, panelH: 4, maxHeight: 56, dotColor: Lb.text3),
+        onTap: () => controller.choosePanels(several: true),
+      ),
+    ],
+  );
+}
+
+class _PanelsChoice extends StatelessWidget {
+  const _PanelsChoice({required this.title, required this.line, required this.diagram, required this.onTap});
+
+  final String title, line;
+  final Widget diagram;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: '$title. $line',
+    excludeSemantics: true,
+    onTap: onTap,
+    child: LbPanel(
+      onTap: onTap,
+      child: Row(
+        children: [
+          SizedBox(width: 104, height: 84, child: Center(child: diagram)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: LbType.heading),
+                const SizedBox(height: 4),
+                Text(line, style: LbType.small),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_sharp, color: Lb.text3),
+        ],
+      ),
+    ),
+  );
+}
+
+/// "How are the panels laid out?": one panel's size, and how many panels
+/// across and down.
+class GridScreen extends StatefulWidget {
+  const GridScreen({super.key, required this.controller});
+
+  final SetupController controller;
+
+  @override
+  State<GridScreen> createState() => _GridScreenState();
+}
+
+class _GridScreenState extends State<GridScreen> {
+  late bool _other = _isOther();
+
+  bool _isOther() {
+    final c = widget.controller;
+    return c.hasSize && !panelSizes.contains((c.draftWidth!, c.draftHeight!));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    final w = c.draftWidth, h = c.draftHeight;
+    return StepLayout(
+      title: 'How are the panels laid out?',
+      line: 'Pick the size of one panel, then count the panels across and down.',
+      gap: 20,
+      children: [
+        const MonoLabel('One panel is'),
+        const SizedBox(height: 10),
+        LayoutBuilder(
+          builder: (context, box) {
+            const gap = 8.0;
+            final tile = (box.maxWidth - 2 * gap) / 3;
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: [
+                for (final (tw, th) in panelSizes)
+                  SizedBox(
+                    width: tile,
+                    child: _SizeTile(
+                      w: tw,
+                      h: th,
+                      selected: !_other && w == tw && h == th,
+                      onTap: () {
+                        setState(() => _other = false);
+                        c.setSize(tw, th);
+                      },
+                    ),
+                  ),
+                SizedBox(
+                  width: tile,
+                  child: _OtherTile(
+                    selected: _other,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _other = true);
+                      if (!c.hasSize) c.setSize(16, 16, click: false);
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        AnimatedSize(
+          duration: Lb.fast,
+          curve: Lb.ease,
+          alignment: Alignment.topCenter,
+          child: _other && c.hasSize
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _Stepper(
+                          label: 'Lights across',
+                          value: w!,
+                          onChanged: (v) => c.setSize(v, h!, click: false),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _Stepper(
+                          label: 'Lights down',
+                          value: h!,
+                          onChanged: (v) => c.setSize(w, v, click: false),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+        const SizedBox(height: 20),
+        const MonoLabel('Panels'),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _Stepper(
+                label: 'Panels across',
+                value: c.draftCols,
+                onChanged: (v) => c.setGrid(v, c.draftRows, click: false),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _Stepper(
+                label: 'Panels down',
+                value: c.draftRows,
+                onChanged: (v) => c.setGrid(c.draftCols, v, click: false),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (c.hasSize)
+          Center(
+            child: GridDiagram(
+              cols: c.draftCols,
+              rows: c.draftRows,
+              panelW: w!,
+              panelH: h!,
+              maxHeight: 220,
+              label:
+                  'Display diagram, ${c.draftCols} by ${c.draftRows} panels of $w by $h lights, '
+                  '${c.displayWidth} by ${c.displayHeight} in all',
+            ),
+          ),
+        const SizedBox(height: 12),
+        if (c.hasSize)
+          Text(
+            '${c.draftCols} × ${c.draftRows} panels of $w×$h is ${c.draftLeds} LEDs, '
+            '${c.displayWidth}×${c.displayHeight} in all.',
+            style: LbType.small,
+          ),
+        const SizedBox(height: 6),
+        Text('Your device is set for ${c.deviceLeds} LEDs.', style: LbType.small),
+        if (c.changesLeds && c.sizeProblem == null) ...[
+          const SizedBox(height: 10),
+          Note(color: Lb.phosphor, lit: true, text: 'Glyph will set it to ${c.draftLeds} LEDs.'),
+        ],
+        if (c.sizeProblem != null) ...[
+          const SizedBox(height: 10),
+          Note(color: Lb.danger, lit: true, text: c.sizeProblem!),
+        ],
+        if (c.draftCols * c.draftRows < 2) ...[
+          const SizedBox(height: 10),
+          const Note(text: 'Add at least two panels. For one panel, use the link below.'),
+        ],
+      ],
+      primary: SetupPrimary('Next', onPressed: c.canGridNext ? c.gridNext : null),
+      link: SetupLink('It\'s one panel', onPressed: () => c.switchPanels(several: false)),
     );
   }
 }

@@ -219,11 +219,7 @@ class SetupStore {
   }
 
   static bool _sameLayout(DeviceSetupState s, DisplaySetup d) =>
-      s.isMatrix &&
-      s.panelCount == 1 &&
-      s.width == d.width &&
-      s.height == d.height &&
-      s.wiring == d.wiring;
+      s.isMatrix && s.grid != null && s.grid == d.grid && s.width == d.width && s.height == d.height;
 }
 
 String _mac(String m) => m.toLowerCase().replaceAll(RegExp(r'[^0-9a-f]'), '');

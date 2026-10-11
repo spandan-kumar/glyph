@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../features/device/setup/setup_controller.dart';
 import '../../features/device/widgets/common.dart';
+import '../../wled/panel_grid.dart';
 import '../../wled/panel_setup.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
@@ -23,6 +24,10 @@ class ReviewScreen extends StatelessWidget {
     final setup = c.draftSetup;
     Widget value(String v) => Text(v, style: LbType.mono.copyWith(color: Lb.text));
     final limit = c.newLimitMa;
+    final grid = setup?.grid;
+    final several = grid != null && !grid.isSingle;
+    final problem = grid?.limitProblem;
+    final leds = c.draftLeds;
     return StepLayout(
       title: 'Ready to set it up',
       line: 'Takes a few seconds. You can undo it.',
@@ -31,8 +36,17 @@ class ReviewScreen extends StatelessWidget {
         if (setup != null)
           RowGroup(
             children: [
-              Row1(title: 'Size', trailing: value('${setup.width}×${setup.height}')),
-              Row1(title: 'Wiring', subtitle: setup.wiring.describe()),
+              if (several) ...[
+                Row1(title: 'Size', subtitle: grid.describeSize()),
+                Row1(title: 'Panel order', subtitle: grid.describeChain()),
+                Row1(
+                  title: 'Wiring',
+                  subtitle: '${setup.wiring.describe()}. ${grid.sameWiring ? 'Same in every panel' : 'Varies by panel'}.',
+                ),
+              ] else ...[
+                Row1(title: 'Size', trailing: value('${setup.width}×${setup.height}')),
+                Row1(title: 'Wiring', subtitle: setup.wiring.describe()),
+              ],
               Row1(
                 title: 'LEDs',
                 trailing: c.changesLeds
@@ -62,8 +76,30 @@ class ReviewScreen extends StatelessWidget {
               ),
             ],
           ),
+        if (problem != null) ...[
+          const SizedBox(height: 16),
+          Note(color: Lb.danger, lit: true, text: problem),
+        ],
+        if (several) ...[
+          const SizedBox(height: 16),
+          Text(
+            'At full white this could draw up to ${formatAmps(fullWhiteAmps(leds))} A. '
+            'Typical animations use about a third.',
+            style: LbType.small,
+          ),
+          const SizedBox(height: 10),
+          const Note(text: 'Power each panel from the supply directly, not through the next panel.'),
+        ],
+        if (leds > slowWireLeds) ...[
+          SizedBox(height: several ? 0 : 16),
+          Note(
+            color: Lb.phosphor,
+            lit: true,
+            text: 'Big displays on one wire update more slowly (about ${framesPerSecond(leds)} frames a second).',
+          ),
+        ],
       ],
-      primary: SetupPrimary('Set up device', onPressed: c.apply),
+      primary: SetupPrimary('Set up device', onPressed: problem == null ? c.apply : null),
     );
   }
 }
