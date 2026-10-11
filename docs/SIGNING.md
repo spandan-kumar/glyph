@@ -60,6 +60,25 @@ key. The lineage deliberately does not grant rollback to the old key.
 
 ## One-time procedure
 
+**Quick path (recommended, decided 11 October 2026).** Run one command on the
+Mac that holds `~/.android/debug.keystore`:
+
+```bash
+./tool/setup_release_signing.sh
+```
+
+It generates a random 40-character password that is never shown, stores it in
+the macOS Keychain ("Glyph release keystore"), creates the new PKCS12 key
+(`CN=Glyph, O=Glyph`, RSA 4096) and the rotation lineage in
+`~/glyph-release-keys/` (with a copy of the old debug keystore), and sets the
+five GitHub secrets using the `spandan-kumar` gh login. Afterwards, back up
+`~/glyph-release-keys` and the Keychain entry to two offline places. The
+commands were dry-run with throwaway keys on 11 October 2026: API 24–27
+verified with the old certificate, API 28+ with the new one, and the APK's
+lineage listed both. The manual path below does the same with your own prompts.
+
+### Manual path
+
 1. Confirm the old keystore matches the fingerprint above using
    `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey`.
    Let it prompt for its password. Use the original keystore, not a newly
