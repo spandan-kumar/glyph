@@ -20,11 +20,23 @@ RepoType: git
 Repo: https://github.com/spandan-kumar/glyph.git
 
 # TODO: Choose signing before publication. This baseline lets F-Droid sign.
-# For verified upstream-signature builds, enable BOTH fields below only after
-# replacing the fingerprint and proving reproducibility against the release APK.
+# For rotated upstream signatures, see ../fdroid-submission.md and ../../SIGNING.md.
+# TODO: Test the first ROTATED release, updating versionName/versionCode/commit
+# below; v1.4.0 is only the original packaging baseline, not proof of rotation.
+# Enable BOTH fields only after reproducibility AND fdroid build/publish/update
+# accept old-v2/new-v3 certificates and preserve the embedded lineage.
+# Current fdroidserver common.get_first_signer_certificate rejects different
+# v2/v3 certificates; listing both fingerprints does not fix this blocker.
+# Sources: https://github.com/f-droid/fdroidserver/blob/master/fdroidserver/common.py
+# https://f-droid.org/docs/Build_Metadata_Reference/#AllowedAPKSigningKeys
+# Pin the NEW v3 certificate for rotated-only builds after testing server support.
+# Add the OLD fingerprint only if also accepting pre-rotation releases:
+# 8f7a1d1830d401866985253d480eb7f4748c4c1144a8eb77f0e11448c28f9b68
+# TODO: Confirm acceptance of CN=Android Debug in the old signer/lineage;
+# inspected server checks reject manifest debuggable/testOnly, not that DN.
 # Binaries: https://github.com/spandan-kumar/glyph/releases/download/v%v/glyph-%v-arm64-v8a.apk
 # AllowedAPKSigningKeys:
-#   - TODO_REPLACE_WITH_RELEASE_CERTIFICATE_SHA256_64_LOWERCASE_HEX_DIGITS
+#   - TODO_REPLACE_WITH_NEW_V3_CERTIFICATE_SHA256_64_LOWERCASE_HEX_DIGITS
 
 Builds:
   - versionName: 1.4.0

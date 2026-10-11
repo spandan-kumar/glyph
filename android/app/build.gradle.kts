@@ -6,13 +6,16 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Release signing: CI (or a maintainer) writes android/key.properties; without
-// it release builds fall back to the debug key so local builds keep working.
+// Local release signing uses android/key.properties; without it builds fall
+// back to the debug key. CI builds unsigned, then signs with apksigner.
 val keystoreProperties = Properties().apply {
     val file = rootProject.file("key.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
 val hasReleaseKey = keystoreProperties.getProperty("storeFile") != null
+val unsignedRelease = listOf("unsignedRelease", "fdroid").any {
+    providers.gradleProperty(it).orNull == "true"
+}
 
 android {
     namespace = "dev.spandankumar.glyph"
@@ -52,8 +55,8 @@ android {
 
     buildTypes {
         release {
-            // F-Droid needs an unsigned APK to sign or copy the upstream signature.
-            signingConfig = if (providers.gradleProperty("fdroid").orNull == "true") null
+            // CI and F-Droid sign or copy the upstream signature after building.
+            signingConfig = if (unsignedRelease) null
                 else signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
         }
     }

@@ -39,29 +39,97 @@ jobs:
           echo "version=$tag" >> "$GITHUB_OUTPUT"
           echo "code=$code" >> "$GITHUB_OUTPUT"
 
-      - name: Set up release signing
+      - name: Check release signing secrets
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
           if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
             echo "::error::All four Android signing secrets must be set for a release."
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
-          {
-            echo "storeFile=upload-keystore.jks"
-            echo "storePassword=$KEYSTORE_PASSWORD"
-            echo "keyAlias=$KEY_ALIAS"
-            echo "keyPassword=$KEY_PASSWORD"
-          } > android/key.properties
 
       - run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+      - name: Build unsigned APK
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --android-project-arg unsignedRelease=true
+
+      - name: Sign and verify APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+          SIGNING_LINEAGE_BASE64: ${{ secrets.ANDROID_SIGNING_LINEAGE_BASE64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          signing_dir=$(mktemp -d "$RUNNER_TEMP/glyph-signing.XXXXXX")
+          trap 'rm -rf "$signing_dir"' EXIT
+          apksigner=$(find "${ANDROID_HOME:?}/build-tools" -mindepth 2 -maxdepth 2 -type f -name apksigner -executable | sort -V | tail -n 1)
+          if [ -z "$apksigner" ]; then
+            echo "::error::No Android build-tools apksigner found."
+            exit 1
+          fi
+          echo "Using $apksigner"
+          apk=build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          old_sha256=8f7a1d1830d401866985253d480eb7f4748c4c1144a8eb77f0e11448c28f9b68
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$signing_dir/old.jks"
+          sign_args=(--ks "$signing_dir/old.jks" --ks-key-alias "$KEY_ALIAS"
+            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD
+            --v1-signing-enabled true --v2-signing-enabled true
+            --v3-signing-enabled true --v4-signing-enabled false)
+          rotated=false
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ] && [ -n "$RELEASE_KEYSTORE_PASSWORD" ] && \
+             [ -n "$RELEASE_KEY_ALIAS" ] && [ -n "$RELEASE_KEY_PASSWORD" ] && [ -n "$SIGNING_LINEAGE_BASE64" ]; then
+            rotated=true
+            printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$signing_dir/new.jks"
+            printf '%s' "$SIGNING_LINEAGE_BASE64" | base64 --decode > "$signing_dir/signing.lineage"
+            new_sha256=$(keytool -exportcert -keystore "$signing_dir/new.jks" \
+              -alias "$RELEASE_KEY_ALIAS" -storepass:env RELEASE_KEYSTORE_PASSWORD | sha256sum | awk '{print $1}')
+            if [ "$new_sha256" = "$old_sha256" ]; then
+              echo "::error::The release key must differ from the old signing key."
+              exit 1
+            fi
+            sign_args+=(--next-signer --ks "$signing_dir/new.jks" --ks-key-alias "$RELEASE_KEY_ALIAS"
+              --ks-pass env:RELEASE_KEYSTORE_PASSWORD --key-pass env:RELEASE_KEY_PASSWORD
+              --lineage "$signing_dir/signing.lineage" --rotation-min-sdk-version 28)
+          else
+            echo "::notice::Rotation secrets are not set (all five are required); signing with the old key only."
+          fi
+          "$apksigner" sign "${sign_args[@]}" "$apk"
+
+          require_cert() {
+            if ! awk '/^Signer .* certificate SHA-256 digest:/ {print tolower($NF)}' "$1" | grep -Fxq "$2"; then
+              echo "::error::Expected signing certificate $2 is missing from $1."
+              exit 1
+            fi
+          }
+          "$apksigner" verify --verbose --print-certs "$apk" | tee "$signing_dir/verify.txt"
+          # A full-range v3 verification prints the newest signer, not v2's old signer.
+          "$apksigner" verify --verbose --print-certs --min-sdk-version 24 --max-sdk-version 27 "$apk" \
+            | tee "$signing_dir/verify-old.txt"
+          require_cert "$signing_dir/verify-old.txt" "$old_sha256"
+          if [ "$rotated" = true ]; then
+            require_cert "$signing_dir/verify.txt" "$new_sha256"
+            grep -Fxq 'Verified using v3 scheme (APK Signature Scheme v3): true' "$signing_dir/verify.txt"
+            "$apksigner" verify --verbose --print-certs --min-sdk-version 28 --max-sdk-version 32 "$apk" \
+              | tee "$signing_dir/verify-rotated.txt"
+            require_cert "$signing_dir/verify-rotated.txt" "$new_sha256"
+            # Read the lineage from the signed APK, not just the supplied lineage file.
+            "$apksigner" lineage --in "$apk" --print-certs | tee "$signing_dir/lineage.txt"
+            require_cert "$signing_dir/lineage.txt" "$old_sha256"
+            require_cert "$signing_dir/lineage.txt" "$new_sha256"
+          else
+            require_cert "$signing_dir/verify.txt" "$old_sha256"
+          fi
 
       - name: Rename and checksum
         id: apk
@@ -110,7 +178,3 @@ jobs:
           jq -n --arg name "$NAME" --arg url "$URL" --arg body "$body" \
             '{username: "Glyph", content: ("**\($name)** is out\n\($url)\n\n\($body)")[0:2000]}' \
             | curl -fsS -H 'Content-Type: application/json' -d @- "$WEBHOOK"
-
-      - name: Remove signing material
-        if: always()
-        run: rm -f android/app/upload-keystore.jks android/key.properties

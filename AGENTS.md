@@ -111,6 +111,7 @@ files. Don't flash test streams on someone's display without saying so.
   `.github/workflows/release.yml` builds the signed
   arm64 APK and its `.sha256` and publishes the GitHub release; don't commit
   APKs to `release/` any more. CI (`ci.yml`) runs analyze + test on every PR.
+- Android release keys, rotation and backups: [docs/SIGNING.md](docs/SIGNING.md).
 
 ## Licence and contributing
 
