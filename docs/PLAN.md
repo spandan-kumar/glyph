@@ -400,7 +400,8 @@ Confirmed on 9 October for the setup wizard: include home Wi-Fi onboarding
 with an assisted Android connection and guided fallback; start with a single
 panel and add grids later; offer an optional supply/current-limit step.
 The [setup plan](DEVICE_SETUP.md) records the flow, recovery, implementation
-order and automated/physical acceptance gates. Implementation is pending.
+order and automated/physical acceptance gates. A first implementation was
+built on 11 October (DEVICE_SETUP.md, "As built"); physical QA is pending.
 
 Confirmed on 9 October: activate catalog delivery and prepare v1.3.6 with the
 Music and complete-Send fixes. Phone/controller catalog QA happens later;

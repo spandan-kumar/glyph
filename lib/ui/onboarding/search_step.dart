@@ -84,6 +84,7 @@ class SearchStep extends StatefulWidget {
     required this.onConnect,
     this.onBack,
     this.title = 'Looking for your device',
+    this.embedded = false,
   });
 
   final SetupServices services;
@@ -92,6 +93,9 @@ class SearchStep extends StatefulWidget {
   final Future<String?> Function(DiscoveredDevice d) onConnect;
   final VoidCallback? onBack;
   final String title;
+
+  /// Inside the setup wizard: its top bar has the Back key, so no spacer.
+  final bool embedded;
 
   @override
   State<SearchStep> createState() => _SearchStepState();
@@ -196,16 +200,17 @@ class _SearchStepState extends State<SearchStep> with SingleTickerProviderStateM
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: widget.onBack == null
-              ? const SizedBox(height: 48)
-              : IconButton(
-                  tooltip: 'Back',
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back_sharp),
-                ),
-        ),
+        if (!widget.embedded)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: widget.onBack == null
+                ? const SizedBox(height: 48)
+                : IconButton(
+                    tooltip: 'Back',
+                    onPressed: widget.onBack,
+                    icon: const Icon(Icons.arrow_back_sharp),
+                  ),
+          ),
         const SizedBox(height: 8),
         Text(widget.title, style: LbType.title),
         const SizedBox(height: 8),

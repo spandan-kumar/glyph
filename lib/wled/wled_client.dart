@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import 'device.dart';
+import 'panel_setup.dart';
 import 'presets.dart';
 import 'schedule.dart';
 
@@ -13,6 +14,28 @@ class _PresetMutation {
   _PresetMutation(this.host);
   final String host;
   bool active = true;
+}
+
+/// A Wi-Fi network found by the device's own scan (`/json/net`).
+class WifiNetwork {
+  const WifiNetwork({
+    required this.ssid,
+    required this.rssi,
+    required this.secure,
+    this.bssid = '',
+  });
+
+  final String ssid;
+
+  /// Signal in dBm (closer to 0 is stronger).
+  final int rssi;
+
+  /// False for an open network (`enc` 0).
+  final bool secure;
+  final String bssid;
+
+  @override
+  String toString() => 'WifiNetwork($ssid, $rssi dBm${secure ? '' : ', open'})';
 }
 
 class WledException implements Exception {
@@ -706,6 +729,190 @@ class WledClient {
     }
     _check(res!, p);
     return res.bodyBytes;
+  }
+
+  // --- Device setup (wizard) ---------------------------------------------
+  // Credentials (Wi-Fi password, settings PIN) only ever travel in a request
+  // body; no error, log line or return value carries them.
+
+  /// Wi-Fi networks the device can see. WLED's first `/json/net` call starts
+  /// an asynchronous scan and answers with an empty list, so this polls once
+  /// a second until networks appear or [timeout] has passed (then returns an
+  /// empty list). Hidden (empty) names are dropped, duplicates keep the
+  /// strongest signal, and the result is sorted strongest first.
+  Future<List<WifiNetwork>> scanNetworks(
+      {Duration timeout = const Duration(seconds: 10)}) async {
+    const step = Duration(seconds: 1);
+    var waited = Duration.zero;
+    WledException? lastError;
+    var answered = false;
+    while (true) {
+      try {
+        final list = _mapOf(await _get('/json/net'))['networks'];
+        answered = true;
+        final found = _parseNetworks(list);
+        if (found.isNotEmpty) return found;
+      } on WledException catch (e) {
+        lastError = e; // the radio can stall the link while it scans
+      }
+      if (waited >= timeout) break;
+      await _delay(step);
+      waited += step;
+    }
+    if (!answered && lastError != null) throw lastError;
+    return const [];
+  }
+
+  static List<WifiNetwork> _parseNetworks(Object? list) {
+    final best = <String, WifiNetwork>{};
+    for (final n in list is List ? list : const []) {
+      if (n is! Map) continue;
+      final ssid = n['ssid'];
+      if (ssid is! String || ssid.isEmpty) continue;
+      final rssi = n['rssi'] is num ? (n['rssi'] as num).toInt() : -100;
+      final old = best[ssid];
+      if (old != null && old.rssi >= rssi) continue;
+      best[ssid] = WifiNetwork(
+        ssid: ssid,
+        rssi: rssi,
+        secure: !(n['enc'] is num && n['enc'] == 0),
+        bssid: n['bssid'] is String ? n['bssid'] as String : '',
+      );
+    }
+    return best.values.toList()..sort((a, b) => b.rssi.compareTo(a.rssi));
+  }
+
+  /// Gives the device a Wi-Fi network to join and restarts it. Writes only
+  /// `nw.ins[0].ssid/psk` (the `/settings/wifi` form would reset AP name and
+  /// TX power). The restart cuts the connection, so a failure of that last
+  /// request is not an error: success is confirmed by finding the device on
+  /// the new network.
+  Future<void> joinWifi(String ssid, String password) async {
+    if (ssid.isEmpty) throw WledException('Network name can\'t be empty');
+    await setConfig({
+      'nw': {
+        'ins': [
+          {'ssid': ssid, 'psk': password}
+        ]
+      }
+    });
+    try {
+      await reboot();
+    } on WledException {
+      // The device may drop the link as it restarts.
+    }
+  }
+
+  /// Restarts the device (json.cpp "rb"); the config saves first.
+  Future<void> reboot() => setState({'rb': true});
+
+  /// Unlocks settings for a PIN-protected device (the JSON handler checks any
+  /// body that contains "pin"; WLED then stays unlocked for later config and
+  /// form requests). The write itself answers 200 either way, and reading the
+  /// config is never PIN-protected, so the result is checked with a no-op
+  /// config write; a wrong PIN throws with cause 401.
+  Future<void> unlockSettings(String pin) async {
+    await _setState({'pin': pin});
+    final live = _mapOf(_mapOf((await config())['if'])['live']);
+    if (await _settingsLocked(live['rlm'] != false)) {
+      throw WledException('That PIN did not work', 401);
+    }
+  }
+
+  /// Whether config writes are refused (a settings PIN is set and not yet
+  /// entered). Reads are never refused, so this rewrites the realtime-map
+  /// flag with its current value: a no-op unless WLED answers 401.
+  Future<bool> _settingsLocked(bool realtimeMaps) async {
+    try {
+      await setRealtimeMaps(realtimeMaps);
+      return false;
+    } on WledException catch (e) {
+      if (e.cause == 401) return true;
+      rethrow;
+    }
+  }
+
+  /// Applies a single-panel layout through the settings form, which takes
+  /// effect at once (the JSON config only applies after a restart and cannot
+  /// turn 2D off). [s] null makes the device a plain strip. WLED answers
+  /// with an HTML page, so HTTP 200 only means "sent": read [setupState]
+  /// to verify.
+  Future<void> setPanelLayout(DisplaySetup? s) async {
+    final form = s == null ? stripForm() : panelForm(s);
+    final res = await _send(
+        () => _http.post(_uri('/settings/2D'), body: form), uploadTimeout);
+    _check(res, '/settings/2D');
+  }
+
+  /// Puts playback back after a layout write. WLED recreates its segments
+  /// then (segment 0 falls back to Solid). [state] is `/json/state` read
+  /// before the write: a running playlist or preset is applied again,
+  /// otherwise segment 0 is rewritten without its geometry. Top-level
+  /// on/bri are left alone.
+  Future<void> restorePlayback(Map<String, dynamic> state) async {
+    final pl = state['pl'], ps = state['ps'];
+    if (pl is num && pl >= 0) return _setState({'pl': pl.toInt()});
+    if (ps is num && ps >= 0) return _setState({'ps': ps.toInt()});
+    final segs = state['seg'];
+    if (segs is! List || segs.isEmpty || segs.first is! Map) return;
+    const keep = {
+      'id', 'fx', 'sx', 'ix', 'pal', 'c1', 'c2', 'c3', 'col', 'n', 'o1', 'o2',
+      'o3', 'si', 'm12', 'bm', 'on', 'bri', 'cct', 'set', 'rev', 'mi', 'rY',
+      'mY', 'tp',
+    };
+    final seg = {
+      for (final e in (segs.first as Map).entries)
+        if (keep.contains(e.key)) '${e.key}': e.value,
+    };
+    if (seg.isEmpty) return;
+    await _setState({
+      'seg': [seg]
+    });
+  }
+
+  /// Whether streamed pixels go through WLED's LED map (`if.live.rlm`).
+  /// Off means raw LED order, which the wiring test relies on.
+  Future<void> setRealtimeMaps(bool on) => setConfig({
+        'if': {
+          'live': {'rlm': on}
+        }
+      });
+
+  /// Sets the LED count of a single output. WLED rebuilds a posted output
+  /// from defaults for every missing field, so [outputEntry] must be the
+  /// complete entry read from the device; only `len` changes.
+  Future<void> setLedCount(int count, Map<String, dynamic> outputEntry) async {
+    if (count < 1) throw WledException('LED count must be at least 1');
+    if (outputEntry.isEmpty) throw WledException('Missing LED output settings');
+    final entry = Map<String, dynamic>.of(outputEntry)..['len'] = count;
+    await setConfig({
+      'hw': {
+        'led': {
+          'ins': [entry]
+        }
+      }
+    });
+  }
+
+  /// Global brightness limit in mA (`hw.led.maxpwr`); 0 turns the limit off.
+  Future<void> setCurrentLimit(int ma) => setConfig({
+        'hw': {
+          'led': {'maxpwr': ma < 0 ? 0 : ma}
+        }
+      });
+
+  /// Reads config and info for the wizard. Reading is never PIN-protected,
+  /// so with [checkLock] a locked device is found with a no-op write
+  /// ([_settingsLocked]) and gives a [DeviceSetupState] with `pinLocked` set.
+  /// Re-reads that verify a write skip the check: the write already proved it.
+  Future<DeviceSetupState> setupState({bool checkLock = false}) async {
+    final info = await _getMap('/json/info');
+    final cfg = await config();
+    final state = DeviceSetupState.fromJson(cfg: cfg, info: info);
+    if (checkLock && await _settingsLocked(state.realtimeMaps)) {
+      return DeviceSetupState.lockedFromInfo(info);
+    }
+    return state;
   }
 
   void close() => _http.close();

@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../library/catalog.dart';
-import '../../wled/discovery.dart';
 import '../actions.dart';
 import '../design/parts.dart';
 import '../design/route.dart';
@@ -15,23 +14,25 @@ import '../design/type.dart';
 import '../scope.dart';
 import '../make/tool_session.dart';
 import '../widgets/live_preview.dart';
-import 'orientation_fix.dart';
+import '../setup/setup_wizard.dart';
 import 'search_step.dart';
 import 'welcome_step.dart';
 
 export 'search_step.dart' show SetupServices;
 
-/// First run (UX.md J1): welcome → find the device → it plays the Glyph intro →
-/// (fix the orientation) → pick a first vibe. Shown once.
+/// First run (UX.md J1): welcome → the setup wizard (connect, size, wiring,
+/// check, ready) → pick a first vibe. Shown once.
 class OnboardingFlow extends StatelessWidget {
   const OnboardingFlow({
     super.key,
     required this.onDone,
     @visibleForTesting this.services = const SetupServices(),
+    @visibleForTesting this.controllerBuilder,
   });
 
   final VoidCallback onDone;
   final SetupServices services;
+  final SetupControllerBuilder? controllerBuilder;
 
   static const prefsKey = 'onboarding.done.v1';
 
@@ -44,6 +45,7 @@ class OnboardingFlow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SetupFlow(
     services: services,
+    controllerBuilder: controllerBuilder,
     onDone: () async {
       await markDone();
       onDone();
@@ -51,28 +53,37 @@ class OnboardingFlow extends StatelessWidget {
   );
 }
 
-/// "Add a device": the same flow starting at the search, without the
-/// welcome or the first-vibe pick.
+/// "Add a device": the same wizard starting at the connect choice, without
+/// the welcome or the first-vibe pick.
 class MatrixSetupPage extends StatelessWidget {
-  const MatrixSetupPage({super.key, @visibleForTesting this.services = const SetupServices()});
+  const MatrixSetupPage({
+    super.key,
+    @visibleForTesting this.services = const SetupServices(),
+    @visibleForTesting this.controllerBuilder,
+  });
 
   final SetupServices services;
+  final SetupControllerBuilder? controllerBuilder;
 
-  static Future<void> open(BuildContext context, {SetupServices services = const SetupServices()}) =>
-      Navigator.of(context).push(
-        lbRoute<void>((_) => MatrixSetupPage(services: services)),
-      );
+  static Future<void> open(
+    BuildContext context, {
+    SetupServices services = const SetupServices(),
+    SetupControllerBuilder? controllerBuilder,
+  }) => Navigator.of(context).push(
+    lbRoute<void>((_) => MatrixSetupPage(services: services, controllerBuilder: controllerBuilder)),
+  );
 
   @override
   Widget build(BuildContext context) => SetupFlow(
     services: services,
-    start: SetupStep.search,
+    controllerBuilder: controllerBuilder,
+    start: SetupStep.wizard,
     withVibe: false,
-    onDone: () => Navigator.of(context).maybePop(),
+    onDone: () => Navigator.of(context).pop(),
   );
 }
 
-enum SetupStep { welcome, search, hello, fix, vibe }
+enum SetupStep { welcome, wizard, vibe }
 
 class SetupFlow extends StatefulWidget {
   const SetupFlow({
@@ -81,12 +92,14 @@ class SetupFlow extends StatefulWidget {
     this.services = const SetupServices(),
     this.start = SetupStep.welcome,
     this.withVibe = true,
+    this.controllerBuilder,
   });
 
   final VoidCallback onDone;
   final SetupServices services;
   final SetupStep start;
   final bool withVibe;
+  final SetupControllerBuilder? controllerBuilder;
 
   @override
   State<SetupFlow> createState() => _SetupFlowState();
@@ -97,9 +110,8 @@ class _SetupFlowState extends State<SetupFlow> with ToolSession<SetupFlow> {
   int _dir = 1;
 
   /// Input is ignored while steps cross-fade, so a tap that ends one step
-  /// can't land on a button of the next (e.g. "Looks right" → a vibe tile).
+  /// can't land on a button of the next.
   bool _settling = false;
-  bool _fixed = false;
 
   void _go(SetupStep s, {int dir = 1}) {
     setState(() {
@@ -112,74 +124,38 @@ class _SetupFlowState extends State<SetupFlow> with ToolSession<SetupFlow> {
     });
   }
 
+  /// The wizard handles its own Back; this covers the other steps.
   void _back() {
-    switch (_step) {
-      case SetupStep.welcome:
-        return;
-      case SetupStep.search:
-        if (widget.start == SetupStep.search) {
-          Navigator.of(context).maybePop();
-        } else {
-          _go(SetupStep.welcome, dir: -1);
-        }
-      case SetupStep.hello:
-        _go(SetupStep.search, dir: -1);
-      case SetupStep.fix:
-        _hello(dir: -1);
-      case SetupStep.vibe:
-        _hello(dir: -1);
-    }
+    if (_step == SetupStep.welcome || _step == SetupStep.vibe) return;
   }
 
-  void _hello({int dir = 1}) {
-    playIntro(context);
-    _go(SetupStep.hello, dir: dir);
-  }
-
-  Future<String?> _connect(DiscoveredDevice d) async {
-    final devices = AppScope.of(context).devices;
-    try {
-      await devices.addAndSelect(d.host, d.name);
-    } catch (_) {}
-    if (!mounted) return null;
-    if (!devices.isConnected) {
-      return 'Couldn\'t reach ${d.name}. Is it switched on and on the same Wi-Fi?';
+  void _leaveWizard() {
+    if (widget.start == SetupStep.wizard) {
+      Navigator.of(context).pop();
+    } else {
+      _go(SetupStep.welcome, dir: -1);
     }
-    HapticFeedback.mediumImpact();
-    _hello();
-    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     final step = switch (_step) {
       SetupStep.welcome => WelcomeStep(
-        onFind: () => _go(SetupStep.search),
+        onFind: () => _go(SetupStep.wizard),
         onBrowse: widget.onDone,
       ),
-      SetupStep.search => SearchStep(
+      SetupStep.wizard => SetupWizard(
         services: widget.services,
-        onConnect: _connect,
-        onBack: _back,
-        title: widget.start == SetupStep.search ? 'Add a device' : 'Looking for your device',
+        controllerBuilder: widget.controllerBuilder,
+        searchTitle: widget.start == SetupStep.wizard ? 'Add a device' : 'Looking for your device',
+        onExit: _leaveWizard,
+        onDone: () => widget.withVibe ? _go(SetupStep.vibe) : widget.onDone(),
       ),
-      SetupStep.hello => HelloStep(
-        fixed: _fixed,
-        onWaving: () => widget.withVibe ? _go(SetupStep.vibe) : widget.onDone(),
-        onOff: () => _go(SetupStep.fix),
-        onBack: _back,
-      ),
-      SetupStep.fix => OrientationFix(
-        onBack: _back,
-        onDone: () {
-          _fixed = true;
-          _hello();
-        },
-      ),
-      SetupStep.vibe => VibeStep(onDone: widget.onDone, onBack: _back),
+      SetupStep.vibe => VibeStep(onDone: widget.onDone),
     };
     return PopScope(
-      canPop: _step == widget.start,
+      // The wizard owns Back while it is showing.
+      canPop: _step == widget.start || _step == SetupStep.wizard,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _back();
       },

@@ -9,7 +9,10 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private var alerts: NotificationAlertsBridge? = null
     private var power: StreamingPower? = null
+    private var setupWifi: SetupWifi? = null
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        setupWifi?.dispose()
+        setupWifi = null
         power?.dispose()
         power = null
         alerts?.dispose()
@@ -26,6 +29,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         power = StreamingPower(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
+        setupWifi = SetupWifi(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
         NowPlayingBridge(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
         alerts = NotificationAlertsBridge(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
         // Phone model and Android version for feedback reports (lib/app/community.dart);

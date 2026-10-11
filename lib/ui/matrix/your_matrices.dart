@@ -15,7 +15,9 @@ import '../design/toggle.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 import '../onboarding/onboarding_flow.dart';
-import '../onboarding/orientation_fix.dart';
+import '../../features/device/setup/setup_store.dart';
+import '../onboarding/orientation_fix.dart' show applyLayout;
+import '../setup/setup_wizard.dart';
 import '../scope.dart';
 
 String sizeLabel(WledInfo info) =>
@@ -29,9 +31,13 @@ class YourMatrices extends StatelessWidget {
     required this.store,
     this.services = const SetupServices(),
     this.settingsView,
+    this.setupStore,
   });
 
   final DeviceStore store;
+
+  /// Where display setup backups live; tests swap it.
+  final SetupStore? setupStore;
   final SetupServices services;
 
   /// Stands in for the settings web view in tests.
@@ -84,12 +90,16 @@ class YourMatrices extends StatelessWidget {
             children: [
               if (store.isConnected)
                 Row1(
-                  leading: const Icon(Icons.screen_rotation_alt_sharp, color: Lb.text2, size: 20),
-                  title: 'Fix orientation',
-                  subtitle: 'If things look sideways or backwards',
+                  leading: const Icon(Icons.grid_on_sharp, color: Lb.text2, size: 20),
+                  title: 'Set up display',
+                  subtitle: 'Size, wiring and a quick check',
                   trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
-                  onTap: () => OrientationFixPage.open(context),
+                  onTap: () async {
+                    await SetupWizard.open(context, services: services);
+                    _setupClosed.value++;
+                  },
                 ),
+              if (store.isConnected) _UndoSetupRow(store: store, setupStore: setupStore ?? SetupStore()),
               if (store.isConnected)
                 Row1(
                   leading: const Icon(Icons.edit_sharp, color: Lb.text2, size: 20),
@@ -131,6 +141,91 @@ class YourMatrices extends StatelessWidget {
     if (name == null || name.isEmpty || name == current || !context.mounted) return;
     await guarded(context, () => store.renameOnDevice(name), done: 'Renamed to “$name”');
   }
+}
+
+/// Bumped when the setup wizard closes so the undo row re-reads its backup.
+final _setupClosed = ValueNotifier<int>(0);
+
+/// "Undo display setup", shown while a backup from the wizard exists.
+class _UndoSetupRow extends StatefulWidget {
+  const _UndoSetupRow({required this.store, required this.setupStore});
+
+  final DeviceStore store;
+  final SetupStore setupStore;
+
+  @override
+  State<_UndoSetupRow> createState() => _UndoSetupRowState();
+}
+
+class _UndoSetupRowState extends State<_UndoSetupRow> {
+  bool _has = false;
+  String _mac = '';
+
+  @override
+  void initState() {
+    super.initState();
+    widget.store.addListener(_check);
+    _setupClosed.addListener(_check);
+    _check();
+  }
+
+  @override
+  void dispose() {
+    widget.store.removeListener(_check);
+    _setupClosed.removeListener(_check);
+    super.dispose();
+  }
+
+  Future<void> _check() async {
+    final mac = widget.store.info?.mac ?? widget.store.selected?.mac ?? '';
+    final has = mac.isEmpty ? false : await widget.setupStore.has(mac);
+    if (!mounted || (has == _has && mac == _mac)) return;
+    setState(() {
+      _has = has;
+      _mac = mac;
+    });
+  }
+
+  Future<void> _undo() async {
+    final ok = await confirm(
+      context,
+      title: 'Undo display setup?',
+      message: 'Glyph puts back the size, wiring and settings your device had before.',
+      action: 'Undo',
+      danger: false,
+    );
+    final client = widget.store.client;
+    if (!ok || client == null || !mounted) return;
+    final result = await widget.setupStore.restore(client, widget.store, mac: _mac);
+    if (!mounted) return;
+    try {
+      await widget.store.refresh();
+    } catch (_) {}
+    if (!mounted) return;
+    toast(
+      context,
+      !result.hadSnapshot
+          ? 'There\'s nothing to undo.'
+          : (result.ok ? 'Your previous setup is back.' : 'Some changes couldn\'t be undone. Try again.'),
+    );
+    await _check();
+  }
+
+  @override
+  Widget build(BuildContext context) => _has
+      ? Column(
+          children: [
+            const Divider(height: 1),
+            Row1(
+              leading: const Icon(Icons.undo_sharp, color: Lb.text2, size: 20),
+              title: 'Undo display setup',
+              subtitle: 'Put the previous setup back',
+              trailing: const Icon(Icons.chevron_right_sharp, color: Lb.text3),
+              onTap: _undo,
+            ),
+          ],
+        )
+      : const SizedBox(width: double.infinity);
 }
 
 class _MatrixChip extends StatelessWidget {
@@ -321,7 +416,7 @@ class _AdvancedState extends State<_Advanced> {
                       const MonoLabel('Layout'),
                       const SizedBox(height: 8),
                       Text(
-                        'Only needed if things still look wrong after “Fix orientation”.',
+                        'Only needed if things still look wrong after “Set up display”.',
                         style: LbType.small,
                       ),
                       const SizedBox(height: 10),

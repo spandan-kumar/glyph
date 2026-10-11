@@ -1,7 +1,56 @@
 # Device setup wizard
 
-Plan agreed on 9 October 2026, refined on 10 October. Implementation has not started. This follows
-the prepared v1.3.6 maintenance release; it does not expand that release.
+Plan agreed on 9 October 2026, refined on 10 October. First implementation
+built on 11 October (see "As built"); physical QA on a spare controller is
+still pending, so no release includes it yet.
+
+## As built (11 October)
+
+Decisions taken while building, checked against the WLED 16.0.1 source.
+Where they differ from the plan below, these win.
+
+- **Layout writes use the 2D settings form** (`POST /settings/2D`: `SOMP`,
+  `MPC`, `P0B/R/V/S/X/Y/W/H`). It applies at once and can turn 2D off again.
+  JSON `hw.led.matrix` only applies after a restart and cannot turn 2D off.
+  The form also recreates segments, so playback is restored afterwards.
+- **The wiring test is test-first.** "Use LED map for realtime"
+  (`if.live.rlm`) is switched off during the test so streamed pixels skip
+  WLED's map and land on physical LEDs; it is switched back on (or restored)
+  on every exit. Three taps (corner, run direction, where the second run
+  starts) give the corner, rows/columns and zig-zag. Diagrams confirm; a
+  manual picker remains.
+- **Wi-Fi join** writes only `nw.ins[0].ssid/psk` through `/json/cfg`, then
+  restarts the device. The `/settings/wifi` form is never used: it resets
+  every field it is not sent (AP name, transmit power). While the phone is on
+  the setup network WLED does not look for home Wi-Fi, so success is proven
+  only by finding the device again on home Wi-Fi by MAC (mDNS plus subnet
+  scan, 75 s). A wrong password shows as the setup network returning.
+- **Android:** the assisted path uses `WifiNetworkSpecifier` and binds the
+  app to the setup network. The guided path (Wi-Fi settings) binds the app
+  to the Wi-Fi network too, because Android routes around a network with no
+  internet. iOS uses the guided path.
+- **Settings PIN:** WLED never protects reading the config, so a lock is
+  found with a no-op write (the realtime-map flag rewritten with its current
+  value); a 401 means locked. Unlocking is verified the same way.
+- **Power limit** = 85% of the supply rating, rounded down to 50 mA, kept
+  lower if the device already has a stricter limit. WLED already subtracts
+  the controller's own current, so no extra headroom is reserved.
+- **LED count** changes only on a single digital output, by posting the
+  complete output entry with `len` changed.
+- **Device-owned GIF check skipped.** Saved GIFs and live streams (with the
+  realtime map on) both go through the same WLED map, so the Look step's
+  live check covers both. The plan's GIF upload during setup was dropped.
+- **Recovery** keeps one backup per device (MAC): layout, realtime map, LED
+  count, power limit and the app's own layout. Device → "Undo display setup"
+  restores only fields that changed. A failed apply rolls back at once.
+- **Flow:** Connect (on Wi-Fi / new) → Join → Home Wi-Fi → Joining → Check
+  (PIN, unsupported, or an already set-up device goes straight to Look) →
+  Size → Wiring → Review (optional power limit) → Applying → Look → Done.
+  Device → "Set up display" replaces "Fix orientation", which stays reachable
+  for displays the wizard can't set up.
+- Code: `lib/wled/panel_setup.dart`, the setup methods in `WledClient`,
+  `lib/engine/setup_frames.dart`, `lib/features/device/setup/`,
+  `lib/ui/setup/`, `android/.../SetupWifi.kt`.
 
 ## Decisions and scope
 
