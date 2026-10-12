@@ -1,0 +1,71 @@
+{
+  "pack": "community",
+  "category": "Community",
+  "colors": {},
+  "sprites": [
+    {
+      "id": "community-beating-heart-26",
+      "title": "Beating Heart by Glyph test (please ignore)",
+      "tags": [
+        "community",
+        "beating",
+        "heart"
+      ],
+      "colors": {
+        "A": "#E8283C",
+        "B": "#FF5FA2"
+      },
+      "ms": 400,
+      "frames": [
+        [
+          "................",
+          "................",
+          "...AA.....AA....",
+          "..AAAA...AAAA...",
+          ".AAAAAA.AAAAAA..",
+          ".AAAAAAAAAAAAA..",
+          ".AAAAAAAAAAAAA..",
+          "..AAAAAAAAAAA...",
+          "...AAAAAAAAA....",
+          "....AAAAAAA.....",
+          ".....AAAAA......",
+          "......AAA.......",
+          ".......A........",
+          "................",
+          "................",
+          "................"
+        ],
+        [
+          "................",
+          "................",
+          "...BB.....BB....",
+          "..BBBB...BBBB...",
+          ".BBBBBB.BBBBBB..",
+          ".BBBBBBBBBBBBB..",
+          ".BBBBBBBBBBBBB..",
+          "..BBBBBBBBBBB...",
+          "...BBBBBBBBB....",
+          "....BBBBBBB.....",
+          ".....BBBBB......",
+          "......BBB.......",
+          ".......B........",
+          "................",
+          "................",
+          "................"
+        ]
+      ],
+      "source": {
+        "work": "Beating Heart",
+        "year": 2026,
+        "creator": "Glyph test (please ignore)",
+        "basis": "Original drawing made in Glyph and shared by its creator.",
+        "jurisdiction": "worldwide",
+        "notice": "By Glyph test (please ignore) · CC0",
+        "license": "CC0-1.0",
+        "url": "https://github.com/spandan-kumar/glyph/issues/26",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "added": "5"
+      }
+    }
+  ]
+}
