@@ -19,7 +19,7 @@ import 'core/game_generator.dart';
 import 'high_scores.dart';
 import 'widgets/controls.dart';
 
-/// Full-screen controller: live mirror of the device on top, controls below.
+/// Full-screen gamepad, with a phone-only thumbnail when no device streams.
 class GamePage extends StatefulWidget {
   const GamePage({super.key, required this.def});
 
@@ -190,7 +190,6 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
   Widget build(BuildContext context) {
     final pb = _playback!;
     final def = widget.def;
-    final size = MediaQuery.sizeOf(context);
     return StudioScaffold(
       title: def.name,
       actions: [
@@ -209,47 +208,37 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
                       value: key, checked: _gen.options.contains(key), child: Text(label)),
               ],
             ),
-          IconButton(
-            style: studioIconStyle,
-            tooltip: _paused ? 'Resume' : 'Pause',
-            onPressed: _over
-                ? null
-                : () {
-                    HapticFeedback.selectionClick();
-                    _setPaused(!_paused);
-                  },
-            icon: Icon(_paused ? Icons.play_arrow_sharp : Icons.pause_sharp),
-          ),
       ],
       body: SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(Lb.gutter, 0, Lb.gutter, 16),
           child: Column(children: [
-            _Hud(score: _score, best: max(_best, _newBest ? _score : 0), status: _status),
-            const SizedBox(height: 8),
-            ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: size.height * 0.34),
-              child: ListenableBuilder(
-                listenable: pb,
-                builder: (context, _) => Center(
-                  child: LedMatrixView(
-                      frame: pb.frame,
-                      repaint: pb.frameTick,
-                      glow: true,
-                      bezel: true,
-                      borderRadius: Lb.rControl),
-                ),
+            ListenableBuilder(
+              listenable: pb,
+              builder: (context, _) => _Hud(
+                playback: pb,
+                score: _score,
+                best: max(_best, _newBest ? _score : 0),
+                status: _status,
+                paused: _paused,
+                over: _over,
+                onPause: () {
+                  HapticFeedback.selectionClick();
+                  _setPaused(!_paused);
+                },
               ),
             ),
-            const SizedBox(height: 10),
             ListenableBuilder(
               listenable: pb,
               builder: (context, _) => pb.isStreaming
-                  ? const LivePulse(label: 'On your device')
-                  : const MonoLabel('Preview · connect a device to play big'),
+                  ? const SizedBox.shrink()
+                  : const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: _PhoneOnlyStrip(),
+                    ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Expanded(
               child: _over
                   ? _Panel(
@@ -280,47 +269,56 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
   Widget _controls() {
     final def = widget.def;
     return LayoutBuilder(builder: (context, c) {
-      final unit = min(72.0, min(c.maxHeight / 3, c.maxWidth / 4.6));
+      final w = c.maxWidth, h = c.maxHeight;
+      const g = 12.0;
+      Widget key(GameKey k, IconData icon, double width, double height,
+          String caption, String semantics, {bool held = false}) => PadButton(
+            width: width,
+            height: height,
+            caption: caption,
+            semanticsLabel: semantics,
+            onDown: () => _press(k),
+            onUp: held ? () => _release(k) : null,
+            child: Icon(icon),
+          );
+      Widget cluster(Widget row) => Column(children: [
+            Text(def.hint, style: LbType.small.copyWith(color: Lb.text3),
+                textAlign: TextAlign.center),
+            const Spacer(),
+            row,
+          ]);
       switch (def.controls) {
         case Controls.dpad:
-          return SwipeArea(
-            onSwipe: _press,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Lb.panel,
-                borderRadius: BorderRadius.circular(Lb.rPanel),
-                border: Border.all(color: Lb.line),
-              ),
-              child: Center(child: DPad(onDown: _press, size: unit)),
-            ),
-          );
+          return SwipePad(onDirection: _press);
         case Controls.blocks:
-          return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            DPad(
-                onDown: _press,
-                onUp: _release,
-                size: unit,
-                upIcon: Icons.rotate_right_sharp),
-            Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              PadButton(
-                width: unit * 1.1,
-                height: unit * 1.1,
-                label: 'drop',
-                color: Lb.panel,
-                onDown: () => _press(GameKey.b),
-                child: const Icon(Icons.vertical_align_bottom_sharp),
-              ),
-              SizedBox(height: unit * 0.3),
-              PadButton(
-                width: unit * 1.3,
-                height: unit * 1.3,
-                label: 'rotate',
-                color: Lb.raised,
-                onDown: () => _press(GameKey.a),
-                child: const Icon(Icons.rotate_right_sharp),
-              ),
-            ]),
-          ]);
+          // Two thumb halves across the full width; movement left, actions right.
+          final half = (w - 2 * g) / 2, quarter = (half - g) / 2;
+          final tall = (h * 0.32).clamp(96.0, 180.0), short = (h * 0.13).clamp(64.0, 88.0);
+          return cluster(Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Column(mainAxisSize: MainAxisSize.min, children: [
+                key(GameKey.down, Icons.keyboard_double_arrow_down_sharp,
+                    half, short, 'Soft drop', 'Soft drop', held: true),
+                const SizedBox(height: g),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  key(GameKey.left, Icons.arrow_back_sharp,
+                      quarter, tall, 'Left', 'Move left', held: true),
+                  const SizedBox(width: g),
+                  key(GameKey.right, Icons.arrow_forward_sharp,
+                      quarter, tall, 'Right', 'Move right', held: true),
+                ]),
+              ]),
+              Column(mainAxisSize: MainAxisSize.min, children: [
+                key(GameKey.b, Icons.vertical_align_bottom_sharp,
+                    half, short, 'Drop', 'Drop'),
+                const SizedBox(height: g),
+                key(GameKey.a, Icons.rotate_right_sharp,
+                    half, tall, 'Rotate', 'Rotate'),
+              ]),
+            ],
+          ));
         case Controls.paddle:
           return DragPad(
             vertical: _game?.pointerVertical ?? false,
@@ -332,81 +330,164 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
           return TapPad(onTap: () => _press(GameKey.a));
         case Controls.steer:
           final rotated = _gen.view?.rotated ?? false;
-          Widget side(GameKey k, IconData icon) => Expanded(
+          Widget side(GameKey k, IconData icon, String caption, String semantics) => Expanded(
                 child: PadButton(
                   width: double.infinity,
-                  height: double.infinity,
+                  height: h,
                   radius: Lb.rPanel,
-                  label: k.name,
+                  caption: caption,
+                  semanticsLabel: semantics,
                   onDown: () => _press(k),
-                  child: Icon(icon, size: 48),
+                  child: Icon(icon, size: 56),
                 ),
               );
           return Row(children: [
             side(GameKey.left,
-                rotated ? Icons.arrow_upward_sharp : Icons.arrow_back_sharp),
-            const SizedBox(width: 12),
+                rotated ? Icons.arrow_upward_sharp : Icons.arrow_back_sharp,
+                rotated ? 'Up' : 'Left lane', rotated ? 'Steer up' : 'Steer left'),
+            const SizedBox(width: g),
             side(GameKey.right,
-                rotated ? Icons.arrow_downward_sharp : Icons.arrow_forward_sharp),
+                rotated ? Icons.arrow_downward_sharp : Icons.arrow_forward_sharp,
+                rotated ? 'Down' : 'Right lane', rotated ? 'Steer down' : 'Steer right'),
           ]);
         case Controls.shooter:
-          Widget hold(GameKey k, IconData icon) => PadButton(
-                width: unit * 1.2,
-                height: unit * 1.2,
-                radius: Lb.rControl,
-                label: k.name,
-                onDown: () => _press(k),
-                onUp: () => _release(k),
-                child: Icon(icon),
-              );
-          return Row(children: [
-            hold(GameKey.left, Icons.keyboard_arrow_left_sharp),
-            SizedBox(width: unit * 0.25),
-            hold(GameKey.right, Icons.keyboard_arrow_right_sharp),
-            const Spacer(),
-            PadButton(
-              width: unit * 1.6,
-              height: unit * 1.6,
-              label: 'fire',
-              color: Lb.raised,
-              onDown: () => _press(GameKey.a),
-              child: const Text('FIRE'),
-            ),
-          ]);
+          final half = (w - 2 * g) / 2, quarter = (half - g) / 2;
+          final tall = (h * 0.42).clamp(120.0, 240.0);
+          return cluster(Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                key(GameKey.left, Icons.arrow_back_sharp,
+                    quarter, tall, 'Left', 'Move left', held: true),
+                const SizedBox(width: g),
+                key(GameKey.right, Icons.arrow_forward_sharp,
+                    quarter, tall, 'Right', 'Move right', held: true),
+              ]),
+              key(GameKey.a, Icons.gps_fixed_sharp, half, tall, 'Fire', 'Fire'),
+            ],
+          ));
       }
     });
   }
 }
 
 class _Hud extends StatelessWidget {
-  const _Hud({required this.score, required this.best, this.status});
+  const _Hud({
+    required this.playback,
+    required this.score,
+    required this.best,
+    required this.paused,
+    required this.over,
+    required this.onPause,
+    this.status,
+  });
 
+  final PlaybackController playback;
   final int score, best;
   final String? status;
+  final bool paused, over;
+  final VoidCallback onPause;
 
   static const _figures = [FontFeature.tabularFigures()];
 
   @override
   Widget build(BuildContext context) {
-    return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const MonoLabel('Score'),
-        Text('$score', style: LbType.display.copyWith(fontFeatures: _figures)),
-      ]),
-      const SizedBox(width: 16),
-      Expanded(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Text(status ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: LbType.small),
-        ),
-      ),
-      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        const MonoLabel('Best'),
-        Text('$best',
-            style: LbType.title.copyWith(fontFeatures: _figures)),
-      ]),
-    ]);
+    return LayoutBuilder(builder: (context, c) {
+      double textWidth(String text, TextStyle style) {
+        final painter = TextPainter(
+          text: TextSpan(text: text, style: style),
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout();
+        final width = painter.width;
+        painter.dispose();
+        return width;
+      }
+      final bestWidth = max(textWidth('BEST', LbType.label),
+          textWidth('$best', LbType.title.copyWith(fontFeatures: _figures)));
+      final scoreWidth = max(0.0, c.maxWidth - bestWidth - 68 -
+          (playback.isStreaming ? 0 : 68));
+      return SizedBox(
+        height: 64,
+        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          if (!playback.isStreaming) ...[
+            SizedBox.square(
+              dimension: 56,
+              child: LedMatrixView(
+                frame: playback.frame,
+                repaint: playback.frameTick,
+                glow: false,
+                bezel: true,
+                borderRadius: Lb.rControl,
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: scoreWidth),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const MonoLabel('Score'),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('$score', style: LbType.display.copyWith(fontFeatures: _figures)),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Text(status ?? '', textAlign: TextAlign.center,
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: LbType.small),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const MonoLabel('Best'),
+              Text('$best', style: LbType.title.copyWith(fontFeatures: _figures)),
+            ],
+          ),
+          const SizedBox(width: 12),
+          PadButton(
+            width: 56,
+            height: 56,
+            semanticsLabel: paused ? 'Resume game' : 'Pause game',
+            enabled: !over,
+            onDown: onPause,
+            child: Icon(paused ? Icons.play_arrow_sharp : Icons.pause_sharp),
+          ),
+        ]),
+      );
+    });
   }
+}
+
+class _PhoneOnlyStrip extends StatelessWidget {
+  const _PhoneOnlyStrip();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: Lb.panel,
+          border: const Border.fromBorderSide(Lb.hairline),
+          borderRadius: BorderRadius.circular(Lb.rControl),
+        ),
+        child: Row(children: [
+          const StatusDot(on: false),
+          const SizedBox(width: 10),
+          Expanded(child: Text('Playing on your phone only', style: LbType.small)),
+          TextButton(
+            style: TextButton.styleFrom(minimumSize: const Size(0, Lb.touch)),
+            onPressed: () => goToMatrix(context),
+            child: const Text('Connect'),
+          ),
+        ]),
+      );
 }
 
 class _Panel extends StatelessWidget {
@@ -433,39 +514,44 @@ class _Panel extends StatelessWidget {
         borderRadius: BorderRadius.circular(Lb.rPanel),
         border: Border.all(color: highlight ? Lb.text : Lb.line),
       ),
-      child: SingleChildScrollView(
-        child: Column(children: [
-          Text(title, style: LbType.title),
-          const SizedBox(height: 6),
-          for (final l in lines)
-            Text(l,
-                textAlign: TextAlign.center,
-                style: l == 'New best!'
-                    ? LbType.bodyStrong.copyWith(color: Lb.text)
-                    : LbType.body.copyWith(color: Lb.text2)),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: Lb.cta,
-            child: FilledButton(
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                primary.$2();
-              },
-              child: Text(primary.$1),
-            ),
+      child: Column(children: [
+        Flexible(
+          fit: FlexFit.tight,
+          child: SingleChildScrollView(
+            child: Column(children: [
+              Text(title, style: LbType.title),
+              const SizedBox(height: 6),
+              for (final l in lines)
+                Text(l,
+                    textAlign: TextAlign.center,
+                    style: l == 'New best!'
+                        ? LbType.bodyStrong.copyWith(color: Lb.text)
+                        : LbType.body.copyWith(color: Lb.text2)),
+            ]),
           ),
-          const SizedBox(height: 8),
-          TextButton(
-            style: TextButton.styleFrom(minimumSize: const Size(0, Lb.touch)),
+        ),
+        const Spacer(),
+        SizedBox(
+          width: double.infinity,
+          height: Lb.cta,
+          child: FilledButton(
             onPressed: () {
-              HapticFeedback.selectionClick();
-              secondary.$2();
+              HapticFeedback.lightImpact();
+              primary.$2();
             },
-            child: Text(secondary.$1),
+            child: Text(primary.$1),
           ),
-        ]),
-      ),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          style: TextButton.styleFrom(minimumSize: const Size(0, Lb.touch)),
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            secondary.$2();
+          },
+          child: Text(secondary.$1),
+        ),
+      ]),
     );
   }
 }

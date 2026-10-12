@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import '../../../ui/design/tokens.dart';
 import '../../../ui/design/type.dart';
@@ -16,12 +18,14 @@ class PadButton extends StatefulWidget {
     super.key,
     required this.child,
     required this.onDown,
+    required this.semanticsLabel,
     this.onUp,
     this.width = 72,
     this.height = 72,
     this.radius,
     this.color = Lb.raised,
-    this.label,
+    this.caption,
+    this.enabled = true,
   });
 
   final Widget child;
@@ -30,59 +34,84 @@ class PadButton extends StatefulWidget {
   final double width, height;
   final double? radius;
   final Color color;
-  final String? label;
+  final String? caption;
+  final String semanticsLabel;
+  final bool enabled;
 
   @override
   State<PadButton> createState() => _PadButtonState();
 }
 
 class _PadButtonState extends State<PadButton> {
-  int _pointers = 0;
+  final _pointers = <int>{};
 
-  void _down(PointerDownEvent _) {
-    setState(() => _pointers++);
+  void _down(PointerDownEvent e) {
+    setState(() => _pointers.add(e.pointer));
     widget.onDown();
   }
 
-  void _up(PointerEvent _) {
-    if (_pointers == 0) return;
-    setState(() => _pointers--);
-    if (_pointers == 0) widget.onUp?.call();
+  void _up(PointerEvent e) {
+    if (!_pointers.remove(e.pointer)) return;
+    setState(() {});
+    if (_pointers.isEmpty) widget.onUp?.call();
+  }
+
+  @override
+  void didUpdateWidget(PadButton old) {
+    super.didUpdateWidget(old);
+    if (!widget.enabled && old.enabled) _pointers.clear();
   }
 
   double get _iconSize {
     final s = min(widget.width, widget.height);
-    return s.isFinite ? s * 0.45 : 44;
+    return s.isFinite ? (s * 0.48).clamp(32.0, 52.0) : 48;
   }
 
   @override
   Widget build(BuildContext context) {
-    final pressed = _pointers > 0;
-    // Crisp keys, like the pixels they drive.
+    final pressed = _pointers.isNotEmpty;
+    final accent = readAccent(context);
     final r = widget.radius ?? Lb.rControl;
     return Semantics(
       button: true,
-      label: widget.label,
-      child: Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: _down,
-        onPointerUp: _up,
-        onPointerCancel: _up,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 60),
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            color: pressed ? Color.lerp(widget.color, Lb.text, 0.1) : widget.color,
-            borderRadius: BorderRadius.circular(r),
-            border: Border.all(color: pressed ? readAccent(context) : Lb.line, width: 1.2),
-          ),
-          child: Center(
-            child: IconTheme(
-              data: IconThemeData(size: _iconSize),
-              child: DefaultTextStyle.merge(
-                style: LbType.bodyStrong.copyWith(color: Lb.text),
-                child: widget.child,
+      enabled: widget.enabled,
+      label: widget.semanticsLabel,
+      onTap: widget.enabled ? () {
+        widget.onDown();
+        widget.onUp?.call();
+      } : null,
+      child: Opacity(
+        opacity: widget.enabled ? 1 : 0.4,
+        child: Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: widget.enabled ? _down : null,
+          onPointerUp: widget.enabled ? _up : null,
+          onPointerCancel: widget.enabled ? _up : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 60),
+            width: widget.width.isFinite ? max(56.0, widget.width) : widget.width,
+            height: widget.height.isFinite ? max(56.0, widget.height) : widget.height,
+            decoration: BoxDecoration(
+              color: pressed ? Color.lerp(Lb.raised, accent, 0.22) : widget.color,
+              borderRadius: BorderRadius.circular(r),
+              border: Border.all(color: pressed ? accent : Lb.text3, width: pressed ? 2 : 1.5),
+            ),
+            child: ExcludeSemantics(
+              child: Center(
+                child: IconTheme(
+                  data: IconThemeData(size: _iconSize, color: Lb.text),
+                  child: DefaultTextStyle.merge(
+                    style: LbType.bodyStrong.copyWith(color: Lb.text),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      widget.child,
+                      if (widget.caption != null) ...[
+                        const SizedBox(height: 6),
+                        Text(widget.caption!.toUpperCase(),
+                            style: LbType.label.copyWith(color: Lb.text2), maxLines: 1),
+                      ],
+                    ]),
+                  ),
+                ),
               ),
             ),
           ),
@@ -92,89 +121,131 @@ class _PadButtonState extends State<PadButton> {
   }
 }
 
-/// Four-way pad. [onUp] fires on release, for games with held keys.
-class DPad extends StatelessWidget {
-  const DPad({
-    super.key,
-    required this.onDown,
-    this.onUp,
-    this.size = 68,
-    this.upIcon = Icons.keyboard_arrow_up_sharp,
-  });
+/// Continuous swipe steering, with taps selecting one of the four triangles.
+class SwipePad extends StatefulWidget {
+  const SwipePad({super.key, required this.onDirection});
 
-  final void Function(GameKey k) onDown;
-  final void Function(GameKey k)? onUp;
-  final double size;
-  final IconData upIcon;
-
-  Widget _b(GameKey k, IconData icon) => PadButton(
-        width: size,
-        height: size,
-        radius: Lb.rControl,
-        label: k.name,
-        onDown: () => onDown(k),
-        onUp: onUp == null ? null : () => onUp!(k),
-        child: Icon(icon),
-      );
+  final void Function(GameKey k) onDirection;
 
   @override
-  Widget build(BuildContext context) {
-    final gap = SizedBox(width: size, height: size);
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      Row(mainAxisSize: MainAxisSize.min, children: [gap, _b(GameKey.up, upIcon), gap]),
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        _b(GameKey.left, Icons.keyboard_arrow_left_sharp),
-        gap,
-        _b(GameKey.right, Icons.keyboard_arrow_right_sharp),
-      ]),
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        gap,
-        _b(GameKey.down, Icons.keyboard_arrow_down_sharp),
-        gap,
-      ]),
-    ]);
+  State<SwipePad> createState() => _SwipePadState();
+}
+
+class _SwipePointer {
+  _SwipePointer(this.origin) : last = origin;
+
+  Offset origin, last;
+  double travel = 0;
+  bool swiped = false;
+
+  void track(Offset p) {
+    travel += (p - last).distance;
+    last = p;
   }
 }
 
-/// Turns swipes into direction presses. Keeps tracking while the finger is
-/// down, so you can steer in one continuous stroke.
-class SwipeArea extends StatefulWidget {
-  const SwipeArea({super.key, required this.onSwipe, required this.child});
+class _SwipePadState extends State<SwipePad> {
+  final _pointers = <int, _SwipePointer>{};
+  GameKey? _direction;
+  Timer? _flash;
 
-  final void Function(GameKey k) onSwipe;
-  final Widget child;
+  void _emit(GameKey k) {
+    _flash?.cancel();
+    setState(() => _direction = k);
+    widget.onDirection(k);
+    _flash = Timer(Lb.fast, () {
+      if (mounted) setState(() => _direction = null);
+    });
+  }
 
-  @override
-  State<SwipeArea> createState() => _SwipeAreaState();
-}
-
-class _SwipeAreaState extends State<SwipeArea> {
-  final _origins = <int, Offset>{};
+  GameKey _axis(Offset v) => v.dx.abs() > v.dy.abs()
+      ? (v.dx > 0 ? GameKey.right : GameKey.left)
+      : (v.dy > 0 ? GameKey.down : GameKey.up);
 
   void _move(PointerMoveEvent e) {
-    final o = _origins[e.pointer];
-    if (o == null) return;
-    final d = e.localPosition - o;
+    final p = _pointers[e.pointer];
+    if (p == null) return;
+    p.track(e.localPosition);
+    final d = e.localPosition - p.origin;
     if (d.distance < 22) return;
-    widget.onSwipe(d.dx.abs() > d.dy.abs()
-        ? (d.dx > 0 ? GameKey.right : GameKey.left)
-        : (d.dy > 0 ? GameKey.down : GameKey.up));
-    _origins[e.pointer] = e.localPosition;
+    p.swiped = true;
+    p.origin = e.localPosition;
+    _emit(_axis(d));
+  }
+
+  void _up(PointerUpEvent e, Size size) {
+    final p = _pointers.remove(e.pointer);
+    if (p == null) return;
+    p.track(e.localPosition);
+    if (p.swiped || p.travel >= 18) return;
+    final v = e.localPosition - size.center(Offset.zero);
+    _emit(_axis(Offset(v.dx / (size.width / 2), v.dy / (size.height / 2))));
   }
 
   @override
-  Widget build(BuildContext context) => Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: (e) => _origins[e.pointer] = e.localPosition,
-        onPointerMove: _move,
-        onPointerUp: (e) => _origins.remove(e.pointer),
-        onPointerCancel: (e) => _origins.remove(e.pointer),
-        child: widget.child,
-      );
+  void dispose() {
+    _flash?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+        final size = Size(c.maxWidth, c.maxHeight);
+        Widget chevron(GameKey k, IconData icon, Alignment alignment) => Align(
+              alignment: alignment,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(icon, size: 56,
+                    color: _direction == k ? readAccent(context) : Lb.text3),
+              ),
+            );
+        return Semantics(
+          label: 'Snake controls',
+          customSemanticsActions: {
+            for (final k in [GameKey.up, GameKey.down, GameKey.left, GameKey.right])
+              CustomSemanticsAction(label: 'Move ${k.name}'): () => _emit(k),
+          },
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (e) => _pointers[e.pointer] = _SwipePointer(e.localPosition),
+            onPointerMove: _move,
+            onPointerUp: (e) => _up(e, size),
+            onPointerCancel: (e) => _pointers.remove(e.pointer),
+            child: _Surface(
+              child: ExcludeSemantics(
+                child: CustomPaint(
+                  painter: const _SwipeGuides(),
+                  child: Stack(children: [
+                    chevron(GameKey.up, Icons.keyboard_arrow_up_sharp, Alignment.topCenter),
+                    chevron(GameKey.down, Icons.keyboard_arrow_down_sharp, Alignment.bottomCenter),
+                    chevron(GameKey.left, Icons.keyboard_arrow_left_sharp, Alignment.centerLeft),
+                    chevron(GameKey.right, Icons.keyboard_arrow_right_sharp, Alignment.centerRight),
+                    const Center(child: Text('SWIPE OR TAP A SIDE', style: LbType.label)),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+        );
+      });
 }
 
-/// A touch strip: the finger's position along it is the paddle position.
-class DragPad extends StatelessWidget {
+class _SwipeGuides extends CustomPainter {
+  const _SwipeGuides();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Lb.line..strokeWidth = 1;
+    canvas.drawLine(Offset.zero, Offset(size.width, size.height), paint);
+    canvas.drawLine(Offset(size.width, 0), Offset(0, size.height), paint);
+  }
+
+  @override
+  bool shouldRepaint(_SwipeGuides old) => false;
+}
+
+/// The finger's position along the track is the paddle position.
+class DragPad extends StatefulWidget {
   const DragPad({
     super.key,
     required this.onPosition,
@@ -189,38 +260,103 @@ class DragPad extends StatelessWidget {
   final String label;
 
   @override
+  State<DragPad> createState() => _DragPadState();
+}
+
+class _DragPadState extends State<DragPad> {
+  double _value = 0.5;
+  final _pointers = <int>{};
+
+  void _report(double v) {
+    setState(() => _value = v.clamp(0.0, 1.0));
+    widget.onPosition(_value);
+  }
+
+  void _up(PointerEvent e) => setState(() => _pointers.remove(e.pointer));
+
+  @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
         void at(Offset p) {
           const m = 28.0;
-          final ext = vertical ? c.maxHeight : c.maxWidth;
-          final pos = vertical ? p.dy : p.dx;
-          onPosition(((pos - m) / max(1.0, ext - 2 * m)).clamp(0.0, 1.0));
+          final ext = widget.vertical ? c.maxHeight : c.maxWidth;
+          final pos = widget.vertical ? p.dy : p.dx;
+          _report((pos - m) / max(1.0, ext - 2 * m));
         }
 
-        return Listener(
-          behavior: HitTestBehavior.opaque,
-          onPointerDown: (e) {
-            onDown?.call();
-            at(e.localPosition);
-          },
-          onPointerMove: (e) => at(e.localPosition),
-          child: _Surface(
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(vertical ? Icons.swap_vert_sharp : Icons.swap_horiz_sharp,
-                  size: 40, color: Lb.text3),
-              const SizedBox(height: 8),
-              Text(label.toUpperCase(), textAlign: TextAlign.center, style: LbType.label),
-            ]),
+        return Semantics(
+          slider: true,
+          label: 'Paddle',
+          value: '${(_value * 100).round()}%',
+          increasedValue: '${((_value + 0.1).clamp(0.0, 1.0) * 100).round()}%',
+          decreasedValue: '${((_value - 0.1).clamp(0.0, 1.0) * 100).round()}%',
+          onIncrease: () => _report(_value + 0.1),
+          onDecrease: () => _report(_value - 0.1),
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (e) {
+              _pointers.add(e.pointer);
+              widget.onDown?.call();
+              at(e.localPosition);
+            },
+            onPointerMove: (e) => at(e.localPosition),
+            onPointerUp: _up,
+            onPointerCancel: _up,
+            child: _Surface(
+              child: ExcludeSemantics(
+                child: CustomPaint(
+                  painter: _PaddleTrack(widget.vertical, _value,
+                      _pointers.isNotEmpty ? readAccent(context) : Lb.text2),
+                  child: Stack(children: [
+                    Positioned(
+                      top: c.maxHeight / 2 + 20,
+                      left: 0,
+                      right: 0,
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(widget.vertical ? Icons.swap_vert_sharp : Icons.swap_horiz_sharp,
+                            size: 40, color: Lb.text3),
+                        const SizedBox(height: 8),
+                        Text(widget.label.toUpperCase(), textAlign: TextAlign.center, style: LbType.label),
+                      ]),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
           ),
         );
       });
 }
 
+class _PaddleTrack extends CustomPainter {
+  const _PaddleTrack(this.vertical, this.value, this.color);
+
+  final bool vertical;
+  final double value;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centre = size.center(Offset.zero);
+    final track = Paint()..color = Lb.line..strokeWidth = 2;
+    canvas.drawLine(
+        vertical ? Offset(centre.dx, 28) : Offset(28, centre.dy),
+        vertical ? Offset(centre.dx, size.height - 28) : Offset(size.width - 28, centre.dy),
+        track);
+    final pos = 28 + value * ((vertical ? size.height : size.width) - 56);
+    canvas.drawRect(Rect.fromCenter(
+        center: vertical ? Offset(centre.dx, pos) : Offset(pos, centre.dy),
+        width: vertical ? 12 : 64, height: vertical ? 64 : 12), Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_PaddleTrack old) =>
+      old.vertical != vertical || old.value != value || old.color != color;
+}
+
 class TapPad extends StatelessWidget {
-  const TapPad({super.key, required this.onTap, this.label = 'TAP'});
+  const TapPad({super.key, required this.onTap});
 
   final VoidCallback onTap;
-  final String label;
 
   @override
   Widget build(BuildContext context) => PadButton(
@@ -228,9 +364,13 @@ class TapPad extends StatelessWidget {
         height: double.infinity,
         radius: Lb.rPanel,
         color: Lb.panel,
-        label: label,
+        semanticsLabel: 'Flap',
         onDown: onTap,
-        child: Text(label, style: LbType.title),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('TAP', style: LbType.display),
+          const SizedBox(height: 8),
+          const Text('ANYWHERE TO FLAP', style: LbType.label),
+        ]),
       );
 }
 
@@ -240,14 +380,14 @@ class _Surface extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          color: Lb.panel,
-          borderRadius: BorderRadius.circular(Lb.rPanel),
-          border: Border.all(color: Lb.line),
+  Widget build(BuildContext context) => SizedBox.expand(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Lb.panel,
+            borderRadius: BorderRadius.circular(Lb.rPanel),
+            border: Border.all(color: Lb.text3),
+          ),
+          child: child,
         ),
-        child: child,
       );
 }

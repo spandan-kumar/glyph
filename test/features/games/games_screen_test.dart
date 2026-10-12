@@ -10,6 +10,7 @@ import 'package:glyph/features/games/core/game.dart';
 import 'package:glyph/features/games/core/game_generator.dart';
 import 'package:glyph/features/games/game_page.dart';
 import 'package:glyph/features/games/games_screen.dart';
+import 'package:glyph/features/games/widgets/controls.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/make/tool_session.dart';
 import 'package:glyph/ui/scope.dart';
@@ -65,14 +66,15 @@ void main() {
 
     final gen = playback.generator as GameGenerator;
     final game = gen.view!.game;
-    await tester.tap(find.bySemanticsLabel('down'));
+    final pad = tester.getRect(find.byType(SwipePad));
+    await tester.tapAt(Offset(pad.center.dx, pad.bottom - 36));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.drag(find.bySemanticsLabel('left').first, const Offset(0, -80));
+    await tester.drag(find.byType(SwipePad), const Offset(0, -80));
     await tester.pump(const Duration(milliseconds: 300));
     expect(game.time, greaterThan(0));
 
     // Pause, then resume from the panel.
-    await tester.tap(find.byTooltip('Pause'));
+    await tester.tap(find.bySemanticsLabel('Pause game'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Paused'), findsOneWidget);
     expect(game.paused, isTrue);
@@ -99,6 +101,7 @@ void main() {
     expect(playback.isPlaying, isFalse);
     expect(playback.isStreaming, isFalse);
     expect(tester.takeException(), isNull);
+    playback.pause();
   });
 
   testWidgets('a game that was sent to the device keeps playing after leaving', (tester) async {
@@ -141,25 +144,25 @@ void main() {
       final gen = playback.generator as GameGenerator;
       final area = tester.getRect(find.byType(LayoutBuilder).last);
       switch (def.controls) {
-        case Controls.dpad || Controls.blocks:
-          for (final k in ['up', 'left', 'right', 'down']) {
-            await tester.tap(find.bySemanticsLabel(k));
+        case Controls.dpad:
+          final pad = tester.getRect(find.byType(SwipePad));
+          await tester.tapAt(Offset(pad.center.dx, pad.bottom - 36));
+          await tester.drag(find.byType(SwipePad), const Offset(80, 0));
+        case Controls.blocks:
+          for (final label in ['Move left', 'Move right', 'Soft drop', 'Rotate', 'Drop']) {
+            await tester.tap(find.bySemanticsLabel(label));
             await tester.pump(const Duration(milliseconds: 50));
-          }
-          if (def.controls == Controls.blocks) {
-            await tester.tap(find.bySemanticsLabel('rotate'));
-            await tester.tap(find.bySemanticsLabel('drop'));
           }
         case Controls.paddle:
           await tester.dragFrom(area.center, const Offset(-100, 0));
         case Controls.tap:
           await tester.tapAt(area.center);
         case Controls.steer:
-          await tester.tap(find.bySemanticsLabel('left'));
-          await tester.tap(find.bySemanticsLabel('right'));
+          await tester.tap(find.bySemanticsLabel('Steer left'));
+          await tester.tap(find.bySemanticsLabel('Steer right'));
         case Controls.shooter:
-          await tester.tap(find.bySemanticsLabel('left'));
-          await tester.tap(find.text('FIRE'));
+          await tester.tap(find.bySemanticsLabel('Move left'));
+          await tester.tap(find.bySemanticsLabel('Fire'));
       }
       await tester.pump(const Duration(milliseconds: 500));
       expect(gen.view!.game.time, greaterThan(0));
