@@ -4,6 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.2': [
+    'Share a drawing with the community: open it in Make and tap Share with the community. After a quick review, everyone with Glyph can play it.',
+    'Community on Display shows drawings people shared, with their names.',
+  ],
   '1.4.1': [
     '27 new animations: floating jellies, soaring birds, flames and colourful bubbles.',
   ],
