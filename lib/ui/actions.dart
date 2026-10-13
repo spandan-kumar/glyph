@@ -118,7 +118,15 @@ class _SendStopped implements Exception {
 abstract final class GlyphActions {
   static Future<void> play(BuildContext context, LibraryItem item) async {
     final s = AppScope.of(context);
-    s.playback.playItem(item);
+    final selection = s.devices.selectionGeneration, control = s.devices.controlGeneration;
+    final played = await s.playback.playItem(item, canPlay: () => context.mounted &&
+        selection == s.devices.selectionGeneration && control == s.devices.controlGeneration);
+    if (!context.mounted) return;
+    if (!played) {
+      if (s.playback.loadError case final error?) _toast(context, error);
+      return;
+    }
+    if (s.playback.item?.id != item.id) return;
     await ensureStreaming(context);
   }
 
@@ -173,6 +181,9 @@ abstract final class GlyphActions {
   /// [saveToDevice] with a typed outcome.
   static Future<SendResult> sendToDevice(BuildContext context, {Future<void> Function()? onUpload}) async {
     final s = AppScope.of(context);
+    if (s.playback.loadingTitle != null) {
+      return const Cancelled('the animation is still loading');
+    }
     final caps = s.devices.caps;
     final g = s.playback.generator;
     if (g != null && g.liveOnly) return const Failed(liveOnlyMessage, liveOnly: true);
@@ -441,4 +452,5 @@ Uint8List _bake((String, Map<String, double>, String, int, int, double, SpriteGe
 
 Uint8List _encodeLoop(LoopFrames loop) => bakeLoop(loop).bytes;
 
-Uint8List _encodeClip((List<Frame>, List<int>) a) => encodeGif(a.$1, a.$2, forLeds: true);
+Uint8List _encodeClip((List<Frame>, List<int>) a) =>
+    encodeDeviceClip(a.$1, a.$2);

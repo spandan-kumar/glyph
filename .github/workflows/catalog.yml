@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - 'assets/catalog/**'
+      - 'catalog_assets/**'
       - 'tool/build_remote_catalog.dart'
       - 'tool/catalog_sign.dart'
       - 'tool/fetch_published_catalog.sh'

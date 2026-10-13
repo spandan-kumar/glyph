@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 
 import 'catalog.dart';
+import 'imported_collection.dart';
 
 /// The full generated library (tool/build_catalog.dart).
 const bundledCatalogAsset = 'assets/catalog/catalog.json';
@@ -17,6 +18,11 @@ Future<Catalog> loadBundledCatalog([AssetBundle? bundle]) async {
     c = Catalog.parse(await b.loadString(bundledCatalogAsset));
   } catch (_) {
     c = Catalog.parse(await b.loadString(starterCatalogAsset));
+  }
+  try {
+    c = c.merge(parseimportedCollection(await b.loadString(importedIndexAsset)));
+  } catch (_) {
+    // The existing offline library remains usable if an optional index is absent.
   }
   bundledRevision = c.items.fold(0, (m, i) => i.added > m ? i.added : m);
   return c;

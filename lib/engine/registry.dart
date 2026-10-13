@@ -1,4 +1,5 @@
 import 'generator.dart';
+import 'clip_asset.dart';
 import 'generators/fields.dart';
 import 'generators/more.dart';
 import 'generators/patterns.dart';
@@ -83,6 +84,7 @@ List<SpriteGenerator> get spriteGenerators => SpriteLibrary.all;
 Iterable<Generator> get allGenerators => [...generators, ...spriteGenerators];
 
 Generator? findGenerator(String id) {
+  if (id.startsWith('clip:')) return ClipAssetLibrary.byId(id);
   if (id.startsWith(SpriteGenerator.prefix)) return SpriteLibrary.byId(id);
   for (final g in generators) {
     if (g.id == id) return g;

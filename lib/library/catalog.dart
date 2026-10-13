@@ -112,7 +112,7 @@ class LibraryItem {
         if (notice != null) 'notice': notice,
       };
 
-  bool get isPixelArt => generatorId.startsWith('sprite:');
+  bool get isPixelArt => generatorId.startsWith('sprite:') || asset?.type == 'clip-gzip';
 
   /// True when a takedown list names this item or its generator.
   bool revokedBy(Set<String> revoked) =>
@@ -149,6 +149,7 @@ class Catalog {
 
   final int version;
   final List<LibraryItem> items;
+  late final _byId = {for (final item in items) item.id: item};
 
   /// Display order: the catalog's explicit list, then any category that only
   /// appears on items, in first-seen order.
@@ -207,10 +208,7 @@ class Catalog {
       items.where((i) => i.category == c).toList();
 
   LibraryItem? byId(String id) {
-    for (final i in items) {
-      if (i.id == id) return i;
-    }
-    return null;
+    return _byId[id];
   }
 
   /// Overlays [other] (the downloaded catalog) on this bundled one.

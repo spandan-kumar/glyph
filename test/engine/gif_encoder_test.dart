@@ -188,6 +188,25 @@ void _expectExact(DecodedGif g, List<Frame> frames, List<int> delays) {
 }
 
 void main() {
+  test(
+    'device clips preserve long holds without exceeding one second per frame',
+    () {
+      final red = Frame(2, 2)..fill(0xff0000);
+      final blue = Frame(2, 2)..fill(0x0000ff);
+      for (final hold in [101, 102, 250, 6000]) {
+        final decoded = decodeTestGif(
+          encodeDeviceClip([red, blue], [hold, 10]),
+        );
+        expect(decoded.delays.fold(0, (a, b) => a + b), hold + 10);
+        expect(
+          decoded.delays.every((d) => d >= 2 && d <= deviceMaxFrameCs),
+          isTrue,
+        );
+        expect(decoded.frames.first, red.rgb);
+        expect(decoded.frames.last, blue.rgb);
+      }
+    },
+  );
   test('round-trips frames exactly with one global table', () {
     final frames = _movingDot();
     final delays = List.filled(frames.length, 5);

@@ -116,7 +116,9 @@ class TuneController extends ChangeNotifier {
     if (_shuffling || catalog.items.isEmpty) return;
     final picks = surprisePicks(catalog, _random, avoid: playback.item?.generatorId);
     if (picks.isEmpty) return;
-    final reel = surprisePicks(catalog, _random, count: 12);
+    // The fast reel uses local looks; only its final selection may download.
+    final reel = surprisePicks(
+      Catalog(items: catalog.items.where((i) => i.asset == null).toList()), _random, count: 12);
     // Gaps between reel stops; ~735 ms in all.
     const steps = [40, 45, 50, 60, 70, 85, 105, 130, 150];
     _shuffling = true;
@@ -125,7 +127,7 @@ class TuneController extends ChangeNotifier {
     var k = 0;
     void step() {
       if (!context.mounted) return _cancelShuffle();
-      if (k < steps.length) {
+      if (k < steps.length && reel.isNotEmpty) {
         playback.playItem(reel[k % max(1, reel.length)]);
         HapticFeedback.selectionClick();
         _shuffleTimer = Timer(Duration(milliseconds: steps[k++]), step);

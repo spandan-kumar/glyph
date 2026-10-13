@@ -1,6 +1,6 @@
 # Glyph privacy policy
 
-*Effective 11 October 2026. Applies to Glyph 1.4.0.*
+*Updated 13 October 2026 for builds including the imported collection.*
 
 Glyph is a free, open-source (MIT) app that draws on your WLED LED display.
 It has **no account, no ads, no analytics, no tracking and no Glyph server**.
@@ -17,6 +17,7 @@ Everything below is checked against the source code, which you can read at
 | Phone clock and time zone | **Your own WLED device** | Automatically after setup and when you add a device, or when you tap Set the time | Automatic (only to your device) |
 | Place name you type, or the places you saved (coordinates) | **Open-Meteo** (weather and air quality) | When you use Weather or Air quality | Yes |
 | A request for the animation list (your IP address, like any web request) | **GitHub Pages** (`spandan-kumar.github.io`) | When you check for new animations; automatic daily checks are **off** until you turn them on | Yes |
+| A request for a imported animation file (your IP address and the requested file) | **GitHub Pages** (`spandan-kumar.github.io`) | When an uncached thumbnail becomes visible, you pick an animation, or you start a Rotation containing it | Yes |
 | A bug report, idea or request you choose to file | **GitHub** (a web page opened in your browser) | Only when you tap a feedback item and press Submit there | Yes |
 | Chat invite | **Discord** (opens in your browser) | Only when you tap the link | Yes |
 | Glyph app updates | **GitHub Releases** or your update app (for example Obtainium) | Only if you update that way. The app does not check for updates by itself | Yes |
@@ -74,6 +75,15 @@ address and the request, as with any website. A check runs when you tap it, or
 daily if you turn on automatic checks (off by default). Downloaded
 animations are cached on your phone.
 
+Builds with the imported collection also include its full animation list.
+The animation files download from the same GitHub Pages host as you browse
+visible thumbnails, pick an animation, or start a Rotation that uses one.
+Each file is checked against the hash included in the app. Cached files can
+play offline, and old files may be removed to limit storage. No account or
+identifier is sent. **Glyph does not contact imported's API or image host.**
+Browsing and playing the existing offline collection requires no such
+downloads.
+
 ### Feedback
 **Device → Send feedback** does not send anything by itself. It opens your
 browser to a pre-filled GitHub issue form. Nothing is submitted until you
@@ -123,7 +133,7 @@ page comes from your device on your local network.
 
 Saved devices (name and address), your creations, favourites, recents, saved
 places, high scores, which apps you chose for alerts, preferences (such as
-the automatic-check switch), the downloaded catalog cache, and a few
+the automatic-check switch), the downloaded catalog and animation-file caches, and a few
 settings for the home-screen widget (device name, address and on/off state).
 It stays in Glyph's private storage on your phone. The last error message is
 kept in memory only and is gone when the app closes. Android may include app

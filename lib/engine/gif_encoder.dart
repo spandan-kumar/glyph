@@ -10,6 +10,30 @@ import 'led_gamma.dart';
 // rectangle with unchanged pixels transparent. Spec references are to
 // https://www.w3.org/Graphics/GIF/spec-gif89a.txt.
 
+/// Preserve imported holds while keeping every device GIF frame at ≤1 s.
+Uint8List encodeDeviceClip(List<Frame> frames, List<int> delays) {
+  if (frames.isEmpty || frames.length != delays.length) {
+    throw ArgumentError('Expected a delay for every clip frame');
+  }
+  final expanded = <Frame>[], waits = <int>[];
+  for (var i = 0; i < frames.length; i++) {
+    var left = delays[i].clamp(2, 65535);
+    while (left > deviceMaxFrameCs) {
+      final wait = left == deviceMaxFrameCs + 1
+          ? deviceMaxFrameCs - 1
+          : deviceMaxFrameCs;
+      expanded.add(frames[i]);
+      waits.add(wait);
+      left -= wait;
+      checkBakeSize(frames.first.width, frames.first.height, expanded.length);
+    }
+    expanded.add(frames[i]);
+    waits.add(left);
+    checkBakeSize(frames.first.width, frames.first.height, expanded.length);
+  }
+  return encodeGif(expanded, waits, forLeds: true);
+}
+
 /// Encodes [frames] (all the same size) as an infinitely looping GIF.
 /// [delays] holds one delay per frame in centiseconds.
 ///

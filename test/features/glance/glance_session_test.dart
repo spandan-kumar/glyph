@@ -13,12 +13,17 @@ import 'package:glyph/features/glance/glance_generator.dart';
 import 'package:glyph/features/glance/glance_session.dart';
 import 'package:glyph/features/notifications/notification_logo.dart';
 import 'package:glyph/library/catalog.dart';
+import 'package:glyph/engine/clip_asset.dart';
+import 'package:glyph/library/clip_asset_store.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:glyph/wled/ddp_group.dart';
 import 'package:glyph/wled/device.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../device/fake_wled.dart';
 import 'glance_generator_test.dart' show Solid;
+import '../../library/clip_asset_fixture.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -157,6 +162,72 @@ void main() {
     expect(playback.generator, same(manual));
     expect(playback.isStreaming, false);
   });
+  for (final switchDevice in [false, true]) {
+    test(
+      'pending rotation clip cannot replace ${switchDevice ? 'a new device' : 'manual playback'}',
+      () async {
+        final (asset, bytes) = clipFixture();
+        ClipAssetLibrary.clearCache();
+        ClipAssetLibrary.register([asset]);
+        session.catalog = Catalog(
+          items: [
+            LibraryItem(
+              id: 'clip-item',
+              title: asset.title,
+              category: 'imported',
+              generatorId: asset.id,
+              paletteId: 'rainbow',
+            ),
+          ],
+        );
+        final gate = Completer<void>(), entered = Completer<void>();
+        final previous = ClipAssetStore.shared;
+        final clips = ClipAssetStore(
+          cacheDir: () async => dir,
+          client: MockClient((_) async {
+            entered.complete();
+            await gate.future;
+            return http.Response.bytes(bytes, 200);
+          }),
+        );
+        ClipAssetStore.shared = clips;
+        addTearDown(() {
+          ClipAssetStore.shared = previous;
+          clips.close();
+          ClipAssetLibrary.clearCache();
+        });
+        final show = PhoneShow(
+          id: 'remote',
+          title: 'Remote',
+          entries: [
+            const PhoneShowEntry(
+              ShowEntryKind.library,
+              'clip-item',
+              seconds: 3,
+            ),
+          ],
+        );
+        final starting = session.start(session.showGenerator(show));
+        await entered.future;
+        if (switchDevice) {
+          await devices.select(
+            const SavedDevice(host: '127.0.0.2', name: 'Other'),
+          );
+        } else {
+          playback.playGenerator(
+            NotificationLogoGenerator(NotificationLogo.fallback),
+          );
+        }
+        fake.posts.clear();
+        final active = playback.generator;
+        gate.complete();
+        expect(await starting, false);
+        expect(playback.generator, same(active));
+        expect(playback.isStreaming, false);
+        expect(fake.posts, isEmpty);
+      },
+    );
+  }
   test(
     'Show instance and timing pause during an alert and resume after it',
     () async {

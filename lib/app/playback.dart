@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../engine/frame.dart';
+import '../engine/clip_asset.dart';
 import '../engine/generator.dart';
 import '../engine/palette.dart';
 import '../engine/registry.dart';
 import '../library/catalog.dart';
+import '../library/clip_asset_store.dart';
 import '../wled/ddp_group.dart';
 import '../wled/layout.dart';
 
@@ -14,8 +16,12 @@ import '../wled/layout.dart';
 /// frame for previews, and streams frames over DDP to the selected device and
 /// any mirrored matrices (each scaled to its own size).
 class PlaybackController extends ChangeNotifier {
-  PlaybackController({int width = 16, int height = 16})
+  PlaybackController({int width = 16, int height = 16, this.clipAssets})
       : _frame = Frame(width, height);
+  final ClipAssetStore? clipAssets;
+  int _pick = 0;
+  String? loadingTitle;
+  String? loadError;
 
   static const fps = 40;
 
@@ -163,13 +169,58 @@ class PlaybackController extends ChangeNotifier {
   /// Extra matrices that [startStreaming] mirrors to.
   List<DdpTarget> get mirrors => _mirrors;
 
-  void playItem(LibraryItem item) {
+  Future<bool> playItem(LibraryItem item, {bool Function()? canPlay}) {
+    final pick = ++_pick;
+    loadingTitle = null;
+    loadError = null;
+    final generator = generatorById(item.generatorId);
+    if (generator is AssetClipGenerator) {
+      return _loadItem(item, generator, pick, canPlay);
+    }
     _item = item;
     _timeScale = item.speed ?? 1;
-    _play(generatorById(item.generatorId), item.params, paletteById(item.paletteId));
+    _play(generator, item.params, paletteById(item.paletteId));
+    return Future.value(true);
+  }
+
+  Future<bool> _loadItem(
+    LibraryItem item,
+    AssetClipGenerator generator,
+    int pick,
+    bool Function()? canPlay,
+  ) async {
+    _revision++;
+    loadingTitle = item.title;
+    notifyListeners();
+    try {
+      final clip = await (clipAssets ?? ClipAssetStore.shared).load(
+        generator.asset,
+      );
+      if (_disposed || pick != _pick) return false;
+      if (canPlay != null && !canPlay()) {
+        loadingTitle = null;
+        notifyListeners();
+        return false;
+      }
+      loadingTitle = null;
+      _item = item;
+      _timeScale = item.speed ?? 1;
+      _play(generator.loaded(clip), item.params, paletteById(item.paletteId));
+      return true;
+    } catch (_) {
+      if (!_disposed && pick == _pick) {
+        loadingTitle = null;
+        loadError = 'Couldn’t load this animation. Check your internet connection and try again.';
+        notifyListeners();
+      }
+      return false;
+    }
   }
 
   void playGenerator(Generator g) {
+    _pick++;
+    loadingTitle = null;
+    loadError = null;
     _item = null;
     _timeScale = 1;
     _play(g, const {}, paletteById(g.defaultPalette));
@@ -258,6 +309,8 @@ class PlaybackController extends ChangeNotifier {
   }
 
   void pause() {
+    _pick++;
+    loadingTitle = null;
     endAlert(notify: false);
     _revision++;
     _playing = false;
@@ -268,6 +321,8 @@ class PlaybackController extends ChangeNotifier {
   /// Stops the render loop and forgets what was playing, leaving nothing on
   /// the phone. Streaming is separate (see [stopStreaming]).
   void stop() {
+    _pick++;
+    loadingTitle = null;
     endAlert(notify: false);
     _revision++;
     _playing = false;
