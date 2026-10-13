@@ -122,7 +122,7 @@ const moods = ['cozy', 'spooky', 'space', 'party', 'calm', 'retro', 'love', 'nat
 const classicCategories = {'Classic Cartoons', 'Storybook', 'Monsters & Legends', 'Masterpieces'};
 
 /// Categories that already have their own named rail.
-const _railCategories = {...classicCategories, 'Chill', 'Party', 'Space', 'Community'};
+const _railCategories = {...classicCategories, 'Chill', 'Party', 'Space', 'Community', 'Pipplee'};
 
 /// A part of the day, with tags that suit it.
 class Daypart {
@@ -202,6 +202,8 @@ class CatalogChannels {
       make('community', 'Community', c.inCategory('Community'), limit: 30),
       make('classics', 'Famous Classics', c.items.where((i) => classicCategories.contains(i.category)), limit: 30),
       make('pals', 'Pixel Pals', union(cute, sprites), limit: 30),
+      make('pipplee', 'Pipplee', c.inCategory('Pipplee'), limit: 30,
+          note: 'Shared with permission · download once, play offline'),
       make('calm', 'Calm', union(c.inCategory('Chill'), c.tagged(['calm']))),
       make('party', 'Party', union(c.inCategory('Party'), c.tagged(['party']))),
       make('space', 'Space', union(c.inCategory('Space'), c.tagged(['space']))),

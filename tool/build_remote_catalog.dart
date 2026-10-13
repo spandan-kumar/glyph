@@ -15,6 +15,8 @@ import 'package:glyph/engine/generators/sprite.dart';
 import 'package:glyph/library/catalog_key.dart';
 import 'package:glyph/library/catalog_manifest.dart';
 import 'package:glyph/library/remote_catalog.dart';
+import 'package:glyph/library/pipplee_collection.dart';
+import 'package:glyph/engine/clip_asset.dart';
 
 /// Site layout: relative path -> bytes.
 typedef Site = Map<String, Uint8List>;
@@ -375,6 +377,38 @@ Future<void> main(List<String> args) async {
       File('${output.path}/${e.key}')
         ..createSync(recursive: true)
         ..writeAsBytesSync(e.value);
+    }
+    // The bundled collection index pins every clip independently. Keep these
+    // assets on the site for both publication and rollback; never put them
+    // into the signed sprite payload or the APK.
+    final collectionFile = File(pippleeIndexAsset);
+    if (collectionFile.existsSync()) {
+      final collection = parsePippleeCollection(
+        collectionFile.readAsStringSync(),
+      );
+      final copied = <String>{};
+      for (final item in collection.items) {
+        final asset = ClipAssetLibrary.byId(item.generatorId)!.asset;
+        if (!copied.add(asset.sha256)) continue;
+        final bytes = File('catalog_assets/pipplee/${asset.sha256}.clip.gz')
+            .readAsBytesSync();
+        if (bytes.length != asset.bytes ||
+            CatalogManifest.sha256Hex(bytes) != asset.sha256) {
+          throw FormatException(
+            'Collection asset verification failed: ${item.id}',
+          );
+        }
+        File('${output.path}/${asset.path}')
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(bytes);
+      }
+      for (final name in ['NOTICE', 'provenance.json']) {
+        File('catalog_assets/pipplee/$name')
+            .copySync('${output.path}/collections/pipplee/$name');
+      }
+      stdout.writeln(
+        'Collection: ${collection.items.length} IDs; ${copied.length} verified clip files.',
+      );
     }
     final payload = publication.files[publication.manifest.payload]!;
     final result = RemoteCatalog.parse(utf8.decode(payload))!;

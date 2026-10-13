@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../engine/frame.dart';
+import '../../engine/clip_asset.dart';
 import '../../engine/generator.dart';
 import '../../engine/palette.dart';
 import '../../engine/registry.dart';
 import '../../library/catalog.dart';
+import '../../library/clip_asset_store.dart';
+import '../design/parts.dart';
 import '../design/tokens.dart';
 import 'led_matrix_view.dart';
 import 'preview_visibility.dart';
@@ -97,6 +102,9 @@ class _LivePreviewState extends State<LivePreview> {
 
   late Frame _frame;
   late EffectInstance _instance;
+  late Generator _generator;
+  bool _assetReady = true, _assetLoading = false, _assetFailed = false;
+  int _assetRequest = 0;
   late Params _params;
   late Palette _palette;
   late double _speed;
@@ -121,6 +129,12 @@ class _LivePreviewState extends State<LivePreview> {
   void _setup() {
     final item = widget.item;
     final g = item != null ? generatorById(item.generatorId) : widget.generator!;
+    _generator = g;
+    _assetRequest++;
+    _assetLoading = _assetFailed = false;
+    _assetReady =
+        g is! AssetClipGenerator ||
+        ClipAssetLibrary.cached(g.asset.sha256) != null;
     _frame = Frame(widget.size, widget.size);
     _instance = g.create(widget.size, widget.size, widget._id.hashCode);
     _params = Params.defaultsFor(g, item?.params ?? widget.params);
@@ -142,6 +156,50 @@ class _LivePreviewState extends State<LivePreview> {
     if (since < _interval) return;
     if (Scrollable.recommendDeferredLoadingForContext(context)) return;
     if (!PreviewBudget.take(context)) return;
+    if (!_assetReady &&
+        _generator is AssetClipGenerator &&
+        ClipAssetLibrary.cached(
+              (_generator as AssetClipGenerator).asset.sha256,
+            ) !=
+            null) {
+      setState(() {
+        _assetReady = true;
+        _assetFailed = false;
+      });
+    }
+    if (!_assetReady &&
+        !_assetLoading &&
+        !_assetFailed &&
+        _generator is AssetClipGenerator) {
+      final request = _assetRequest;
+      final asset = (_generator as AssetClipGenerator).asset;
+      setState(() => _assetLoading = true);
+      unawaited(
+        ClipAssetStore.shared
+            .load(asset)
+            .then(
+              (clip) {
+                if (mounted && request == _assetRequest) {
+                  _instance = (_generator as AssetClipGenerator)
+                      .loaded(clip)
+                      .create(widget.size, widget.size, widget._id.hashCode);
+                  setState(() {
+                    _assetReady = true;
+                    _assetLoading = false;
+                  });
+                }
+              },
+              onError: (Object _) {
+                if (mounted && request == _assetRequest) {
+                  setState(() {
+                    _assetLoading = false;
+                    _assetFailed = true;
+                  });
+                }
+              },
+            ),
+      );
+    }
     final dt = (since.inMicroseconds / 1e6).clamp(0.0, 0.1) * _speed;
     _last = elapsed;
     _t += dt;
@@ -158,10 +216,27 @@ class _LivePreviewState extends State<LivePreview> {
   }
 
   @override
-  Widget build(BuildContext context) => LedMatrixView(
+  Widget build(BuildContext context) {
+    final preview = LedMatrixView(
           frame: _frame,
           repaint: _tick,
           borderRadius: widget.borderRadius,
           bezel: widget.bezel,
       );
+    if (_assetReady) return preview;
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        preview,
+        if (_assetLoading)
+          const LedSpinner(size: 16, color: Lb.text3)
+        else
+          Icon(
+            _assetFailed ? Icons.cloud_off_sharp : Icons.download_sharp,
+            size: 16,
+            color: Lb.text3,
+          ),
+      ],
+    );
+  }
 }

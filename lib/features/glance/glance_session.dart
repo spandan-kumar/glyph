@@ -7,10 +7,12 @@ import '../../app/creations.dart';
 import '../../app/devices.dart';
 import '../../app/playback.dart';
 import '../../engine/clip.dart';
+import '../../engine/clip_asset.dart';
 import '../../engine/generator.dart';
 import '../../engine/palette.dart';
 import '../../engine/registry.dart';
 import '../../library/catalog.dart';
+import '../../library/clip_asset_store.dart';
 import 'air_quality_service.dart';
 import 'glance_generator.dart';
 import 'glance_model.dart';
@@ -112,6 +114,48 @@ class GlanceSession extends ChangeNotifier with WidgetsBindingObserver {
         control = devices.controlGeneration,
         target = devices.selected!,
         caps = devices.caps!;
+    // Rotations prepare their referenced clips before touching playback.
+    if (generator is PhoneShowGenerator) {
+      final original = generator;
+      final prepared = <String, Generator>{};
+      try {
+        for (final entry in generator.show.entries) {
+          if (entry.kind != ShowEntryKind.library) continue;
+          final item = catalog.byId(entry.id);
+          final g = item == null ? null : findGenerator(item.generatorId);
+          if (g is AssetClipGenerator) {
+            final clip = await ClipAssetStore.shared.load(g.asset);
+            prepared[entry.id] = g.loaded(clip);
+          }
+        }
+      } catch (_) {
+        return false;
+      }
+      if (_disposed ||
+          request != _request ||
+          playback.revision != revision ||
+          !devices.isCurrent(client, selection) ||
+          devices.controlGeneration != control) {
+        return false;
+      }
+      if (prepared.isNotEmpty) {
+        // Rotations keep their selected clips alive independently of the LRU.
+        generator = PhoneShowGenerator(original.show, (entry) {
+          final look = original.resolve(entry),
+              clip = entry.kind == ShowEntryKind.library
+                  ? prepared[entry.id]
+                  : null;
+          if (look == null || clip == null) return look;
+          return ShowLook(
+            clip,
+            params: look.params,
+            palette: look.palette,
+            speed: look.speed,
+            available: look.available,
+          );
+        }, now: original.now);
+      }
+    }
     if (playback.isStreaming &&
         !playback.streamingHosts.contains(target.host)) {
       await playback.stopStreaming();

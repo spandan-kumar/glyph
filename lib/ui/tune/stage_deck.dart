@@ -104,6 +104,19 @@ class StageDeck extends StatelessWidget {
               child: _Caption(onTweak: onTweak, morph: morph, anchors: anchors),
             ),
             const SizedBox(height: 14),
+            if (playback.loadingTitle case final title?)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Lb.gutter, 0, Lb.gutter, 12),
+                child: Row(
+                  children: [
+                    const LedSpinner(size: 16, color: Lb.text3),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Loading $title…', style: LbType.small),
+                    ),
+                  ],
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Lb.gutter),
               child: leaves(
@@ -352,7 +365,7 @@ class _Transport extends StatelessWidget {
                   state: keepState,
                   accent: canSend ? accent : null,
                   dim: !canSend,
-                  onTap: keepState == KeepState.beaming || keepState == KeepState.checking ? null : onKeep,
+                  onTap: scope.playback.loadingTitle != null || keepState == KeepState.beaming || keepState == KeepState.checking ? null : onKeep,
                 ),
               ),
             ),
@@ -413,6 +426,7 @@ class SquareKey extends StatelessWidget {
 
 /// Whether Send can put the playing look on the connected device.
 bool canSendNow(AppScope scope) =>
+    scope.playback.loadingTitle == null &&
     scope.devices.isConnected &&
     (scope.devices.caps?.canPlayGifs ?? false) &&
     !(scope.playback.generator?.liveOnly ?? true);

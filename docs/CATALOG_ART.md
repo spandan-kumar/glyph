@@ -1,5 +1,10 @@
 # Artist collection
 
+The separately permitted 12,361-entry Pipplee collection is documented in
+[Pipplee collection](PIPPLEE_COLLECTION.md), including its permission record,
+credit, source ledger and delivery. The CC0 records below apply to these
+four creator-published packs.
+
 Content revision 4 adds 27 animations from four creator-published CC0 packs.
 Each animation gets one catalogue entry and an artist credit in its details.
 The imports preserve original colours; they do not add palette variants or
