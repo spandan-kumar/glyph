@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
+import 'package:glyph/engine/clip.dart';
 import 'package:glyph/features/import/crop_editor.dart';
 import 'package:glyph/features/import/decode.dart';
 import 'package:glyph/features/import/import_screen.dart';
@@ -152,6 +153,86 @@ void main() {
 
     playback.pause();
     // Unmount so the preview ticker and timers stop before the test ends.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('for a drawing: same tuning at the drawing size, Use in drawing returns the frames',
+      timeout: const Timeout(Duration(seconds: 60)), (tester) async {
+    tester.view.physicalSize = const Size(360, 740) * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    ImportScreen.runner = <Q, R>(cb, Q q) async => cb(q);
+
+    final playback = PlaybackController();
+    addTearDown(playback.dispose);
+    final dir = Directory.systemTemp.createTempSync('glyph_import');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final creations = CreationsStore(directory: () async => dir);
+    final catalog = Catalog.parse(File('assets/catalog/starter.json').readAsStringSync());
+    FrameClip? picked;
+
+    await tester.pumpWidget(AppScope(
+      playback: playback,
+      devices: DeviceStore(),
+      catalog: catalog,
+      creations: creations,
+      child: AmbientHost(
+        playback: playback,
+        child: MaterialApp(
+          theme: buildTheme(),
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async => picked = await Navigator.of(context).push<FrameClip>(
+                MaterialPageRoute(
+                  builder: (_) => ImportScreen(
+                    initialSource: _gradientClip(),
+                    initialName: 'gradient',
+                    drawingSize: (8, 8),
+                  ),
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Start from a picture'), findsOneWidget);
+    // The drawing decides the size; GIF size and device room don't apply.
+    expect(find.text('8×8'), findsOneWidget);
+    expect(find.byTooltip('Device size'), findsNothing);
+    expect(find.textContaining('GIF ≈'), findsNothing);
+    // Every adjustment is still there.
+    expect(find.text('FRAME'), findsOneWidget);
+    expect(find.text('Fill'), findsOneWidget);
+    expect(find.byTooltip('Rotate'), findsOneWidget);
+    // One way out: into the drawing. No Save, Send, Play or Share here.
+    expect(find.text('Send to device'), findsNothing);
+    expect(find.text('Save'), findsNothing);
+    expect(find.byTooltip('Show on device'), findsNothing);
+    expect(find.byTooltip('Share'), findsNothing);
+
+    await tester.ensureVisible(find.text('Fit'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Fit'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Start from a picture'), findsOneWidget);
+    await tester.tap(find.text('Use in drawing'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(picked, isNotNull);
+    expect((picked!.width, picked!.height), (8, 8));
+    expect(picked!.frames.length, 6);
+    expect(playback.generator, isNull);
+    expect(creations.items, isEmpty);
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 5));
   });

@@ -8,11 +8,13 @@ import '../../engine/clip.dart';
 import '../../engine/frame.dart';
 import '../../ui/actions.dart';
 import '../../ui/design/parts.dart';
+import '../../ui/design/route.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
 import '../../ui/make/studio_kit.dart';
 import '../../ui/make/tool_session.dart';
 import '../../ui/scope.dart';
+import '../import/import_screen.dart';
 import 'color_picker.dart';
 import 'editor_canvas.dart';
 import 'editor_model.dart';
@@ -254,9 +256,10 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
     setState(() => _saving = false);
   }
 
-  Future<void> _newDrawing() async {
-    if (_model?.isDirty ?? false) {
-      final ok = await showDialog<bool>(
+  /// Asks before unsaved changes are thrown away by a new start.
+  Future<bool> _okToReplace() async {
+    if (!(_model?.isDirty ?? false)) return true;
+    final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text('Start a new drawing?', style: LbType.title),
@@ -267,8 +270,11 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
           ],
         ),
       );
-      if (ok != true) return;
-    }
+    return ok == true && mounted;
+  }
+
+  Future<void> _newDrawing() async {
+    if (!await _okToReplace()) return;
     _stopPreview();
     final old = _model;
     setState(() {
@@ -277,6 +283,16 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
       _title = null;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => old?.dispose());
+  }
+
+  /// Opens Bring a GIF's crop and colour controls at [size]; the picture it
+  /// hands back becomes a new drawing (every frame of a GIF) to draw over.
+  Future<void> _fromPicture((int, int) size) async {
+    if (!await _okToReplace() || !mounted) return;
+    final clip = await Navigator.of(context)
+        .push<FrameClip>(lbRoute((_) => ImportScreen(drawingSize: size)));
+    if (clip == null || !mounted) return;
+    _start(EditorModel.fromClip(clip));
   }
 
   /// Offers to save unsaved changes. Returns whether it's fine to leave;
@@ -357,6 +373,7 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
                 ? (caps.width, caps.height)
                 : null,
             onStart: _start,
+            onPicture: _fromPicture,
           ),
         ),
       );
@@ -413,6 +430,8 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
                     _rename();
                   case 'clear':
                     m.clearFrame();
+                  case 'picture':
+                    _fromPicture((m.width, m.height));
                   case 'new':
                     _newDrawing();
                 }
@@ -431,6 +450,10 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
                     value: 'clear',
                     child: ListTile(
                         leading: Icon(Icons.layers_clear_sharp), title: Text('Clear frame'))),
+                const PopupMenuItem(
+                    value: 'picture',
+                    child: ListTile(
+                        leading: Icon(Icons.add_photo_alternate_sharp), title: Text('Start from a picture'))),
                 const PopupMenuItem(
                     value: 'new',
                     child: ListTile(leading: Icon(Icons.note_add_sharp), title: Text('New drawing'))),
