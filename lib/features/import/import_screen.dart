@@ -32,13 +32,20 @@ typedef ImportRunner = Future<R> Function<Q, R>(ComputeCallback<Q, R> callback, 
 
 /// Create → Import: pick a GIF/image (or a `.glyph` file), crop and tune it
 /// for the matrix, then play, save or upload it.
+///
+/// With [drawingSize] it's Draw's "Start from a picture": the same crop and
+/// tuning at the drawing's size, ending in "Use in drawing", which pops the
+/// finished [FrameClip] for the editor.
 class ImportScreen extends StatefulWidget {
-  const ImportScreen({super.key, this.initialSource, this.initialName});
+  const ImportScreen({super.key, this.initialSource, this.initialName, this.drawingSize});
 
   /// Opens the editor on an already-decoded source (tests, other features).
   @visibleForTesting
   final DecodedSource? initialSource;
   final String? initialName;
+
+  /// The drawing's width and height when picking a picture for Draw.
+  final (int, int)? drawingSize;
 
   @visibleForTesting
   static ImportRunner runner = compute;
@@ -109,7 +116,11 @@ class _ImportScreenState extends State<ImportScreen>
     super.dispose();
   }
 
+  bool get _forDrawing => widget.drawingSize != null;
+
   (int, int) get _target {
+    final drawing = widget.drawingSize;
+    if (drawing != null) return drawing;
     final caps = AppScope.of(context).devices.caps;
     return caps != null && caps.width > 0 && caps.height > 0
         ? (caps.width, caps.height)
@@ -149,6 +160,7 @@ class _ImportScreenState extends State<ImportScreen>
       final bytes = await f.readAsBytes();
       final ext = f.extension?.toLowerCase();
       if (ext == glyphFileExtension || ext == 'json' || (bytes.isNotEmpty && bytes[0] == 0x7B)) {
+        if (_forDrawing) throw const ImportException('That\'s a Glyph file. Pick a GIF or a picture.');
         await _importGlyph(bytes);
         return;
       }
@@ -441,6 +453,14 @@ class _ImportScreenState extends State<ImportScreen>
     }
   }
 
+  /// Draw's "Start from a picture": hands the frames back to the editor.
+  Future<void> _useInDrawing() async {
+    HapticFeedback.lightImpact();
+    final clip = await _finalClip();
+    if (clip == null || !mounted) return;
+    Navigator.of(context).pop(clip);
+  }
+
   Future<void> _share({required bool gif}) async {
     final clip = await _finalClip();
     if (clip == null || !mounted) return;
@@ -471,7 +491,7 @@ class _ImportScreenState extends State<ImportScreen>
           });
         }
         return StudioScaffold(
-          title: 'Bring a GIF',
+          title: _forDrawing ? 'Start from a picture' : 'Bring a GIF',
           actions: [
             if (_src != null) ...[
               IconButton(
@@ -480,7 +500,7 @@ class _ImportScreenState extends State<ImportScreen>
                 icon: const Icon(Icons.folder_open_sharp),
                 onPressed: _loading ? null : () => _pick(anyFile: false),
               ),
-              PopupMenuButton<String>(
+              if (!_forDrawing) PopupMenuButton<String>(
                 tooltip: 'Share',
                 shape: studioMenuShape,
                 style: studioIconStyle,
@@ -518,11 +538,17 @@ class _ImportScreenState extends State<ImportScreen>
             ),
           ),
           const SizedBox(height: 24),
-          Text('Bring a GIF or a picture', textAlign: TextAlign.center, style: LbType.title),
+          Text(
+            _forDrawing ? 'Start from a picture' : 'Bring a GIF or a picture',
+            textAlign: TextAlign.center,
+            style: LbType.title,
+          ),
           const SizedBox(height: 8),
           Text(
-            'GIF, PNG, JPEG, WebP or BMP. Animations keep their timing. '
-            'Glyph files from friends open here too.',
+            _forDrawing
+                ? 'GIF, PNG, JPEG, WebP or BMP. Crop it and tune the colours, then draw over it.'
+                : 'GIF, PNG, JPEG, WebP or BMP. Animations keep their timing. '
+                      'Glyph files from friends open here too.',
             textAlign: TextAlign.center,
             style: LbType.body.copyWith(color: Lb.text2),
           ),
@@ -841,7 +867,7 @@ class _ImportScreenState extends State<ImportScreen>
             style: LbType.small,
           ),
         ),
-        if (connected)
+        if (connected || _forDrawing)
           Text('$tw×$th', style: LbType.mono.copyWith(color: Lb.text))
         else
           PopupMenuButton<(int, int)>(
@@ -873,6 +899,9 @@ class _ImportScreenState extends State<ImportScreen>
     final notes = <String>[
       if (src.wasSampled) 'long animation sampled to ${src.frameCount} frames',
     ];
+    if (_forDrawing) {
+      return notes.isEmpty ? const SizedBox.shrink() : _line(notes.join(' · '), Lb.text3, const []);
+    }
     if (!_fresh) {
       return _line('Estimating GIF size…', Lb.text3, notes);
     }
@@ -978,6 +1007,21 @@ class _ImportScreenState extends State<ImportScreen>
 
   Widget _actionBar() {
     final secondary = OutlinedButton.styleFrom(minimumSize: const Size(0, Lb.touch));
+    if (_forDrawing) {
+      return SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          decoration: const BoxDecoration(color: Lb.panel, border: Border(top: Lb.hairline)),
+          child: FilledButton.icon(
+            style: studioCtaStyle,
+            onPressed: _useInDrawing,
+            icon: const Icon(Icons.brush_sharp),
+            label: const Text('Use in drawing'),
+          ),
+        ),
+      );
+    }
     return SafeArea(
       top: false,
       child: Container(

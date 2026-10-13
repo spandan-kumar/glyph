@@ -11,6 +11,7 @@ import 'package:glyph/engine/frame.dart';
 import 'package:glyph/features/editor/color_picker.dart';
 import 'package:glyph/features/editor/editor_canvas.dart';
 import 'package:glyph/features/editor/editor_screen.dart';
+import 'package:glyph/features/import/import_screen.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/actions.dart';
 import 'package:glyph/ui/make/tool_session.dart';
@@ -137,6 +138,41 @@ void main() {
 
     expect(tester.takeException(), isNull);
     playback.pause();
+  });
+
+  testWidgets('starts from a picture at the chosen size, from the picker or the menu', (tester) async {
+    await pumpEditor(tester, const EditorScreen());
+    await tester.tap(find.text('8×8'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Picture'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    final import = find.byType(ImportScreen);
+    expect(tester.widget<ImportScreen>(import).drawingSize, (8, 8));
+    expect(find.text('Start from a picture'), findsWidgets);
+
+    // The tuned picture comes back as the drawing, every frame of it.
+    Frame f(int c) => Frame(8, 8)..set(1, 2, c);
+    Navigator.of(tester.element(import))
+        .pop(FrameClip(width: 8, height: 8, frames: [f(0xFF0000), f(0x00FF00)], delaysMs: [100, 100]));
+    await tester.pump(const Duration(milliseconds: 500));
+    final m = state(tester).model!;
+    expect((m.width, m.height, m.frameCount, m.fps), (8, 8, 2, 10));
+    expect(m.frames[1].get(1, 2), 0x00FF00);
+
+    // From the menu, at the drawing's size; backing out keeps the drawing.
+    await tester.tap(find.byTooltip('More'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Start from a picture'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(tester.widget<ImportScreen>(find.byType(ImportScreen)).drawingSize, (8, 8));
+    Navigator.of(tester.element(find.byType(ImportScreen))).pop();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(identical(state(tester).model, m), isTrue);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('re-opens a saved drawing with its frames and fps', (tester) async {
