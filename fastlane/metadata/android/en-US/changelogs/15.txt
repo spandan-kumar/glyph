@@ -1,0 +1,2 @@
+• Games are now a full-screen gamepad: big labelled buttons placed for your thumbs, a swipe-or-tap pad for Snake and a drag strip for Pong and Brick Breaker.
+• Pause sits next to your score, and every control works with screen readers.

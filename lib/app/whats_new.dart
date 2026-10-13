@@ -4,6 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.3': [
+    'Games are a full-screen gamepad: big labelled buttons where your thumbs rest.',
+    'Snake: swipe or tap a side. Pong and Brick Breaker: drag anywhere on the strip.',
+  ],
   '1.4.2': [
     'Share a drawing with the community: open it in Make and tap Share with the community. After a quick review, everyone with Glyph can play it.',
     'Community on Display shows drawings people shared, with their names.',
