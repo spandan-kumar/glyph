@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
+import 'package:glyph/features/device/boot_intro.dart';
 import 'package:glyph/features/games/catalog.dart';
 import 'package:glyph/features/games/core/game.dart';
 import 'package:glyph/features/games/core/game_generator.dart';
@@ -19,6 +20,7 @@ import 'package:glyph/ui/widgets/led_matrix_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../ui/make/ambient_host.dart';
+import '../device/fake_wled.dart';
 
 class _StreamingPlayback extends PlaybackController {
   bool streaming = false;
@@ -47,6 +49,7 @@ void main() {
     GameDef def, {
     PlaybackController? playback,
     Size? displaySize,
+    DeviceStore? devices,
   }) async {
     tester.view.physicalSize = const Size(390, 844) * 2.625;
     tester.view.devicePixelRatio = 2.625;
@@ -59,7 +62,7 @@ void main() {
     await tester.pumpWidget(
       AppScope(
         playback: pb,
-        devices: DeviceStore(),
+        devices: devices ?? DeviceStore(),
         catalog: catalog,
         creations: CreationsStore(
           directory: () async => Directory.systemTemp.createTemp('glyph'),
@@ -95,6 +98,31 @@ void main() {
       ),
     );
   }
+
+  testWidgets('a switched-off device gets a thumbnail and a Turn on strip', (tester) async {
+    final wled = FakeWled();
+    BootIntro.autoInstall = false;
+    addTearDown(BootIntro.resetForTest);
+    final devices = DeviceStore(clientFactory: wled.client);
+    addTearDown(devices.dispose);
+    await tester.runAsync(() async {
+      await devices.addAndSelect('fake', 'Test device');
+      wled.state['on'] = false;
+      await devices.refreshState();
+    });
+    final pb = await pumpGame(tester, gameById('snake'), devices: devices);
+    expect(devices.isOn, isFalse);
+    expect(find.text('Your device is off'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Turn on'), findsOneWidget);
+    expect(tester.getSize(find.byType(LedMatrixView)), const Size(56, 56));
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Turn on'));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(wled.state['on'], isTrue);
+    pb.pause();
+  });
 
   testWidgets('phone-only play has a 56px thumbnail and Connect strip', (
     tester,

@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../../app/devices.dart';
 import '../../app/playback.dart';
 import '../../ui/actions.dart';
 import '../../ui/scope.dart';
+import '../../ui/tune/tune_screen.dart' show PowerKey;
 import '../../ui/design/parts.dart';
 import '../../ui/design/tokens.dart';
 import '../../ui/design/type.dart';
@@ -189,6 +191,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
   @override
   Widget build(BuildContext context) {
     final pb = _playback!;
+    final devices = AppScope.of(context).devices;
     final def = widget.def;
     return StudioScaffold(
       title: def.name,
@@ -215,9 +218,10 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
           padding: const EdgeInsets.fromLTRB(Lb.gutter, 0, Lb.gutter, 16),
           child: Column(children: [
             ListenableBuilder(
-              listenable: pb,
+              listenable: Listenable.merge([pb, devices]),
               builder: (context, _) => _Hud(
                 playback: pb,
+                onDevice: _onDevice(pb, devices),
                 score: _score,
                 best: max(_best, _newBest ? _score : 0),
                 status: _status,
@@ -230,12 +234,12 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
               ),
             ),
             ListenableBuilder(
-              listenable: pb,
-              builder: (context, _) => pb.isStreaming
+              listenable: Listenable.merge([pb, devices]),
+              builder: (context, _) => _onDevice(pb, devices)
                   ? const SizedBox.shrink()
-                  : const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: _PhoneOnlyStrip(),
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: _PhoneOnlyStrip(off: devices.isConnected && devices.isOn == false),
                     ),
             ),
             const SizedBox(height: 16),
@@ -375,6 +379,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver, ToolSe
 class _Hud extends StatelessWidget {
   const _Hud({
     required this.playback,
+    required this.onDevice,
     required this.score,
     required this.best,
     required this.paused,
@@ -384,6 +389,7 @@ class _Hud extends StatelessWidget {
   });
 
   final PlaybackController playback;
+  final bool onDevice;
   final int score, best;
   final String? status;
   final bool paused, over;
@@ -407,11 +413,11 @@ class _Hud extends StatelessWidget {
       final bestWidth = max(textWidth('BEST', LbType.label),
           textWidth('$best', LbType.title.copyWith(fontFeatures: _figures)));
       final scoreWidth = max(0.0, c.maxWidth - bestWidth - 68 -
-          (playback.isStreaming ? 0 : 68));
+          (onDevice ? 0 : 68));
       return SizedBox(
         height: 64,
         child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-          if (!playback.isStreaming) ...[
+          if (!onDevice) ...[
             SizedBox.square(
               dimension: 56,
               child: LedMatrixView(
@@ -465,8 +471,15 @@ class _Hud extends StatelessWidget {
   }
 }
 
+/// Whether the game is actually showing on the device: streaming to it and
+/// it isn't switched off. Otherwise the phone shows a small copy instead.
+bool _onDevice(PlaybackController pb, DeviceStore devices) => pb.isStreaming && devices.isOn != false;
+
 class _PhoneOnlyStrip extends StatelessWidget {
-  const _PhoneOnlyStrip();
+  const _PhoneOnlyStrip({required this.off});
+
+  /// The device is connected but switched off: offer to wake it.
+  final bool off;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -480,11 +493,11 @@ class _PhoneOnlyStrip extends StatelessWidget {
         child: Row(children: [
           const StatusDot(on: false),
           const SizedBox(width: 10),
-          Expanded(child: Text('Playing on your phone only', style: LbType.small)),
+          Expanded(child: Text(off ? 'Your device is off' : 'Playing on your phone only', style: LbType.small)),
           TextButton(
             style: TextButton.styleFrom(minimumSize: const Size(0, Lb.touch)),
-            onPressed: () => goToMatrix(context),
-            child: const Text('Connect'),
+            onPressed: () => off ? PowerKey.set(context, true) : goToMatrix(context),
+            child: Text(off ? 'Turn on' : 'Connect'),
           ),
         ]),
       );

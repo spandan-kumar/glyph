@@ -12,7 +12,7 @@ final gameDefs = <GameDef>[
     id: 'snake',
     name: 'Snake',
     blurb: 'Eat, grow, don\'t bite',
-    hint: 'Swipe anywhere or use the pad',
+    hint: 'Swipe or tap a side to turn',
     controls: Controls.dpad,
     options: const [('walls', 'Solid walls')],
     build: (w, h, s, demo, o) => Snake(w, h, s, demo: demo, wrap: !o.contains('walls')),
