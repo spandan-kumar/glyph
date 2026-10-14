@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Glyph is a free, open-source Android app for WLED LED matrices: 1,236 looks, a pixel editor, clocks, music, games and guided setup. No account.">
+<title>Glyph for WLED</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a dark room with one light source. Calm product page: each section
+   pairs a real phone screen with what the matrix does. The page glow follows
+   the little Stage, the way the app's room glows with the matrix.
+   Single dark look by design: it is Glyph's own. */
+:root {
+  --ink: #0B0A09;
+  --panel: #131210;
+  --raised: #1B1917;
+  --line: #2B2723;
+  --text: #F3EFE8;
+  --text2: #A39C91;
+  --text3: #6B655C;
+  --bezel: #050403;
+  --phosphor: #FFB547;
+  --amb: 255, 181, 71;
+  --display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --body: "Bricolage Grotesque", system-ui, -apple-system, sans-serif;
+  --mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --gutter: clamp(16px, 4.5vw, 48px);
+  --r: 2px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--ink); }
+body { margin: 0; background: var(--ink); color: var(--text); font: 400 17px/1.55 var(--body); font-variation-settings: "opsz" 14; overflow-x: hidden; }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(80% 60% at 70% 0%, rgba(var(--amb), .10), transparent 65%);
+  transition: background .8s;
+}
+main, header, footer { position: relative; z-index: 1; }
+a { color: inherit; }
+img { max-width: 100%; display: block; }
+:focus-visible { outline: 2px solid rgb(var(--amb)); outline-offset: 3px; }
+.wrap { max-width: 1180px; margin-inline: auto; padding-inline: var(--gutter); }
+.label { font: 500 11px/1.3 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text3); }
+
+/* nav */
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 18px; }
+.brand { display: flex; gap: 10px; align-items: center; text-decoration: none; }
+.brand svg { width: 26px; height: 26px; }
+.brand b { font: 700 19px/1 var(--display); font-variation-settings: "opsz" 48, "wdth" 90; }
+.nav nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.nav nav a { font: 500 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text2); text-decoration: none; padding: 12px 10px; border-radius: var(--r); }
+.nav nav a:hover { color: var(--text); }
+@media (max-width: 640px) { .nav nav a:not(.keep) { display: none; } }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 22px; border-radius: var(--r); font: 600 16px/1 var(--body); text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--raised); transition: border-color .18s, background .18s; }
+.btn:hover { border-color: var(--text3); }
+.btn.primary { background: var(--text); color: var(--ink); border-color: var(--text); }
+.btn.primary:hover { background: #fff; }
+.ctas { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+/* hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: clamp(28px, 5vw, 72px); align-items: center; padding-block: clamp(28px, 6vw, 88px) clamp(56px, 8vw, 112px); }
+.hero > * { min-width: 0; }
+h1 { margin: 14px 0 20px; font: 800 clamp(52px, 8.4vw, 124px)/.86 var(--display); font-variation-settings: "opsz" 96, "wdth" 80; letter-spacing: -.035em; text-wrap: balance; }
+h1 em { font-style: normal; color: rgb(var(--amb)); transition: color .8s; }
+.lede { margin: 0 0 28px; max-width: 46ch; color: var(--text2); font-size: clamp(17px, 1.5vw, 20px); text-wrap: pretty; }
+.meta { margin-top: 18px; }
+.media { position: relative; }
+.media .frame { aspect-ratio: 1; background: var(--bezel); border: 1px solid var(--line); border-radius: var(--r); padding: clamp(14px, 3vw, 28px); box-shadow: 0 0 0 10px #0E0D0B, 0 30px 120px -40px rgba(var(--amb), .55); }
+.media .frame img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.media figcaption { margin-top: 18px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+@media (max-width: 860px) { .hero { grid-template-columns: 1fr; } .media { max-width: 460px; } }
+
+/* sections */
+section { padding-block: clamp(64px, 9vw, 120px); border-top: 1px solid var(--line); }
+h2 { margin: 12px 0 18px; font: 780 clamp(38px, 5.4vw, 76px)/.92 var(--display); font-variation-settings: "opsz" 96, "wdth" 82; letter-spacing: -.03em; text-wrap: balance; }
+.copy p { color: var(--text2); max-width: 52ch; margin: 0; text-wrap: pretty; }
+.copy p + p { margin-top: 14px; }
+.facts { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 0; border-top: 1px solid var(--line); max-width: 52ch; }
+.facts li { padding: 12px 0; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 9ch minmax(0, 1fr); gap: 16px; color: var(--text2); font-size: 15px; }
+.facts li b { font: 500 12px/1.9 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text); font-variant-numeric: tabular-nums; }
+
+.feature { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
+.feature > * { min-width: 0; }
+.feature.flip .phones { order: -1; }
+@media (max-width: 860px) { .feature { grid-template-columns: 1fr; } .feature.flip .phones { order: 0; } }
+.phones { display: flex; gap: clamp(12px, 2vw, 24px); justify-content: center; align-items: flex-start; }
+.phone { width: min(46%, 250px); background: #000; border: 1px solid var(--line); border-radius: 22px; padding: 7px; box-shadow: 0 24px 80px -36px rgba(0,0,0,.9); }
+.phone img { border-radius: 16px; width: 100%; height: auto; aspect-ratio: 450 / 1000; object-fit: cover; }
+.phones .phone:nth-child(2) { margin-top: 48px; }
+.phones.single .phone { width: min(70%, 290px); }
+
+/* the little Stage */
+.stage-wrap { display: grid; gap: 14px; justify-items: center; }
+#stage { width: min(100%, 420px); aspect-ratio: 1; display: block; background: var(--bezel); border: 1px solid var(--line); border-radius: var(--r); touch-action: pan-y; cursor: grab; box-shadow: 0 0 0 10px #0E0D0B, 0 30px 120px -40px rgba(var(--amb), .6); transition: box-shadow .8s; }
+.channel { display: flex; gap: 10px; align-items: center; width: min(100%, 420px); }
+.channel .name { flex: 1; min-width: 0; font: 650 18px/1.2 var(--display); font-variation-settings: "opsz" 24, "wdth" 92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.key { min-width: 48px; min-height: 48px; display: grid; place-items: center; background: var(--raised); color: var(--text); border: 1.5px solid var(--text3); border-radius: var(--r); font: 500 18px/1 var(--mono); cursor: pointer; }
+.key:hover { border-color: var(--text2); }
+.key:active { background: rgba(var(--amb), .2); border-color: rgb(var(--amb)); }
+
+/* stream / send */
+.modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); margin-top: 40px; }
+.modes > div { background: var(--panel); padding: clamp(22px, 3vw, 40px); display: grid; gap: 12px; align-content: start; min-width: 0; }
+.modes h3 { margin: 0; font: 780 clamp(28px, 3vw, 40px)/1 var(--display); font-variation-settings: "opsz" 72, "wdth" 82; letter-spacing: -.02em; }
+.modes p { margin: 0; color: var(--text2); }
+.spec { font: 400 13px/1.55 var(--mono); color: var(--text3); }
+@media (max-width: 720px) { .modes { grid-template-columns: 1fr; } }
+
+/* privacy */
+.zero { margin: 0; font: 800 clamp(44px, 7.6vw, 112px)/.9 var(--display); font-variation-settings: "opsz" 96, "wdth" 78; letter-spacing: -.035em; text-wrap: balance; }
+.zero span { color: var(--text3); }
+
+/* get it */
+.table { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); margin-top: 32px; }
+table { border-collapse: collapse; width: 100%; min-width: 540px; font-size: 15px; }
+th, td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+th { font: 500 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--text3); }
+td { color: var(--text2); }
+td:first-child { color: var(--text); }
+tr:last-child td { border-bottom: 0; }
+.yes { color: rgb(var(--amb)); }
+footer { border-top: 1px solid var(--line); padding-block: 36px; display: flex; flex-wrap: wrap; gap: 14px 28px; justify-content: space-between; color: var(--text3); font: 400 13px/1.5 var(--mono); }
+footer a { color: var(--text2); }
+@media (prefers-reduced-motion: reduce) { body::before, h1 em, #stage { transition: none; } }
+</style>
+</head>
+<body>
+<header class="wrap nav">
+  <a class="brand" href="#top" aria-label="Glyph home">
+    <svg viewBox="0 0 7 9" aria-hidden="true"><rect width="7" height="9" fill="#0B0A09"/><g fill="#FFB547">
+      <circle cx="2.5" cy="1.5" r=".42"/><circle cx="3.5" cy="1.5" r=".42"/><circle cx="4.5" cy="1.5" r=".42"/><circle cx="1.5" cy="2.5" r=".42"/><circle cx="5.5" cy="2.5" r=".42"/><circle cx="1.5" cy="3.5" r=".42"/><circle cx="5.5" cy="3.5" r=".42"/><circle cx="2.5" cy="4.5" r=".42"/><circle cx="3.5" cy="4.5" r=".42"/><circle cx="4.5" cy="4.5" r=".42"/><circle cx="5.5" cy="4.5" r=".42"/><circle cx="5.5" cy="5.5" r=".42"/><circle cx="1.5" cy="6.5" r=".42"/><circle cx="5.5" cy="6.5" r=".42"/><circle cx="2.5" cy="7.5" r=".42"/><circle cx="3.5" cy="7.5" r=".42"/><circle cx="4.5" cy="7.5" r=".42"/></g></svg>
+    <b>Glyph</b>
+  </a>
+  <nav aria-label="Sections">
+    <a href="#looks">Looks</a><a href="#make">Make</a><a href="#setup">Set up</a><a href="#get" class="keep">Download</a>
+  </nav>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <span class="label">For WLED LED matrices</span>
+      <h1>Your matrix, <em>alive.</em></h1>
+      <p class="lede">Glyph is a fast, beautiful app for your WLED matrix. Swipe through 1,236 looks, draw, write, play and set it up without touching a settings page. Free, open source, no account.</p>
+      <div class="ctas">
+        <a class="btn primary" href="https://github.com/spandan-kumar/glyph/releases/latest">Download for Android</a>
+        <a class="btn" href="https://github.com/spandan-kumar/glyph">View on GitHub</a>
+      </div>
+      <p class="label meta">Android 7+ · MIT licence · No account</p>
+    </div>
+    <!-- Hero media: swap the boot GIF for the real-room video when it exists:
+         <video src="media/hero.mp4" autoplay muted loop playsinline poster="media/hero.jpg"></video> -->
+    <figure class="media" style="margin:0">
+      <div class="frame"><img src="media/intro.gif" alt="Glyph's boot animation on a 16 by 16 LED matrix: pixels rain down, pile up and assemble into the amber g logo" width="192" height="192"></div>
+      <figcaption><span class="label">Power-on intro · 16×16</span><span class="label">Plays every time your matrix boots</span></figcaption>
+    </figure>
+  </div>
+
+  <section id="looks">
+    <div class="wrap feature">
+      <div class="copy">
+        <span class="label">Display</span>
+        <h2>Flip through it like TV.</h2>
+        <p>Your matrix sits at the top of the app as a glowing live Stage. Swipe it to change channel, roll the dice for a surprise, and the whole app takes on the colour of whatever is playing.</p>
+        <p>Try the Stage here: swipe it or use the arrows.</p>
+        <ul class="facts">
+          <li><b>1,236</b><span>looks in 22 channels</span></li>
+          <li><b>356</b><span>original pixel-art sprites, plus public-domain classics</span></li>
+          <li><b>62</b><span>live effects: plasma, fire, aurora, falling sand…</span></li>
+        </ul>
+      </div>
+      <div class="stage-wrap">
+        <canvas id="stage" width="640" height="640" aria-label="Live LED preview. Swipe to change channel."></canvas>
+        <div class="channel">
+          <button class="key" id="prev" aria-label="Previous channel">&lsaquo;</button>
+          <div class="name" aria-live="polite"><span class="label" id="cat">Pixel Pals</span><br><span id="title">Rocket Ship</span></div>
+          <button class="key" id="next" aria-label="Next channel">&rsaquo;</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap feature flip">
+      <div class="copy">
+        <span class="label">Tweak</span>
+        <h2>Make any look yours.</h2>
+        <p>Pull up Tweak and the Stage stays in view. Spin through palettes on a reel, turn rotary knobs for speed and density, and every change lands on the matrix as you make it. There's no Apply button.</p>
+      </div>
+      <div class="phones">
+        <div class="phone"><img src="media/rails.jpg" alt="Glyph Display screen with channel rails of animations" loading="lazy" width="450" height="1000"></div>
+        <div class="phone"><img src="media/tweak.jpg" alt="Glyph Tweak panel with palette reel and knobs" loading="lazy" width="450" height="1000"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="make">
+    <div class="wrap feature">
+      <div class="copy">
+        <span class="label">Make</span>
+        <h2>Draw it, write it, play it.</h2>
+        <p>Draw pixel by pixel and watch each stroke land on the wall. Write scrolling words, run a clock or a countdown, bring in a GIF, or let the music visualiser listen to the room.</p>
+        <p>Seven games turn your phone into the gamepad, with big labelled buttons where your thumbs rest. Share a drawing with the community and everyone with Glyph can play it.</p>
+        <ul class="facts">
+          <li><b>Draw</b><span>16×16 or your matrix's size, mirror tools, live on the device</span></li>
+          <li><b>Write</b><span>scrolling text, clocks and timers that keep their own time</span></li>
+          <li><b>Play</b><span>Snake, Blocks, Brick Breaker, Pong, Flap, Racer, Invaders</span></li>
+        </ul>
+      </div>
+      <div class="phones">
+        <div class="phone"><img src="media/make.jpg" alt="Glyph Make tab with live tiles for Draw, Write, Clock, Music and Play" loading="lazy" width="450" height="1000"></div>
+        <div class="phone"><img src="media/draw.jpg" alt="Glyph pixel editor drawing on a 16 by 16 canvas" loading="lazy" width="450" height="1000"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <span class="label">How it works</span>
+      <h2>Your phone renders every frame.</h2>
+      <div class="copy"><p>Effects, sprites, drawings and games all run on the phone, so even a small ESP32 shows things it could never compute on its own. Then Glyph does one of two things.</p></div>
+      <div class="modes">
+        <div>
+          <span class="label">Stream</span>
+          <h3>Live, as you touch it</h3>
+          <p>Frames go straight to the matrix over your Wi-Fi. Swipe, turn a knob or draw a pixel and it's on the wall before your finger lifts.</p>
+          <span class="spec">DDP · up to 40 frames a second · colours matched to your LEDs</span>
+        </div>
+        <div>
+          <span class="label">Send</span>
+          <h3>Keeps playing without you</h3>
+          <p>Tap Send and the animation is saved on the controller. Close the app and leave the house; it keeps going, and Routines play it on a schedule.</p>
+          <span class="spec">Seamless loops · Saved looks, Shows and Routines</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="setup">
+    <div class="wrap feature flip">
+      <div class="copy">
+        <span class="label">Set up</span>
+        <h2>Three taps and it's wired.</h2>
+        <p>New panel, unknown wiring? Glyph joins it to your Wi-Fi, lights one corner and asks what you see. Three answers find the start corner, the direction and the zig-zag, and Glyph writes them into WLED itself.</p>
+        <ul class="facts">
+          <li><b>Grids</b><span>several panels, their order and any upside-down ones</span></li>
+          <li><b>Time</b><span>your matrix sets its own clock, so Routines run on time</span></li>
+          <li><b>Undo</b><span>one tap puts the old settings back</span></li>
+        </ul>
+      </div>
+      <div class="phones">
+        <div class="phone"><img src="media/setup.jpg" alt="Glyph setup wizard asking which corner lit up" loading="lazy" width="450" height="1000"></div>
+        <div class="phone"><img src="media/device.jpg" alt="Glyph Device tab with Saved looks, Shows and Routines" loading="lazy" width="450" height="1000"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap feature">
+      <div class="copy">
+        <span class="label">Live from your phone</span>
+        <h2>Glance, music and your smart home.</h2>
+        <p>Show the weather, a three-day forecast, air quality or a countdown, cycled in Rotations. Put the album art of what's playing on the wall. Flash an app's logo when it notifies, never the message.</p>
+        <p>Home Assistant blueprints show a Saved look or play a Show when the doorbell rings, then go back.</p>
+      </div>
+      <div class="phones">
+        <div class="phone"><img src="media/glance.jpg" alt="Glyph Glance cards for weather and countdowns" loading="lazy" width="450" height="1000"></div>
+        <div class="phone"><img src="media/home-assistant.jpg" alt="Glyph Home Assistant setup sheet" loading="lazy" width="450" height="1000"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <span class="label">Privacy</span>
+      <p class="zero" style="margin-top:14px">No account. <span>No ads.</span> No Glyph server.</p>
+      <div class="copy" style="margin-top:28px"><p>Glyph talks to your matrix on your own Wi-Fi. The only other calls are weather from Open-Meteo when you add a card, and the signed animation list from GitHub when you check for new ones.</p></div>
+    </div>
+  </section>
+
+  <section id="get">
+    <div class="wrap">
+      <span class="label">Download</span>
+      <h2>Wake up your matrix.</h2>
+      <div class="copy"><p>Android 7 and newer. Your controller needs WLED installed (<a href="https://install.wled.me">install.wled.me</a>) and your phone on the same Wi-Fi; Glyph's setup does the rest.</p></div>
+      <div class="ctas" style="margin-top:28px">
+        <a class="btn primary" href="https://github.com/spandan-kumar/glyph/releases/latest">Download the latest APK</a>
+        <a class="btn" href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph">Get updates with Obtainium</a>
+        <a class="btn" href="https://discord.gg/9EeCFZAFvk">Join the Discord</a>
+      </div>
+      <div class="table">
+        <table>
+          <thead><tr><th>Controller</th><th>Stream live</th><th>Send to device</th></tr></thead>
+          <tbody>
+            <tr><td>ESP32 · S2 · S3 · C3 on WLED 16+</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+            <tr><td>ESP32 on WLED 0.14–0.15</td><td class="yes">Yes</td><td>Built-in effects only</td></tr>
+            <tr><td>ESP8266</td><td class="yes">Yes</td><td>No GIF player in WLED</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="spec" style="margin-top:14px">Any WLED 2D matrix: WS2812B and SK6812 panels, HUB75 on ESP32 builds. 8×8, 16×16, 32×8, 32×32, 64×32 and up, including grids of panels.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <span>Glyph · MIT licence · by <a href="https://github.com/spandan-kumar">spandan-kumar</a></span>
+  <span><a href="https://github.com/spandan-kumar/glyph/blob/main/docs/PRIVACY.md">Privacy</a> · <a href="https://github.com/spandan-kumar/glyph/blob/main/CONTRIBUTING.md">Contribute</a></span>
+</footer>
+
+<script>
+const SPRITES=[{"t":"Rocket Ship","ms":90,"c":{"B":"#3D8BFF","F":"#FFC14D","L":"#9FE8FF","R":"#E8283C","W":"#FFFFFF","f":"#FF4A00","s":"#6C7890"},"f":[["........R.......",".......RRR......",".......WWW......","......WWWWW.....","......WBBBW.....","......WBLBW.....","......WBBBW.....","......WWWWW.....","......WWWWW.....",".....RWWWWWR....","....RRWWWWWRR...","....RR.sss.RR...",".......F.F......","........F.......","................","................"],["........R.......",".......RRR......",".......WWW......","......WWWWW.....","......WBBBW.....","......WBLBW.....","......WBBBW.....","......WWWWW.....","......WWWWW.....",".....RWWWWWR....","....RRWWWWWRR...","....RR.sss.RR...","......fFFf......",".......FF.......",".......f........","................"],["........R.......",".......RRR......",".......WWW......","......WWWWW.....","......WBBBW.....","......WBLBW.....","......WBBBW.....","......WWWWW.....","......WWWWW.....",".....RWWWWWR....","....RRWWWWWRR...","....RR.sss.RR...","......FffF......",".......FF.......","........f.......","................"]],"seq":null,"m":"float"},{"t":"Froggy","ms":[1500,140,600,300],"c":{"G":"#5BC236","K":"#0C0C10","T":"#3DDC97","W":"#FFFFFF","g":"#2E7D32"},"f":[["................","................","...GGG....GGG...","..GWWWG..GWWWG..","..GWKKGGGGWKKG..","..GWKKGGGGWKKG..",".GGGGGGGGGGGGGG.","GGGGGGGGGGGGGGGG","GGgGGGGGGGGGGgGG","GGGgggggggggggGG",".GGGGGGGGGGGGGG.","..GGTTTTTTTTGG..","...GTTTTTTTTG...","..GGG......GGG..",".GG..........GG.","................"],["................","................","...GGG....GGG...","..GWWWG..GWWWG..","..GGGGGGGGGGGG..","..GgggGGGGgggG..",".GGGGGGGGGGGGGG.","GGGGGGGGGGGGGGGG","GGgGGGGGGGGGGgGG","GGGgggggggggggGG",".GGGGGGGGGGGGGG.","..GGTTTTTTTTGG..","...GTTTTTTTTG...","..GGG......GGG..",".GG..........GG.","................"],["................","................","...GGG....GGG...","..GWWWG..GWWWG..","..GWKKGGGGWKKG..","..GWKKGGGGWKKG..",".GGGGGGGGGGGGGG.","GGGGGGGGGGGGGGGG","GGgGGGGGGGGGGgGG","GGGgggggggggggGG",".GGGGGGGGGGGGGG.","..GTTTTTTTTTTG..","..TTTTTTTTTTTT..","..GTTTTTTTTTTG..",".GG..........GG.","................"]],"seq":[0,1,0,2],"m":"still"},{"t":"Floating Ghost","ms":300,"c":{"K":"#101018","W":"#FFFFFF"},"f":[["................",".....WWWWWW.....","....WWWWWWWW....","...WWWWWWWWWW...","...WWKKWWKKWW...","..WWWKKWWKKWWW..","..WWWWWWWWWWWW..","..WWWWWKKWWWWW..","..WWWWWKKWWWWW..","..WWWWWWWWWWWW..","..WWWWWWWWWWWW..","..WWWWWWWWWWWW..","..WWWWWWWWWWWW..","..WW.WWW.WWW.W..","..W...W...W.....","................"],["................",".....WWWWWW.....","....WWWWWWWW....","...WWWWWWWWWW...","...WWKKWWKKWW...","..WWWKKWWKKWWW..","..WWWWWWWWWWWW..","..WWWWWKKWWWWW..","..WWWWWKKWWWWW..","..WWWWWWWWWWWW..","..WWWWWWWWWWWW..","..WWWWWWWWWWWW..","..WWWWWWWWWWWW..","..WWWWWWWWWWWW..","..W.WW..WW..WW..","................"]],"seq":null,"m":"float"},{"t":"Forest Mushroom","ms":700,"c":{"A":"#C97B3A","D":"#8C5A2B","E":"#FFF3B0","G":"#4CAF50","S":"#FFE9A0","a":"#E8A55C"},"f":[["................","................","................","......AAAA......","....AAaAAAAA....","...AAAAAAaAAA...","..AaAAAAAAAAAA..","..AAAAAaAAAAaA..",".AAAAAAAAAAAAAA.",".DDDDDDDDDDDDDD.","......EEEE......","......EEEE......","......EEEE......",".....EEEEEE.....","...GGGGGGGGGG...","................"],["................","................","..S.............","......AAAA......","....AAaAAAAA....","...AAAAAAaAAA...","..AaAAAAAAAAAA..","..AAAAAaAAAAaA..",".AAAAAAAAAAAAAA.",".DDDDDDDDDDDDDD.","......EEEE......","......EEEE......","......EEEE......",".....EEEEEE.....","...GGGGGGGGGG...","................"],["................","................","................","......AAAA......","....AAaAAAAA....","...AAAAAAaAAA...","..AaAAAAAAAAAA..","..AAAAAaAAAAaA..",".AAAAAAAAAAAAAA.",".DDDDDDDDDDDDDD.","......EEEE......","......EEEE......","......EEEE......",".....EEEEEE.....","...GGGGGGGGGG...","................"],["................","................","................","......AAAA......","....AAaAAAAA.S..","...AAAAAAaAAA...","..AaAAAAAAAAAA..","..AAAAAaAAAAaA..",".AAAAAAAAAAAAAA.",".DDDDDDDDDDDDDD.","......EEEE......","......EEEE......","......EEEE......",".....EEEEEE.....","...GGGGGGGGGG...","................"]],"seq":null,"m":"still"},{"t":"Little Fish","ms":260,"c":{"K":"#0C0C10","O":"#F28C28","W":"#FFFFFF","b":"#9FE3FF","d":"#FFC266","o":"#B4471A"},"f":[["................","................","................","......dd........","b....dOOd.......","...ooOOOOoo...oo","..oOOOOOOOOo.oOo",".oOWKOOOOOOOooOo",".oOKKOOOOOOOOOo.",".oOOOOOOOOOOooOo","..oOOOOOOOOo.oOo","...ooOOOOoo...oo","......dd........","................","................","................"],["................","b...............","................","b.....dd........",".....dOOd.......","...ooOOOOoo....o","..oOOOOOOOOo..oO",".oOWKOOOOOOO.oOO",".oOKKOOOOOOOoOO.",".oOOOOOOOOOO.oOO","..oOOOOOOOOo..oO","...ooOOOOoo....o","......dd........","................","................","................"],[".b..............","................","................","......dd........",".....dOOd.......","...ooOOOOoo...oo","..oOOOOOOOOo.oOo",".oOWKOOOOOOOooOo",".oOKKOOOOOOOOOo.",".oOOOOOOOOOOooOo","..oOOOOOOOOo.oOo","...ooOOOOoo...oo","......dd........","................","................","................"],["................","................","................","......dd........",".....dOOd.......","...ooOOOOoo....o","..oOOOOOOOOo..oO",".oOWKOOOOOOO.oOO",".oOKKOOOOOOOoOO.",".oOOOOOOOOOO.oOO","..oOOOOOOOOo..oO","...ooOOOOoo....o","......dd........","................","................","................"]],"seq":null,"m":"float"},{"t":"UFO Abduction","ms":220,"c":{"1":"#FF4D6D","2":"#5BE37D","3":"#5C8DFF","L":"#9FE8FF","T":"#3BD6C6","W":"#FFFFFF","s":"#6C7890","w":"#B8C2D6"},"f":[["................","................","......LLLL......",".....LLWLLL.....","...wwwwwwwwww...","..wsssssssssww..",".ww1ww2ww3ww1ww.","..ssssssssssss..","....ssssssss....",".......TT.......","......TT.T......",".....TT.TT......",".....T.TT.T.....","....T.TT.TT.....",".....TT.TT.T....","....TT.TT.TT...."],["................","................","......LLLL......",".....LLWLLL.....","...wwwwwwwwww...","..wsssssssssww..",".ww2ww3ww1ww2ww.","..ssssssssssss..","....ssssssss....","................","................","................","................","................","................","................"],["................","................","......LLLL......",".....LLWLLL.....","...wwwwwwwwww...","..wsssssssssww..",".ww3ww1ww2ww3ww.","..ssssssssssss..","....ssssssss....","......T.TT......",".......TT.......","......TT.TT.....",".....TT.TT......","....TT.TT.TT....","....T.TT.TT.....","...T.TT.TT.TT..."],["................","................","......LLLL......",".....LLWLLL.....","...wwwwwwwwww...","..wsssssssssww..",".ww1ww2ww3ww1ww.","..ssssssssssss..","....ssssssss....","................","................","................","................","................","................","................"]],"seq":null,"m":"still"}];
+(() => {
+"use strict";
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const cv = document.getElementById("stage"), ctx = cv.getContext("2d");
+const N = 16, buf = new Float32Array(N * N * 3);
+const set = (x, y, r, g, b) => { if (x < 0 || y < 0 || x >= N || y >= N) return; const i = (y * N + x) * 3; buf[i] = r; buf[i + 1] = g; buf[i + 2] = b; };
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const pal = (t, d) => [0, 1, 2].map(j => 255 * (.5 + .5 * Math.cos(6.2832 * (t + d[j]))));
+
+const sprite = s => {
+  const rgb = Object.fromEntries(Object.entries(s.c).map(([k, v]) => [k, hex(v)]));
+  const seq = s.seq || s.f.map((_, i) => i), ms = Array.isArray(s.ms) ? s.ms : seq.map(() => s.ms);
+  const total = ms.reduce((a, b) => a + b, 0) / 1000;
+  return t => {
+    buf.fill(0);
+    let tt = t % total, step = 0;
+    while (step < seq.length - 1 && tt > ms[step] / 1000) { tt -= ms[step] / 1000; step++; }
+    s.f[seq[step]].forEach((row, y) => [...row].forEach((ch, x) => { const c = rgb[ch]; if (c) set(x, y, ...c); }));
+  };
+};
+let fire = new Float32Array(N * N);
+const looks = [
+  ...SPRITES.slice(0, 1).map(s => ({ t: s.t, c: "Pixel Pals", f: sprite(s) })),
+  { t: "Plasma", c: "Abstract", f: t => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = Math.sin(x * .4 + t) + Math.sin(y * .5 - t * 1.2) + Math.sin((x + y) * .3 + t * .7); set(x, y, ...pal(v * .16 + t * .05, [0, .33, .67])); } } },
+  ...SPRITES.slice(1, 3).map(s => ({ t: s.t, c: "Pixel Pals", f: sprite(s) })),
+  { t: "Campfire", c: "Fire & Energy", f: () => {
+      for (let x = 0; x < N; x++) fire[(N - 1) * N + x] = Math.random() < .6 ? 1 : .2;
+      for (let y = 0; y < N - 1; y++) for (let x = 0; x < N; x++) { const b = (y + 1) * N; fire[y * N + x] = Math.max(0, (fire[b + x] + fire[b + (x + N - 1) % N] + fire[b + (x + 1) % N] + (y + 2 < N ? fire[(y + 2) * N + x] : fire[b + x])) / 4.1 - .012); }
+      for (let i = 0; i < N * N; i++) { const v = fire[i]; set(i % N, i / N | 0, Math.min(255, v * 420), Math.min(255, v * v * 300), v * v * v * 150); } } },
+  ...SPRITES.slice(3).map(s => ({ t: s.t, c: "Pixel Pals", f: sprite(s) })),
+];
+let i = 0, t0 = performance.now(), amb = [255, 181, 71], lastTouch = 0;
+const show = d => {
+  i = (i + d + looks.length) % looks.length; t0 = performance.now(); lastTouch = performance.now();
+  document.getElementById("title").textContent = looks[i].t;
+  document.getElementById("cat").textContent = looks[i].c;
+};
+document.getElementById("prev").onclick = () => show(-1);
+document.getElementById("next").onclick = () => show(1);
+let sx = null;
+cv.addEventListener("pointerdown", e => sx = e.clientX);
+cv.addEventListener("pointerup", e => { if (sx != null) show(Math.abs(e.clientX - sx) > 30 ? (e.clientX < sx ? 1 : -1) : 1); sx = null; });
+
+let visible = true;
+new IntersectionObserver(es => visible = es[0].isIntersecting).observe(cv);
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (!visible) return;
+  if (!reduce && now - lastTouch > 9000 && now - t0 > 6000) { show(1); lastTouch = 0; }
+  const t = (now - t0) / 1000 * (reduce ? .25 : 1);
+  looks[i].f(t);
+  const s = cv.width / N;
+  ctx.fillStyle = "#050403"; ctx.fillRect(0, 0, cv.width, cv.width);
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const k = (y * N + x) * 3, R = buf[k], G = buf[k + 1], B = buf[k + 2], lit = R + G + B > 24;
+    const cx = (x + .5) * s, cy = (y + .5) * s;
+    if (lit) { ctx.fillStyle = `rgba(${R | 0},${G | 0},${B | 0},.18)`; ctx.beginPath(); ctx.arc(cx, cy, s * .85, 0, 6.2832); ctx.fill(); r += R; g += G; b += B; n++; }
+    ctx.fillStyle = lit ? `rgb(${R | 0},${G | 0},${B | 0})` : "#1D1A17";
+    ctx.beginPath(); ctx.arc(cx, cy, s * .38, 0, 6.2832); ctx.fill();
+  }
+  if (n) {
+    const m = Math.max(r, g, b) / n || 1, k = 235 / m, tgt = [r / n * k, g / n * k, b / n * k];
+    amb = amb.map((v, j) => v + (tgt[j] - v) * .04);
+    document.documentElement.style.setProperty("--amb", amb.map(v => v | 0).join(","));
+  }
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
