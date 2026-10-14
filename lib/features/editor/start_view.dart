@@ -10,11 +10,14 @@ import 'templates.dart';
 
 /// "New drawing" picker: device size plus blank or example starts.
 class EditorStartView extends StatefulWidget {
-  const EditorStartView({super.key, this.deviceSize, required this.onStart});
+  const EditorStartView({super.key, this.deviceSize, required this.onStart, this.onPicture});
 
   /// The connected device's size, offered first when known.
   final (int, int)? deviceSize;
   final ValueChanged<EditorModel> onStart;
+
+  /// Starts from a picture at the chosen size (Bring a GIF's crop and colours).
+  final ValueChanged<(int, int)>? onPicture;
 
   @override
   State<EditorStartView> createState() => _EditorStartViewState();
@@ -74,7 +77,7 @@ class _EditorStartViewState extends State<EditorStartView> {
       children: [
         Text('New drawing', style: LbType.title),
         const SizedBox(height: 6),
-        Text('Pick a size, then start blank or from an example.',
+        Text('Pick a size, then start blank, from a picture or from an example.',
             style: LbType.body.copyWith(color: Lb.text2)),
         const SizedBox(height: 20),
         const _Label('SIZE'),
@@ -123,6 +126,12 @@ class _EditorStartViewState extends State<EditorStartView> {
               onTap: () => widget.onStart(EditorModel(width: w, height: h)),
               child: const Icon(Icons.add_sharp, size: 32, color: Lb.text2),
             ),
+            if (widget.onPicture case final onPicture?)
+              _Tile(
+                label: 'Picture',
+                onTap: () => onPicture(_size),
+                child: const Icon(Icons.add_photo_alternate_sharp, size: 32, color: Lb.text2),
+              ),
             for (final t in editorTemplates)
               _Tile(
                 label: t.name,
