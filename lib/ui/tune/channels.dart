@@ -192,7 +192,14 @@ class CatalogChannels {
     List<LibraryItem> union(Iterable<LibraryItem> a, Iterable<LibraryItem> b) => {...a, ...b}.toList();
 
     final sprites = c.items.where((i) => i.isPixelArt).toList();
-    final cute = sprites.where((i) => i.tags.contains('cute'));
+    final pals = sprites.where((i) =>
+        const {'Animals', 'Emoji', 'Characters', 'Classic Cartoons', 'Storybook', 'Monsters & Legends'}.contains(i.category) ||
+        (i.tags.contains('cute') && i.category != 'Abstract'));
+    allChannel = Channel(id: 'all', name: 'All',
+        items: _entries(varied([
+          for (final category in c.categories) ...c.inCategory(category).take(1),
+          ...c.items,
+        ], limit: 30)), all: _entries(c.items));
     // Animations newer than anything shipped in the app: downloaded from
     // the remote catalog since the last app update.
     final fresh = bundledRevision > 0 ? c.items.where((i) => i.added > bundledRevision).toList() : const <LibraryItem>[];
@@ -201,8 +208,8 @@ class CatalogChannels {
       // Drawn by people using Glyph; arrives through the remote catalog.
       make('community', 'Community', c.inCategory('Community'), limit: 30),
       make('classics', 'Famous Classics', c.items.where((i) => classicCategories.contains(i.category)), limit: 30),
-      make('pals', 'Pixel Pals', union(cute, sprites), limit: 30),
-      make('imported', 'imported', c.inCategory('imported'), limit: 30,
+      make('pals', 'Pixel Pals', pals, limit: 30),
+      make('imported', 'imported', c.items.where((i) => i.collection == 'imported' || i.category == 'imported'), limit: 30,
           note: 'Shared with permission · download once, play offline'),
       make('calm', 'Calm', union(c.inCategory('Chill'), c.tagged(['calm']))),
       make('party', 'Party', union(c.inCategory('Party'), c.tagged(['party']))),
@@ -216,6 +223,7 @@ class CatalogChannels {
 
   final Catalog catalog;
   late final Channel nowChannel;
+  late final Channel allChannel;
 
   /// Just added (when there is something new), Community (when there is any), Famous Classics, Pixel Pals,
   /// Calm, Party, Space.
@@ -235,13 +243,18 @@ List<Channel> assembleChannels({
   final c = base.catalog;
   final favs = [for (final id in favourites) ?c.byId(id)];
   final recent = [for (final id in recents) ?c.byId(id)];
+  final made = [for (final x in creations) CreationEntry(x)];
+  final all = Channel(id: 'all', name: 'All',
+      items: [...base.allChannel.items, ...made].take(30).toList(),
+      all: [...base.allChannel.all, ...made]);
   return [
+    if (!all.isEmpty) all,
     base.nowChannel,
     ...base.lead,
     if (favs.isNotEmpty) Channel(id: 'favs', name: 'Your favourites', items: _entries(favs.reversed)),
     if (recent.isNotEmpty) Channel(id: 'lately', name: 'Lately', items: _entries(recent)),
-    if (creations.isNotEmpty)
-      Channel(id: 'mine', name: 'Made by you', items: [for (final x in creations) CreationEntry(x)]),
+    if (made.isNotEmpty)
+      Channel(id: 'mine', name: 'Made by you', items: made),
     ...base.rest,
   ];
 }

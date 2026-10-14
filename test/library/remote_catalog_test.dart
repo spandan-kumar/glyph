@@ -85,6 +85,29 @@ void main() {
   });
 
   group('payload parsing', () {
+    test('reviewed search metadata survives validation and has bounded lengths', () {
+      final generator = generators.firstWhere((g) => g.id == 'plasma');
+      final raw = {
+        'id': 'search-fixture', 'title': 'Sleeping Friend', 'category': 'Animals',
+        'generator': 'plasma', 'palette': 'rainbow',
+        'aliases': ['sleepy kitten'], 'subjects': ['cat'], 'collection': ' Original Art ',
+      };
+      final dropped = <String>[];
+      final accepted = RemoteCatalog.validate(LibraryItem.fromJson(raw), dropped, generator: generator)!;
+      expect(dropped, isEmpty);
+      final c = Catalog(items: [accepted]);
+      expect(c.search('sleepy kitten').single.id, 'search-fixture');
+      expect(c.search('cat collection:"Original Art"').single.id, 'search-fixture');
+      for (final entry in [
+        {'aliases': List.filled(33, 'cat')},
+        {'subjects': ['x' * 161]},
+        {'subjects': [' ']},
+        {'collection': ' '},
+      ]) {
+        expect(RemoteCatalog.validate(LibraryItem.fromJson({...raw, ...entry}), dropped, generator: generator), isNull);
+      }
+    });
+
     test('staging validates compatibility, clamps params and preserves attribution without registration', () {
       final doc = remoteDocument();
       (doc['items'] as List).addAll([

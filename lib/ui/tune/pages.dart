@@ -142,7 +142,8 @@ class _SearchPageState extends State<_SearchPage> {
   @override
   Widget build(BuildContext context) {
     final catalog = AppScope.of(context).catalog;
-    final results = _query.isEmpty ? const <TuneEntry>[] : [for (final i in catalog.search(_query)) ItemEntry(i)];
+    final search = _query.isEmpty ? null : catalog.searchResults(_query);
+    final results = [for (final i in search?.items ?? const []) ItemEntry(i)];
     final channel = Channel(id: 'search', name: 'Search · $_query', items: results);
     return SafeArea(
       bottom: false,
@@ -207,6 +208,13 @@ class _SearchPageState extends State<_SearchPage> {
               ),
             ),
           ),
+          if (search?.correctedQuery != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Lb.gutter, vertical: 8),
+                child: Text('Showing matches for “${search!.correctedQuery}”.', style: LbType.small),
+              ),
+            ),
           if (_query.isNotEmpty && results.isEmpty)
             SliverToBoxAdapter(
               child: Padding(
@@ -214,9 +222,12 @@ class _SearchPageState extends State<_SearchPage> {
                 child: Column(children: [
                   const LedText('?', dot: 6, color: Lb.text3),
                   const SizedBox(height: 14),
-                  Text('Nothing called that yet.', style: LbType.body.copyWith(color: Lb.text2)),
+                  Text('No matching looks.', style: LbType.body.copyWith(color: Lb.text2)),
                   const SizedBox(height: 4),
-                  Text('Try a mood like “cozy” or “space”.', style: LbType.small),
+                  for (final suggestion in search!.suggestions)
+                    TextButton(onPressed: () => _set(suggestion),
+                      child: Text('Did you mean “$suggestion”?')),
+                  Text('Try another word, a mood or a colour.', style: LbType.small),
                   const SizedBox(height: 16),
                   OutlinedButton(
                     onPressed: () => suggestAnimation(context, idea: _query),

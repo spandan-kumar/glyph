@@ -799,6 +799,10 @@ class RemoteCatalog {
         item.category.length > 80 ||
         item.tags.length > 32 ||
         item.tags.any((t) => t.length > 160) ||
+        item.aliases.length > 32 ||
+        item.subjects.length > 32 ||
+        [...item.aliases, ...item.subjects].any((t) => t.trim().isEmpty || t.length > 160) ||
+        (item.collection != null && (item.collection!.trim().isEmpty || item.collection!.length > 80)) ||
         (item.notice?.length ?? 0) > 4096) {
       problem = 'bad metadata';
     }
@@ -827,6 +831,9 @@ class RemoteCatalog {
       generatorId: item.generatorId,
       paletteId: item.paletteId,
       tags: item.tags,
+      aliases: item.aliases,
+      subjects: item.subjects,
+      collection: item.collection?.trim(),
       params: {
         for (final MapEntry(:key, :value) in item.params.entries)
           if (specs[key] case final s?)

@@ -87,7 +87,7 @@ class StageDeck extends StatelessWidget {
             if (devices.isConnected) ...[
               const SizedBox(height: 10),
               leaves(_DeviceLine(
-                text: '${devices.info!.name} · ${devices.isOn == false ? 'off' : playback.isStreaming ? 'live' : devices.isPlayingKept(playback.item?.title ?? playback.generator?.name ?? '') ? 'saved' : 'ready'}',
+                text: '${devices.info!.name} · ${devices.isOn == false ? 'off' : playback.isStreaming ? 'live' : devices.isPlayingKept(playback.item?.title ?? playback.generator?.name ?? '', fileTitle: playback.item?.deviceFileTitle) ? 'saved' : 'ready'}',
                 lit: playback.isStreaming && devices.isOn != false,
               )),
             ],

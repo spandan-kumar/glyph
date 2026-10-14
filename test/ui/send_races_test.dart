@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -9,12 +10,14 @@ import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
 import 'package:glyph/engine/bake_limits.dart';
 import 'package:glyph/engine/clip.dart';
+import 'package:glyph/engine/clip_asset.dart';
 import 'package:glyph/engine/frame.dart';
 import 'package:glyph/engine/generator.dart';
 import 'package:glyph/engine/gif_encoder.dart';
 import 'package:glyph/engine/palette.dart';
 import 'package:glyph/engine/registry.dart';
 import 'package:glyph/library/catalog.dart';
+import 'package:glyph/library/clip_asset_store.dart';
 import 'package:glyph/ui/actions.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -47,6 +50,13 @@ class _CountingGenerator extends Generator {
 class _Blank extends EffectInstance {
   @override
   void render(Frame out, double t, double dt, Params p, Palette pal) => out.fill(0);
+}
+
+class _ReadyClips extends ClipAssetStore {
+  _ReadyClips(this.clip) : super(cacheDir: () async => Directory.systemTemp);
+  final FrameClip clip;
+  @override
+  Future<FrameClip> load(ClipAsset asset) async => clip;
 }
 
 void main() {
@@ -457,6 +467,44 @@ void main() {
       playback.pause();
     },
   );
+
+  testWidgets('renaming an imported clip reuses its existing device file and preset', (tester) async {
+    final context = await mount(tester);
+    const id = 'imported-999999', generatorId = 'clip:$id';
+    final previous = ClipAssetStore.shared, store = _ReadyClips(clip);
+    ClipAssetStore.shared = store;
+    addTearDown(() {
+      ClipAssetStore.shared = previous;
+      store.close();
+    });
+    LibraryItem item(String title) {
+      ClipAssetLibrary.register([ClipAsset(id: generatorId, title: title,
+        sha256: '0' * 64, bytes: 100, width: 1, height: 1, frames: 1)]);
+      return LibraryItem(id: id, title: title, category: 'imported',
+        generatorId: generatorId, paletteId: 'rainbow',
+        asset: const LibraryAsset(type: 'clip-gzip', url: 'fixture.clip.gz'));
+    }
+    await playback.playItem(item('imported 999999'));
+    final first = await tester.runAsync(() => GlyphActions.sendToDevice(context));
+    expect(first, isA<Sent>());
+    final uploaded = alpha.uploads.toList(), presetIds = alpha.presets.keys.toSet();
+    expect(uploaded.single, contains('imported-999999'));
+
+    final renamed = item('Rocking Sailboat');
+    await playback.playItem(renamed);
+    final second = await tester.runAsync(() => GlyphActions.sendToDevice(context));
+    expect(second, isA<AlreadyOnDevice>());
+    expect(alpha.uploads, uploaded);
+    expect(alpha.presets.keys.toSet(), presetIds);
+    expect(renamed.deviceFileTitle, 'imported 999999');
+    expect(devices.isPlayingKept(renamed.title, fileTitle: renamed.deviceFileTitle), isTrue);
+    final reconnected = DeviceStore(clientFactory: (host) => alpha.client(host));
+    addTearDown(reconnected.dispose);
+    await tester.runAsync(() => reconnected.addAndSelect('alpha', 'Alpha'));
+    expect(reconnected.keptTitle, isNull);
+    expect(reconnected.isPlayingKept(renamed.title, fileTitle: renamed.deviceFileTitle), isTrue);
+    playback.pause();
+  });
 
   group('re-sending a changed look after an app restart', () {
     // The fresh client in mount() knows nothing about files from earlier.

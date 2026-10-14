@@ -192,8 +192,12 @@ abstract final class GlyphActions {
     final w = caps.width, h = caps.height;
 
     if (g is ClipGenerator) {
+      // Imported names can be curated without changing their existing device
+      // file identity. Match the old imported filename when re-sending a look.
+      final item = s.playback.item;
+      final fileName = item != null ? keptFileName(item.deviceFileTitle) : null;
       return sendClipToDevice(context, g.clip, title, onUpload: onUpload,
-          speed: s.playback.params['speed'] * s.playback.timeScale);
+          speed: s.playback.params['speed'] * s.playback.timeScale, fileName: fileName);
     }
     final Future<Uint8List> Function() bytes;
     if (findGenerator(g.id) != null) {
@@ -231,7 +235,7 @@ abstract final class GlyphActions {
 
   static Future<SendResult> sendClipToDevice(
       BuildContext context, FrameClip clip, String title,
-      {Future<void> Function()? onUpload, double speed = 1}) async {
+      {Future<void> Function()? onUpload, double speed = 1, String? fileName}) async {
     final caps = AppScope.of(context).devices.caps;
     if (caps == null) return const Cancelled('no device is connected');
     try {
@@ -251,7 +255,8 @@ abstract final class GlyphActions {
       delays.add(d);
       totalCs += d;
     }
-    return _upload(context, title, () => compute(_encodeClip, (fitted.frames, delays)), onUpload: onUpload);
+    return _upload(context, title, () => compute(_encodeClip, (fitted.frames, delays)),
+        onUpload: onUpload, fileName: fileName);
   }
 
   static Future<SendResult> _upload(
@@ -259,6 +264,7 @@ abstract final class GlyphActions {
     String title,
     Future<Uint8List> Function() encoding, {
     Future<void> Function()? onUpload,
+    String? fileName,
   }) async {
     final s = AppScope.of(context);
     final d = s.devices;
@@ -285,12 +291,12 @@ abstract final class GlyphActions {
       if (!current()) return stop();
       // Keep the current look on the matrix while the file uploads (a slow
       // trickle of frames holds live mode); switch only once it's saved.
-      var fileName = keptFileName(title);
-      if (fileName == BootIntro.fileName) fileName = 'my-$fileName';
+      var uploadName = fileName ?? keptFileName(title);
+      if (uploadName == BootIntro.fileName) uploadName = 'my-$uploadName';
       var alreadySaved = false;
       final presetId = await client.withPresetMutation(() async {
         if (!current()) throw const _SendStopped();
-        final existing = await _existingPreset(client, title, fileName);
+        final existing = await _existingPreset(client, title, uploadName);
         if (existing?.gifName != null) {
           try {
             final name = existing!.gifName!;
@@ -308,7 +314,7 @@ abstract final class GlyphActions {
         if (!current()) throw const _SendStopped();
         // The file this replaces goes once the switch is done, so it counts
         // as free space.
-        final credit = await client.reclaimableBytes(existing?.id, fileName);
+        final credit = await client.reclaimableBytes(existing?.id, uploadName);
         if (!caps.fitsFile(bytes.length - credit)) {
           throw WledException('Not enough space on the device for the full animation. '
               'Remove unused Saved animations or show it live.');
@@ -317,7 +323,7 @@ abstract final class GlyphActions {
         if (!current()) throw const _SendStopped();
         playback.throttleStream(throttle);
         return client.saveGifToDevice(
-          fileName: fileName,
+          fileName: uploadName,
           gif: bytes,
           presetName: title,
           caps: caps,

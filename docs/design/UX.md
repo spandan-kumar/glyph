@@ -61,14 +61,31 @@ the app's own light comes from what the matrix is showing.
   currently on the matrix (sampled from the frame, smoothed). Fire = warm
   room; ocean = cool room. Nothing else in the UI is coloured by default.
 - Below the Stage: **Channels** — horizontal rails (not one big grid):
-  *Right now* (time-of-day + season picks), *Famous Classics*, *Pixel Pals*,
+  *All* (the whole library and your creations), *Right now* (time-of-day + season picks), *Famous Classics*, *Pixel Pals*,
   *Calm*, *Party*, *Space*, *Your favourites*, *Made by you*, …
   Tapping a tile **tunes in** (tile → Stage transition), and the channel
   becomes the surf order.
+  All opens a lazy full-library grid through See all. Its preview includes
+  different categories; favourites and recents do not duplicate entries.
+  Imported animations join their subject categories while retaining a
+  separate collection shelf and credit. Pixel Pals shows characters, animals
+  and expressive sprites; abstract patterns have their own group.
 - Scrolling down collapses the Stage into a **mini-stage** pinned at the top
   (live thumbnail, title, ‹ ›). There is no bottom "now playing" bar.
 - **Search** lives behind a search glyph at the top (and pull-down). Results
   are instant; suggestion tokens are moods ("cozy", "spooky", "space").
+  Search runs locally against names, reviewed aliases/subjects, tags and
+  categories. Every query word must match. Exact names and IDs rank first,
+  then aliases, subjects and descriptors; ties retain catalogue order.
+  Complete an unknown final word from four characters, without expanding a known
+  word like "cat" into "cathedral". Correct only small, unambiguous spelling
+  slips when direct search finds nothing, and show the correction. Larger
+  slips offer up to three named suggestions; tapping one changes the query.
+  Sizes (`32x32`, `32×32`) and `collection:imported` (quoted for multiword
+  names) are strict constraints, including during correction/suggestion.
+  Identical hash-pinned clips appear once in search; exact source-ID queries
+  can still retrieve each record. Internal generator/palette IDs do not
+  describe content and are excluded. Search never starts playback.
 - **AHA #7 "Surprise me":** dice button (and shake the phone) — LED
   slot-machine shuffle on the Stage, lands on a random pick.
 
