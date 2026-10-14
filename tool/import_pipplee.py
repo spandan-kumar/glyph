@@ -14,6 +14,9 @@ import struct
 
 from PIL import Image, ImageSequence
 
+from build_pipplee_names import DESCRIPTIONS, name_rows
+from pipplee_categories import CATEGORIES
+
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "catalog_assets/pipplee"
 
@@ -101,7 +104,16 @@ def main():
             provenance.append(record)
             if len(rows) % 250 == 0:
                 print(f"Converted {len(rows)}/{len(tasks)} animations", flush=True)
-    index = {"version": 1, "count": len(rows), "permission": "maintainer-confirmed-pipplee-consent-2026-10-13", "rows": rows}
+    version = 1
+    if DESCRIPTIONS.exists():
+        descriptions = json.loads(DESCRIPTIONS.read_text())["clips"]
+        existing = json.loads((ROOT / "assets/catalog/catalog.json").read_text())["items"]
+        rows = name_rows(rows, descriptions, (i["title"] for i in existing))
+        version = 3
+    index = {"version": version, "count": len(rows), "permission": "maintainer-confirmed-pipplee-consent-2026-10-13", "rows": rows}
+    if version == 3:
+        present = {row[11] for row in rows}
+        index["categories"] = [category for category in CATEGORIES if category in present]
     (ROOT / "assets/catalog/pipplee.json").write_text(json.dumps(index, separators=(",", ":")) + "\n")
     (OUT / "provenance.json").write_text(json.dumps({
         "catalogue_sha256": hashlib.sha256((archive / "catalogue.json").read_bytes()).hexdigest(),

@@ -38,6 +38,13 @@ void main() {
     expect(rail.items.length, 30);
     expect(rail.all.length, 12361);
     expect(channels.rest.where((c) => c.name == 'Pipplee'), isEmpty);
+    expect(channels.allChannel.all.length, catalog.items.length);
+    final importedCat = collection.byId('pipplee-15353')!;
+    expect(channels.rest.singleWhere((c) => c.name == 'Animals').all.map((e) => e.key),
+        contains('i:${importedCat.id}'));
+    final grid = collection.byId('pipplee-12045')!;
+    expect(channels.rest.singleWhere((c) => c.name == 'Abstract').all.map((e) => e.key),
+        contains('i:${grid.id}'));
   });
 
   testWidgets('full library search downloads only its visible pick and plays it', (tester) async {
@@ -66,7 +73,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     final item = collection.items.firstWhere((i) => int.parse(i.id.substring(8)) > 10000);
-    await tester.enterText(find.byType(TextField), item.title);
+    await tester.enterText(find.byType(TextField), item.id);
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }

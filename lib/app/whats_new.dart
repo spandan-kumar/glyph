@@ -4,6 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.6': [
+    'Pipplee animations have descriptive names, search tags and proper browsing groups.',
+    'All leads Display, with the whole library and your creations.',
+    'Search finds objects and offers typo corrections. Your Saved looks keep working after renaming.',
+    'Start a drawing from a picture or GIF, with crop and colour controls.',
+  ],
   '1.4.5': [
     '12,361 animations from Pipplee, shared with permission. Find the new Pipplee shelf on Display.',
     'Animations download as you browse or play them, then stay cached for offline use.',

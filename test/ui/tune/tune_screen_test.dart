@@ -9,12 +9,14 @@ import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
 import 'package:glyph/engine/clip.dart';
+import 'package:glyph/engine/clip_asset.dart';
 import 'package:glyph/engine/frame.dart';
 import 'package:glyph/engine/gif_encoder.dart';
 import 'package:glyph/features/device/boot_intro.dart';
 import 'package:glyph/ui/tune/beam.dart';
 import 'package:glyph/wled/layout.dart';
 import 'package:glyph/library/catalog.dart';
+import 'package:glyph/library/clip_asset_store.dart';
 import 'package:glyph/library/user_library.dart';
 import 'package:glyph/main.dart';
 import 'package:glyph/ui/design/knob.dart';
@@ -51,20 +53,35 @@ class _LiveClip extends ClipGenerator {
   bool get liveOnly => true;
 }
 
+class _SavedGifDevice extends DeviceStore {
+  _SavedGifDevice(this.gif);
+  final String gif;
+  @override
+  String? get playingGif => gif;
+}
+
+class _ReadyClipStore extends ClipAssetStore {
+  _ReadyClipStore(this.clip) : super(cacheDir: () async => Directory.systemTemp);
+  final FrameClip clip;
+  @override
+  Future<FrameClip> load(ClipAsset asset) async => clip;
+}
+
 void main() {
   final catalog = Catalog.parse(File('assets/catalog/catalog.json').readAsStringSync());
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   Future<PlaybackController> pumpApp(WidgetTester tester,
-      {Size size = const Size(412, 915), DeviceStore? devices, PlaybackController? controller}) async {
+      {Size size = const Size(412, 915), DeviceStore? devices, PlaybackController? controller,
+      Catalog? searchCatalog}) async {
     tester.view.physicalSize = size * 2.625;
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
     final playback = controller ?? PlaybackController();
     addTearDown(playback.dispose);
     await tester.pumpWidget(GlyphApp(
-      catalog: catalog,
+      catalog: searchCatalog ?? catalog,
       devices: devices ?? DeviceStore(),
       playback: playback,
       creations: CreationsStore(directory: () async => Directory.systemTemp.createTemp('glyph')),
@@ -101,7 +118,8 @@ void main() {
       expect(find.text('Display'), findsWidgets);
       expect(find.byType(Stage), findsOneWidget);
       expect(find.byType(ChannelRail), findsWidgets);
-      expect(rail('Right now'), findsOneWidget);
+      expect(rail('All'), findsOneWidget);
+      expect(tester.widgetList<RailHeader>(find.byType(RailHeader)).first.channel.id, 'all');
       // Never a dead Stage: something is tuned in on open.
       expect(playback.generator, isNotNull);
       expect(find.text(playingTitle(playback)!), findsWidgets);
@@ -135,6 +153,42 @@ void main() {
         findsOneWidget);
     // The playing tile carries the lit dot.
     expect(find.byKey(const ValueKey('on-air')), findsWidgets);
+    playback.pause();
+  });
+
+  testWidgets('All opens the full library grid without changing playback', (tester) async {
+    final playback = await pumpApp(tester);
+    final before = playback.item?.id;
+    await tester.tap(find.descendant(of: rail('All'), matching: find.byKey(const ValueKey('see-all'))));
+    await step(tester, 400);
+    final grid = tester.widget<TileGrid>(find.byType(TileGrid));
+    expect(grid.entries.length, catalog.items.length);
+    expect(grid.channel.id, 'all/all');
+    expect(playback.item?.id, before);
+    expect(find.byType(LedTile).hitTestable().evaluate().length, lessThan(catalog.items.length));
+    expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('opening Display mirrors a renamed clip sent with its original filename', (tester) async {
+    const id = 'pipplee-999997', generator = 'clip:$id';
+    final previous = ClipAssetStore.shared;
+    final store = _ReadyClipStore(FrameClip(width: 1, height: 1,
+        frames: [Frame(1, 1)..set(0, 0, 0xFFFFFF)], delaysMs: [100]));
+    ClipAssetStore.shared = store;
+    addTearDown(() { ClipAssetStore.shared = previous; store.close(); });
+    ClipAssetLibrary.register([ClipAsset(id: generator, title: 'White Cat',
+        sha256: '0' * 64, bytes: 100, width: 1, height: 1, frames: 1)]);
+    final item = LibraryItem(id: id, title: 'White Cat', category: 'Animals',
+        collection: 'Pipplee', generatorId: generator, paletteId: 'rainbow',
+        asset: const LibraryAsset(type: 'clip-gzip', url: 'fixture.clip.gz'));
+    final devices = _SavedGifDevice(keptFileName('Pipplee 999997'));
+    addTearDown(devices.dispose);
+    final playback = await pumpApp(tester, devices: devices,
+        searchCatalog: catalog.merge(Catalog(items: [item])));
+    expect(playback.item?.id, id);
+    expect(playback.item?.title, 'White Cat');
+    expect(tester.takeException(), isNull);
     playback.pause();
   });
 
@@ -208,6 +262,39 @@ void main() {
     expect(find.textContaining('LOOKS'), findsOneWidget);
     expect(find.byType(LedTile), findsWidgets);
     playback.pause();
+  });
+
+  testWidgets('search shows corrections and actionable suggestions without playing a look', (tester) async {
+    final c = Catalog(items: const [
+      LibraryItem(id: 'kitten', title: 'Kitten', category: 'Animals',
+        generatorId: 'plasma', paletteId: 'rainbow'),
+      LibraryItem(id: 'girls-fixture', title: 'Powerpuff Girls', category: 'Pixel Art',
+        generatorId: 'plasma', paletteId: 'rainbow', tags: ['32x32']),
+    ]);
+    final playback = await pumpApp(tester, searchCatalog: c);
+    await tester.tap(find.byTooltip('Search'));
+    await step(tester, 400);
+    final before = playback.item?.id;
+    await tester.enterText(find.byType(TextField), 'kiten');
+    await step(tester, 300);
+    expect(find.text('Showing matches for “kitten”.'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'kiten');
+    expect(find.text('Kitten'), findsOneWidget);
+    expect(playback.item?.id, before);
+    await tester.enterText(find.byType(TextField), 'powefupp girls');
+    await step(tester, 300);
+    expect(find.text('No matching looks.'), findsOneWidget);
+    await tester.tap(find.text('Did you mean “powerpuff girls”?'));
+    await step(tester, 300);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'powerpuff girls');
+    expect(find.text('Powerpuff Girls'), findsOneWidget);
+    expect(playback.item?.id, before, reason: 'search and suggestion taps do not start playback');
+    await tester.enterText(find.byType(TextField), 'powefupp girls 16x16');
+    await step(tester, 300);
+    expect(find.textContaining('Did you mean'), findsNothing);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('long-press and the heart favourite; Your favourites appears', (tester) async {
@@ -507,7 +594,8 @@ void main() {
     expect(send, findsOneWidget);
     expect(flying, findsNothing);
     final deckSend = tester.getRect(send);
-    final deckTitle = tester.getRect(find.text(title).hitTestable());
+    final deckTitle = tester.getRect(find.descendant(of: find.byType(StageDeck),
+        matching: find.text(title)).hitTestable());
 
     // Partway: one Send and one title, both in flight between the two ends.
     final tops = <double>[];
@@ -532,7 +620,8 @@ void main() {
     final barSend = tester.getRect(send);
     expect(barSend.width, closeTo(Lb.touch, 0.5));
     expect(barSend.top, lessThan(MiniStage.height + 1));
-    expect(tester.getRect(find.text(title).hitTestable()).top, lessThan(deckTitle.top));
+    expect(tester.getRect(find.descendant(of: find.byType(MiniStage),
+        matching: find.text(title)).hitTestable()).top, lessThan(deckTitle.top));
     expect(tester.takeException(), isNull);
     playback.pause();
   });

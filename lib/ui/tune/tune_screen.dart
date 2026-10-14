@@ -169,7 +169,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     if (!mounted || scope == null) return;
     final p = scope.playback, gif = scope.devices.playingGif;
     if (gif == null || p.isStreaming || p.item?.id != _autoId) return;
-    final match = scope.catalog.items.where((i) => WledClient.matchesGifName(keptFileName(i.title), gif)).firstOrNull;
+    final match = scope.catalog.items.where((i) => WledClient.matchesGifName(keptFileName(i.deviceFileTitle), gif)).firstOrNull;
     if (match == null || match.id == p.item?.id) return;
     _autoId = match.id;
     p.playItem(match);
@@ -866,7 +866,7 @@ class _Header extends StatelessWidget {
       if (d.isOn == false) return ('Off · tap to wake', () => PowerKey.set(context, true));
       if (p.isStreaming) return ('Live', connect);
       final title = p.item?.title ?? p.generator?.name;
-      if (title != null && d.isPlayingKept(title)) return ('Playing on its own', connect);
+      if (title != null && d.isPlayingKept(title, fileTitle: p.item?.deviceFileTitle)) return ('Playing on its own', connect);
       return ('Tap to show this', () => GlyphActions.ensureStreaming(context));
     }
     if (d.selected != null) {

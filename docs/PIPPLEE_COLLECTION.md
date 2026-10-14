@@ -1,7 +1,9 @@
 # Pipplee collection
 
-The import retains **all 12,361 IDs** from the Pipplee animation endpoint,
-across 413 pages fetched on 13 October 2026. It adds them to Glyph's existing
+The import retains **all 12,361 IDs returned by the frozen crawl** of the
+Pipplee animation endpoint, across 413 pages fetched on 13 October 2026.
+This is a snapshot, not a claim that the endpoint exposed every animation
+available in Pipplee’s app. It adds them to Glyph's existing
 1,236 entries, for **13,597 total entries**. Nothing is omitted or merged at
 the catalogue level. Identical converted content shares a file: there are
 12,273 distinct clips, totalling 31,447,891 compressed bytes (30.0 MiB).
@@ -15,8 +17,9 @@ authorization as an exception to Glyph's usual original/CC0 art policy.
 It does not change that policy for other contributions.
 
 These assets are labelled `shared-with-permission`, not CC0 or MIT. The API
-does not provide original artist names, titles or per-work licences; the app
-uses stable titles `Pipplee <id>` and the notice "From the Pipplee catalogue,
+does not provide original artist names, titles or per-work licences. Glyph
+authors descriptive names and search words from the visible clips; these are
+not original artist titles. The notice remains "From the Pipplee catalogue,
 shared with permission." No private messages or account credentials are
 included. `catalog_assets/pipplee/NOTICE` retains the collection credit.
 
@@ -42,12 +45,28 @@ existing nearest-neighbour scaling and centred letterboxing.
 ## Format and delivery
 
 The app bundles the small `assets/catalog/pipplee.json` index. Each row holds
-the upstream ID, clip SHA-256, compressed size, width, height, frame count and
-up to three colour tags. Clips live outside the APK in
+the upstream ID, clip SHA-256, compressed size, width, height, frame count,
+up to three colour tags, and authored title, subjects, aliases and tags
+(schema version 3 also appends a browsing category). The parser also accepts
+version 1 and 2 rows. Clips live outside the APK in
 `catalog_assets/pipplee/<sha256>.clip.gz`.
 
-Display gives the collection its own lead shelf. See all exposes every
-entry; search supports source IDs, native dimensions and colour tags.
+Display starts with All, including the whole library and your creations.
+Imported animations join subject shelves such as Animals, Nature, Holidays,
+Gaming and Abstract, while Pipplee remains their collection and credit.
+`tool/pipplee_categories.py` derives categories from the reviewed subjects,
+names and tags, matching whole words. Occasion and game context take priority;
+otherwise concrete subjects take priority over accessories. Geometric waves
+do not become ocean scenes, and colours never infer a subject. An authored
+`category` in the description can override the rule for an individual clip.
+The collection also keeps its own lead shelf. See all exposes every
+entry; search supports descriptive names, subjects, aliases, source IDs,
+native dimensions and colour tags.
+Search now matches words rather than arbitrary substrings, collapses identical
+clips in its results, and excludes the placeholder `rainbow` palette. Use
+`collection:pipplee red 32x32` to constrain collection, colour and native size.
+Exact source-ID queries retain access to every record. The search algorithm
+does not infer subjects from the GIFs; it indexes the authored metadata.
 
 The gzip payload is a little-endian `GLC1` stream: four magic bytes, uint16
 width, uint16 height, uint32 frame count; then for each frame a uint32 delay
@@ -74,12 +93,40 @@ duration while avoiding WLED's carried-over frame delay.
 build containing this index. Older app versions do not support this clip
 collection. Adding the files locally does not publish the Pages URLs.
 
+## Names and search words
+
+`catalog_assets/pipplee/descriptions.json` records a description for every
+unique clip SHA-256. Names are short visible descriptions; subjects name
+objects, aliases hold alternate names, and tags describe colour, motion or
+style. Unclear sprites receive conservative descriptions instead of guessed
+characters or unreadable text. Common subject nouns include singular and
+plural forms so “cat” and “cats” both work.
+
+Parallel Luna agents drafted names from multi-frame previews. Audits caught
+labels shifted between neighbouring thumbnails and misidentified objects, so
+stronger visual agents checked larger, numbered previews against the names,
+subjects, aliases and authored tags. The parent agent corrected selected
+entries and inspected full frame sequences where needed. Every unique clip
+received a visual review, but this is not a claim that every frame was
+individually inspected; the ledger retains confidence and review information
+for future corrections.
+
+`tool/build_pipplee_names.py` requires complete hash coverage, validates the
+metadata, and regenerates the bundled index. It gives colliding titles
+stable numeric suffixes while retaining their natural name as an alias.
+Existing item IDs, content hashes, pixels and timings are unchanged, so
+favourites and saved references continue to work. Send retains each imported
+clip’s original device filename, and the Stage uses that identity to recognise
+a Saved look after reconnecting. The importer reapplies
+this ledger when rebuilding the same frozen archive.
+
 ## Reproduce and verify
 
 With the fetched archive, Python 3 + Pillow, and Flutter available:
 
 ```bash
 python3 tool/import_pipplee.py --archive /path/to/catalogue-fetch --workers 4
+python3 tool/build_pipplee_names.py
 python3 skills/glyph-animation/scripts/validate_sprite.py --all
 bash tool/fetch_published_catalog.sh build/pipplee/published
 dart run tool/build_remote_catalog.dart --published build/pipplee/published --output build/pipplee/site
@@ -88,7 +135,10 @@ flutter analyze
 flutter test
 ```
 
-The importer regenerates both the compact index and provenance ledger. Tests
-verify every source ID remains, hash and decode every distinct clip, and
+The importer regenerates both the compact index and provenance ledger. The
+name builder needs only Python’s standard library; a metadata correction
+does not require downloading or converting GIFs again. Tests verify that the
+named index is reproducible, every source ID remains, hash and decode every
+distinct clip, and
 cover download verification, offline caching, request limits, hidden
 previews, stale playback/Rotation requests and device GIF timing.

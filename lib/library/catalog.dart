@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'catalog_search.dart';
+
 /// Pre-rendered content attached to a library item (future GIF / pixel-art
 /// packs). Unknown keys are kept so newer catalogs round-trip intact.
 class LibraryAsset {
@@ -47,6 +49,9 @@ class LibraryItem {
     required this.generatorId,
     required this.paletteId,
     this.tags = const [],
+    this.aliases = const [],
+    this.subjects = const [],
+    this.collection,
     this.params = const {},
     this.speed,
     this.asset,
@@ -59,6 +64,9 @@ class LibraryItem {
   final String title;
   final String category;
   final List<String> tags;
+  /// Reviewed alternate names and concrete subjects, separate from mood tags.
+  final List<String> aliases, subjects;
+  final String? collection;
   final String generatorId;
   final Map<String, double> params;
   final String paletteId;
@@ -82,6 +90,9 @@ class LibraryItem {
         title: j['title'] as String,
         category: j['category'] as String,
         tags: [for (final t in (j['tags'] as List? ?? const [])) t as String],
+        aliases: [for (final t in (j['aliases'] as List? ?? const [])) t as String],
+        subjects: [for (final t in (j['subjects'] as List? ?? const [])) t as String],
+        collection: j['collection'] as String?,
         generatorId: j['generator'] as String,
         params: {
           for (final e in (j['params'] as Map? ?? const {}).entries)
@@ -102,6 +113,9 @@ class LibraryItem {
         'title': title,
         'category': category,
         if (tags.isNotEmpty) 'tags': tags,
+        if (aliases.isNotEmpty) 'aliases': aliases,
+        if (subjects.isNotEmpty) 'subjects': subjects,
+        if (collection != null) 'collection': collection,
         'generator': generatorId,
         if (params.isNotEmpty) 'params': params,
         'palette': paletteId,
@@ -114,31 +128,16 @@ class LibraryItem {
 
   bool get isPixelArt => generatorId.startsWith('sprite:') || asset?.type == 'clip-gzip';
 
+  /// Imported clip descriptions can change while their device filename stays
+  /// compatible with looks sent before the catalogue was named.
+  String get deviceFileTitle => asset?.type == 'clip-gzip' &&
+          RegExp(r'^pipplee-\d+$').hasMatch(id)
+      ? 'Pipplee ${id.substring('pipplee-'.length)}' : title;
+
   /// True when a takedown list names this item or its generator.
   bool revokedBy(Set<String> revoked) =>
       revoked.isNotEmpty &&
       (revoked.contains(id) || revoked.contains(generatorId));
-
-  /// How well [token] matches, 0 for no match. Title hits beat tag hits beat
-  /// category hits beat generator/palette hits.
-  int _score(String token) {
-    final t = title.toLowerCase();
-    if (t == token) return 100;
-    if (t.startsWith(token)) return 80;
-    if (t.split(RegExp(r'[^a-z0-9]+')).any((w) => w.startsWith(token))) return 60;
-    if (t.contains(token)) return 40;
-    var best = 0;
-    for (final tag in tags) {
-      final l = tag.toLowerCase();
-      final s = l == token ? 35 : (l.startsWith(token) ? 28 : (l.contains(token) ? 18 : 0));
-      if (s > best) best = s;
-    }
-    if (best > 0) return best;
-    final c = category.toLowerCase();
-    if (c.contains(token)) return c.startsWith(token) ? 15 : 12;
-    if (generatorId.contains(token) || paletteId.contains(token)) return 5;
-    return 0;
-  }
 }
 
 class Catalog {
@@ -150,6 +149,7 @@ class Catalog {
   final int version;
   final List<LibraryItem> items;
   late final _byId = {for (final item in items) item.id: item};
+  late final _search = CatalogSearch(items);
 
   /// Display order: the catalog's explicit list, then any category that only
   /// appears on items, in first-seen order.
@@ -163,36 +163,10 @@ class Catalog {
     return out;
   }
 
-  /// Items matching every word of [q] in their title, tags, category,
-  /// generator or palette, best matches first (catalog order breaks ties).
-  List<LibraryItem> search(String q) {
-    final tokens =
-        q.toLowerCase().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
-    if (tokens.isEmpty) return List.of(items);
-    final phrase = tokens.join(' ');
-    final scored = <(LibraryItem, int, int)>[];
-    for (var k = 0; k < items.length; k++) {
-      final i = items[k];
-      var total = 0;
-      for (final t in tokens) {
-        final s = i._score(t);
-        if (s == 0) {
-          total = -1;
-          break;
-        }
-        total += s;
-      }
-      if (total < 0) continue;
-      // Whole-phrase title hits ("blue flame") beat scattered word hits.
-      if (tokens.length > 1 && i.title.toLowerCase().contains(phrase)) total += 50;
-      scored.add((i, total, k));
-    }
-    scored.sort((a, b) {
-      final r = b.$2.compareTo(a.$2);
-      return r != 0 ? r : a.$3.compareTo(b.$3);
-    });
-    return [for (final s in scored) s.$1];
-  }
+  /// Local content search; every word and explicit constraint must match.
+  List<LibraryItem> search(String q) => searchResults(q).items;
+
+  CatalogSearchResult searchResults(String q) => _search.search(q);
 
   /// Featured items in editorial order.
   List<LibraryItem> get featured =>

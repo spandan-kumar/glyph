@@ -7,21 +7,44 @@ import 'catalog.dart';
 const pippleeIndexAsset = 'assets/catalog/pipplee.json';
 const pippleeNotice = 'From the Pipplee catalogue, shared with permission.';
 
+List<String> _descriptionWords(dynamic value, int maximum) {
+  if (value is! List ||
+      value.length > maximum ||
+      value.any(
+        (v) =>
+            v is! String ||
+            v.trim().isEmpty ||
+            v.length > 64 ||
+            RegExp(r'[\u0000-\u001f]').hasMatch(v),
+      )) {
+    throw const FormatException('Invalid collection search metadata');
+  }
+  return value.cast<String>();
+}
+
 /// Compact bundled metadata, with every upstream ID preserved.
 Catalog parsePippleeCollection(String source) {
   final doc = jsonDecode(source) as Map<String, dynamic>;
   final rows = doc['rows'] as List;
-  if (doc['version'] != 1 ||
+  final categorized = doc['version'] == 3;
+  final named = categorized || doc['version'] == 2;
+  if ((!named && doc['version'] != 1) ||
       doc['count'] != rows.length ||
       rows.length > 20000 ||
       doc['permission'] != 'maintainer-confirmed-pipplee-consent-2026-10-13') {
     throw const FormatException('Invalid Pipplee collection index');
   }
+  final categories = categorized
+      ? _descriptionWords(doc['categories'], 40)
+      : const ['Pipplee'];
+  if (categories.isEmpty || categories.toSet().length != categories.length) {
+    throw const FormatException('Invalid collection categories');
+  }
   final ids = <int>{}, assets = <ClipAsset>[], items = <LibraryItem>[];
   final hash = RegExp(r'^[0-9a-f]{64}$');
   for (final raw in rows) {
     final row = raw as List;
-    if (row.length != 7) {
+    if (row.length != (categorized ? 12 : named ? 11 : 7)) {
       throw const FormatException('Invalid collection entry');
     }
     final id = row[0] as int, sha = row[1] as String, size = row[2] as int;
@@ -52,7 +75,27 @@ Catalog parsePippleeCollection(String source) {
       throw const FormatException('Invalid collection metadata');
     }
     checkBakeSize(w, h, frames);
-    final key = 'pipplee-$id', title = 'Pipplee $id';
+    final key = 'pipplee-$id';
+    final rawTitle = named ? row[7] : 'Pipplee $id';
+    if (rawTitle is! String ||
+        rawTitle.trim().isEmpty ||
+        rawTitle.length > 80 ||
+        RegExp(r'[\u0000-\u001f]').hasMatch(rawTitle)) {
+      throw const FormatException('Invalid collection name');
+    }
+    final title = rawTitle.trim();
+    final subjects = named ? _descriptionWords(row[8], 12) : const <String>[];
+    final aliases = named ? _descriptionWords(row[9], 8) : const <String>[];
+    final searchTags = named
+        ? _descriptionWords(row[10], 24)
+        : const <String>[];
+    if (named && (subjects.isEmpty || searchTags.isEmpty)) {
+      throw const FormatException('Missing collection search metadata');
+    }
+    final category = categorized ? row[11] : 'Pipplee';
+    if (category is! String || !categories.contains(category)) {
+      throw const FormatException('Invalid collection category');
+    }
     assets.add(
       ClipAsset(
         id: 'clip:$key',
@@ -68,10 +111,13 @@ Catalog parsePippleeCollection(String source) {
       LibraryItem(
         id: key,
         title: title,
-        category: 'Pipplee',
+        category: category,
+        collection: 'Pipplee',
         generatorId: 'clip:$key',
         paletteId: 'rainbow',
-        tags: ['pipplee', 'pixel art', '${w}x$h', ...colours],
+        subjects: subjects,
+        aliases: aliases,
+        tags: ['pipplee', 'pixel art', '${w}x$h', ...colours, ...searchTags],
         added: 4,
         notice: pippleeNotice,
         asset: LibraryAsset(
@@ -85,5 +131,5 @@ Catalog parsePippleeCollection(String source) {
   }
   // Only register after the complete index has validated.
   ClipAssetLibrary.register(assets);
-  return Catalog(items: items, categories: const ['Pipplee']);
+  return Catalog(items: items, categories: categories);
 }

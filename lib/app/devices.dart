@@ -97,9 +97,9 @@ class DeviceStore extends ChangeNotifier {
 
   /// Whether the matrix is playing [title] on its own as something Glyph
   /// kept. Survives app restarts because it's read from the matrix's state.
-  bool isPlayingKept(String title) =>
+  bool isPlayingKept(String title, {String? fileTitle}) =>
       keptTitle == title || (_playingGif != null &&
-          WledClient.matchesGifName(keptFileName(title), _playingGif!));
+          WledClient.matchesGifName(keptFileName(fileTitle ?? title), _playingGif!));
   String? _keptTitle;
   int? _keptPresetId;
 

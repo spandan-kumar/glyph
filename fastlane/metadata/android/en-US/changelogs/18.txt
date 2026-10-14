@@ -1,0 +1,5 @@
+Pipplee animations now have descriptive names, search tags and proper browsing groups.
+All is first on Display and includes your creations.
+Search matches objects, offers typo corrections and avoids irrelevant results.
+Renamed animations still reuse their Saved files on your device.
+Start a drawing from a picture or GIF, with crop and colour controls.
