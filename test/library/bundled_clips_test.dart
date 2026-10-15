@@ -11,7 +11,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('every collection clip ships in the app and loads on a fresh offline install', () async {
-    final catalog = parseimportedCollection(
+    final catalog = parseImportedCollection(
       await rootBundle.loadString(importedIndexAsset),
     );
     final expected = {

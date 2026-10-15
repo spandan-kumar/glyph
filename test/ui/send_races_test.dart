@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph/library/legacy_ids.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
@@ -468,6 +469,89 @@ void main() {
     },
   );
 
+  for (final revision in ['', '-00']) {
+    for (final scenario in ['same bytes', 'changed bytes', 'failed upload', 'shared file']) {
+      testWidgets('legacy device copy $revision: $scenario preserves its Saved identity', (tester) async {
+        final context = await mount(tester);
+        const id = 'imported-999998', generatorId = 'clip:$id';
+        final legacy = '$legacyCollectionPrefix-999998$revision.gif';
+        const title = 'Rocking Sailboat';
+        final previous = ClipAssetStore.shared, store = _ReadyClips(clip);
+        ClipAssetStore.shared = store;
+        addTearDown(() { ClipAssetStore.shared = previous; store.close(); });
+        ClipAssetLibrary.register([ClipAsset(id: generatorId, title: title,
+          sha256: '0' * 64, bytes: 100, width: 1, height: 1, frames: 1)]);
+        const item = LibraryItem(id: id, title: title, category: 'Water',
+          generatorId: generatorId, paletteId: 'rainbow',
+          asset: LibraryAsset(type: 'clip-gzip', url: 'fixture.clip.gz'));
+        final fitted = clip.fitTo(devices.caps!.width, devices.caps!.height);
+        final bytes = scenario == 'changed bytes' ? FakeWled.gif : encodeGif(fitted.frames, [10], forLeds: true);
+        final savedName = '$legacyCollectionPrefix 999998';
+        alpha.presets['12'] = {
+          'on': true, 'n': savedName,
+          'seg': [{'id': 0, 'n': legacy, 'fx': 53}],
+        };
+        if (scenario == 'shared file') {
+          alpha.presets['13'] = {'n': 'My other look', 'seg': [{'id': 0, 'n': legacy, 'fx': 53}]};
+        }
+        alpha.files.add({'name': legacy, 'type': 'file', 'size': bytes.length});
+        alpha.gifs['/$legacy'] = bytes;
+        alpha.state['seg'] = [{'id': 0, 'n': legacy, 'fx': 53}];
+        alpha.state['ps'] = 12;
+        await tester.runAsync(() => devices.refresh());
+        final presetIds = alpha.presets.keys.toSet();
+        final stateBefore = jsonEncode(alpha.state), presetsBefore = jsonEncode(alpha.presets);
+        expect(devices.isPlayingKept(title, fileTitle: item.deviceFileTitle), isTrue);
+        await playback.playItem(item);
+        var verified = false;
+        alpha.beforeRequest = (r) async {
+          if (r.url.path == '/upload') {
+            expect(jsonEncode(alpha.state), stateBefore);
+            expect(jsonEncode(alpha.presets), presetsBefore);
+            expect(alpha.gifs['/$legacy'], bytes);
+            if (scenario == 'failed upload') throw StateError('test upload failure');
+          }
+          if (r.url.path == '/edit' && r.url.queryParameters['list'] != null && alpha.uploads.isNotEmpty) {
+            verified = true;
+          }
+          if (r.method == 'POST' && r.url.path == '/json/state') {
+            expect(verified, isTrue, reason: 'verify the new upload before switching');
+          }
+          if (r.url.queryParameters['func'] == 'delete' && r.url.queryParameters['path'] == '/$legacy') {
+            expect(alpha.state['seg'][0]['n'], 'imported-999998.gif');
+            expect(alpha.presets['12']['seg'][0]['n'], 'imported-999998.gif');
+          }
+        };
+        final result = await tester.runAsync(() => GlyphActions.sendToDevice(context));
+        if (scenario == 'failed upload') {
+          expect(result, isA<Failed>());
+          expect(jsonEncode(alpha.state), stateBefore);
+          expect(jsonEncode(alpha.presets), presetsBefore);
+          expect(alpha.gifs['/$legacy'], bytes);
+          expect(alpha.deleted, isNot(contains('/$legacy')));
+          expect(playback.stops, 0);
+        } else {
+          expect(result, isA<Sent>());
+          expect(alpha.uploads, ['/imported-999998.gif']);
+          expect(alpha.presets.keys.toSet(), presetIds);
+          expect(alpha.presets['12']['n'], savedName);
+          expect(alpha.presets['12']['seg'][0]['n'], 'imported-999998.gif');
+          if (scenario == 'shared file') {
+            expect(alpha.deleted, isNot(contains('/$legacy')));
+            expect(alpha.presets['13']['seg'][0]['n'], legacy);
+          } else {
+            expect(alpha.deleted, contains('/$legacy'));
+          }
+          expect(devices.isPlayingKept(title, fileTitle: item.deviceFileTitle), isTrue);
+          final again = await tester.runAsync(() => GlyphActions.sendToDevice(context));
+          expect(again, isA<AlreadyOnDevice>());
+          expect(alpha.uploads, ['/imported-999998.gif']);
+        }
+        playback.pause();
+      });
+    }
+  }
+
   testWidgets('renaming an imported clip reuses its existing device file and preset', (tester) async {
     final context = await mount(tester);
     const id = 'imported-999999', generatorId = 'clip:$id';
@@ -480,11 +564,11 @@ void main() {
     LibraryItem item(String title) {
       ClipAssetLibrary.register([ClipAsset(id: generatorId, title: title,
         sha256: '0' * 64, bytes: 100, width: 1, height: 1, frames: 1)]);
-      return LibraryItem(id: id, title: title, category: 'imported',
+      return LibraryItem(id: id, title: title, category: 'Imported',
         generatorId: generatorId, paletteId: 'rainbow',
         asset: const LibraryAsset(type: 'clip-gzip', url: 'fixture.clip.gz'));
     }
-    await playback.playItem(item('imported 999999'));
+    await playback.playItem(item('Imported 999999'));
     final first = await tester.runAsync(() => GlyphActions.sendToDevice(context));
     expect(first, isA<Sent>());
     final uploaded = alpha.uploads.toList(), presetIds = alpha.presets.keys.toSet();
@@ -496,7 +580,7 @@ void main() {
     expect(second, isA<AlreadyOnDevice>());
     expect(alpha.uploads, uploaded);
     expect(alpha.presets.keys.toSet(), presetIds);
-    expect(renamed.deviceFileTitle, 'imported 999999');
+    expect(renamed.deviceFileTitle, 'Imported 999999');
     expect(devices.isPlayingKept(renamed.title, fileTitle: renamed.deviceFileTitle), isTrue);
     final reconnected = DeviceStore(clientFactory: (host) => alpha.client(host));
     addTearDown(reconnected.dispose);

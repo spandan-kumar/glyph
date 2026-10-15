@@ -122,7 +122,7 @@ const moods = ['cozy', 'spooky', 'space', 'party', 'calm', 'retro', 'love', 'nat
 const classicCategories = {'Classic Cartoons', 'Storybook', 'Monsters & Legends', 'Masterpieces'};
 
 /// Categories with named rails, plus the legacy source-only category.
-const _railCategories = {...classicCategories, 'Chill', 'Party', 'Space', 'Community', 'imported'};
+const _railCategories = {...classicCategories, 'Chill', 'Party', 'Space', 'Community', 'Imported'};
 
 /// A part of the day, with tags that suit it.
 class Daypart {

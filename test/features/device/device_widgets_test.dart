@@ -155,12 +155,12 @@ void main() {
     await pump(tester, (s, m) => KeptSection(manager: m, store: s, onPlay: (id) async => played.add(id)));
     expect(find.text('Ocean Plasma'), findsOneWidget);
     // File-style names read as words.
-    expect(find.text('Pipplee'), findsOneWidget);
+    expect(find.text('Rainbow'), findsOneWidget);
     expect(find.text('WLED Turn Off'), findsNothing);
     await tester.tap(find.text('Ocean Plasma'));
     await settle(tester);
     expect(played, [1]);
-    await tester.longPress(find.text('Pipplee'));
+    await tester.longPress(find.text('Rainbow'));
     await settle(tester);
     expect(find.text('Plays when your device powers on.'), findsOneWidget);
     await tester.tap(find.text('Rename'));

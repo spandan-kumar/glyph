@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'catalog_search.dart';
+import 'legacy_ids.dart';
 
 /// Pre-rendered content attached to a library item (future GIF / pixel-art
 /// packs). Unknown keys are kept so newer catalogs round-trip intact.
@@ -86,14 +87,14 @@ class LibraryItem {
   final String? notice;
 
   factory LibraryItem.fromJson(Map<String, dynamic> j) => LibraryItem(
-        id: j['id'] as String,
+        id: importedCollectionId(j['id'] as String),
         title: j['title'] as String,
         category: j['category'] as String,
         tags: [for (final t in (j['tags'] as List? ?? const [])) t as String],
         aliases: [for (final t in (j['aliases'] as List? ?? const [])) t as String],
         subjects: [for (final t in (j['subjects'] as List? ?? const [])) t as String],
         collection: j['collection'] as String?,
-        generatorId: j['generator'] as String,
+        generatorId: importedCollectionId(j['generator'] as String),
         params: {
           for (final e in (j['params'] as Map? ?? const {}).entries)
             e.key as String: (e.value as num).toDouble(),
@@ -128,16 +129,16 @@ class LibraryItem {
 
   bool get isPixelArt => generatorId.startsWith('sprite:') || asset?.type == 'clip-gzip';
 
-  /// Imported clip descriptions can change while their device filename stays
-  /// compatible with looks sent before the catalogue was named.
+  /// Imported clip descriptions can change without changing device identity.
+  /// Legacy device filenames are recognized when matching and re-sending.
   String get deviceFileTitle => asset?.type == 'clip-gzip' &&
           RegExp(r'^imported-\d+$').hasMatch(id)
-      ? 'imported ${id.substring('imported-'.length)}' : title;
+      ? 'Imported ${id.substring('imported-'.length)}' : title;
 
   /// True when a takedown list names this item or its generator.
   bool revokedBy(Set<String> revoked) =>
       revoked.isNotEmpty &&
-      (revoked.contains(id) || revoked.contains(generatorId));
+      revoked.map(importedCollectionId).any((key) => key == id || key == generatorId);
 }
 
 class Catalog {
@@ -182,7 +183,9 @@ class Catalog {
       items.where((i) => i.category == c).toList();
 
   LibraryItem? byId(String id) {
-    return _byId[id];
+    final canonical = importedCollectionId(id);
+    return _byId[canonical] ?? (canonical.startsWith('clip:')
+        ? _byId[canonical.substring(5)] : null);
   }
 
   /// Overlays [other] (the downloaded catalog) on this bundled one.

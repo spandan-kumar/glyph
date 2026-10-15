@@ -167,7 +167,7 @@ void main() {
       expect(result.suggestions, ['powerpuff girls']);
       expect(c.search('girls'), isNotEmpty);
       expect(
-        Catalog(items: [item('unknown', 'imported 99')])
+        Catalog(items: [item('unknown', 'Imported 99')])
             .searchResults('powefupp girls')
             .suggestions,
         isEmpty,
@@ -180,7 +180,7 @@ void main() {
     () {
       final c = Catalog(
         items: [
-          item('cat', 'Kitten', tags: ['32x32'], collection: 'imported'),
+          item('cat', 'Kitten', tags: ['32x32'], collection: 'Imported'),
           item(
             'girls',
             'Powerpuff Girls',
@@ -219,16 +219,16 @@ void main() {
         items: [
           item(
             'imported-100',
-            'imported 100',
+            'Imported 100',
             tags: ['red', '32x32'],
-            category: 'imported',
+            category: 'Imported',
             asset: asset,
           ),
           item(
             'imported-101',
-            'imported 101',
+            'Imported 101',
             tags: ['red', '32x32'],
-            category: 'imported',
+            category: 'Imported',
             asset: asset,
           ),
           item('other', 'Red Cat', tags: ['red']),
@@ -236,7 +236,7 @@ void main() {
       );
       expect(ids(c, 'red'), ['other', 'imported-100']);
       expect(ids(c, '101'), ['imported-101']);
-      expect(ids(c, 'imported 101'), ['imported-101']);
+      expect(ids(c, 'Imported 101'), ['imported-101']);
       expect(ids(c, 'imported-101'), ['imported-101']);
       expect(ids(c, '101 16x16'), isEmpty);
       expect(
@@ -255,7 +255,7 @@ void main() {
   test(
     'reviewed names and franchise aliases find the actual clips',
     () {
-      final c = parseimportedCollection(
+      final c = parseImportedCollection(
         File(importedIndexAsset).readAsStringSync(),
       );
       for (final entry in {
@@ -353,7 +353,7 @@ void main() {
         File('assets/catalog/catalog.json').readAsStringSync(),
       );
       final c = bundled.merge(
-        parseimportedCollection(File(importedIndexAsset).readAsStringSync()),
+        parseImportedCollection(File(importedIndexAsset).readAsStringSync()),
       );
       final rainbows = c
           .search('rainbow')

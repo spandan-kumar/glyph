@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../library/legacy_ids.dart';
 import 'device.dart';
 import 'panel_setup.dart';
 import 'presets.dart';
@@ -507,6 +508,8 @@ class WledClient {
   static bool matchesGifName(String baseName, String fileName) {
     final base = (baseName.startsWith('/') ? baseName.substring(1) : baseName).toLowerCase();
     if (base.length <= 4 || !base.endsWith('.gif')) return false;
+    final legacy = legacyCollectionFileName(base);
+    if (legacy != null && matchesGifName(legacy, fileName)) return true;
     final file = fileName.toLowerCase();
     if (base == file) return true;
     final stem = base.substring(0, base.length - 4);

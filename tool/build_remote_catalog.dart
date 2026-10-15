@@ -379,11 +379,11 @@ Future<void> main(List<String> args) async {
         ..writeAsBytesSync(e.value);
     }
     // The bundled collection index pins every clip independently. Keep these
-    // assets on the site for both publication and rollback; never put them
-    // into the signed sprite payload or the APK.
+    // assets on the site for both publication and rollback, separate from
+    // the signed sprite payload. Current apps also bundle them offline.
     final collectionFile = File(importedIndexAsset);
     if (collectionFile.existsSync()) {
-      final collection = parseimportedCollection(
+      final collection = parseImportedCollection(
         collectionFile.readAsStringSync(),
       );
       final copied = <String>{};

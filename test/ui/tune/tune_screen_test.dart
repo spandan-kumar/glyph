@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph/library/legacy_ids.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
@@ -208,9 +209,9 @@ void main() {
     ClipAssetLibrary.register([ClipAsset(id: generator, title: 'White Cat',
         sha256: '0' * 64, bytes: 100, width: 1, height: 1, frames: 1)]);
     final item = LibraryItem(id: id, title: 'White Cat', category: 'Animals',
-        collection: 'imported', generatorId: generator, paletteId: 'rainbow',
+        collection: 'Imported', generatorId: generator, paletteId: 'rainbow',
         asset: const LibraryAsset(type: 'clip-gzip', url: 'fixture.clip.gz'));
-    final devices = _SavedGifDevice(keptFileName('imported 999997'));
+    final devices = _SavedGifDevice('$legacyCollectionPrefix-999997-00.gif');
     addTearDown(devices.dispose);
     final playback = await pumpApp(tester, devices: devices,
         searchCatalog: catalog.merge(Catalog(items: [item])));

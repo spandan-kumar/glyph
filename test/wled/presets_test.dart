@@ -14,11 +14,11 @@ void main() {
 
     test('parses the real presets.json, skipping id 0', () {
       expect(presets.map((p) => p.id), [1, 101, 102]);
-      expect(presets.map((p) => p.name), ['Ocean Plasma', 'WLED Turn Off', 'Pipplee']);
+      expect(presets.map((p) => p.name), ['Ocean Plasma', 'WLED Turn Off', 'Rainbow']);
     });
 
     test('kinds, GIFs, effects and the off preset', () {
-      final [ocean, off, pipplee] = presets;
+      final [ocean, off, rainbow] = presets;
       expect(ocean.kind, PresetKind.state);
       expect(ocean.gifName, 'ocean-plasma.gif');
       expect(ocean.effectId, 53);
@@ -26,9 +26,9 @@ void main() {
       expect(ocean.turnsOff, isFalse);
       expect(off.turnsOff, isTrue);
       expect(off.gifName, isNull);
-      expect(pipplee.gifName, 'pipplee.gif');
-      expect(pipplee.segments, hasLength(1));
-      expect(pipplee.primaryColor, 0);
+      expect(rainbow.gifName, 'rainbow.gif');
+      expect(rainbow.segments, hasLength(1));
+      expect(rainbow.primaryColor, 0);
     });
 
     test('stored playlist is recognised', () {

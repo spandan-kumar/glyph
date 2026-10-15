@@ -174,7 +174,7 @@ void main() {
             LibraryItem(
               id: 'clip-item',
               title: asset.title,
-              category: 'imported',
+              category: 'Imported',
               generatorId: asset.id,
               paletteId: 'rainbow',
             ),

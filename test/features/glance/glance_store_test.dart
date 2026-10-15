@@ -1,11 +1,44 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph/library/legacy_ids.dart';
 import 'package:glyph/features/glance/glance_model.dart';
 import 'package:glyph/features/glance/glance_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  test('Rotations rewrite library references and preserve all other data', () async {
+    final old = '$legacyCollectionPrefix-42';
+    final data = {
+      'version': 2, 'future': {'a': 1},
+      'cards': [{'broken': true}],
+      'shows': [
+        {'id': 's', 'title': 'Morning', 'future': true, 'entries': [
+          {'kind': 'library', 'id': old, 'seconds': 10},
+          {'kind': 'library', 'id': 'clip:$old', 'seconds': 10},
+          {'kind': 'creation', 'id': old, 'seconds': 10},
+          {'kind': 'card', 'id': old, 'seconds': 10},
+        ]},
+        {'unreadable': true},
+      ],
+    };
+    SharedPreferences.setMockInitialValues({GlanceStore.key: jsonEncode(data)});
+    final store = GlanceStore();
+    addTearDown(store.dispose);
+    await store.load();
+    expect(store.shows.single.entries.map((e) => e.id), ['imported-42', 'clip:imported-42', old, old]);
+    final expected = jsonDecode(jsonEncode(data)) as Map;
+    expected['shows'][0]['entries'][0]['id'] = 'imported-42';
+    expected['shows'][0]['entries'][1]['id'] = 'clip:imported-42';
+    final prefs = await SharedPreferences.getInstance();
+    expect(jsonDecode(prefs.getString(GlanceStore.key)!), expected);
+    final reload = GlanceStore();
+    addTearDown(reload.dispose);
+    await reload.load();
+    expect(reload.shows.single.toJson(), store.shows.single.toJson());
+    expect(reload.unreadable, 2);
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
   GlanceCard card(String id) => GlanceCard(
     id: id,

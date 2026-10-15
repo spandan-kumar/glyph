@@ -20,7 +20,7 @@ Future<Catalog> loadBundledCatalog([AssetBundle? bundle]) async {
     c = Catalog.parse(await b.loadString(starterCatalogAsset));
   }
   try {
-    c = c.merge(parseimportedCollection(await b.loadString(importedIndexAsset)));
+    c = c.merge(parseImportedCollection(await b.loadString(importedIndexAsset)));
   } catch (_) {
     // The existing offline library remains usable if an optional index is absent.
   }

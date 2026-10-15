@@ -16,7 +16,7 @@ import '../library/clip_asset_fixture.dart';
 LibraryItem item(ClipAsset asset) => LibraryItem(
   id: asset.id.substring(5),
   title: asset.title,
-  category: 'imported',
+  category: 'Imported',
   generatorId: asset.id,
   paletteId: 'rainbow',
 );
