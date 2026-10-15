@@ -80,40 +80,43 @@ void main() {
     },
   );
 
-  test('bundled playback does not wait behind four remote previews', () async {
-    final (local, bytes) = clipFixture();
-    final remote = List.generate(
-      4,
-      (i) => clipFixture(id: i + 100, colours: [i + 1]),
-    );
-    final busy = Completer<void>(), release = Completer<void>();
-    var requests = 0;
-    final store = ClipAssetStore(
-      bundle: _Bundle({
-        'catalog_assets/imported/${local.sha256}.clip.gz': bytes,
-      }),
-      cacheDir: () async => dir,
-      client: MockClient((request) async {
-        if (++requests == 4) busy.complete();
-        await release.future;
-        return http.Response.bytes(
-          remote.firstWhere((f) => request.url.path.contains(f.$1.sha256)).$2,
-          200,
-        );
-      }),
-    );
-    addTearDown(store.close);
-    final previews = Future.wait(remote.map((f) => store.load(f.$1)));
-    await busy.future;
-    try {
-      final clip = await store.load(local).timeout(const Duration(seconds: 5));
-      expect(clip.frames.first.get(0, 0), 0xff0000);
-      expect(requests, 4);
-    } finally {
+  for (final promote in [false, true]) {
+    test('bundled decodes use four slots and prioritize playback (promote: $promote)', () async {
+      final fixtures = List.generate(21, (i) => clipFixture(id: i, colours: [i + 1]));
+      final started = <String>[];
+      final busy = Completer<void>(), release = Completer<void>();
+      var active = 0, peak = 0;
+      final store = ClipAssetStore(
+        bundle: _Bundle({for (final (asset, bytes) in fixtures)
+          'catalog_assets/imported/${asset.sha256}.clip.gz': bytes}),
+        cacheDir: () async => throw StateError('No disk cache'),
+        decode: (bytes, asset) async {
+          active++;
+          if (active > peak) peak = active;
+          started.add(asset.id);
+          if (started.length == 4) busy.complete();
+          try {
+            await release.future;
+            return inflateClipAsset(bytes, asset);
+          } finally {
+            active--;
+          }
+        },
+      );
+      addTearDown(store.close);
+      final previews = Future.wait(fixtures.take(20).map((f) => store.load(f.$1)));
+      await busy.future;
+      expect(started, hasLength(4));
+      final pick = fixtures[promote ? 19 : 20].$1;
+      final playback = store.load(pick, priority: true);
+      expect(started, hasLength(4));
       release.complete();
-      await previews;
-    }
-  });
+      await Future.wait([previews, playback]);
+      expect(peak, 4);
+      expect(started[4], pick.id, reason: 'playback jumps ahead of queued previews');
+      expect(started.toSet().length, promote ? 20 : 21);
+    });
+  }
 
   test(
     'corrupt bundled clips are rejected without a network fallback',

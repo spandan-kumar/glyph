@@ -143,16 +143,23 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
   /// "Right now" pick (on the phone only — we don't take over a matrix that
   /// may be playing something it keeps). If something is already playing,
   /// surf from the channel it belongs to.
-  void _autoTune() {
+  Future<void> _autoTune() async {
     if (!mounted) return;
     final p = tune.playback;
+    if (p.loadingTitle != null) return;
     if (p.generator == null) {
       final first = _base!.nowChannel.items.firstOrNull;
       if (first is ItemEntry) {
         _autoId = first.item.id;
-        p.playItem(first.item);
+        final scope = _scope!, devices = scope.devices;
+        final selection = devices.selectionGeneration, control = devices.controlGeneration;
+        final gif = devices.playingGif;
+        final played = await p.playItem(first.item, canPlay: () => mounted &&
+            selection == devices.selectionGeneration && control == devices.controlGeneration &&
+            devices.playingGif == gif);
+        if (!mounted || !played || p.item?.id != first.item.id) return;
       }
-      _mirrorMatrix();
+      await _mirrorMatrix();
       return;
     }
     for (final c in _channels) {
@@ -164,7 +171,7 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
   /// The phone mirrors the matrix: if it's playing something Glyph kept and
   /// the user hasn't picked anything yet, show that instead of the
   /// automatic pick (so opening the app doesn't contradict the room).
-  void _mirrorMatrix() {
+  Future<void> _mirrorMatrix() async {
     final scope = _scope;
     if (!mounted || scope == null) return;
     final p = scope.playback, gif = scope.devices.playingGif;
@@ -172,7 +179,12 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
     final match = scope.catalog.items.where((i) => WledClient.matchesGifName(keptFileName(i.deviceFileTitle), gif)).firstOrNull;
     if (match == null || match.id == p.item?.id) return;
     _autoId = match.id;
-    p.playItem(match);
+    final devices = scope.devices;
+    final selection = devices.selectionGeneration, control = devices.controlGeneration;
+    final played = await p.playItem(match, canPlay: () => mounted &&
+        selection == devices.selectionGeneration && control == devices.controlGeneration &&
+        devices.playingGif == gif);
+    if (!mounted || !played || p.item?.id != match.id) return;
     for (final c in _channels) {
       final k = c.indexOfPlaying(p);
       if (k >= 0) return tune.adopt(c, index: k);

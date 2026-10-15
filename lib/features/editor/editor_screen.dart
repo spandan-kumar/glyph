@@ -67,7 +67,7 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
     super.initState();
     final c = widget.initial;
     if (c != null) {
-      _model = EditorModel.fromClip(c.clip, fps: (c.meta['fps'] as num?)?.toInt());
+      _model = EditorModel.fromClip(c.clip);
       _id = c.id;
       _title = c.title;
     }
@@ -138,9 +138,14 @@ class EditorScreenState extends State<EditorScreen> with ToolSession<EditorScree
     m.strokeEnd();
     _player?.cancel();
     _preview.value ??= m.index;
-    _player = Timer.periodic(Duration(microseconds: 1000000 ~/ m.fps), (_) {
-      _preview.value = ((_preview.value ?? 0) + 1) % m.frameCount;
-    });
+    void next() {
+      final index = (_preview.value ?? m.index).clamp(0, m.frameCount - 1);
+      _player = Timer(Duration(milliseconds: m.delaysMs[index]), () {
+        _preview.value = (index + 1) % m.frameCount;
+        next();
+      });
+    }
+    next();
     setState(() {});
   }
 

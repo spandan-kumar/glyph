@@ -141,7 +141,7 @@ void main() {
   });
 
   testWidgets('starts from a picture at the chosen size, from the picker or the menu', (tester) async {
-    await pumpEditor(tester, const EditorScreen());
+    final playback = await pumpEditor(tester, const EditorScreen());
     await tester.tap(find.text('8×8'));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.text('Picture'));
@@ -154,11 +154,12 @@ void main() {
     // The tuned picture comes back as the drawing, every frame of it.
     Frame f(int c) => Frame(8, 8)..set(1, 2, c);
     Navigator.of(tester.element(import))
-        .pop(FrameClip(width: 8, height: 8, frames: [f(0xFF0000), f(0x00FF00)], delaysMs: [100, 100]));
+        .pop(FrameClip(width: 8, height: 8, frames: [f(0xFF0000), f(0x00FF00)], delaysMs: [100, 900]));
     await tester.pump(const Duration(milliseconds: 500));
     final m = state(tester).model!;
-    expect((m.width, m.height, m.frameCount, m.fps), (8, 8, 2, 10));
+    expect((m.width, m.height, m.frameCount, m.fps), (8, 8, 2, 2));
     expect(m.frames[1].get(1, 2), 0x00FF00);
+    expect(m.toClip().delaysMs, [100, 900]);
 
     // From the menu, at the drawing's size; backing out keeps the drawing.
     await tester.tap(find.byTooltip('More'));
@@ -173,6 +174,32 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(identical(state(tester).model, m), isTrue);
     expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('saved picture rhythm survives reopening and editor preview', (tester) async {
+    final creation = Creation(id: 'rhythm', title: 'Rhythm', kind: 'drawing',
+        clip: FrameClip(width: 2, height: 2,
+            frames: [Frame(2, 2), Frame(2, 2)], delaysMs: [100, 900]),
+        updatedAt: DateTime(2026), meta: const {'fps': 10});
+    final playback = await pumpEditor(tester, EditorScreen(initial: creation));
+    final m = state(tester).model!;
+    expect(m.toClip().delaysMs, [100, 900]);
+    expect(m.isDirty, false);
+    await tester.tap(find.byTooltip('Play'));
+    await tester.pump();
+    final preview = tester.widget<EditorCanvas>(find.byType(EditorCanvas)).preview;
+    expect(preview.value, 0);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(preview.value, 1);
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(preview.value, 1);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(preview.value, 0);
+    await tester.tap(find.byTooltip('Pause'));
+    await tester.pump();
+    playback.pause();
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('re-opens a saved drawing with its frames and fps', (tester) async {

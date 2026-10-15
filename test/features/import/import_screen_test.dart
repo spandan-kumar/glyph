@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -10,6 +11,8 @@ import 'package:glyph/engine/clip.dart';
 import 'package:glyph/features/import/crop_editor.dart';
 import 'package:glyph/features/import/decode.dart';
 import 'package:glyph/features/import/import_screen.dart';
+import 'package:glyph/features/import/processing.dart';
+import 'package:glyph/ui/design/parts.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
@@ -36,9 +39,142 @@ DecodedSource _gradientClip() {
   return DecodedSource.rgb(w, h, frames, delaysMs: List.filled(6, 80));
 }
 
+class _Jobs {
+  final gates = <Completer<void>>[];
+  final jobs = <ImportJob>[];
+
+  Future<R> run<Q, R>(ComputeCallback<Q, R> callback, Q message) async {
+    jobs.add(message as ImportJob);
+    final gate = Completer<void>();
+    gates.add(gate);
+    await gate.future;
+    return callback(message);
+  }
+}
+
+class _Pops extends NavigatorObserver {
+  int count = 0;
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => count++;
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   tearDown(() => ImportScreen.runner = compute);
+
+  Future<PlaybackController> pumpImport(WidgetTester tester, {bool drawing = false,
+      _Pops? observer, void Function(FrameClip?)? picked}) async {
+    // A phone-sized screen, so the bottom controls are on screen to tap.
+    tester.view.physicalSize = const Size(412, 915) * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    ImportScreen.runner = <Q, R>(cb, Q q) async => cb(q);
+    final playback = PlaybackController(), devices = DeviceStore();
+    addTearDown(playback.dispose);
+    addTearDown(devices.dispose);
+    final dir = Directory.systemTemp.createTempSync('glyph-import-races');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final screen = ImportScreen(initialSource: _gradientClip(),
+        drawingSize: drawing ? (8, 8) : null);
+    await tester.pumpWidget(AppScope(
+      playback: playback, devices: devices,
+      catalog: Catalog.parse(File('assets/catalog/starter.json').readAsStringSync()),
+      creations: CreationsStore(directory: () async => dir),
+      child: AmbientHost(playback: playback, child: MaterialApp(
+        theme: buildTheme(), navigatorObservers: [?observer],
+        home: Builder(builder: (context) => TextButton(
+          child: const Text('home'),
+          onPressed: () => Navigator.of(context).push<void>(MaterialPageRoute(
+            builder: (context) => TextButton(child: const Text('drawing'), onPressed: () async {
+              final clip = await Navigator.of(context).push<FrameClip>(
+                  MaterialPageRoute(builder: (_) => screen));
+              picked?.call(clip);
+            }),
+          )),
+        )),
+      )),
+    ));
+    await tester.tap(find.text('home'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('drawing'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+    return playback;
+  }
+
+  testWidgets('Show retries when settings change during the final render', (tester) async {
+    final playback = await pumpImport(tester);
+    final jobs = _Jobs();
+    ImportScreen.runner = jobs.run;
+    await tester.tap(find.byTooltip('Rotate'));
+    await tester.tap(find.byTooltip('Show on device'));
+    expect(jobs.jobs, hasLength(1));
+    await tester.tap(find.byTooltip('Rotate'));
+    jobs.gates[0].complete();
+    await tester.pump();
+    expect(jobs.jobs, hasLength(2));
+    expect(playback.generator, isNull);
+    jobs.gates[1].complete();
+    await tester.pump();
+    final expected = runImportJob(jobs.jobs.last).clip;
+    final actual = (playback.generator! as ClipGenerator).clip;
+    expect(actual.frames.first.rgb, expected.frames.first.rgb);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('two drawing taps render the latest settings and pop only the import', (tester) async {
+    final observer = _Pops();
+    FrameClip? picked;
+    final playback = await pumpImport(tester, drawing: true, observer: observer,
+        picked: (clip) => picked = clip);
+    final jobs = _Jobs();
+    ImportScreen.runner = jobs.run;
+    await tester.tap(find.byTooltip('Rotate'));
+    final button = find.widgetWithText(FilledButton, 'Use in drawing');
+    await tester.tap(button);
+    await tester.tap(button);
+    await tester.pump();
+    expect(jobs.jobs, hasLength(1));
+    expect(find.bySemanticsLabel('Preparing your drawing'), findsOneWidget);
+    expect(find.byType(LedSpinner), findsWidgets);
+    await tester.tap(find.byTooltip('Rotate'));
+    jobs.gates[0].complete();
+    await tester.pump();
+    expect(jobs.jobs, hasLength(2));
+    expect(observer.count, 0);
+    jobs.gates[1].complete();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(observer.count, 1);
+    expect(find.text('drawing'), findsOneWidget);
+    expect(picked!.frames.first.rgb, runImportJob(jobs.jobs.last).clip.frames.first.rgb);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('five changing renders give up without handing back a stale drawing', (tester) async {
+    final observer = _Pops();
+    final playback = await pumpImport(tester, drawing: true, observer: observer);
+    final jobs = _Jobs();
+    ImportScreen.runner = jobs.run;
+    await tester.tap(find.byTooltip('Rotate'));
+    await tester.tap(find.text('Use in drawing'));
+    for (var i = 0; i < 5; i++) {
+      await tester.tap(find.byTooltip('Rotate'));
+      jobs.gates[i].complete();
+      await tester.pump();
+    }
+    expect(jobs.jobs, hasLength(5));
+    expect(observer.count, 0);
+    expect(find.text('Use in drawing'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    playback.pause();
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('editor renders an injected clip at phone size without exceptions',
       timeout: const Timeout(Duration(seconds: 60)), (tester) async {
@@ -233,6 +369,7 @@ void main() {
     expect(playback.generator, isNull);
     expect(creations.items, isEmpty);
     expect(tester.takeException(), isNull);
+    playback.pause();
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 5));
   });

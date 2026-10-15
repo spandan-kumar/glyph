@@ -55,7 +55,23 @@ class _LiveClip extends ClipGenerator {
 
 class _SavedGifDevice extends DeviceStore {
   _SavedGifDevice(this.gif);
-  final String gif;
+  String gif;
+  int selection = 0, control = 0;
+  @override
+  int get selectionGeneration => selection;
+  @override
+  int get controlGeneration => control;
+
+  void changeDevice(String next) {
+    gif = next;
+    selection++;
+    notifyListeners();
+  }
+
+  void changeControl() {
+    control++;
+    notifyListeners();
+  }
   @override
   String? get playingGif => gif;
 }
@@ -64,7 +80,19 @@ class _ReadyClipStore extends ClipAssetStore {
   _ReadyClipStore(this.clip) : super(cacheDir: () async => Directory.systemTemp);
   final FrameClip clip;
   @override
-  Future<FrameClip> load(ClipAsset asset) async => clip;
+  Future<FrameClip> load(ClipAsset asset, {bool priority = false}) async => clip;
+}
+
+class _DelayedClipStore extends ClipAssetStore {
+  _DelayedClipStore() : super(cacheDir: () async => Directory.systemTemp);
+  final ready = Completer<FrameClip>();
+  final next = Completer<FrameClip>();
+  int requests = 0;
+  @override
+  Future<FrameClip> load(ClipAsset asset, {bool priority = false}) {
+    requests++;
+    return requests == 1 ? ready.future : next.future;
+  }
 }
 
 void main() {
@@ -190,6 +218,67 @@ void main() {
     expect(playback.item?.title, 'White Cat');
     expect(tester.takeException(), isNull);
     playback.pause();
+  });
+
+  for (final change in ['device', 'control', 'gif']) {
+    testWidgets('a delayed device mirror ignores changed $change', (tester) async {
+      const id = 'imported-999996', generator = 'clip:$id';
+      final clip = FrameClip.uniform([Frame(1, 1)]);
+      final store = _DelayedClipStore();
+      addTearDown(store.close);
+      ClipAssetLibrary.register([ClipAsset(id: generator, title: 'Mirror test',
+          sha256: '1' * 64, bytes: 100, width: 1, height: 1, frames: 1)]);
+      final item = LibraryItem(id: id, title: 'Mirror test', category: 'Animals',
+          generatorId: generator, paletteId: 'rainbow');
+      final devices = _SavedGifDevice(keptFileName(item.deviceFileTitle));
+      addTearDown(devices.dispose);
+      final playback = await pumpApp(tester, devices: devices,
+          controller: PlaybackController(clipAssets: store),
+          searchCatalog: catalog.merge(Catalog(items: [item])));
+      final previous = playback.generator, previousItem = playback.item;
+      expect(playback.loadingTitle, item.title);
+      if (change == 'device') {
+        devices.changeDevice(devices.gif);
+      } else if (change == 'control') {
+        devices.changeControl();
+      } else {
+        devices.gif = 'another.gif';
+        devices.notifyListeners();
+      }
+      store.ready.complete(clip);
+      await step(tester, 400);
+      expect(playback.generator, same(previous));
+      expect(playback.item, same(previousItem));
+      expect(playback.loadingTitle, isNull);
+      expect(tester.takeException(), isNull);
+      playback.pause();
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  testWidgets('a cold automatic pick is not restarted on every frame', (tester) async {
+    const id = 'cold-auto', generator = 'clip:$id';
+    ClipAssetLibrary.register([ClipAsset(id: generator, title: 'Cold auto',
+        sha256: '2' * 64, bytes: 100, width: 1, height: 1, frames: 1)]);
+    final item = LibraryItem(id: id, title: 'Cold auto', category: 'Animals',
+        generatorId: generator, paletteId: 'rainbow');
+    final store = _DelayedClipStore();
+    addTearDown(store.close);
+    final devices = _SavedGifDevice('unknown.gif');
+    addTearDown(devices.dispose);
+    final playback = await pumpApp(tester, devices: devices,
+        controller: PlaybackController(clipAssets: store), searchCatalog: Catalog(items: [item]));
+    expect(store.requests, 1);
+    expect(playback.loadingTitle, item.title);
+    devices.changeDevice('other.gif');
+    store.ready.complete(FrameClip.uniform([Frame(1, 1)]));
+    await step(tester, 100);
+    expect(playback.generator, isNull, reason: 'the old selection cannot finish its pick');
+    expect(store.requests, 2, reason: 'only the fresh selection can retry');
+    playback.pause();
+    await tester.pumpWidget(const SizedBox());
+    store.next.complete(FrameClip.uniform([Frame(1, 1)]));
+    await tester.pump();
   });
 
   testWidgets('swiping the Stage surfs the channel', (tester) async {

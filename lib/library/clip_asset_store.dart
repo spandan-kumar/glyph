@@ -22,8 +22,10 @@ class ClipAssetStore {
     http.Client? client,
     this.timeout = const Duration(seconds: 20),
     this.maxDiskBytes = 96 * 1024 * 1024,
+    Future<FrameClip> Function(Uint8List, ClipAsset)? decode,
   }) : baseUrl = baseUrl ?? Uri.parse(RemoteCatalog.defaultUrl),
-       _client = client ?? http.Client();
+       _client = client ?? http.Client(),
+       _decode = decode ?? _decodeInIsolate;
 
   static ClipAssetStore shared = ClipAssetStore(
     cacheDir: getApplicationSupportDirectory,
@@ -36,66 +38,84 @@ class ClipAssetStore {
   final Duration timeout;
   final int maxDiskBytes;
   final _pending = <String, Future<FrameClip>>{};
-  final _waiters = <Completer<void>>[];
+  final Future<FrameClip> Function(Uint8List, ClipAsset) _decode;
+  final _waiters = <_LoadWaiter>[];
   int _active = 0;
   bool _closed = false;
 
-  Future<FrameClip> load(ClipAsset asset) {
+  Future<FrameClip> load(ClipAsset asset, {bool priority = false}) {
     if (_closed) return Future.error(StateError('Animation downloads stopped'));
     final cached = ClipAssetLibrary.cached(asset.sha256);
     if (cached != null) return Future.value(cached);
+    if (priority) {
+      final waiter = _waiters.where((w) => w.sha == asset.sha256).firstOrNull;
+      if (waiter != null && !waiter.priority) {
+        _waiters.remove(waiter);
+        waiter.priority = true;
+        _queue(waiter);
+      }
+    }
     return _pending.putIfAbsent(
       asset.sha256,
-      () => _load(asset).whenComplete(() {
+      () => _load(asset, priority: priority).whenComplete(() {
         _pending.remove(asset.sha256);
       }),
     );
   }
 
-  Future<void> _take() async {
+  void _queue(_LoadWaiter waiter) {
+    final firstPreview = _waiters.indexWhere((w) => !w.priority);
+    if (waiter.priority && firstPreview >= 0) {
+      _waiters.insert(firstPreview, waiter);
+    } else {
+      _waiters.add(waiter);
+    }
+  }
+
+  Future<void> _take(String sha, {required bool priority}) async {
     if (_active < 4) {
       _active++;
       return;
     }
-    final waiter = Completer<void>();
-    _waiters.add(waiter);
-    await waiter.future;
+    final waiter = _LoadWaiter(sha, priority);
+    _queue(waiter);
+    await waiter.ready.future;
   }
 
   void _release() {
     if (_waiters.isNotEmpty) {
-      _waiters.removeAt(0).complete();
+      _waiters.removeAt(0).ready.complete();
     } else {
       _active--;
     }
   }
 
-  Future<FrameClip> _load(ClipAsset asset) async {
-    // Bundled clips need neither a download slot nor a writable disk cache.
-    // Missing assets can still come from a newer remote collection.
-    ByteData? bundled;
-    if (bundle != null) {
-      try {
-        bundled = await bundle!.load(
-          'catalog_assets/imported/${asset.sha256}.clip.gz',
-        );
-      } on FlutterError {
-        // Not included in this app version; try the verified download cache.
-      }
-    }
-    if (bundled != null) {
-      final bytes = Uint8List.sublistView(bundled);
-      if (!_matches(bytes, asset)) {
-        throw const FormatException('Animation verification failed');
-      }
-      final clip = await _decodeInIsolate(bytes, asset);
-      if (_closed) throw StateError('Animation downloads stopped');
-      ClipAssetLibrary.retain(asset.sha256, clip);
-      return clip;
-    }
-    await _take();
+  Future<FrameClip> _load(ClipAsset asset, {required bool priority}) async {
+    await _take(asset.sha256, priority: priority);
     try {
       if (_closed) throw StateError('Animation downloads stopped');
+      // Bound bundled decoding as well as remote loads. Bundled clips still
+      // need no writable disk cache; missing assets can come from the catalog.
+      ByteData? bundled;
+      if (bundle != null) {
+        try {
+          bundled = await bundle!.load(
+            'catalog_assets/imported/${asset.sha256}.clip.gz',
+          );
+        } on FlutterError {
+          // Not included in this app version; try the verified download cache.
+        }
+      }
+      if (bundled != null) {
+        final bytes = Uint8List.sublistView(bundled);
+        if (!_matches(bytes, asset)) {
+          throw const FormatException('Animation verification failed');
+        }
+        final clip = await _decode(bytes, asset);
+        if (_closed) throw StateError('Animation downloads stopped');
+        ClipAssetLibrary.retain(asset.sha256, clip);
+        return clip;
+      }
       final root = await cacheDir();
       final dir = Directory('${root.path}/animation-clips');
       await dir.create(recursive: true);
@@ -114,7 +134,7 @@ class ClipAssetStore {
           throw const FormatException('Animation verification failed');
         }
       }
-      final clip = await _decodeInIsolate(bytes, asset);
+      final clip = await _decode(bytes, asset);
       if (_closed) throw StateError('Animation downloads stopped');
       if (!await file.exists()) {
         final temporary = File('${file.path}.tmp');
@@ -203,6 +223,13 @@ class ClipAssetStore {
     _closed = true;
     _client.close();
   }
+}
+
+class _LoadWaiter {
+  _LoadWaiter(this.sha, this.priority);
+  final String sha;
+  bool priority;
+  final ready = Completer<void>();
 }
 
 Future<FrameClip> _decodeInIsolate(Uint8List bytes, ClipAsset asset) =>

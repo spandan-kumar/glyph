@@ -200,6 +200,88 @@ void main() {
       expect(steps, EditorModel.maxHistory);
     });
 
+    test('large picture history stays within the byte budget, including pending and redo', () {
+      final m = EditorModel(width: 64, height: 64,
+          frames: List.generate(300, (_) => Frame(64, 64)));
+      addTearDown(m.dispose);
+      for (var i = 0; i < 60; i++) {
+        m.color = i + 1;
+        m.strokeStart(0, 0);
+        expect(m.historyBytes, lessThanOrEqualTo(EditorModel.maxHistoryBytes));
+        m.strokeEnd();
+        expect(m.historyBytes, lessThanOrEqualTo(EditorModel.maxHistoryBytes));
+      }
+      m.undo();
+      expect(m.frame.get(0, 0), 59);
+      m.redo();
+      expect(m.frame.get(0, 0), 60);
+      var steps = 0;
+      while (m.canUndo) {
+        m.undo();
+        steps++;
+        expect(m.historyBytes, lessThanOrEqualTo(EditorModel.maxHistoryBytes));
+      }
+      expect(steps, greaterThan(0));
+      expect(steps * 300 * 64 * 64 * 3, lessThanOrEqualTo(EditorModel.maxHistoryBytes));
+      m.strokeStart(1, 0);
+      expect(m.historyBytes, lessThanOrEqualTo(EditorModel.maxHistoryBytes));
+      m.strokeCancel();
+    });
+
+    test('picture timing round trips, rescales proportionally and tracks dirty delays', () {
+      final clip = FrameClip(width: 2, height: 2,
+          frames: [Frame(2, 2), Frame(2, 2)], delaysMs: [100, 900]);
+      final m = EditorModel.fromClip(clip, fps: 10);
+      addTearDown(m.dispose);
+      expect(m.toClip().delaysMs, [100, 900]);
+      expect(m.fps, 2);
+      expect(m.isDirty, false);
+      m.fps = 4;
+      expect(m.toClip().delaysMs, [50, 450]);
+      expect(m.isDirty, true);
+      m.fps = 2;
+      expect(m.toClip().delaysMs, [100, 900]);
+      expect(m.isDirty, false);
+      m.moveFrame(0, 1);
+      expect(m.toClip().delaysMs, [900, 100]);
+      expect(m.fps, 2);
+      expect(m.isDirty, true, reason: 'same FPS and pixels, different rhythm');
+      m.undo();
+      expect(m.toClip().delaysMs, [100, 900]);
+      expect(m.isDirty, false);
+      m.redo();
+      expect(m.toClip().delaysMs, [900, 100]);
+      m.duplicateFrame();
+      expect(m.toClip().delaysMs, [900, 100, 100]);
+      m.selectFrame(0);
+      m.addFrame();
+      expect(m.toClip().delaysMs, [900, 900, 100, 100]);
+      m.deleteFrame();
+      expect(m.toClip().delaysMs, [900, 100, 100]);
+      m.undo();
+      expect(m.toClip().delaysMs, [900, 900, 100, 100]);
+      // Exported timing is a snapshot too.
+      clip.delaysMs[0] = 500;
+      expect(m.toClip().delaysMs.first, 900);
+    });
+
+    test('uniform timing stays uniform and imported delays are clamped', () {
+      final m = EditorModel(width: 2, height: 2, fps: 8);
+      addTearDown(m.dispose);
+      m.addFrame();
+      m.duplicateFrame();
+      expect(m.toClip().delaysMs, [125, 125, 125]);
+      m.fps = 12;
+      expect(m.toClip().delaysMs, [83, 83, 83]);
+      expect(m.fps, 12);
+      final clamped = EditorModel.fromClip(FrameClip(width: 1, height: 1,
+          frames: [Frame(1, 1), Frame(1, 1)], delaysMs: [1, 20000]));
+      addTearDown(clamped.dispose);
+      expect(clamped.toClip().delaysMs, [20, 10000]);
+      clamped.fps = 30;
+      expect(clamped.toClip().delaysMs.every((ms) => ms >= 20 && ms <= 10000), true);
+    });
+
     test('cancelled stroke leaves no trace', () {
       final m = EditorModel(width: 4, height: 4)..color = red;
       m.strokeStart(0, 0);
