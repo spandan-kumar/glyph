@@ -44,12 +44,13 @@ existing nearest-neighbour scaling and centred letterboxing.
 
 ## Format and delivery
 
-The app bundles the small `assets/catalog/pipplee.json` index. Each row holds
-the upstream ID, clip SHA-256, compressed size, width, height, frame count,
-up to three colour tags, and authored title, subjects, aliases and tags
+The app bundles the `assets/catalog/pipplee.json` index and all 12,273 distinct
+compressed clips, so the complete collection works offline from first launch.
+Each row holds the upstream ID, clip SHA-256, compressed size, width, height,
+frame count, up to three colour tags, and authored title, subjects, aliases and tags
 (schema version 3 also appends a browsing category). The parser also accepts
-version 1 and 2 rows. Clips live outside the APK in
-`catalog_assets/pipplee/<sha256>.clip.gz`.
+version 1 and 2 rows. Clips live in
+`catalog_assets/pipplee/<sha256>.clip.gz`, included as Flutter assets.
 
 Display starts with All, including the whole library and your creations.
 Imported animations join subject shelves such as Animals, Nature, Holidays,
@@ -59,8 +60,9 @@ names and tags, matching whole words. Occasion and game context take priority;
 otherwise concrete subjects take priority over accessories. Geometric waves
 do not become ocean scenes, and colours never infer a subject. An authored
 `category` in the description can override the rule for an individual clip.
-The collection also keeps its own lead shelf. See all exposes every
-entry; search supports descriptive names, subjects, aliases, source IDs,
+There is no separate Pipplee shelf: imports appear in the same subject groups
+as the rest of the library. See all exposes every entry; search supports
+descriptive names, subjects, aliases, source IDs,
 native dimensions and colour tags.
 Search now matches words rather than arbitrary substrings, collapses identical
 clips in its results, and excludes the placeholder `rainbow` palette. Use
@@ -78,20 +80,22 @@ The existing signed sprite catalogue stays separate. The bundled index pins
 each clip's hash and size; decoding also checks its dimensions, frame count,
 timings and exact expanded size in an isolate.
 
-Only visible thumbnails request downloads, with at most four requests at
-once. The disk cache holds up to 96 MiB, and the decoded LRU holds up to
-4 million pixels. Active playback and Rotations retain their own decoded
-clips. After the first download, a clip plays offline until its cached file
-is evicted or app storage is cleared. The app makes no requests to Pipplee.
+Only visible thumbnails load clips. Bundled clips are hash-verified and decoded
+directly from the app assets without network requests, disk-cache scans or
+waiting for a download slot. The decoded LRU holds up to 4 million pixels;
+active playback and Rotations retain their own decoded clips. A decoded-cache
+eviction still reloads from the bundle offline. Unbundled clips retain the
+verified download fallback, with at most four downloads at once and a 96 MiB
+disk cache. The app makes no requests to Pipplee.
 
 Picking a clip keeps the previous look playing while it loads. Failed or
 stale downloads cannot replace that look. Send waits for loading to finish
 and repeats long GIF holds in steps of at most one second, preserving the
 duration while avoiding WLED's carried-over frame delay.
 
-**Publication order:** deploy the Pages assets before distributing an app
-build containing this index. Older app versions do not support this clip
-collection. Adding the files locally does not publish the Pages URLs.
+The Pages copies remain available to older app versions that download clips.
+New app builds include the full collection and do not depend on Pages for it.
+New, unbundled clips must still be published before their index is distributed.
 
 ## Names and search words
 

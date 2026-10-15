@@ -32,12 +32,13 @@ void main() {
   final collection = parsePippleeCollection(File(pippleeIndexAsset).readAsStringSync());
   final catalog = original.merge(collection);
 
-  test('the full collection has a lead rail and retains every browsable entry', () {
+  test('every imported entry belongs to subject groups without a source shelf', () {
     final channels = CatalogChannels(catalog, DateTime(2026, 10, 13));
-    final rail = channels.lead.singleWhere((c) => c.id == 'pipplee');
-    expect(rail.items.length, 30);
-    expect(rail.all.length, 12361);
-    expect(channels.rest.where((c) => c.name == 'Pipplee'), isEmpty);
+    final groups = [...channels.lead, ...channels.rest];
+    expect(groups.where((c) => c.name == 'Pipplee' || c.id == 'pipplee'), isEmpty);
+    final grouped = {for (final group in groups) ...group.all.map((e) => e.key)};
+    expect(grouped, containsAll(collection.items.map((i) => 'i:${i.id}')));
+    expect(collection.items.any((i) => i.category == 'Pipplee'), isFalse);
     expect(channels.allChannel.all.length, catalog.items.length);
     final importedCat = collection.byId('pipplee-15353')!;
     expect(channels.rest.singleWhere((c) => c.name == 'Animals').all.map((e) => e.key),

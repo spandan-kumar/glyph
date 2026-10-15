@@ -121,7 +121,7 @@ const moods = ['cozy', 'spooky', 'space', 'party', 'calm', 'retro', 'love', 'nat
 /// Categories folded into "Famous Classics".
 const classicCategories = {'Classic Cartoons', 'Storybook', 'Monsters & Legends', 'Masterpieces'};
 
-/// Categories that already have their own named rail.
+/// Categories with named rails, plus the legacy source-only category.
 const _railCategories = {...classicCategories, 'Chill', 'Party', 'Space', 'Community', 'Pipplee'};
 
 /// A part of the day, with tags that suit it.
@@ -209,8 +209,6 @@ class CatalogChannels {
       make('community', 'Community', c.inCategory('Community'), limit: 30),
       make('classics', 'Famous Classics', c.items.where((i) => classicCategories.contains(i.category)), limit: 30),
       make('pals', 'Pixel Pals', pals, limit: 30),
-      make('pipplee', 'Pipplee', c.items.where((i) => i.collection == 'Pipplee' || i.category == 'Pipplee'), limit: 30,
-          note: 'Shared with permission · download once, play offline'),
       make('calm', 'Calm', union(c.inCategory('Chill'), c.tagged(['calm']))),
       make('party', 'Party', union(c.inCategory('Party'), c.tagged(['party']))),
       make('space', 'Space', union(c.inCategory('Space'), c.tagged(['space']))),

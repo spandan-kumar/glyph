@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show FlutterError;
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/engine/clip_asset.dart';
 import 'package:glyph/library/clip_asset_store.dart';
@@ -8,6 +10,17 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'clip_asset_fixture.dart';
+
+class _Bundle extends CachingAssetBundle {
+  _Bundle(this.files);
+  final Map<String, Uint8List> files;
+  @override
+  Future<ByteData> load(String key) async {
+    final bytes = files[key];
+    if (bytes == null) throw FlutterError('Missing asset: $key');
+    return ByteData.sublistView(bytes);
+  }
+}
 
 void main() {
   late Directory dir;
@@ -20,6 +33,107 @@ void main() {
     ClipAssetLibrary.clearCache();
     await dir.delete(recursive: true);
   });
+
+  test('bundled clips work offline without a disk cache or download', () async {
+    final (asset, bytes) = clipFixture(delays: [120, 350]);
+    final store = ClipAssetStore(
+      bundle: _Bundle({
+        'catalog_assets/pipplee/${asset.sha256}.clip.gz': bytes,
+      }),
+      cacheDir: () async => throw StateError('No disk cache'),
+      client: MockClient((_) async => throw StateError('Unexpected download')),
+    );
+    addTearDown(store.close);
+    final clip = await store.load(asset);
+    expect(clip.delaysMs, [120, 350]);
+    expect(clip.frames.map((f) => f.get(0, 0)), [0xff0000, 0x0000ff]);
+    expect(ClipAssetLibrary.cached(asset.sha256), same(clip));
+    // A cold decoded cache still loads entirely from the application bundle.
+    ClipAssetLibrary.clearCache();
+    expect((await store.load(asset)).delaysMs, [120, 350]);
+  });
+
+  test(
+    'an unbundled clip still downloads and caches for offline use',
+    () async {
+      final (asset, bytes) = clipFixture();
+      var requests = 0;
+      final store = ClipAssetStore(
+        bundle: _Bundle({}),
+        cacheDir: () async => dir,
+        client: MockClient((_) async {
+          requests++;
+          return http.Response.bytes(bytes, 200);
+        }),
+      );
+      addTearDown(store.close);
+      await store.load(asset);
+      expect(requests, 1);
+      expect(
+        await File('${dir.path}/animation-clips/${asset.sha256}.clip.gz')
+            .exists(),
+        isTrue,
+      );
+      ClipAssetLibrary.clearCache();
+      await store.load(asset);
+      expect(requests, 1);
+    },
+  );
+
+  test('bundled playback does not wait behind four remote previews', () async {
+    final (local, bytes) = clipFixture();
+    final remote = List.generate(
+      4,
+      (i) => clipFixture(id: i + 100, colours: [i + 1]),
+    );
+    final busy = Completer<void>(), release = Completer<void>();
+    var requests = 0;
+    final store = ClipAssetStore(
+      bundle: _Bundle({
+        'catalog_assets/pipplee/${local.sha256}.clip.gz': bytes,
+      }),
+      cacheDir: () async => dir,
+      client: MockClient((request) async {
+        if (++requests == 4) busy.complete();
+        await release.future;
+        return http.Response.bytes(
+          remote.firstWhere((f) => request.url.path.contains(f.$1.sha256)).$2,
+          200,
+        );
+      }),
+    );
+    addTearDown(store.close);
+    final previews = Future.wait(remote.map((f) => store.load(f.$1)));
+    await busy.future;
+    try {
+      final clip = await store.load(local).timeout(const Duration(seconds: 5));
+      expect(clip.frames.first.get(0, 0), 0xff0000);
+      expect(requests, 4);
+    } finally {
+      release.complete();
+      await previews;
+    }
+  });
+
+  test(
+    'corrupt bundled clips are rejected without a network fallback',
+    () async {
+      final (asset, bytes) = clipFixture();
+      final broken = Uint8List.fromList(bytes)..[15] ^= 1;
+      final store = ClipAssetStore(
+        bundle: _Bundle({
+          'catalog_assets/pipplee/${asset.sha256}.clip.gz': broken,
+        }),
+        cacheDir: () async => throw StateError('No disk cache'),
+        client: MockClient(
+          (_) async => throw StateError('Unexpected download'),
+        ),
+      );
+      addTearDown(store.close);
+      await expectLater(store.load(asset), throwsFormatException);
+      expect(ClipAssetLibrary.cached(asset.sha256), isNull);
+    },
+  );
 
   test(
     'concurrent loads share one request; colours and timing survive',
