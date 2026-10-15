@@ -26,8 +26,8 @@ const categoryOrder = [
   'Community',
   'Classic Cartoons', 'Storybook', 'Monsters & Legends', 'Masterpieces',
   'Chill', 'Party', 'Emoji', 'Love', 'Holidays', 'Nature', 'Animals', 'Water',
-  'Weather', 'Space', 'Fire & Energy', 'Abstract', 'Hypnotic', 'Retro & Digital',
-  'Gaming', 'Science & Sims', 'Food & Drink', 'Symbols',
+  'Weather', 'Space', 'Fire & Energy', 'Abstract', 'Patterns', 'Hypnotic', 'Retro & Digital',
+  'Gaming', 'Science & Sims', 'Food & Drink', 'Symbols', 'Flags',
 ];
 
 /// One curated look: title, palette, params, extra tags (space separated,

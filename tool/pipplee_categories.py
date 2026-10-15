@@ -9,8 +9,8 @@ import re
 CATEGORIES = (
     "Classic Cartoons", "Storybook", "Monsters & Legends", "Masterpieces",
     "Chill", "Party", "Emoji", "Love", "Holidays", "Nature", "Animals",
-    "Water", "Weather", "Space", "Fire & Energy", "Abstract", "Hypnotic",
-    "Retro & Digital", "Gaming", "Science & Sims", "Food & Drink", "Symbols",
+    "Water", "Weather", "Space", "Fire & Energy", "Abstract", "Patterns", "Hypnotic",
+    "Retro & Digital", "Gaming", "Science & Sims", "Food & Drink", "Symbols", "Flags",
     "Characters", "People", "Places", "Transport", "Music", "Sports", "Words",
     "Objects", "Other",
 )
@@ -39,6 +39,7 @@ SUBJECT_GROUPS = {
     "Love": "heart hearts love kiss kisses kissing romance couple",
     "Emoji": "face faces smiley emoji emojis expression expressions smile smiles eyes eye tongue tear tears",
     "Words": "text word words letter letters lettering alphabet number numbers digit digits numeral numerals countdown greeting greetings",
+    "Flags": "flag flags",
     "Symbols": "symbol symbols emblem emblems logo logos flag flags icon icons arrow arrows cross crosses sign signs badge question exclamation check checkmark battery lock padlock bell crown peace key keys skull skulls",
     "Retro & Digital": "computer computers monitor monitors television tv screen screens console consoles controller controllers joystick handheld calculator phone telephone camera pixel pixels glitch noise code circuit circuits chip chips",
     "Science & Sims": "science atom atoms molecule molecules dna microscope experiment pendulum cradle radar magnet magnets",
@@ -79,6 +80,16 @@ HOLIDAYS.update({"tombstone", "coffin", "coffins"})
 GAMES = set("gaming game games arcade tetris pacman pokemon pikachu pokeball mario luigi kirby sonic minecraft creeper invader invaders pong zelda triforce amongus".split())
 
 
+def abstract_category(description):
+    subjects = set().union(*(words(s) for s in description["subjects"]))
+    if subjects & {"spiral", "spirals", "tunnel", "tunnels"}:
+        return "Hypnotic"
+    if subjects & {"pattern", "patterns", "grid", "grids", "checkerboard", "checkerboards",
+                   "mosaic", "mosaics", "lattice", "lattices", "tile", "tiles", "stripe", "stripes"}:
+        return "Patterns"
+    return "Abstract"
+
+
 def category_for(description):
     override = description.get("category")
     if override is not None:
@@ -116,8 +127,8 @@ def category_for(description):
         for category, nouns in SUBJECT_GROUPS.items():
             if subject_words & nouns:
                 if category == "Water" and subject_words & {"wave", "waves"} and not context & {"water", "ocean", "sea", "river", "lake", "boat", "ship", "sailboat", "beach"}:
-                    return "Abstract"
-                return category
+                    return abstract_category(description)
+                return abstract_category(description) if category == "Abstract" else category
     if context & {"cartoon", "anime", "character", "superhero"}:
         return "Characters"
     if context & {"city", "building", "buildings", "house", "houses", "castle", "town", "room", "street", "bridge", "tower"}:
@@ -125,5 +136,5 @@ def category_for(description):
     # A missing subject match can still use an explicit style or setting tag.
     for category, nouns in SUBJECT_GROUPS.items():
         if (context - {"orange"}) & nouns:
-            return category
+            return abstract_category(description) if category == "Abstract" else category
     return "Other"

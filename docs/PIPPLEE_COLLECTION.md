@@ -64,6 +64,10 @@ There is no separate Pipplee shelf: imports appear in the same subject groups
 as the rest of the library. See all exposes every entry; search supports
 descriptive names, subjects, aliases, source IDs,
 native dimensions and colour tags.
+Explicit flag subjects have a Flags group. Abstract grids, stripes, mosaics
+and repeated patterns move to Patterns; clearly described spirals and tunnels
+join Hypnotic. Concrete subjects and occasion context keep priority, so a
+striped cat remains in Animals and a Halloween flag stays in Holidays.
 Search now matches words rather than arbitrary substrings, collapses identical
 clips in its results, and excludes the placeholder `rainbow` palette. Use
 `collection:pipplee red 32x32` to constrain collection, colour and native size.

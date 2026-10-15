@@ -8,6 +8,7 @@ const whatsNewNotes = <String, List<String>>{
     'The full Pipplee collection is included in the app. Browse and play every animation offline from the start.',
     'Animations load locally without waiting for thumbnail downloads.',
     'Imported animations live in the regular subject groups, without a separate Pipplee shelf.',
+    'Find flags in Flags, grids and stripes in Patterns, and spirals and tunnels in Hypnotic.',
   ],
   '1.4.6': [
     'Pipplee animations have descriptive names, search tags and proper browsing groups.',

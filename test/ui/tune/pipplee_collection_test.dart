@@ -39,6 +39,10 @@ void main() {
     final grouped = {for (final group in groups) ...group.all.map((e) => e.key)};
     expect(grouped, containsAll(collection.items.map((i) => 'i:${i.id}')));
     expect(collection.items.any((i) => i.category == 'Pipplee'), isFalse);
+    for (final name in ['Flags', 'Patterns', 'Hypnotic']) {
+      final group = groups.singleWhere((c) => c.name == name);
+      expect(group.all.whereType<ItemEntry>().any((e) => e.item.collection == 'Pipplee'), isTrue);
+    }
     expect(channels.allChannel.all.length, catalog.items.length);
     final importedCat = collection.byId('pipplee-15353')!;
     expect(channels.rest.singleWhere((c) => c.name == 'Animals').all.map((e) => e.key),
