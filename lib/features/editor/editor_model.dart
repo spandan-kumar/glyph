@@ -15,10 +15,15 @@ const presetColors = <int>[
 ];
 
 class _Snapshot {
-  _Snapshot(List<Frame> frames, this.index) : frames = [for (final f in frames) f.copy()];
+  _Snapshot(List<Frame> frames, List<int> delays, this.index)
+      : frames = [for (final f in frames) f.copy()],
+        delays = List.of(delays);
 
   final List<Frame> frames;
+  final List<int> delays;
   final int index;
+
+  int get bytes => frames.fold(0, (n, f) => n + f.rgb.length);
 }
 
 /// Document + tool state for the pixel editor. Widgets drive it through
@@ -29,27 +34,30 @@ class EditorModel extends ChangeNotifier {
       : _frames = frames == null || frames.isEmpty
             ? [Frame(width, height)]
             : [for (final f in frames) f.copy()],
-        _fps = fps.clamp(minFps, maxFps) {
+        _delays = List.filled(frames == null || frames.isEmpty ? 1 : frames.length,
+            (1000 / fps.clamp(minFps, maxFps)).round(), growable: true) {
     _keepSavePoint();
   }
 
-  /// Restores a saved drawing. [fps] comes from creation meta when available;
-  /// otherwise it's derived from the first frame delay.
-  factory EditorModel.fromClip(FrameClip clip, {int? fps}) => EditorModel(
-        width: clip.width,
-        height: clip.height,
-        frames: clip.frames,
-        fps: fps ?? (1000 / clip.delaysMs.first.clamp(1, 60000)).round(),
-      );
+  /// Restores a saved drawing, preserving its timing. The legacy [fps] meta
+  /// is accepted for older callers; the clip's delays are authoritative.
+  factory EditorModel.fromClip(FrameClip clip, {int? fps}) {
+    final model = EditorModel(width: clip.width, height: clip.height, frames: clip.frames);
+    model._delays = [for (final ms in clip.delaysMs) ms.clamp(20, 10000)];
+    model._keepSavePoint();
+    return model;
+  }
 
   static const minFps = 1, maxFps = 30, maxHistory = 60, maxRecent = 10;
+
+  static const maxHistoryBytes = 64 * 1024 * 1024;
 
   final int width;
   final int height;
 
   List<Frame> _frames;
   int _index = 0;
-  int _fps;
+  List<int> _delays;
   EditorTool _tool = EditorTool.pencil;
   EditorTool _beforePicker = EditorTool.pencil;
   int _color = 0xFF0040;
@@ -59,7 +67,7 @@ class EditorModel extends ChangeNotifier {
 
   // What was last saved (or loaded), so undoing back to it isn't "unsaved".
   List<Frame> _saved = const [];
-  int _savedFps = 0;
+  List<int> _savedDelays = const [];
 
   final _undo = <_Snapshot>[];
   final _redo = <_Snapshot>[];
@@ -75,10 +83,13 @@ class EditorModel extends ChangeNotifier {
 
   List<Frame> get frames => List.unmodifiable(_frames);
   int get frameCount => _frames.length;
+  List<int> get delaysMs => List.unmodifiable(_delays);
   int get index => _index;
   Frame get frame => _frames[_index];
   Frame? get previous => _index > 0 ? _frames[_index - 1] : null;
-  int get fps => _fps;
+  int get fps => (1000 / (_delays.fold(0, (a, b) => a + b) / _delays.length))
+      .round().clamp(minFps, maxFps);
+
   EditorTool get tool => _tool;
   int get color => _color;
   bool get mirrorX => _mirrorX;
@@ -89,6 +100,9 @@ class EditorModel extends ChangeNotifier {
   bool get canRedo => _redo.isNotEmpty;
   bool get isDirty => _dirty;
   bool get inStroke => _pending != null;
+
+  @visibleForTesting
+  int get historyBytes => [..._undo, ..._redo, ?_pending].fold(0, (n, s) => n + s.bytes);
 
   set tool(EditorTool t) {
     if (t == _tool) return;
@@ -109,8 +123,11 @@ class EditorModel extends ChangeNotifier {
 
   set fps(int v) {
     final c = v.clamp(minFps, maxFps);
-    if (c == _fps) return;
-    _fps = c;
+    final average = _delays.fold(0, (a, b) => a + b) / _delays.length;
+    final factor = 1000 / c / average;
+    final delays = [for (final ms in _delays) (ms * factor).round().clamp(20, 10000)];
+    if (listEquals(delays, _delays)) return;
+    _delays = delays;
     _dirty = !_atSavePoint();
     notifyListeners();
   }
@@ -136,11 +153,11 @@ class EditorModel extends ChangeNotifier {
 
   void _keepSavePoint() {
     _saved = [for (final f in _frames) f.copy()];
-    _savedFps = _fps;
+    _savedDelays = List.of(_delays);
   }
 
   bool _atSavePoint() {
-    if (_fps != _savedFps || _frames.length != _saved.length) return false;
+    if (!listEquals(_delays, _savedDelays) || _frames.length != _saved.length) return false;
     for (var i = 0; i < _frames.length; i++) {
       final a = _frames[i].rgb, b = _saved[i].rgb;
       for (var k = 0; k < a.length; k++) {
@@ -165,7 +182,8 @@ class EditorModel extends ChangeNotifier {
         return;
       case EditorTool.fill:
         if (!inside) return;
-        _pending = _Snapshot(_frames, _index);
+        _pending = _Snapshot(_frames, _delays, _index);
+        _trimHistory();
         for (final (mx, my) in mirrored(x, y, width, height, mx: _mirrorX, my: _mirrorY)) {
           floodFill(frame, mx, my, _color);
         }
@@ -174,7 +192,8 @@ class EditorModel extends ChangeNotifier {
         strokeEnd();
         return;
       default:
-        _pending = _Snapshot(_frames, _index);
+        _pending = _Snapshot(_frames, _delays, _index);
+        _trimHistory();
         _base = frame.copy();
         _start = _last = (x, y);
         _usedColor = _tool != EditorTool.eraser && _tool != EditorTool.move;
@@ -258,11 +277,13 @@ class EditorModel extends ChangeNotifier {
   }
 
   void addFrame() => _edit(() {
+        _delays.insert(_index + 1, _delays[_index]);
         _frames.insert(_index + 1, Frame(width, height));
         _index++;
       });
 
   void duplicateFrame() => _edit(() {
+        _delays.insert(_index + 1, _delays[_index]);
         _frames.insert(_index + 1, frame.copy());
         _index++;
       });
@@ -273,6 +294,7 @@ class EditorModel extends ChangeNotifier {
           _frames[0] = Frame(width, height);
           return;
         }
+        _delays.removeAt(_index);
         _frames.removeAt(_index);
         if (_index >= _frames.length) _index = _frames.length - 1;
       });
@@ -285,6 +307,7 @@ class EditorModel extends ChangeNotifier {
     _edit(() {
       final f = _frames.removeAt(from);
       _frames.insert(to, f);
+      _delays.insert(to, _delays.removeAt(from));
       _index = to;
     });
   }
@@ -296,7 +319,7 @@ class EditorModel extends ChangeNotifier {
 
   void _edit(void Function() f) {
     strokeEnd();
-    final snap = _Snapshot(_frames, _index);
+    final snap = _Snapshot(_frames, _delays, _index);
     f();
     _push(snap);
     _pixelsChanged();
@@ -309,7 +332,19 @@ class EditorModel extends ChangeNotifier {
     _undo.add(s);
     if (_undo.length > maxHistory) _undo.removeAt(0);
     _redo.clear();
+    _trimHistory();
     _dirty = true;
+  }
+
+  void _trimHistory() {
+    while (_undo.length > 1 && historyBytes > maxHistoryBytes) {
+      _undo.removeAt(0);
+    }
+    // Undo can move the whole history to redo; pending strokes count too.
+    while (_redo.isNotEmpty && historyBytes > maxHistoryBytes &&
+        (_redo.length > 1 || _undo.isNotEmpty || _pending != null)) {
+      _redo.removeAt(0);
+    }
   }
 
   void undo() => _travel(_undo, _redo);
@@ -318,9 +353,11 @@ class EditorModel extends ChangeNotifier {
   void _travel(List<_Snapshot> from, List<_Snapshot> to) {
     strokeEnd();
     if (from.isEmpty) return;
-    to.add(_Snapshot(_frames, _index));
+    to.add(_Snapshot(_frames, _delays, _index));
     final s = from.removeLast();
     _frames = s.frames;
+    _delays = s.delays;
+    _trimHistory();
     _index = s.index.clamp(0, _frames.length - 1);
     _dirty = !_atSavePoint();
     _pixelsChanged();
@@ -331,9 +368,10 @@ class EditorModel extends ChangeNotifier {
 
   // Serialisation ------------------------------------------------------------
 
-  FrameClip toClip() => FrameClip.uniform([for (final f in _frames) f.copy()], fps: _fps);
+  FrameClip toClip() => FrameClip(width: width, height: height,
+      frames: [for (final f in _frames) f.copy()], delaysMs: List.of(_delays));
 
-  Map<String, dynamic> get meta => {'fps': _fps, 'v': 1};
+  Map<String, dynamic> get meta => {'fps': fps, 'v': 2};
 
   @override
   void dispose() {

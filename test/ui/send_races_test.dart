@@ -56,7 +56,7 @@ class _ReadyClips extends ClipAssetStore {
   _ReadyClips(this.clip) : super(cacheDir: () async => Directory.systemTemp);
   final FrameClip clip;
   @override
-  Future<FrameClip> load(ClipAsset asset) async => clip;
+  Future<FrameClip> load(ClipAsset asset, {bool priority = false}) async => clip;
 }
 
 void main() {

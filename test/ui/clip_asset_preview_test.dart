@@ -15,7 +15,7 @@ class _PreviewStore extends ClipAssetStore {
   final waiting = <String, Completer<FrameClip>>{};
   int requests = 0;
   @override
-  Future<FrameClip> load(ClipAsset asset) {
+  Future<FrameClip> load(ClipAsset asset, {bool priority = false}) {
     requests++;
     return waiting.putIfAbsent(asset.id, Completer<FrameClip>.new).future;
   }

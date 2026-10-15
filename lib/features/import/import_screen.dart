@@ -81,6 +81,7 @@ class _ImportScreenState extends State<ImportScreen>
   /// What's on screen is what was last saved (Save shows a check).
   bool _clean = false;
   bool _uploading = false;
+  bool _handing = false;
 
   // Preview playback.
   late final Ticker _ticker;
@@ -284,19 +285,23 @@ class _ImportScreenState extends State<ImportScreen>
 
   /// The clip for the current settings, rendering it now if needed.
   Future<FrameClip?> _finalClip() async {
-    if (_fresh) return _out!.clip;
-    final src = _src;
-    if (src == null) return null;
-    final gen = _gen, size = _target;
-    final out = await ImportScreen.runner(runImportJob, ImportJob(src, _s, size.$1, size.$2));
-    if (mounted && gen == _gen) {
+    for (var attempt = 0; attempt < 5; attempt++) {
+      if (!mounted) return null;
+      if (_fresh) return _out!.clip;
+      final src = _src;
+      if (src == null) return null;
+      final gen = _gen, size = _target;
+      final out = await ImportScreen.runner(runImportJob, ImportJob(src, _s, size.$1, size.$2));
+      if (!mounted) return null;
+      if (gen != _gen) continue;
       setState(() {
         _out = out;
         _outGen = gen;
         _outSize = size;
       });
+      return out.clip;
     }
-    return out.clip;
+    return null;
   }
 
   // ---------------------------------------------------------------------------
@@ -455,10 +460,17 @@ class _ImportScreenState extends State<ImportScreen>
 
   /// Draw's "Start from a picture": hands the frames back to the editor.
   Future<void> _useInDrawing() async {
+    if (_handing) return;
+    setState(() => _handing = true);
     HapticFeedback.lightImpact();
-    final clip = await _finalClip();
-    if (clip == null || !mounted) return;
-    Navigator.of(context).pop(clip);
+    try {
+      final clip = await _finalClip();
+      if (clip != null && mounted && ModalRoute.of(context)?.isCurrent == true) {
+        Navigator.of(context).pop(clip);
+      }
+    } finally {
+      if (mounted) setState(() => _handing = false);
+    }
   }
 
   Future<void> _share({required bool gif}) async {
@@ -1017,7 +1029,10 @@ class _ImportScreenState extends State<ImportScreen>
             style: studioCtaStyle,
             onPressed: _useInDrawing,
             icon: const Icon(Icons.brush_sharp),
-            label: const Text('Use in drawing'),
+            label: _handing
+                ? Semantics(label: 'Preparing your drawing',
+                    child: const LedSpinner(size: 18, color: Lb.ink))
+                : const Text('Use in drawing'),
           ),
         ),
       );

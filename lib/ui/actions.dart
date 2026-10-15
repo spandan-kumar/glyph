@@ -119,34 +119,37 @@ abstract final class GlyphActions {
   static Future<void> play(BuildContext context, LibraryItem item) async {
     final s = AppScope.of(context);
     final selection = s.devices.selectionGeneration, control = s.devices.controlGeneration;
-    final played = await s.playback.playItem(item, canPlay: () => context.mounted &&
+    final played = await s.playback.playItem(item, canPlay: () =>
         selection == s.devices.selectionGeneration && control == s.devices.controlGeneration);
-    if (!context.mounted) return;
     if (!played) {
-      if (s.playback.loadError case final error?) _toast(context, error);
+      if (context.mounted) {
+        if (s.playback.loadError case final error?) _toast(context, error);
+      }
       return;
     }
     if (s.playback.item?.id != item.id) return;
-    await ensureStreaming(context);
+    await _ensureStreaming(context.mounted ? context : null, s);
   }
 
   /// Starts streaming to the selected device if it's reachable.
-  static Future<void> ensureStreaming(BuildContext context) async {
-    final s = AppScope.of(context);
+  static Future<void> ensureStreaming(BuildContext context) =>
+      _ensureStreaming(context, AppScope.of(context));
+
+  static Future<void> _ensureStreaming(BuildContext? context, AppScope s) async {
     final d = s.devices;
     if (!d.isConnected || d.selected == null || s.playback.isStreaming) return;
     final caps = d.caps!;
     s.playback.resize(caps.width, caps.height);
     try {
       // Clears a leftover realtime override, which would make WLED ignore DDP.
-      final client = d.client!, selection = d.selectionGeneration;
+      final client = d.client!, selection = d.selectionGeneration, control = d.controlGeneration;
       await client.prepareStream();
-      if (!d.isCurrent(client, selection) || !context.mounted) return;
+      if (!d.isCurrent(client, selection) || control != d.controlGeneration) return;
       await s.playback.startStreaming(d.selected!.host, d.selected!.layout);
     } catch (e) {
       // The raw error goes to the feedback report, not on screen.
       LastError.record('Couldn\'t start streaming: $e');
-      if (context.mounted) {
+      if (context != null && context.mounted) {
         _toast(context, 'Couldn’t show this on your device. Check it’s on and on the same Wi-Fi.',
             action: reportAction(context));
       }

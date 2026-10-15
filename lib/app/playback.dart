@@ -195,6 +195,7 @@ class PlaybackController extends ChangeNotifier {
     try {
       final clip = await (clipAssets ?? ClipAssetStore.shared).load(
         generator.asset,
+        priority: true,
       );
       if (_disposed || pick != _pick) return false;
       if (canPlay != null && !canPlay()) {
