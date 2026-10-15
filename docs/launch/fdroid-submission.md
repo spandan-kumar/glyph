@@ -1,5 +1,25 @@
 Glyph’s F-Droid submission draft targets **v1.4.0, arm64 only**. It follows the current [Flutter template](https://gitlab.com/fdroid/fdroiddata/-/blob/master/templates/build-flutter.yml), [Flutter srclib](https://gitlab.com/fdroid/fdroiddata/-/blob/master/srclibs/flutter.yml), and examples from [LocalSend](https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/org.localsend.localsend_app.yml), [Ente Photos](https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/io.ente.photos.fdroid.yml) and [Energize](https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/com.flasskamp.energize.yml). This is an untested packaging draft, not proof of a successful F-Droid build.
 
+**Since v1.4.7 (15 October 2026): the bundled Pipplee collection.** The app
+now bundles 12,273 clips (30 MiB) from the [Pipplee collection](../PIPPLEE_COLLECTION.md),
+included with its creator's permission but not under a free licence, and some
+of them show third-party characters (game, cartoon and brand mascots). This
+matters for F-Droid in two ways:
+
+- It must be declared as the **NonFreeAssets** anti-feature (the metadata
+  draft below now does). Reviewers may still refuse an app whose bundled art
+  depicts trademarked characters, regardless of the anti-feature.
+- **Recommended path:** an F-Droid build without the collection. The recipe's
+  `prebuild` removes `catalog_assets/pipplee/` and its `pubspec.yaml` asset
+  entry, and builds with `--dart-define=GLYPH_COLLECTION=false` so the app
+  hides imported entries instead of trying to load them. That build needs no
+  NonFreeAssets declaration and returns the APK to about 28 MB. **TODO (app):**
+  support that define and tolerate the missing assets; it doesn't yet.
+- Alternative: submit as is with NonFreeAssets and wait for review feedback.
+  Submitting a build that ships different content from GitHub releases also
+  rules out reproducible upstream signing for that flavour; it would be
+  F-Droid-signed.
+
 1. **Choose signing before publication.** Attempt reproducible builds with Glyph's rotated upstream signature so existing GitHub/Obtainium installs can update from F-Droid. First complete [the signing rotation procedure](../SIGNING.md). The YAML remains an F-Droid-signed packaging baseline until the checks below pass; do not enable `Binaries` and `AllowedAPKSigningKeys` yet. Never give F-Droid either private key. If upstream signing is impractical, leave both fields absent and choose F-Droid signing, accepting uninstall/reinstall and data backup when switching channels. Failed reproducible verification with `Binaries` prevents publication; it does not silently select another signature. See [reproducible builds](https://f-droid.org/en/docs/Reproducible_Builds/).
 
    Signing research (2026-10-11):

@@ -11,6 +11,11 @@ Changelog: https://github.com/spandan-kumar/glyph/releases
 AutoName: Glyph
 # Listing text and images are imported from upstream fastlane metadata.
 AntiFeatures:
+  # Drop NonFreeAssets if the F-Droid build strips the Pipplee collection
+  # (see ../fdroid-submission.md).
+  NonFreeAssets:
+    en-US: Bundles the Pipplee animation collection, included with its
+      creator's permission but not under a free licence.
   NonFreeNet:
     en-US: Promotes Discord and GitHub for community, feedback and the roadmap;
       optional animation catalog downloads use GitHub Pages. Core device control
