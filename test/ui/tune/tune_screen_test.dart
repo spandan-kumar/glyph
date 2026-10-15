@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph/library/legacy_ids.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
@@ -199,7 +200,7 @@ void main() {
   });
 
   testWidgets('opening Display mirrors a renamed clip sent with its original filename', (tester) async {
-    const id = 'pipplee-999997', generator = 'clip:$id';
+    const id = 'imported-999997', generator = 'clip:$id';
     final previous = ClipAssetStore.shared;
     final store = _ReadyClipStore(FrameClip(width: 1, height: 1,
         frames: [Frame(1, 1)..set(0, 0, 0xFFFFFF)], delaysMs: [100]));
@@ -208,9 +209,9 @@ void main() {
     ClipAssetLibrary.register([ClipAsset(id: generator, title: 'White Cat',
         sha256: '0' * 64, bytes: 100, width: 1, height: 1, frames: 1)]);
     final item = LibraryItem(id: id, title: 'White Cat', category: 'Animals',
-        collection: 'Pipplee', generatorId: generator, paletteId: 'rainbow',
+        collection: 'Imported', generatorId: generator, paletteId: 'rainbow',
         asset: const LibraryAsset(type: 'clip-gzip', url: 'fixture.clip.gz'));
-    final devices = _SavedGifDevice(keptFileName('Pipplee 999997'));
+    final devices = _SavedGifDevice('$legacyCollectionPrefix-999997-00.gif');
     addTearDown(devices.dispose);
     final playback = await pumpApp(tester, devices: devices,
         searchCatalog: catalog.merge(Catalog(items: [item])));
@@ -222,7 +223,7 @@ void main() {
 
   for (final change in ['device', 'control', 'gif']) {
     testWidgets('a delayed device mirror ignores changed $change', (tester) async {
-      const id = 'pipplee-999996', generator = 'clip:$id';
+      const id = 'imported-999996', generator = 'clip:$id';
       final clip = FrameClip.uniform([Frame(1, 1)]);
       final store = _DelayedClipStore();
       addTearDown(store.close);

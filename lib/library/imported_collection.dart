@@ -4,8 +4,8 @@ import '../engine/bake_limits.dart';
 import '../engine/clip_asset.dart';
 import 'catalog.dart';
 
-const pippleeIndexAsset = 'assets/catalog/pipplee.json';
-const pippleeNotice = 'Shared with permission by its creator.';
+const importedIndexAsset = 'assets/catalog/imported.json';
+const importedNotice = 'Shared with permission by its creator.';
 
 List<String> _descriptionWords(dynamic value, int maximum) {
   if (value is! List ||
@@ -23,7 +23,7 @@ List<String> _descriptionWords(dynamic value, int maximum) {
 }
 
 /// Compact bundled metadata, with every upstream ID preserved.
-Catalog parsePippleeCollection(String source) {
+Catalog parseImportedCollection(String source) {
   final doc = jsonDecode(source) as Map<String, dynamic>;
   final rows = doc['rows'] as List;
   final categorized = doc['version'] == 3;
@@ -31,12 +31,12 @@ Catalog parsePippleeCollection(String source) {
   if ((!named && doc['version'] != 1) ||
       doc['count'] != rows.length ||
       rows.length > 20000 ||
-      doc['permission'] != 'maintainer-confirmed-pipplee-consent-2026-10-13') {
+      doc['permission'] != 'maintainer-confirmed-collection-consent-2026-10-13') {
     throw const FormatException('Invalid imported collection index');
   }
   final categories = categorized
       ? _descriptionWords(doc['categories'], 40)
-      : const ['Pipplee'];
+      : const ['Imported'];
   if (categories.isEmpty || categories.toSet().length != categories.length) {
     throw const FormatException('Invalid collection categories');
   }
@@ -75,8 +75,8 @@ Catalog parsePippleeCollection(String source) {
       throw const FormatException('Invalid collection metadata');
     }
     checkBakeSize(w, h, frames);
-    final key = 'pipplee-$id';
-    final rawTitle = named ? row[7] : 'Pipplee $id';
+    final key = 'imported-$id';
+    final rawTitle = named ? row[7] : 'Imported $id';
     if (rawTitle is! String ||
         rawTitle.trim().isEmpty ||
         rawTitle.length > 80 ||
@@ -92,7 +92,7 @@ Catalog parsePippleeCollection(String source) {
     if (named && (subjects.isEmpty || searchTags.isEmpty)) {
       throw const FormatException('Missing collection search metadata');
     }
-    final category = categorized ? row[11] : 'Pipplee';
+    final category = categorized ? row[11] : 'Imported';
     if (category is! String || !categories.contains(category)) {
       throw const FormatException('Invalid collection category');
     }
@@ -119,10 +119,10 @@ Catalog parsePippleeCollection(String source) {
         aliases: aliases,
         tags: ['imported', 'pixel art', '${w}x$h', ...colours, ...searchTags],
         added: 4,
-        notice: pippleeNotice,
+        notice: importedNotice,
         asset: LibraryAsset(
           type: 'clip-gzip',
-          url: 'collections/pipplee/$sha.clip.gz',
+          url: 'collections/imported/$sha.clip.gz',
           license: 'shared-with-permission',
           extra: {'sha256': sha, 'bytes': size},
         ),

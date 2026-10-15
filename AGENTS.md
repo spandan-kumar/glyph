@@ -279,7 +279,7 @@ content. Report vulnerabilities per `SECURITY.md`.
 - Glyph's code is MIT-licensed (`LICENSE`). New content must be original or
   public-domain/CC0 and credited where required; no trademarked characters, no
   code copied from WLED (EUPL) or other copyleft sources.
-- Exception: the imported animation collection (`catalog_assets/pipplee/`)
+- Exception: the imported animation collection (`catalog_assets/imported/`)
   was added by the maintainer with its creator's permission. It isn't MIT and may show third-party characters.
   Don't treat it as precedent for other imports or for contributions. Never
   name its source in user-facing copy (app, store, website, release notes).

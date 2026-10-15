@@ -32,7 +32,7 @@ void main() {
   final fakeGif = Uint8List.fromList(List.filled(321, 7));
 
   setUp(() {
-    wled = FakeWled(); // def.ps = 102 (Pipplee)
+    wled = FakeWled(); // def.ps = 102 (Rainbow)
     BootIntro.resetForTest();
     BootIntro.bake = (w, h) async => fakeGif;
     SharedPreferences.setMockInitialValues({
@@ -70,7 +70,7 @@ void main() {
       expect(wled.posts.where((p) => p.$1 == '/json/state'), isEmpty);
       // The user's presets are untouched.
       expect(presetBody(1)['n'], 'Ocean Plasma');
-      expect(presetBody(102)['n'], 'pipplee.gif');
+      expect(presetBody(102)['n'], 'rainbow.gif');
     });
 
     test('is idempotent: a second connect writes nothing', () async {
@@ -249,7 +249,7 @@ void main() {
     expect(wled.bootPreset, 249);
     expect(WledPreset.parseAll(wled.presets).map((p) => p.name), containsAll(['Glyph intro', 'Power-on']));
 
-    final row = find.text('When it powers on → Pipplee');
+    final row = find.text('When it powers on → Rainbow');
     await tester.scrollUntilVisible(row, 200, scrollable: find.byType(Scrollable).first);
     await settle(tester);
     expect(find.text('Glyph intro'), findsNothing, reason: 'not a Saved tile');

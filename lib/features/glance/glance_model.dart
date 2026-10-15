@@ -1,4 +1,5 @@
 import 'air_quality.dart';
+import '../../library/legacy_ids.dart';
 
 class WeatherPlace {
   const WeatherPlace(
@@ -153,7 +154,7 @@ class PhoneShowEntry {
   factory PhoneShowEntry.fromJson(Map m) {
     final e = PhoneShowEntry(
       ShowEntryKind.values.byName(m['kind'] as String),
-      m['id'] as String,
+      m['kind'] == 'library' ? importedCollectionId(m['id'] as String) : m['id'] as String,
       seconds: (m['seconds'] as num).toInt(),
     );
     if (m['seconds'] != e.seconds ||

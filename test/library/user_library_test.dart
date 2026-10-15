@@ -1,8 +1,37 @@
+import 'package:glyph/library/legacy_ids.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/library/user_library.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  test('favourites migrate, deduplicate and persist without dropping unknown IDs', () async {
+    final old = '$legacyCollectionPrefix-42';
+    SharedPreferences.setMockInitialValues({UserLibrary.favouritesKey: [old, 'imported-42', 'unknown']});
+    final library = UserLibrary();
+    await library.load();
+    expect(library.favourites, {'imported-42', 'unknown'});
+    expect(library.isFavourite(old), isTrue);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getStringList(UserLibrary.favouritesKey), ['imported-42', 'unknown']);
+    final reload = UserLibrary();
+    await reload.load();
+    expect(reload.favourites, library.favourites);
+    await reload.toggleFavourite(old);
+    expect(reload.isFavourite('imported-42'), isFalse);
+  });
+
+  test('recents migrate in order and deduplicate canonical IDs on disk', () async {
+    final old = '$legacyCollectionPrefix-42';
+    SharedPreferences.setMockInitialValues({UserLibrary.recentsKey: [old, 'unknown', 'imported-42', 'clip:$old']});
+    final library = UserLibrary();
+    await library.load();
+    expect(library.recents, ['imported-42', 'unknown', 'clip:imported-42']);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getStringList(UserLibrary.recentsKey), library.recents);
+    await library.markPlayed(old);
+    expect(library.recents.first, 'imported-42');
+  });
+
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   test('favourites persist across instances', () async {

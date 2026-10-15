@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
 import 'catalog.dart';
-import 'pipplee_collection.dart';
+import 'imported_collection.dart';
 
 /// The full generated library (tool/build_catalog.dart).
 const bundledCatalogAsset = 'assets/catalog/catalog.json';
@@ -20,7 +20,7 @@ Future<Catalog> loadBundledCatalog([AssetBundle? bundle]) async {
     c = Catalog.parse(await b.loadString(starterCatalogAsset));
   }
   try {
-    c = c.merge(parsePippleeCollection(await b.loadString(pippleeIndexAsset)));
+    c = c.merge(parseImportedCollection(await b.loadString(importedIndexAsset)));
   } catch (_) {
     // The existing offline library remains usable if an optional index is absent.
   }

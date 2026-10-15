@@ -82,7 +82,7 @@ void main() {
     expect(find.text('WLED'), findsOneWidget, reason: 'name from /json/info');
     expect(find.text('16×16 · WLED 16.0.1 · Wi-Fi 20%'), findsOneWidget);
     expect(find.textContaining('Weak Wi-Fi'), findsOneWidget);
-    // The Stage shows what's saved and playing (preset 102 plays pipplee.gif).
+    // The Stage shows what's saved and playing (preset 102 plays rainbow.gif).
     expect(find.text('SAVED ON YOUR DEVICE'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
@@ -124,7 +124,7 @@ void main() {
     // Routines as sentences.
     await reveal(tester, find.text('Every hour at :15 → something removed'));
     expect(find.text('These run on your device, even when your phone is off.'), findsOneWidget);
-    expect(find.text('When it powers on → Pipplee'), findsOneWidget);
+    expect(find.text('When it powers on → Rainbow'), findsOneWidget);
     expect(find.text('Mon, Wed, Fri at 3:07 → something removed'), findsOneWidget);
     expect(
       find.text('Every day 30 min before sunset, 2 Nov – 20 Feb → glyph_test_list'),

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'glance_model.dart';
+import '../../library/legacy_ids.dart';
 
 /// Cards and rotations (phone-driven sequences; stored under the legacy
 /// `shows` key). Entries this build cannot read are kept as raw JSON and
@@ -46,6 +47,16 @@ class GlanceStore extends ChangeNotifier {
       try {
         if (raw.length > maxBytes) throw const FormatException('too large');
         final data = jsonDecode(raw) as Map;
+        var migrated = false;
+        for (final show in data['shows'] as List? ?? const []) {
+          if (show is! Map || show['entries'] is! List) continue;
+          for (final entry in show['entries'] as List) {
+            if (entry is! Map || entry['kind'] != 'library' || entry['id'] is! String) continue;
+            final old = entry['id'] as String;
+            entry['id'] = importedCollectionId(old);
+            migrated |= old != entry['id'];
+          }
+        }
         _extra = {
           for (final e in data.entries)
             if (e.key is String && e.key != 'cards' && e.key != 'shows')
@@ -67,6 +78,14 @@ class GlanceStore extends ChangeNotifier {
             _shows.add(show);
           } catch (_) {
             _rawShows.add(s);
+          }
+        }
+        if (migrated) {
+          // Preserve unknown fields and unreadable records exactly as decoded.
+          try {
+            await p.setString(key, jsonEncode(data));
+          } catch (_) {
+            // References work in memory; retry the rewrite next load.
           }
         }
       } catch (_) {
@@ -98,6 +117,7 @@ class GlanceStore extends ChangeNotifier {
 
   Future<void> saveShow(PhoneShow value) async {
     if (!value.valid) throw ArgumentError('Invalid rotation');
+    value = PhoneShow.fromJson(value.toJson());
     await _mutate(() {
       if (_shows.length >= maxShows && show(value.id) == null) {
         throw StateError('You can keep up to $maxShows rotations.');

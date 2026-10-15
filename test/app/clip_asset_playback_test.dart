@@ -16,7 +16,7 @@ import '../library/clip_asset_fixture.dart';
 LibraryItem item(ClipAsset asset) => LibraryItem(
   id: asset.id.substring(5),
   title: asset.title,
-  category: 'Pipplee',
+  category: 'Imported',
   generatorId: asset.id,
   paletteId: 'rainbow',
 );
@@ -100,7 +100,7 @@ void main() {
       expect(await playback.playItem(item(asset)), isTrue);
       expect(playback.generator, isA<ClipGenerator>());
       expect(playback.generator!.id, asset.id);
-      expect(playback.item!.id, 'pipplee-42');
+      expect(playback.item!.id, 'imported-42');
       expect(playback.frame.get(0, 4), 0xff0000);
       playback.pause();
     },

@@ -1,5 +1,5 @@
 // Renders deterministic samples through Glyph's player at both device sizes.
-// dart run tool/pipplee_preview.dart [output directory]
+// dart run tool/collection_preview.dart [output directory]
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -7,14 +7,14 @@ import 'package:glyph/engine/clip_asset.dart';
 import 'package:glyph/engine/frame.dart';
 import 'package:glyph/engine/generator.dart';
 import 'package:glyph/engine/palette.dart';
-import 'package:glyph/library/pipplee_collection.dart';
+import 'package:glyph/library/imported_collection.dart';
 import 'package:image/image.dart' as img;
 
 void main(List<String> args) {
-  final output = args.isEmpty ? 'build/pipplee/preview' : args.first;
+  final output = args.isEmpty ? 'build/imported/preview' : args.first;
   Directory(output).createSync(recursive: true);
-  final collection = parsePippleeCollection(
-    File(pippleeIndexAsset).readAsStringSync(),
+  final collection = parseImportedCollection(
+    File(importedIndexAsset).readAsStringSync(),
   );
   final samples = [
     ...collection.items.take(6),
@@ -26,7 +26,7 @@ void main(List<String> args) {
       () {
         final generator = ClipAssetLibrary.byId(item.generatorId)!;
         final bytes = File(
-          'catalog_assets/pipplee/${generator.asset.sha256}.clip.gz',
+          'catalog_assets/imported/${generator.asset.sha256}.clip.gz',
         ).readAsBytesSync();
         return generator.loaded(
           decodeClipAsset(

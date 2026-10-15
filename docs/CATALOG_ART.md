@@ -1,7 +1,7 @@
 # Artist collection
 
-The separately permitted 12,361-entry Pipplee collection is documented in
-[Pipplee collection](PIPPLEE_COLLECTION.md), including its permission record,
+The separately permitted 12,361-entry Imported collection is documented in
+[Imported collection](IMPORTED_COLLECTION.md), including its permission record,
 credit, source ledger and delivery. The CC0 records below apply to these
 four creator-published packs.
 

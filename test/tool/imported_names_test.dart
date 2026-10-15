@@ -11,16 +11,16 @@ void main() {
         '''
 import json,sys
 sys.path.insert(0, 'tool')
-from build_pipplee_names import name_rows
-index = json.load(open('assets/catalog/pipplee.json'))
-descriptions = json.load(open('catalog_assets/pipplee/descriptions.json'))['clips']
+from build_collection_names import name_rows
+index = json.load(open('assets/catalog/imported.json'))
+descriptions = json.load(open('catalog_assets/imported/descriptions.json'))['clips']
 existing = json.load(open('assets/catalog/catalog.json'))['items']
 assert index['version'] == 3
 assert len(descriptions) == len({r[1] for r in index['rows']})
-assert index['rows'] == name_rows(index['rows'], descriptions, [i['title'] for i in existing]), 'Run tool/build_pipplee_names.py'
-assert all(not r[7].startswith('Pipplee ') for r in index['rows'])
+assert index['rows'] == name_rows(index['rows'], descriptions, [i['title'] for i in existing]), 'Run tool/build_collection_names.py'
+assert all(not r[7].startswith('Imported ') for r in index['rows'])
 assert set(index['categories']) == {r[11] for r in index['rows']}
-assert all(r[11] != 'Pipplee' for r in index['rows'])
+assert all(r[11] != 'Imported' for r in index['rows'])
 ''',
       ]);
       expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
@@ -33,7 +33,7 @@ assert all(r[11] != 'Pipplee' for r in index['rows'])
       '''
 import sys
 sys.path.insert(0, 'tool')
-from build_pipplee_names import name_rows
+from build_collection_names import name_rows
 rows = [[i, sha, 100, 16, 16, 2, ['red']] for i, sha in [(1,'a'),(2,'b'),(3,'c'),(4,'a')]]
 descriptions = {sha: {'title': title, 'subjects': ['cat'], 'aliases': [], 'tags': ['red']}
                 for sha, title in [('a','Cat'),('b','Cat'),('c','Cat 2')]}
@@ -45,7 +45,7 @@ assert named == name_rows(named, descriptions, ['Cat'])
 for bad in [
     {k:v for k,v in descriptions.items() if k != 'c'},
     {**descriptions, 'unknown': descriptions['a']},
-    {**descriptions, 'a': {**descriptions['a'], 'title': 'Pipplee 1'}},
+    {**descriptions, 'a': {**descriptions['a'], 'title': 'Imported 1'}},
     {**descriptions, 'a': {**descriptions['a'], 'subjects': []}},
     {**descriptions, 'a': {**descriptions['a'], 'aliases': [False]}},
 ]:
@@ -62,7 +62,7 @@ print('Validated complete coverage, stable identities, alias retention and colli
     final result = await Process.run('python3', ['-c', '''
 import sys
 sys.path.insert(0, 'tool')
-from pipplee_categories import category_for
+from collection_categories import category_for
 def category(title, subjects, tags=(), **extra):
     return category_for(dict(title=title, subjects=subjects, tags=list(tags), aliases=[], **extra))
 assert category('White Cat', ['cat', 'face']) == 'Animals'
@@ -91,7 +91,7 @@ assert category('Red Circle', ['circle']) == 'Abstract'
 assert category('Reviewed Pattern', ['grid'], category='Abstract') == 'Abstract'
 assert category('Orange Unclear Form', ['unclear']) == 'Other'
 assert category('Reviewed Override', ['person'], category='Characters') == 'Characters'
-try: category('Invalid Override', ['person'], category='Pipplee')
+try: category('Invalid Override', ['person'], category='Imported')
 except ValueError: pass
 else: raise AssertionError('Unknown category accepted')
 ''']);

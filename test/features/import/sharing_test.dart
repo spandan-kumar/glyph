@@ -1,7 +1,9 @@
+import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph/library/legacy_ids.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/engine/bake_limits.dart';
 import 'package:glyph/engine/clip.dart';
@@ -23,6 +25,33 @@ Creation _creation() {
 }
 
 void main() {
+  test('creation JSON and shared files migrate references without changing user content', () async {
+    final dir = await Directory.systemTemp.createTemp('glyph_migration');
+    addTearDown(() => dir.delete(recursive: true));
+    final old = '$legacyCollectionPrefix-42';
+    final data = {..._creation().toJson(), 'title': old, 'future': true, 'meta': {
+      'sourceItemId': old, 'nested': [{'generatorId': 'clip:$old'}],
+      'name': old, 'settings': {'speed': 2},
+    }};
+    final file = File('${dir.path}/abc.json');
+    await file.writeAsString(jsonEncode(data));
+    final store = CreationsStore(directory: () async => dir);
+    addTearDown(store.dispose);
+    await store.load();
+    final creation = store.items.single;
+    expect(creation.id, 'abc');
+    expect(creation.title, old);
+    expect(creation.clip.toJson(), _creation().clip.toJson());
+    expect(creation.meta, {'sourceItemId': 'imported-42', 'nested': [{'generatorId': 'clip:imported-42'}], 'name': old, 'settings': {'speed': 2}});
+    final saved = jsonDecode(await file.readAsString()) as Map;
+    expect(saved, {...data, 'meta': creation.meta});
+    expect(parseGlyphFile(jsonEncode(data)).meta, creation.meta);
+    await store.load();
+    expect(store.items.single.meta, creation.meta);
+    await importGlyphFile(store, Uint8List.fromList(utf8.encode(jsonEncode(data))));
+    expect(store.items.first.meta, creation.meta);
+  });
+
   test('.glyph round-trips a creation', () {
     final c = _creation();
     final text = encodeGlyphFile(c);

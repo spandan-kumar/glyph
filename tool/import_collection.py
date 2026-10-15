@@ -1,7 +1,7 @@
 """Build LED-sized clip assets from the complete, permission-granted archive.
 
-Run with Python + Pillow: import_pipplee.py --archive PATH [--workers 4].
-The index is bundled; compressed clips are published on Pages, not in the APK.
+Run with Python + Pillow: import_collection.py --archive PATH [--workers 4].
+The index and compressed clips are bundled; Pages also hosts verified copies.
 """
 import argparse
 from collections import Counter
@@ -14,11 +14,11 @@ import struct
 
 from PIL import Image, ImageSequence
 
-from build_pipplee_names import DESCRIPTIONS, name_rows
-from pipplee_categories import CATEGORIES
+from build_collection_names import DESCRIPTIONS, name_rows
+from collection_categories import CATEGORIES
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "catalog_assets/pipplee"
+OUT = ROOT / "catalog_assets/imported"
 
 
 def convert(task):
@@ -75,7 +75,7 @@ def convert(task):
             colours["orange"] += 1
     tags = [name for name, _ in colours.most_common(3)]
     return [entry["id"], sha, len(compressed), width, height, len(frames), tags], {
-        "id": entry["id"], "source_url": entry["image_file"],
+        "id": entry["id"],
         "source_sha256": original["sha256"], "clip_sha256": sha,
         "width": width, "height": height,
         "frames": len(frames), "duration_ms": sum(delays),
@@ -110,11 +110,11 @@ def main():
         existing = json.loads((ROOT / "assets/catalog/catalog.json").read_text())["items"]
         rows = name_rows(rows, descriptions, (i["title"] for i in existing))
         version = 3
-    index = {"version": version, "count": len(rows), "permission": "maintainer-confirmed-pipplee-consent-2026-10-13", "rows": rows}
+    index = {"version": version, "count": len(rows), "permission": "maintainer-confirmed-collection-consent-2026-10-13", "rows": rows}
     if version == 3:
         present = {row[11] for row in rows}
         index["categories"] = [category for category in CATEGORIES if category in present]
-    (ROOT / "assets/catalog/pipplee.json").write_text(json.dumps(index, separators=(",", ":")) + "\n")
+    (ROOT / "assets/catalog/imported.json").write_text(json.dumps(index, separators=(",", ":")) + "\n")
     (OUT / "provenance.json").write_text(json.dumps({
         "catalogue_sha256": hashlib.sha256((archive / "catalogue.json").read_bytes()).hexdigest(),
         "permission": index["permission"], "entries": provenance,

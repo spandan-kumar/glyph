@@ -17,6 +17,7 @@ import '../engine/gif_encoder.dart';
 import '../engine/palette.dart';
 import '../engine/registry.dart';
 import '../library/catalog.dart';
+import '../library/legacy_ids.dart';
 import '../wled/wled_client.dart';
 import '../wled/presets.dart';
 import 'community/glyph_menu.dart';
@@ -196,7 +197,7 @@ abstract final class GlyphActions {
 
     if (g is ClipGenerator) {
       // Imported names can be curated without changing their existing device
-      // file identity. Match the old Pipplee filename when re-sending a look.
+      // file identity. Recognize existing Saved copies when re-sending a look.
       final item = s.playback.item;
       final fileName = item != null ? keptFileName(item.deviceFileTitle) : null;
       return sendClipToDevice(context, g.clip, title, onUpload: onUpload,
@@ -300,13 +301,16 @@ abstract final class GlyphActions {
       final presetId = await client.withPresetMutation(() async {
         if (!current()) throw const _SendStopped();
         final existing = await _existingPreset(client, title, uploadName);
+        final legacy = legacyCollectionFileName(uploadName);
+        final migrating = legacy != null && existing?.gifName != null &&
+            WledClient.matchesGifName(legacy, existing!.gifName!);
         if (existing?.gifName != null) {
           try {
             final name = existing!.gifName!;
             final path = name.startsWith('/') ? name : '/$name';
             final files = await client.files();
             final saved = files[path] == bytes.length ? await client.fileBytes(name) : null;
-            if (saved != null && listEquals(saved, bytes)) {
+            if (!migrating && saved != null && listEquals(saved, bytes)) {
               alreadySaved = true;
               return existing.id;
             }
@@ -328,7 +332,7 @@ abstract final class GlyphActions {
         return client.saveGifToDevice(
           fileName: uploadName,
           gif: bytes,
-          presetName: title,
+          presetName: migrating ? existing.name : title,
           caps: caps,
           // Sending the same animation again replaces it rather than adding a
           // duplicate entry.

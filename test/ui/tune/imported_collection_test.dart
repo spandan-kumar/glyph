@@ -13,7 +13,7 @@ import 'package:glyph/features/device/boot_intro.dart';
 import 'package:glyph/wled/layout.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/library/clip_asset_store.dart';
-import 'package:glyph/library/pipplee_collection.dart';
+import 'package:glyph/library/imported_collection.dart';
 import 'package:glyph/main.dart';
 import 'package:glyph/ui/tune/channels.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -41,25 +41,25 @@ class _Playback extends PlaybackController {
 
 void main() {
   final original = Catalog.parse(File('assets/catalog/catalog.json').readAsStringSync());
-  final collection = parsePippleeCollection(File(pippleeIndexAsset).readAsStringSync());
+  final collection = parseImportedCollection(File(importedIndexAsset).readAsStringSync());
   final catalog = original.merge(collection);
 
   test('every imported entry belongs to subject groups without a source shelf', () {
     final channels = CatalogChannels(catalog, DateTime(2026, 10, 13));
     final groups = [...channels.lead, ...channels.rest];
-    expect(groups.where((c) => c.name == 'Pipplee' || c.id == 'pipplee'), isEmpty);
+    expect(groups.where((c) => c.name == 'Imported' || c.id == 'imported'), isEmpty);
     final grouped = {for (final group in groups) ...group.all.map((e) => e.key)};
     expect(grouped, containsAll(collection.items.map((i) => 'i:${i.id}')));
-    expect(collection.items.any((i) => i.category == 'Pipplee'), isFalse);
+    expect(collection.items.any((i) => i.category == 'Imported'), isFalse);
     for (final name in ['Flags', 'Patterns', 'Hypnotic']) {
       final group = groups.singleWhere((c) => c.name == name);
       expect(group.all.whereType<ItemEntry>().any((e) => e.item.collection == 'Imported'), isTrue);
     }
     expect(channels.allChannel.all.length, catalog.items.length);
-    final importedCat = collection.byId('pipplee-15353')!;
+    final importedCat = collection.byId('imported-15353')!;
     expect(channels.rest.singleWhere((c) => c.name == 'Animals').all.map((e) => e.key),
         contains('i:${importedCat.id}'));
-    final grid = collection.byId('pipplee-12045')!;
+    final grid = collection.byId('imported-12045')!;
     expect(channels.rest.singleWhere((c) => c.name == 'Abstract').all.map((e) => e.key),
         contains('i:${grid.id}'));
   });
@@ -69,7 +69,7 @@ void main() {
     ClipAssetLibrary.clearCache();
     final previous = ClipAssetStore.shared, store = _Clips();
     ClipAssetStore.shared = store;
-    final dir = Directory.systemTemp.createTempSync('glyph-pipplee-ui');
+    final dir = Directory.systemTemp.createTempSync('glyph-imported-ui');
     BootIntro.autoInstall = false;
     addTearDown(BootIntro.resetForTest);
     final wled = FakeWled();
@@ -93,7 +93,7 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
-    final item = collection.items.firstWhere((i) => int.parse(i.id.substring(8)) > 10000);
+    final item = collection.items.firstWhere((i) => int.parse(i.id.substring('imported-'.length)) > 10000);
     await tester.enterText(find.byType(TextField), item.id);
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 50));
@@ -109,7 +109,7 @@ void main() {
     expect(store.playbackPriority, true);
     final asset = ClipAssetLibrary.byId(item.generatorId)!.asset;
     final clip = decodeClipAsset(Uint8List.fromList(gzip.decode(
-      File('catalog_assets/pipplee/${asset.sha256}.clip.gz').readAsBytesSync())), asset);
+      File('catalog_assets/imported/${asset.sha256}.clip.gz').readAsBytesSync())), asset);
     ClipAssetLibrary.retain(asset.sha256, clip);
     store.ready.complete(clip);
     for (var i = 0; i < 8; i++) {

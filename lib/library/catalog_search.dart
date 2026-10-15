@@ -1,4 +1,5 @@
 import 'catalog.dart';
+import 'legacy_ids.dart';
 
 class CatalogSearchResult {
   const CatalogSearchResult(
@@ -144,11 +145,14 @@ class CatalogSearch {
     _entries = [for (final item in items) _Entry(item, normalize)];
     for (var i = 0; i < _entries.length; i++) {
       final item = _entries[i].item;
-      final source = RegExp(r'^pipplee-(\d+)$').firstMatch(item.id)?[1];
+      final source = RegExp(r'^imported-(\d+)$').firstMatch(item.id)?[1];
       (_identities[normalize(item.id)] ??=
               <int>{})
           .add(i);
-      if (source != null) (_identities[source] ??= <int>{}).add(i);
+      if (source != null) {
+        (_identities[source] ??= <int>{}).add(i);
+        (_identities[normalize(item.generatorId)] ??= <int>{}).add(i);
+      }
       for (final word in _entries[i].words.keys) {
         (_index[word] ??= <int>{}).add(i);
       }
@@ -162,7 +166,7 @@ class CatalogSearch {
       .toList();
 
   CatalogSearchResult search(String text) {
-    final query = _Query(text);
+    final query = _Query(importedCollectionId(text));
     final direct = _match(query);
     if (direct.isNotEmpty || query.tokens.isEmpty) {
       return CatalogSearchResult(direct);

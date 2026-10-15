@@ -100,7 +100,7 @@ class ClipAssetStore {
       if (bundle != null) {
         try {
           bundled = await bundle!.load(
-            'catalog_assets/pipplee/${asset.sha256}.clip.gz',
+            'catalog_assets/imported/${asset.sha256}.clip.gz',
           );
         } on FlutterError {
           // Not included in this app version; try the verified download cache.

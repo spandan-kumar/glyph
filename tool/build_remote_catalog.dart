@@ -15,7 +15,7 @@ import 'package:glyph/engine/generators/sprite.dart';
 import 'package:glyph/library/catalog_key.dart';
 import 'package:glyph/library/catalog_manifest.dart';
 import 'package:glyph/library/remote_catalog.dart';
-import 'package:glyph/library/pipplee_collection.dart';
+import 'package:glyph/library/imported_collection.dart';
 import 'package:glyph/engine/clip_asset.dart';
 
 /// Site layout: relative path -> bytes.
@@ -379,18 +379,18 @@ Future<void> main(List<String> args) async {
         ..writeAsBytesSync(e.value);
     }
     // The bundled collection index pins every clip independently. Keep these
-    // assets on the site for both publication and rollback; never put them
-    // into the signed sprite payload or the APK.
-    final collectionFile = File(pippleeIndexAsset);
+    // assets on the site for both publication and rollback, separate from
+    // the signed sprite payload. Current apps also bundle them offline.
+    final collectionFile = File(importedIndexAsset);
     if (collectionFile.existsSync()) {
-      final collection = parsePippleeCollection(
+      final collection = parseImportedCollection(
         collectionFile.readAsStringSync(),
       );
       final copied = <String>{};
       for (final item in collection.items) {
         final asset = ClipAssetLibrary.byId(item.generatorId)!.asset;
         if (!copied.add(asset.sha256)) continue;
-        final bytes = File('catalog_assets/pipplee/${asset.sha256}.clip.gz')
+        final bytes = File('catalog_assets/imported/${asset.sha256}.clip.gz')
             .readAsBytesSync();
         if (bytes.length != asset.bytes ||
             CatalogManifest.sha256Hex(bytes) != asset.sha256) {
@@ -403,8 +403,8 @@ Future<void> main(List<String> args) async {
           ..writeAsBytesSync(bytes);
       }
       for (final name in ['NOTICE', 'provenance.json']) {
-        File('catalog_assets/pipplee/$name')
-            .copySync('${output.path}/collections/pipplee/$name');
+        File('catalog_assets/imported/$name')
+            .copySync('${output.path}/collections/imported/$name');
       }
       stdout.writeln(
         'Collection: ${collection.items.length} IDs; ${copied.length} verified clip files.',

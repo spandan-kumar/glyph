@@ -15,7 +15,7 @@ void main() {
   test('All leads every home group and retains the whole library and creations', () {
     final catalog = Catalog(items: [
       for (var i = 0; i < 40; i++) _item('cat-$i', 'Animals'),
-      _item('grid', 'Abstract', collection: 'Pipplee'),
+      _item('grid', 'Abstract', collection: 'Imported'),
     ]);
     final creation = Creation(id: 'mine', title: 'My drawing', kind: 'drawing',
         clip: FrameClip(width: 1, height: 1, frames: [Frame(1, 1)], delaysMs: [100]),
@@ -37,11 +37,11 @@ void main() {
   });
 
   test('imports join subject rails without a source shelf or abstract Pixel Pals', () {
-    final cat = _item('cat', 'Animals', collection: 'Pipplee');
-    final grid = _item('grid', 'Abstract', collection: 'Pipplee', tags: ['cute']);
-    final heart = _item('heart', 'Love', collection: 'Pipplee');
+    final cat = _item('cat', 'Animals', collection: 'Imported');
+    final grid = _item('grid', 'Abstract', collection: 'Imported', tags: ['cute']);
+    final heart = _item('heart', 'Love', collection: 'Imported');
     final base = CatalogChannels(Catalog(items: [cat, grid, heart]), now);
-    expect([...base.lead, ...base.rest].where((c) => c.name == 'Pipplee'), isEmpty);
+    expect([...base.lead, ...base.rest].where((c) => c.name == 'Imported'), isEmpty);
     expect(base.rest.singleWhere((c) => c.name == 'Animals').all.single.key, 'i:cat');
     expect(base.rest.singleWhere((c) => c.name == 'Abstract').all.single.key, 'i:grid');
     expect(base.rest.singleWhere((c) => c.name == 'Love').all.single.key, 'i:heart');

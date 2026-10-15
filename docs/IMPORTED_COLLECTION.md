@@ -1,66 +1,58 @@
-# Pipplee collection
+# Imported collection
 
-The import retains **all 12,361 IDs returned by the frozen crawl** of the
-Pipplee animation endpoint, across 413 pages fetched on 13 October 2026.
-This is a snapshot, not a claim that the endpoint exposed every animation
-available in Pipplee’s app. It adds them to Glyph's existing
-1,236 entries, for **13,597 total entries**. Nothing is omitted or merged at
-the catalogue level. Identical converted content shares a file: there are
-12,273 distinct clips, totalling 31,447,891 compressed bytes (30.0 MiB).
+The imported animation collection retains **all 12,361 IDs** in its frozen
+archive. It adds them to Glyph's existing 1,236 entries, for **13,597 total
+entries**. Nothing is omitted or merged at the catalogue level. Identical
+converted content shares a file: there are 12,273 distinct clips, totalling
+31,447,891 compressed bytes (30.0 MiB).
 
 ## Permission and credit
 
-On 13 October 2026, Glyph's maintainer confirmed that they asked the Pipplee
-creator directly and have consent to use this collection. They retain the
-Discord conversation privately. This import follows that explicit
-authorization as an exception to Glyph's usual original/CC0 art policy.
-It does not change that policy for other contributions.
+On 13 October 2026, Glyph's maintainer confirmed the creator's permission to
+include this collection. The permission conversation is retained privately.
+This is an exception to Glyph's usual original/CC0 art policy and does not
+change that policy for other contributions.
 
-These assets are labelled `shared-with-permission`, not CC0 or MIT. The API
-does not provide original artist names, titles or per-work licences. Glyph
-authors descriptive names and search words from the visible clips; these are
-not original artist titles. The notice remains "From the Pipplee catalogue,
-shared with permission." No private messages or account credentials are
-included. `catalog_assets/pipplee/NOTICE` retains the collection credit.
+These assets are labelled `shared-with-permission`: they are not CC0, public
+domain or MIT-licensed. Glyph authors descriptive names and search words from
+the visible clips; these are not original artist titles. The notice remains
+"Shared with permission by its creator." `catalog_assets/imported/NOTICE`
+records the collection's terms without identifying its source.
 
-## Source and conversion
+## Conversion
 
-The public endpoint is `https://pipplee.com/api/v1/animations?p=N`.
-`page=N` does not advance pagination. The complete fetched archive contains
-the original responses and GIFs, download verification, and a local review
-gallery. It is separate from the repository because the GIFs total 718.9 MiB.
-
-`tool/import_pipplee.py` verifies every original GIF against that archive's
-manifest, decodes every composited frame with Pillow, and samples each LED
-cell's centre at the API's `min_width` and `min_height`. This removes preview
-magnification and thin grid lines. Source dimensions range from 8×8 to 64×64,
-including rectangular strips. The largest animation has 151 frames.
+`tool/import_collection.py --archive PATH` requires a local archive path.
+It verifies every original GIF against the supplied manifest, decodes every
+composited frame with Pillow, and samples each LED cell's centre using the
+archive's `min_width` and `min_height`. This removes preview magnification
+and thin grid lines. Dimensions range from 8×8 to 64×64, including rectangular
+strips. The largest animation has 151 frames.
 
 Colours and frame order are retained. GIF waits of 0 or 10 ms become 100 ms,
 matching Glyph's GIF-import convention; other waits are retained. No frames
-are dropped. `provenance.json` records source and converted hashes, frame
-counts and total durations for every ID. Display fitting uses Glyph's
-existing nearest-neighbour scaling and centred letterboxing.
+are dropped. `provenance.json` records IDs, source and converted hashes,
+dimensions, frame counts and total durations, without source URLs. Display
+fitting uses nearest-neighbour scaling and centred letterboxing.
 
 ## Format and delivery
 
-The app bundles the `assets/catalog/pipplee.json` index and all 12,273 distinct
+The app bundles the `assets/catalog/imported.json` index and all 12,273 distinct
 compressed clips, so the complete collection works offline from first launch.
 Each row holds the upstream ID, clip SHA-256, compressed size, width, height,
 frame count, up to three colour tags, and authored title, subjects, aliases and tags
 (schema version 3 also appends a browsing category). The parser also accepts
 version 1 and 2 rows. Clips live in
-`catalog_assets/pipplee/<sha256>.clip.gz`, included as Flutter assets.
+`catalog_assets/imported/<sha256>.clip.gz`, included as Flutter assets.
 
 Display starts with All, including the whole library and your creations.
 Imported animations join subject shelves such as Animals, Nature, Holidays,
-Gaming and Abstract, while Pipplee remains their collection and credit.
-`tool/pipplee_categories.py` derives categories from the reviewed subjects,
+Gaming and Abstract. Their collection label is Imported.
+`tool/collection_categories.py` derives categories from the reviewed subjects,
 names and tags, matching whole words. Occasion and game context take priority;
 otherwise concrete subjects take priority over accessories. Geometric waves
 do not become ocean scenes, and colours never infer a subject. An authored
 `category` in the description can override the rule for an individual clip.
-There is no separate Pipplee shelf: imports appear in the same subject groups
+There is no separate Imported shelf: imports appear in the same subject groups
 as the rest of the library. See all exposes every entry; search supports
 descriptive names, subjects, aliases, source IDs,
 native dimensions and colour tags.
@@ -70,7 +62,7 @@ join Hypnotic. Concrete subjects and occasion context keep priority, so a
 striped cat remains in Animals and a Halloween flag stays in Holidays.
 Search now matches words rather than arbitrary substrings, collapses identical
 clips in its results, and excludes the placeholder `rainbow` palette. Use
-`collection:pipplee red 32x32` to constrain collection, colour and native size.
+`collection:imported red 32x32` to constrain collection, colour and native size.
 Exact source-ID queries retain access to every record. The search algorithm
 does not infer subjects from the GIFs; it indexes the authored metadata.
 
@@ -79,7 +71,7 @@ width, uint16 height, uint32 frame count; then for each frame a uint32 delay
 in milliseconds followed by `width * height * 3` RGB bytes.
 
 The existing GitHub Pages catalogue workflow copies hash-verified clips to
-`collections/pipplee/<sha256>.clip.gz` for both publication and rollback.
+`collections/imported/<sha256>.clip.gz` for both publication and rollback.
 The existing signed sprite catalogue stays separate. The bundled index pins
 each clip's hash and size; decoding also checks its dimensions, frame count,
 timings and exact expanded size in an isolate.
@@ -90,20 +82,21 @@ waiting for a download slot. The decoded LRU holds up to 4 million pixels;
 active playback and Rotations retain their own decoded clips. A decoded-cache
 eviction still reloads from the bundle offline. Unbundled clips retain the
 verified download fallback, with at most four downloads at once and a 96 MiB
-disk cache. The app makes no requests to Pipplee.
+disk cache. The source is never contacted by the app.
 
 Picking a clip keeps the previous look playing while it loads. Failed or
 stale downloads cannot replace that look. Send waits for loading to finish
 and repeats long GIF holds in steps of at most one second, preserving the
 duration while avoiding WLED's carried-over frame delay.
 
-The Pages copies remain available to older app versions that download clips.
-New app builds include the full collection and do not depend on Pages for it.
+The neutral Pages path replaces the previous collection path on the next
+publication. Versions 1.4.5/1.4.6 lose on-demand downloads of these clips;
+1.4.7+ bundles the collection and does not depend on Pages for it.
 New, unbundled clips must still be published before their index is distributed.
 
 ## Names and search words
 
-`catalog_assets/pipplee/descriptions.json` records a description for every
+`catalog_assets/imported/descriptions.json` records a description for every
 unique clip SHA-256. Names are short visible descriptions; subjects name
 objects, aliases hold alternate names, and tags describe colour, motion or
 style. Recognisable fictional characters use their canonical names, with
@@ -155,26 +148,31 @@ The ledger records this choice in `naming_review` and
 objects and actions; the identity uncertainty notes remain internal evidence.
 No new character or franchise identity was inferred from the hints.
 
-`tool/build_pipplee_names.py` requires complete hash coverage, validates the
+`tool/build_collection_names.py` requires complete hash coverage, validates the
 metadata, and regenerates the bundled index. It gives colliding titles
 stable numeric suffixes while retaining their natural name as an alias.
-Existing item IDs, content hashes, pixels and timings are unchanged, so
-favourites and saved references continue to work. Send retains each imported
-clip’s original device filename, and the Stage uses that identity to recognise
-a Saved look after reconnecting. The importer reapplies
-this ledger when rebuilding the same frozen archive.
+Content hashes, pixels, timings and numeric IDs remain unchanged. Items now
+use `imported-<n>` and generators use `clip:imported-<n>`. Legacy IDs alias to
+these identities; favourites, recents, library entries in Rotations and
+creation metadata references are rewritten on load. Playback has no persisted
+session, and widgets/community drawings retain no library or generator IDs.
+Device matching recognizes legacy filenames, including revision suffixes.
+Re-sending uploads and verifies `imported-<n>.gif`, updates the existing Saved
+preset while retaining its ID and name, then deletes the old file only after
+nothing plays or saves it. A failed upload leaves the old copy in place.
+The importer reapplies this ledger when rebuilding the same frozen archive.
 
 ## Reproduce and verify
 
-With the fetched archive, Python 3 + Pillow, and Flutter available:
+With the local archive, Python 3 + Pillow, and Flutter available:
 
 ```bash
-python3 tool/import_pipplee.py --archive /path/to/catalogue-fetch --workers 4
-python3 tool/build_pipplee_names.py
+python3 tool/import_collection.py --archive /path/to/collection-archive --workers 4
+python3 tool/build_collection_names.py
 python3 skills/glyph-animation/scripts/validate_sprite.py --all
-bash tool/fetch_published_catalog.sh build/pipplee/published
-dart run tool/build_remote_catalog.dart --published build/pipplee/published --output build/pipplee/site
-dart run tool/pipplee_preview.dart
+bash tool/fetch_published_catalog.sh build/imported/published
+dart run tool/build_remote_catalog.dart --published build/imported/published --output build/imported/site
+dart run tool/collection_preview.dart
 flutter analyze
 flutter test
 ```

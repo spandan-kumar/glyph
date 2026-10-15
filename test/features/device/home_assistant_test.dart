@@ -71,16 +71,16 @@ void main() {
     await settle(tester, 600);
     expect(find.text('Ocean Plasma'), findsWidgets);
     // The name Home Assistant shows is the stored one, not the tidied label.
-    expect(find.text('pipplee.gif'), findsOneWidget);
+    expect(find.text('rainbow.gif'), findsOneWidget);
     expect(find.text('WLED Turn Off'), findsNothing);
     expect(find.text('Glyph intro'), findsNothing);
     expect(find.text('Open the guide'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Copy pipplee.gif'));
+    await tester.tap(find.byTooltip('Copy rainbow.gif'));
     await settle(tester, 300);
-    expect(copied, ['pipplee.gif']);
+    expect(copied, ['rainbow.gif']);
     expect(find.text('Copied'), findsOneWidget);
-    expect(tester.getSize(find.byTooltip('Copy pipplee.gif')).height, greaterThanOrEqualTo(48));
+    expect(tester.getSize(find.byTooltip('Copy rainbow.gif')).height, greaterThanOrEqualTo(48));
   });
 
   testWidgets('copy skips the toast where the system already confirms it', (tester) async {
@@ -99,9 +99,9 @@ void main() {
 
     await tester.tap(find.text('Use with Home Assistant'));
     await settle(tester, 600);
-    await tester.tap(find.byTooltip('Copy pipplee.gif'));
+    await tester.tap(find.byTooltip('Copy rainbow.gif'));
     await settle(tester, 300);
-    expect(copied, ['pipplee.gif']);
+    expect(copied, ['rainbow.gif']);
     expect(find.text('Copied'), findsNothing);
   });
 

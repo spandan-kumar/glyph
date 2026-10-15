@@ -24,7 +24,7 @@ void main() {
   // One colour per file, so a tile's picture says which file it came from.
   const colours = {
     '/ocean-plasma.gif': 0xFF0000,
-    '/pipplee.gif': 0x00FF00,
+    '/rainbow.gif': 0x00FF00,
     '/duck.gif': 0x0000FF,
     '/goose.gif': 0xFFFF00,
     '/mypaint.gif': 0xFF00FF,
@@ -102,7 +102,7 @@ void main() {
       'Duck': 0x0000FF,
       'Goose': 0xFFFF00,
       'My paint': 0xFF00FF,
-      'Pipplee': 0x00FF00,
+      'Rainbow': 0x00FF00,
     });
 
     // Delete Goose (and its file) from the middle of the grid.
@@ -118,7 +118,7 @@ void main() {
       'Ocean Plasma': 0xFF0000,
       'Duck': 0x0000FF,
       'My paint': 0xFF00FF,
-      'Pipplee': 0x00FF00,
+      'Rainbow': 0x00FF00,
     });
     expect(tester.takeException(), isNull);
   });
@@ -136,7 +136,7 @@ void main() {
       'Duck': null,
       'Goose': 0xFFFF00,
       'My paint': 0xFF00FF,
-      'Pipplee': 0x00FF00,
+      'Rainbow': 0x00FF00,
     });
     expect(missing('Duck'), isTrue);
     expect(missing('Ocean Plasma'), isTrue);
@@ -184,11 +184,11 @@ void main() {
     for (final MapEntry(:key, :value) in rows().entries) {
       expect(value, colours[key], reason: key);
     }
-    final gone = manager.deleteFile('/pipplee.gif');
+    final gone = manager.deleteFile('/rainbow.gif');
     await settle(tester, 800);
     await tester.runAsync(() => gone);
     await decode(tester);
-    expect(rows().keys, isNot(contains('/pipplee.gif')));
+    expect(rows().keys, isNot(contains('/rainbow.gif')));
     for (final MapEntry(:key, :value) in rows().entries) {
       expect(value, colours[key], reason: key);
     }

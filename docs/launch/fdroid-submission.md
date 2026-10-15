@@ -10,7 +10,7 @@ matters for F-Droid in two ways:
   draft below now does). Reviewers may still refuse an app whose bundled art
   depicts trademarked characters, regardless of the anti-feature.
 - **Recommended path:** an F-Droid build without the collection. The recipe's
-  `prebuild` removes `catalog_assets/pipplee/` and its `pubspec.yaml` asset
+  `prebuild` removes `catalog_assets/imported/` and its `pubspec.yaml` asset
   entry, and builds with `--dart-define=GLYPH_COLLECTION=false` so the app
   hides imported entries instead of trying to load them. That build needs no
   NonFreeAssets declaration and returns the APK to about 28 MB. **TODO (app):**

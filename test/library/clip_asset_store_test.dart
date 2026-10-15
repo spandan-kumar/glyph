@@ -38,7 +38,7 @@ void main() {
     final (asset, bytes) = clipFixture(delays: [120, 350]);
     final store = ClipAssetStore(
       bundle: _Bundle({
-        'catalog_assets/pipplee/${asset.sha256}.clip.gz': bytes,
+        'catalog_assets/imported/${asset.sha256}.clip.gz': bytes,
       }),
       cacheDir: () async => throw StateError('No disk cache'),
       client: MockClient((_) async => throw StateError('Unexpected download')),
@@ -88,7 +88,7 @@ void main() {
       var active = 0, peak = 0;
       final store = ClipAssetStore(
         bundle: _Bundle({for (final (asset, bytes) in fixtures)
-          'catalog_assets/pipplee/${asset.sha256}.clip.gz': bytes}),
+          'catalog_assets/imported/${asset.sha256}.clip.gz': bytes}),
         cacheDir: () async => throw StateError('No disk cache'),
         decode: (bytes, asset) async {
           active++;
@@ -125,7 +125,7 @@ void main() {
       final broken = Uint8List.fromList(bytes)..[15] ^= 1;
       final store = ClipAssetStore(
         bundle: _Bundle({
-          'catalog_assets/pipplee/${asset.sha256}.clip.gz': broken,
+          'catalog_assets/imported/${asset.sha256}.clip.gz': broken,
         }),
         cacheDir: () async => throw StateError('No disk cache'),
         client: MockClient(

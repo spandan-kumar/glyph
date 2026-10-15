@@ -23,7 +23,7 @@ void main() {
             http.Response(jsonEncode(stateJson), 200),
           '/json/state' => http.Response('{"success":true}', 200),
           '/upload' => http.Response('File Uploaded!', 200),
-          '/edit' => http.Response('[{"name":"pipplee.gif","type":"file","size":4000}]', 200),
+          '/edit' => http.Response('[{"name":"rainbow.gif","type":"file","size":4000}]', 200),
           _ => http.Response('Not found', 404),
         };
       }));

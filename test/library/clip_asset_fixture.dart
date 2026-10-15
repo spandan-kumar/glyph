@@ -29,8 +29,8 @@ import 'package:glyph/engine/clip_asset.dart';
   }
   final packed = Uint8List.fromList(gzip.encode(bytes));
   final asset = ClipAsset(
-    id: 'clip:pipplee-$id',
-    title: 'Pipplee $id',
+    id: 'clip:imported-$id',
+    title: 'Imported $id',
     sha256: sha256.convert(packed).toString(),
     bytes: packed.length,
     width: width,

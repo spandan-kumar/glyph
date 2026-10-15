@@ -1,17 +1,17 @@
 """Build the named collection index from visually reviewed, hash-keyed metadata.
 
 No pixels, source IDs, timings or content hashes change. Regenerate this index
-after edits to catalog_assets/pipplee/descriptions.json; never edit rows by hand.
+after edits to catalog_assets/imported/descriptions.json; never edit rows by hand.
 """
 import argparse
 from collections import Counter
 import json
 from pathlib import Path
 
-from pipplee_categories import CATEGORIES, category_for
+from collection_categories import CATEGORIES, category_for
 
 ROOT = Path(__file__).resolve().parents[1]
-DESCRIPTIONS = ROOT / "catalog_assets/pipplee/descriptions.json"
+DESCRIPTIONS = ROOT / "catalog_assets/imported/descriptions.json"
 
 
 def _words(description, field, maximum):
@@ -34,7 +34,7 @@ def name_rows(rows, descriptions, existing_titles=()):
     for sha, description in descriptions.items():
         title = description.get("title")
         if not isinstance(title, str) or not title.strip() or len(title) > 64 or (
-            title.lower().startswith("pipplee ") or any(ord(c) < 32 for c in title)
+            title.lower().startswith("imported ") or any(ord(c) < 32 for c in title)
         ):
             raise ValueError(f"Invalid title: {sha}")
         validated[sha] = (title.strip(), _words(description, "subjects", 12),
@@ -68,7 +68,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--descriptions", type=Path, default=DESCRIPTIONS)
     args = parser.parse_args()
-    path = ROOT / "assets/catalog/pipplee.json"
+    path = ROOT / "assets/catalog/imported.json"
     index = json.loads(path.read_text())
     descriptions = json.loads(args.descriptions.read_text())["clips"]
     existing = json.loads((ROOT / "assets/catalog/catalog.json").read_text())["items"]

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../library/legacy_ids.dart';
 import 'bake_limits.dart';
 import 'clip.dart';
 import 'frame.dart';
@@ -19,7 +20,7 @@ class ClipAsset {
   });
   final String id, title, sha256;
   final int bytes, width, height, frames;
-  String get path => 'collections/pipplee/$sha256.clip.gz';
+  String get path => 'collections/imported/$sha256.clip.gz';
 }
 
 abstract final class ClipAssetLibrary {
@@ -34,7 +35,7 @@ abstract final class ClipAssetLibrary {
     }
   }
 
-  static AssetClipGenerator? byId(String id) => _generators[id];
+  static AssetClipGenerator? byId(String id) => _generators[importedCollectionId(id)];
   static FrameClip? cached(String sha) {
     final clip = _clips.remove(sha);
     if (clip != null) _clips[sha] = clip;
