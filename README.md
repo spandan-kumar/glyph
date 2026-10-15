@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Your matrix, alive.</b><br>
-  A fast, beautiful app for WLED LED matrices: guided setup, 1,209
+  A fast, beautiful app for WLED LED matrices: guided setup, 13,597
   animations, a pixel editor, text and clocks, GIF import, a music visualiser
   and games. Free, open source, no account.
 </p>
@@ -72,16 +72,21 @@ for a surprise, and tap **Send** to put an animation on the device. Tweak
 colours and motion with a palette reel and rotary knobs; the whole app glows
 with whatever is on your matrix.
 
-- **1,209 animations** in 22 categories: 62 procedural effects (plasma, fire,
-  aurora, reaction–diffusion, falling sand…), 329 original pixel-art sprites,
-  and **Famous Classics** — public-domain characters and paintings such as the
-  1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night.
+- **13,597 animations** in subject groups (Animals, Nature, Holidays, Gaming,
+  Flags, Patterns and more): 62 procedural effects (plasma, fire, aurora,
+  reaction–diffusion, falling sand…), 356 original and CC0 pixel-art sprites,
+  **Famous Classics** — public-domain characters and paintings such as the
+  1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night —
+  and 12,361 animations from the [imported collection](docs/imported_COLLECTION.md),
+  shared with permission.
+- Search the whole library by name, subject, colour or native size. Everything
+  is bundled, so it works offline.
 - Seamless loops on the device, accurate colours (device gamma, true blacks,
   stable hues at low brightness).
 
 **Make**
-- **Draw** — frames, onion skin, mirror drawing, fill, shapes and undo; your
-  strokes appear on the matrix as you draw.
+- **Draw** — frames, onion skin, mirror drawing, fill, shapes and undo, or
+  start from a picture or GIF; your strokes appear on the matrix as you draw.
 - **Write**, **Clock** and **Timer** — hand-made pixel fonts; clocks keep the
   real time on the device with your phone off.
 - **Bring a GIF** — any GIF, WebP or photo, cropped and tuned for LEDs.
@@ -172,7 +177,7 @@ flutter build apk --release --split-per-abi --target-platform android-arm64
 
 See [AGENTS.md](AGENTS.md) for the project layout, conventions, tools and how
 to test against a real device, and [CONTRIBUTING.md](CONTRIBUTING.md) to add
-an animation or send a pull request. Glyph is released under the
+an animation or send a pull request. Glyph's code is released under the
 [MIT License](LICENSE).
 
 ## Community
@@ -194,11 +199,14 @@ an animation or send a pull request. Glyph is released under the
 
 ## Content and credits
 
-All effects and pixel art are original to this project; Famous Classics are
-drawn from public-domain originals and carry their source notes. No code was
-copied from WLED or other GPL/EUPL projects. Fonts: Bricolage Grotesque and
-DM Mono (SIL OFL).
+Effects and the sprite packs are original to this project or CC0 with
+credits; Famous Classics are drawn from public-domain originals and carry
+their source notes. No code was copied from WLED or other GPL/EUPL projects.
+Fonts: Bricolage Grotesque and DM Mono (SIL OFL).
 
 The code and original artwork are released under the [MIT License](LICENSE).
+The imported collection (`catalog_assets/imported/`) is included with its
+creator's permission and is **not** covered by the MIT License; see
+[its notice](catalog_assets/imported/NOTICE).
 
 Glyph is not affiliated with the WLED project.

@@ -1,4 +1,4 @@
-Glyph sets up your WLED LED matrix and brings it to life. A guided wizard gets a new display working, then you swipe through more than a thousand animations like TV channels, draw your own pixel art, show the time, put your music on the wall and play games, all from your phone. Free, open source, no account.
+Glyph sets up your WLED LED matrix and brings it to life. A guided wizard gets a new display working, then you swipe through more than 13,000 animations like TV channels, draw your own pixel art, show the time, put your music on the wall and play games, all from your phone. Free, open source, no account.
 
 Your matrix lives at the top of the screen as a glowing live panel. Swipe it to flip through animations, roll the dice for a surprise, and tap Send to put an animation on the device so it keeps playing with your phone off.
 
@@ -9,12 +9,13 @@ SET UP
 • Devices set their own clock from your phone's time zone, so Routines run on time.
 
 DISPLAY
-• 1,209 animations in 22 categories: 62 procedural effects (plasma, fire, aurora, reaction–diffusion, falling sand…), 329 original pixel-art sprites, and Famous Classics: public-domain characters and paintings such as the 1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night.
+• 13,597 animations in subject groups such as Animals, Nature, Holidays, Gaming, Flags and Patterns: 62 procedural effects (plasma, fire, aurora, reaction–diffusion, falling sand…), 356 original and CC0 pixel-art sprites, Famous Classics (public-domain characters and paintings such as the 1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night) and 12,361 animations from the imported collection, shared with permission.
+• Search the whole library by name, subject, colour or size. Everything is on your phone, so it works offline.
 • Tweak colours and motion with a palette reel and rotary knobs.
 • Seamless loops on the device and accurate colours: device gamma, true blacks and stable hues at low brightness.
 
 MAKE
-• Draw: frames, onion skin, mirror drawing, fill, shapes and undo. Your strokes appear on the matrix as you draw.
+• Draw: frames, onion skin, mirror drawing, fill, shapes and undo, or start from a picture or GIF. Your strokes appear on the matrix as you draw.
 • Write, Clock and Timer with hand-made pixel fonts. Clocks keep the real time on the device with your phone off.
 • Bring a GIF: any GIF, WebP or photo, cropped and tuned for LEDs.
 • Music: nine visualisers driven by the microphone, with beat detection. Audio never leaves the phone.
@@ -31,7 +32,7 @@ DEVICE
 
 PRIVATE, FREE AND OPEN SOURCE
 • No account, no cloud, no ads, no tracking. Glyph talks straight to the devices on your Wi-Fi; your drawings and audio stay on your phone. Weather cards look up your forecast only if you turn them on.
-• Free and open source under the MIT license.
+• Glyph's code is free and open source under the MIT license.
 
 WHAT YOU NEED
 • A controller with WLED already installed (install.wled.me), driving an LED matrix. Glyph sets up the layout. Complex setups, such as several outputs or custom LED maps, keep their existing configuration. Any panel size works, including HUB75 panels on WLED's HUB75 builds.
