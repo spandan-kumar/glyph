@@ -1,6 +1,6 @@
 # Glyph privacy policy
 
-*Updated 15 October 2026 for the fully offline Pipplee collection.*
+*Updated 15 October 2026 for the fully offline imported collection.*
 
 Glyph is a free, open-source (MIT) app that draws on your WLED LED display.
 It has **no account, no ads, no analytics, no tracking and no Glyph server**.
@@ -17,7 +17,7 @@ Everything below is checked against the source code, which you can read at
 | Phone clock and time zone | **Your own WLED device** | Automatically after setup and when you add a device, or when you tap Set the time | Automatic (only to your device) |
 | Place name you type, or the places you saved (coordinates) | **Open-Meteo** (weather and air quality) | When you use Weather or Air quality | Yes |
 | A request for the animation list (your IP address, like any web request) | **GitHub Pages** (`spandan-kumar.github.io`) | When you check for new animations; automatic daily checks are **off** until you turn them on | Yes |
-| A request for an animation file not included in your app version (your IP address and the requested file) | **GitHub Pages** (`spandan-kumar.github.io`) | When you browse or play an unbundled animation that is not cached; the full bundled Pipplee collection needs no requests | Yes |
+| A request for an animation file not included in your app version (your IP address and the requested file) | **GitHub Pages** (`spandan-kumar.github.io`) | When you browse or play an unbundled animation that is not cached; the full bundled imported collection needs no requests | Yes |
 | A bug report, idea or request you choose to file | **GitHub** (a web page opened in your browser) | Only when you tap a feedback item and press Submit there | Yes |
 | Chat invite | **Discord** (opens in your browser) | Only when you tap the link | Yes |
 | Glyph app updates | **GitHub Releases** or your update app (for example Obtainium) | Only if you update that way. The app does not check for updates by itself | Yes |
@@ -75,13 +75,13 @@ address and the request, as with any website. A check runs when you tap it, or
 daily if you turn on automatic checks (off by default). Downloaded
 animations are cached on your phone.
 
-From version 1.4.7, the complete Pipplee collection is included in the app.
+From version 1.4.7, the complete imported collection is included in the app.
 Browsing, playing and using these animations in Rotations works offline,
 including on a fresh install. Files are checked against the hashes in the app.
 Older versions downloaded these files from GitHub Pages on first use.
 The loader retains that verified, cached download fallback for files not
 included in an app version. No account or identifier is sent.
-**Glyph does not contact Pipplee's API or image host.**
+**Glyph does not contact the collection's original source.**
 
 ### Feedback
 **Device → Send feedback** does not send anything by itself. It opens your

@@ -68,12 +68,12 @@ games and your music's album art, from your phone. Free, local, no account.*
 | It just works | Plug in, app finds the device, first animation in seconds |
 | Works on any ESP | The phone renders; even an ESP8266 streams 40 fps |
 | Local, no account | vs Divoom/LaMetric accounts and Tidbyt's shutdown |
-| Free forever | MIT, no subscription (vs Pipplee's) |
+| Free forever | MIT, no subscription (vs paid competitors) |
 
 Tone: a maker showing a friend something cool. Short, visual, honest.
 
 **Competition.** WLED 16's built-in PixelForge (browser paint/GIF/text) and
-Pipplee (~1k Android installs, $2.50/yr) cover basic editing and GIFs, so
+A paid competitor (~1k Android installs, $2.50/yr) cover basic editing and GIFs, so
 Glyph differentiates on content, glanceable info and multi-display support.
 
 ---

@@ -81,7 +81,7 @@ the app's own light comes from what the matrix is showing.
   word like "cat" into "cathedral". Correct only small, unambiguous spelling
   slips when direct search finds nothing, and show the correction. Larger
   slips offer up to three named suggestions; tapping one changes the query.
-  Sizes (`32x32`, `32×32`) and `collection:pipplee` (quoted for multiword
+  Sizes (`32x32`, `32×32`) and `collection:imported` (quoted for multiword
   names) are strict constraints, including during correction/suggestion.
   Identical hash-pinned clips appear once in search; exact source-ID queries
   can still retrieve each record. Internal generator/palette IDs do not

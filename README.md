@@ -77,8 +77,8 @@ with whatever is on your matrix.
   reaction–diffusion, falling sand…), 356 original and CC0 pixel-art sprites,
   **Famous Classics** — public-domain characters and paintings such as the
   1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night —
-  and 12,361 animations from the [Pipplee collection](docs/PIPPLEE_COLLECTION.md),
-  shared with permission.
+  and 12,361 animations from an imported pixel-art collection, shared with
+  permission.
 - Search the whole library by name, subject, colour or native size. Everything
   is bundled, so it works offline.
 - Seamless loops on the device, accurate colours (device gamma, true blacks,
@@ -205,8 +205,7 @@ their source notes. No code was copied from WLED or other GPL/EUPL projects.
 Fonts: Bricolage Grotesque and DM Mono (SIL OFL).
 
 The code and original artwork are released under the [MIT License](LICENSE).
-The Pipplee collection (`catalog_assets/pipplee/`) is included with its
-creator's permission and is **not** covered by the MIT License; see
-[its notice](catalog_assets/pipplee/NOTICE).
+The imported animation collection is included with its creator's permission
+and is **not** covered by the MIT License.
 
 Glyph is not affiliated with the WLED project.

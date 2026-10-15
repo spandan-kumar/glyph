@@ -1,5 +1,5 @@
-12,361 animations from Pipplee, shared with permission: 13,597 looks in all.
-Find the new Pipplee shelf on Display, or search by source ID, size and colour.
+12,361 more animations, shared with permission: 13,597 looks in all.
+Search them by name, size and colour.
 Animations download as you browse or play them, then stay cached for offline use.
 Your current look keeps playing while the next one loads. Changing your look, device or power cancels a pending pick safely.
 Send preserves long animation holds. Rotations load their animations before starting.
