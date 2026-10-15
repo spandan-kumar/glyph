@@ -230,7 +230,7 @@ class WledPlaylist {
 }
 
 /// Presets saved by other apps are often named after their file
-/// ("pipplee.gif", "my_cat-2.gif"); show those as words ("Pipplee",
+/// ("rainbow.gif", "my_cat-2.gif"); show those as words ("Rainbow",
 /// "My cat 2"). Names people typed are left alone.
 String displayName(String raw) {
   final m = RegExp(r'^(.+)\.(gif|png|jpe?g|webp|bmp)$', caseSensitive: false).firstMatch(raw.trim());

@@ -263,10 +263,10 @@ void main() {
       );
       final rainbows = c
           .search('rainbow')
-          .where((i) => i.collection == 'imported')
+          .where((i) => i.collection == 'Imported')
           .toList();
       expect(rainbows, isNotEmpty);
-      expect(rainbows.length, lessThan(c.items.where((i) => i.collection == 'imported').length));
+      expect(rainbows.length, lessThan(c.items.where((i) => i.collection == 'Imported').length));
       for (final item in rainbows) {
         expect(
           [item.title, ...item.subjects, ...item.aliases, ...item.tags].any(

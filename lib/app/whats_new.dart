@@ -5,19 +5,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
   '1.4.7': [
-    'The full imported collection is included in the app. Browse and play every animation offline from the start.',
+    'All 12,361 imported animations are included in the app. Browse and play them offline from the start.',
     'Animations load locally without waiting for thumbnail downloads.',
-    'Imported animations live in the regular subject groups, without a separate imported shelf.',
+    'Imported animations live in the regular subject groups.',
     'Find flags in Flags, grids and stripes in Patterns, and spirals and tunnels in Hypnotic.',
   ],
   '1.4.6': [
-    'imported animations have descriptive names, search tags and proper browsing groups.',
+    'Imported animations have descriptive names, search tags and proper browsing groups.',
     'All leads Display, with the whole library and your creations.',
     'Search finds objects and offers typo corrections. Your Saved looks keep working after renaming.',
     'Start a drawing from a picture or GIF, with crop and colour controls.',
   ],
   '1.4.5': [
-    '12,361 animations from imported, shared with permission. Find the new imported shelf on Display.',
+    '12,361 more animations, shared with permission. Search them by name, size and colour.',
     'Animations download as you browse or play them, then stay cached for offline use.',
     'Your current look keeps playing while the next one loads. Send preserves long animation holds.',
   ],
