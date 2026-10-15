@@ -253,6 +253,100 @@ void main() {
   );
 
   test(
+    'reviewed names and franchise aliases find the actual clips',
+    () {
+      final c = parseimportedCollection(
+        File(importedIndexAsset).readAsStringSync(),
+      );
+      for (final entry in {
+        'mario': 'imported-2005',
+        'super mario': 'imported-2005',
+        'wolverine': 'imported-2032',
+        'logan': 'imported-2032',
+        'x men': 'imported-2032',
+        'xmen': 'imported-2032',
+        'blossom': 'imported-2264',
+        'powerpuff girls': 'imported-2264',
+        'fallout': 'imported-10134',
+        'vault boy': 'imported-10134',
+        'anya forger': 'imported-2524',
+        'spy family': 'imported-2524',
+        'sonic hedgehog': 'imported-13873',
+        'hollow knight': 'imported-4563',
+        'silksong': 'imported-4622',
+        'futurama': 'imported-10182',
+        'pokemon': 'imported-2838',
+        'shinchan': 'imported-2323',
+        'game boy': 'imported-7178',
+        'robocop': 'imported-2186',
+        'peashooter': 'imported-8755',
+        'plants vs zombies': 'imported-8755',
+        'bullet bill': 'imported-5754',
+        'pokémon': 'imported-2241',
+        'ken kaneki': 'imported-14467',
+        'tokyo ghoul': 'imported-14467',
+        'twitch': 'imported-6111',
+        'game controller': 'imported-6840',
+        'burger': 'imported-4714',
+        'duck splashes': 'imported-2826',
+        'playing card suits': 'imported-6975',
+        'pink lettering': 'imported-5990',
+        'fairy princess': 'imported-2087',
+        'jet takeoff': 'imported-2321',
+        'pug': 'imported-5011',
+        'tiger sunglasses': 'imported-5083',
+        'telephone': 'imported-6309',
+        'duck knife': 'imported-11821',
+        'maracas': 'imported-13898',
+        'energy ball': 'imported-14304',
+      }.entries) {
+        expect(ids(c, entry.key), contains(entry.value), reason: entry.key);
+      }
+      for (final entry in {
+        'imported-2005': 'Mario',
+        'imported-2032': 'Wolverine',
+        'imported-2264': 'Blossom',
+      }.entries) {
+        expect(c.byId(entry.key)!.title, contains(entry.value));
+      }
+      expect(
+        ids(c, 'pikachu'),
+        isNot(contains('imported-5319')),
+        reason: 'an ordinary yellow duck is not Pikachu',
+      );
+      expect(
+        ids(c, 'pikachu'),
+        isNot(contains('imported-3565')),
+        reason: 'a generic white skull is not Pikachu',
+      );
+      expect(
+        ids(c, 'wolverine'),
+        isNot(contains('imported-14887')),
+        reason: 'the cat in a Christmas stocking is not Wolverine',
+      );
+      expect(
+        ids(c, 'clothing'),
+        isNot(contains('imported-7178')),
+        reason: 'the rotating handheld is a game console, not clothing',
+      );
+      expect(
+        ids(c, 'tree'),
+        isNot(contains('imported-8755')),
+        reason: 'the Peashooter is not a tree',
+      );
+      expect(
+        ids(c, 'creature'),
+        isNot(contains('imported-6309')),
+        reason: 'the ringing telephone is not a grinning creature',
+      );
+      expect(
+        c.byId('imported-2321')!.title,
+        'Jet Taking Off',
+      );
+    },
+  );
+
+  test(
     'full collection searches use known metadata without false rainbow matches',
     () {
       final bundled = Catalog.parse(
