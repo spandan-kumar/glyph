@@ -106,9 +106,12 @@ New, unbundled clips must still be published before their index is distributed.
 `catalog_assets/pipplee/descriptions.json` records a description for every
 unique clip SHA-256. Names are short visible descriptions; subjects name
 objects, aliases hold alternate names, and tags describe colour, motion or
-style. Unclear sprites receive conservative descriptions instead of guessed
-characters or unreadable text. Common subject nouns include singular and
-plural forms so “cat” and “cats” both work.
+style. Recognisable fictional characters use their canonical names, with
+franchise and alternate names in aliases. Generic descriptions are reserved
+for unclear identities or unreadable text.
+Useful old descriptions remain searchable; incorrect character identities
+and their franchise aliases are removed. Common subject nouns include singular
+and plural forms so “cat” and “cats” both work.
 
 Parallel Luna agents drafted names from multi-frame previews. Audits caught
 labels shifted between neighbouring thumbnails and misidentified objects, so
@@ -118,6 +121,39 @@ entries and inspected full frame sequences where needed. Every unique clip
 received a visual review, but this is not a claim that every frame was
 individually inspected; the ledger retains confidence and review information
 for future corrections.
+
+The targeted character audit on 15 October 2026 covered 6,285 unique clips
+selected from character, people, face, animal, game, holiday and related
+metadata, correcting 118 unique clips (119 source records). Parallel drafts
+were followed by independent stronger visual QA,
+including enlarged sequences for each accepted correction and parent review.
+Accepted changes retain the identifying evidence and date in the description
+ledger's `identity_review` field. Ambiguous lookalikes remain descriptive;
+this is a targeted audit, not a guarantee that every character in the full
+collection has been identified.
+
+The follow-up pass covered the other 5,988 unique clips and revisited all
+113 uncertain clips from the targeted audit in enlarged sequences. Together,
+the two passes overviewed all 12,273 unique clips. The follow-up corrected
+another 107 unique clips (109 source records), including fictional identities,
+object names, search terms and categories. Each correction received an
+exact-hash enlarged-sequence check and independent parent review. A full-frame
+text check kept a truncated scrolling word descriptive instead of completing
+it from a guess.
+
+The ledger's `catalogue_audit` records coverage counts and a digest of the
+reviewed hashes. Its 106 unresolved identities retain descriptive names and
+an `identity_uncertainty` reason. Overview coverage means sampled frames from
+every clip; it does not claim inspection of every frame or resolution of every
+fictional identity. Pixels, timings and source IDs remain unchanged.
+
+The maintainer supplied visual hints for 97 of the 106 uncertain entries,
+then chose generic naming for this group. A further enlarged-sequence review
+checked all 106, refining 68 entries and keeping 38 accurate generic names.
+The ledger records this choice in `naming_review` and
+`catalogue_audit.human_guided_generic_review`. These names describe visible
+objects and actions; the identity uncertainty notes remain internal evidence.
+No new character or franchise identity was inferred from the hints.
 
 `tool/build_pipplee_names.py` requires complete hash coverage, validates the
 metadata, and regenerates the bundled index. It gives colliding titles

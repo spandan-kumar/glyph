@@ -253,6 +253,100 @@ void main() {
   );
 
   test(
+    'reviewed names and franchise aliases find the actual clips',
+    () {
+      final c = parsePippleeCollection(
+        File(pippleeIndexAsset).readAsStringSync(),
+      );
+      for (final entry in {
+        'mario': 'pipplee-2005',
+        'super mario': 'pipplee-2005',
+        'wolverine': 'pipplee-2032',
+        'logan': 'pipplee-2032',
+        'x men': 'pipplee-2032',
+        'xmen': 'pipplee-2032',
+        'blossom': 'pipplee-2264',
+        'powerpuff girls': 'pipplee-2264',
+        'fallout': 'pipplee-10134',
+        'vault boy': 'pipplee-10134',
+        'anya forger': 'pipplee-2524',
+        'spy family': 'pipplee-2524',
+        'sonic hedgehog': 'pipplee-13873',
+        'hollow knight': 'pipplee-4563',
+        'silksong': 'pipplee-4622',
+        'futurama': 'pipplee-10182',
+        'pokemon': 'pipplee-2838',
+        'shinchan': 'pipplee-2323',
+        'game boy': 'pipplee-7178',
+        'robocop': 'pipplee-2186',
+        'peashooter': 'pipplee-8755',
+        'plants vs zombies': 'pipplee-8755',
+        'bullet bill': 'pipplee-5754',
+        'pokémon': 'pipplee-2241',
+        'ken kaneki': 'pipplee-14467',
+        'tokyo ghoul': 'pipplee-14467',
+        'twitch': 'pipplee-6111',
+        'game controller': 'pipplee-6840',
+        'burger': 'pipplee-4714',
+        'duck splashes': 'pipplee-2826',
+        'playing card suits': 'pipplee-6975',
+        'pink lettering': 'pipplee-5990',
+        'fairy princess': 'pipplee-2087',
+        'jet takeoff': 'pipplee-2321',
+        'pug': 'pipplee-5011',
+        'tiger sunglasses': 'pipplee-5083',
+        'telephone': 'pipplee-6309',
+        'duck knife': 'pipplee-11821',
+        'maracas': 'pipplee-13898',
+        'energy ball': 'pipplee-14304',
+      }.entries) {
+        expect(ids(c, entry.key), contains(entry.value), reason: entry.key);
+      }
+      for (final entry in {
+        'pipplee-2005': 'Mario',
+        'pipplee-2032': 'Wolverine',
+        'pipplee-2264': 'Blossom',
+      }.entries) {
+        expect(c.byId(entry.key)!.title, contains(entry.value));
+      }
+      expect(
+        ids(c, 'pikachu'),
+        isNot(contains('pipplee-5319')),
+        reason: 'an ordinary yellow duck is not Pikachu',
+      );
+      expect(
+        ids(c, 'pikachu'),
+        isNot(contains('pipplee-3565')),
+        reason: 'a generic white skull is not Pikachu',
+      );
+      expect(
+        ids(c, 'wolverine'),
+        isNot(contains('pipplee-14887')),
+        reason: 'the cat in a Christmas stocking is not Wolverine',
+      );
+      expect(
+        ids(c, 'clothing'),
+        isNot(contains('pipplee-7178')),
+        reason: 'the rotating handheld is a game console, not clothing',
+      );
+      expect(
+        ids(c, 'tree'),
+        isNot(contains('pipplee-8755')),
+        reason: 'the Peashooter is not a tree',
+      );
+      expect(
+        ids(c, 'creature'),
+        isNot(contains('pipplee-6309')),
+        reason: 'the ringing telephone is not a grinning creature',
+      );
+      expect(
+        c.byId('pipplee-2321')!.title,
+        'Jet Taking Off',
+      );
+    },
+  );
+
+  test(
     'full collection searches use known metadata without false rainbow matches',
     () {
       final bundled = Catalog.parse(
