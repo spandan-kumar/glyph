@@ -190,8 +190,8 @@ animate scenery in the frames and keep `still`.
 
 `Community` · `Classic Cartoons` · `Storybook` · `Monsters & Legends` · `Masterpieces` ·
 `Chill` · `Party` · `Emoji` · `Love` · `Holidays` · `Nature` · `Animals` ·
-`Water` · `Weather` · `Space` · `Fire & Energy` · `Abstract` · `Hypnotic` ·
-`Retro & Digital` · `Gaming` · `Science & Sims` · `Food & Drink` · `Symbols`
+`Water` · `Weather` · `Space` · `Fire & Energy` · `Abstract` · `Patterns` · `Hypnotic` ·
+`Retro & Digital` · `Gaming` · `Science & Sims` · `Food & Drink` · `Symbols` · `Flags`
 
 Classic Cartoons, Storybook, Monsters & Legends and Masterpieces hold
 public-domain works with a `source` block.

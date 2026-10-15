@@ -1,3 +1,4 @@
 The full imported collection now comes with the app. Browse and play all 12,361 entries offline from first launch.
 Animations load locally without waiting for thumbnail downloads or a disk cache.
 Imported animations live in the regular subject groups, without a separate imported shelf.
+New Flags and Patterns groups, with spirals and tunnels joining Hypnotic.
