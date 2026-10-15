@@ -9,6 +9,8 @@ import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
 import 'package:glyph/engine/clip.dart';
 import 'package:glyph/engine/clip_asset.dart';
+import 'package:glyph/features/device/boot_intro.dart';
+import 'package:glyph/wled/layout.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/library/clip_asset_store.dart';
 import 'package:glyph/library/pipplee_collection.dart';
@@ -16,15 +18,25 @@ import 'package:glyph/main.dart';
 import 'package:glyph/ui/tune/channels.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../features/device/fake_wled.dart';
+
 class _Clips extends ClipAssetStore {
   _Clips() : super(cacheDir: () async => Directory.systemTemp);
   final ready = Completer<FrameClip>();
   final requested = <String>[];
+  bool playbackPriority = false;
   @override
-  Future<FrameClip> load(ClipAsset asset) {
+  Future<FrameClip> load(ClipAsset asset, {bool priority = false}) {
     requested.add(asset.id);
+    if (priority) playbackPriority = true;
     return ready.future;
   }
+}
+
+class _Playback extends PlaybackController {
+  final started = <String>[];
+  @override
+  Future<void> startStreaming(String host, MatrixLayout layout) async => started.add(host);
 }
 
 void main() {
@@ -41,7 +53,7 @@ void main() {
     expect(collection.items.any((i) => i.category == 'Pipplee'), isFalse);
     for (final name in ['Flags', 'Patterns', 'Hypnotic']) {
       final group = groups.singleWhere((c) => c.name == name);
-      expect(group.all.whereType<ItemEntry>().any((e) => e.item.collection == 'Pipplee'), isTrue);
+      expect(group.all.whereType<ItemEntry>().any((e) => e.item.collection == 'Imported'), isTrue);
     }
     expect(channels.allChannel.all.length, catalog.items.length);
     final importedCat = collection.byId('pipplee-15353')!;
@@ -58,7 +70,11 @@ void main() {
     final previous = ClipAssetStore.shared, store = _Clips();
     ClipAssetStore.shared = store;
     final dir = Directory.systemTemp.createTempSync('glyph-pipplee-ui');
-    final playback = PlaybackController(), devices = DeviceStore();
+    BootIntro.autoInstall = false;
+    addTearDown(BootIntro.resetForTest);
+    final wled = FakeWled();
+    final playback = _Playback(), devices = DeviceStore(clientFactory: wled.client);
+    await tester.runAsync(() => devices.addAndSelect('fake', 'Test device'));
     addTearDown(() {
       playback.dispose();
       devices.dispose();
@@ -86,6 +102,11 @@ void main() {
     await tester.tap(find.text(item.title).last);
     await tester.pump(const Duration(milliseconds: 100));
     expect(playback.loadingTitle, item.title);
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byType(TextField), findsNothing, reason: 'search is disposed before loading finishes');
+    expect(store.playbackPriority, true);
     final asset = ClipAssetLibrary.byId(item.generatorId)!.asset;
     final clip = decodeClipAsset(Uint8List.fromList(gzip.decode(
       File('catalog_assets/pipplee/${asset.sha256}.clip.gz').readAsBytesSync())), asset);
@@ -97,6 +118,7 @@ void main() {
     expect(playback.item?.id, item.id);
     expect(playback.generator, isA<ClipGenerator>());
     expect(playback.loadingTitle, isNull);
+    expect(playback.started, ['fake'], reason: 'streaming starts even after the tile was disposed');
     expect(tester.takeException(), isNull);
     playback.pause();
     await tester.pumpWidget(const SizedBox());

@@ -5,7 +5,7 @@ import '../engine/clip_asset.dart';
 import 'catalog.dart';
 
 const pippleeIndexAsset = 'assets/catalog/pipplee.json';
-const pippleeNotice = 'From the Pipplee catalogue, shared with permission.';
+const pippleeNotice = 'Shared with permission by its creator.';
 
 List<String> _descriptionWords(dynamic value, int maximum) {
   if (value is! List ||
@@ -32,7 +32,7 @@ Catalog parsePippleeCollection(String source) {
       doc['count'] != rows.length ||
       rows.length > 20000 ||
       doc['permission'] != 'maintainer-confirmed-pipplee-consent-2026-10-13') {
-    throw const FormatException('Invalid Pipplee collection index');
+    throw const FormatException('Invalid imported collection index');
   }
   final categories = categorized
       ? _descriptionWords(doc['categories'], 40)
@@ -112,12 +112,12 @@ Catalog parsePippleeCollection(String source) {
         id: key,
         title: title,
         category: category,
-        collection: 'Pipplee',
+        collection: 'Imported',
         generatorId: 'clip:$key',
         paletteId: 'rainbow',
         subjects: subjects,
         aliases: aliases,
-        tags: ['pipplee', 'pixel art', '${w}x$h', ...colours, ...searchTags],
+        tags: ['imported', 'pixel art', '${w}x$h', ...colours, ...searchTags],
         added: 4,
         notice: pippleeNotice,
         asset: LibraryAsset(

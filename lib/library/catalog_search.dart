@@ -145,7 +145,7 @@ class CatalogSearch {
     for (var i = 0; i < _entries.length; i++) {
       final item = _entries[i].item;
       final source = RegExp(r'^pipplee-(\d+)$').firstMatch(item.id)?[1];
-      (_identities[source == null ? normalize(item.id) : 'pipplee $source'] ??=
+      (_identities[normalize(item.id)] ??=
               <int>{})
           .add(i);
       if (source != null) (_identities[source] ??= <int>{}).add(i);

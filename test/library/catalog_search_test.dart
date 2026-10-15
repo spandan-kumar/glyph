@@ -263,10 +263,10 @@ void main() {
       );
       final rainbows = c
           .search('rainbow')
-          .where((i) => i.collection == 'Pipplee')
+          .where((i) => i.collection == 'Imported')
           .toList();
       expect(rainbows, isNotEmpty);
-      expect(rainbows.length, lessThan(c.items.where((i) => i.collection == 'Pipplee').length));
+      expect(rainbows.length, lessThan(c.items.where((i) => i.collection == 'Imported').length));
       for (final item in rainbows) {
         expect(
           [item.title, ...item.subjects, ...item.aliases, ...item.tags].any(
@@ -278,7 +278,7 @@ void main() {
           isTrue,
         );
       }
-      expect(c.search('pipplee red 32x32'), isNotEmpty);
+      expect(c.search('imported red 32x32'), isNotEmpty);
       final duplicate = c.items.firstWhere((i) => i.id.startsWith('pipplee-'));
       expect(c.search(duplicate.id).single.id, duplicate.id);
       expect(c.search('zzzz-nothing'), isEmpty);

@@ -78,12 +78,12 @@ void main() {
     final old = Catalog.parse(File(bundledCatalogAsset).readAsStringSync());
     final all = await loadBundledCatalog(_Bundle());
     expect(all.items.length, old.items.length + 12361);
-    expect(all.items.where((i) => i.collection == 'Pipplee').length, 12361);
+    expect(all.items.where((i) => i.collection == 'Imported').length, 12361);
     expect(all.inCategory('Pipplee'), isEmpty);
     for (final item in old.items) {
       expect(all.byId(item.id)!.toJson(), item.toJson());
     }
-    expect(all.search('pipplee red'), isNotEmpty);
+    expect(all.search('imported red'), isNotEmpty);
   });
 
   test('reviewed sample names and subject aliases are searchable in the full library', () {
@@ -138,10 +138,10 @@ void main() {
     expect(collection.byId('pipplee-15353')!.category, 'Animals');
     expect(collection.byId('pipplee-5146')!.category, 'Nature');
     expect(collection.byId('pipplee-12045')!.category, 'Abstract');
-    expect(collection.items.every((i) => i.collection == 'Pipplee'), isTrue);
+    expect(collection.items.every((i) => i.collection == 'Imported'), isTrue);
     expect(collection.categories, isNot(contains('Pipplee')));
     final item = collection.byId('pipplee-15353')!;
-    expect(collection.search('collection:pipplee ${item.id}').single.id, item.id);
+    expect(collection.search('collection:imported ${item.id}').single.id, item.id);
     expect(collection.search('collection:animals ${item.id}'), isEmpty);
   });
 
@@ -202,7 +202,7 @@ void main() {
       expect(item.title, 'Sailboat Review Fixture');
       expect(named.search('boat rocking').single.id, item.id);
       expect(named.search('sailing boat review fixture').single.id, item.id);
-      expect(named.search('Pipplee ${original[0]}').single.id, item.id);
+      expect(named.search(item.id).single.id, item.id);
       for (final broken in [
         [...row]..[7] = '',
         [...row]..[7] = 'x' * 81,
