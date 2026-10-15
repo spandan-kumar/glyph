@@ -36,13 +36,12 @@ void main() {
     expect(channels.where((c) => c.id == 'all'), hasLength(1));
   });
 
-  test('collection source and subject rails coexist without abstract Pixel Pals', () {
+  test('imports join subject rails without a source shelf or abstract Pixel Pals', () {
     final cat = _item('cat', 'Animals', collection: 'imported');
     final grid = _item('grid', 'Abstract', collection: 'imported', tags: ['cute']);
     final heart = _item('heart', 'Love', collection: 'imported');
     final base = CatalogChannels(Catalog(items: [cat, grid, heart]), now);
-    final source = base.lead.singleWhere((c) => c.id == 'imported');
-    expect(source.all.map((e) => e.key), ['i:cat', 'i:grid', 'i:heart']);
+    expect([...base.lead, ...base.rest].where((c) => c.name == 'imported'), isEmpty);
     expect(base.rest.singleWhere((c) => c.name == 'Animals').all.single.key, 'i:cat');
     expect(base.rest.singleWhere((c) => c.name == 'Abstract').all.single.key, 'i:grid');
     expect(base.rest.singleWhere((c) => c.name == 'Love').all.single.key, 'i:heart');

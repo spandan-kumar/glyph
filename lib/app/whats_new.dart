@@ -4,6 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.7': [
+    'The full imported collection is included in the app. Browse and play every animation offline from the start.',
+    'Animations load locally without waiting for thumbnail downloads.',
+    'Imported animations live in the regular subject groups, without a separate imported shelf.',
+  ],
   '1.4.6': [
     'imported animations have descriptive names, search tags and proper browsing groups.',
     'All leads Display, with the whole library and your creations.',

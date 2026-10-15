@@ -4,6 +4,8 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show FlutterError;
+import 'package:flutter/services.dart' show AssetBundle, rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -11,10 +13,11 @@ import '../engine/clip.dart';
 import '../engine/clip_asset.dart';
 import 'remote_catalog.dart';
 
-/// Fetches only requested clips, verifies their bundled hashes and caches them.
+/// Loads bundled clips first; downloads and caches only unbundled clips.
 class ClipAssetStore {
   ClipAssetStore({
     required this.cacheDir,
+    this.bundle,
     Uri? baseUrl,
     http.Client? client,
     this.timeout = const Duration(seconds: 20),
@@ -24,8 +27,10 @@ class ClipAssetStore {
 
   static ClipAssetStore shared = ClipAssetStore(
     cacheDir: getApplicationSupportDirectory,
+    bundle: rootBundle,
   );
   final Future<Directory> Function() cacheDir;
+  final AssetBundle? bundle;
   final Uri baseUrl;
   final http.Client _client;
   final Duration timeout;
@@ -66,6 +71,28 @@ class ClipAssetStore {
   }
 
   Future<FrameClip> _load(ClipAsset asset) async {
+    // Bundled clips need neither a download slot nor a writable disk cache.
+    // Missing assets can still come from a newer remote collection.
+    ByteData? bundled;
+    if (bundle != null) {
+      try {
+        bundled = await bundle!.load(
+          'catalog_assets/imported/${asset.sha256}.clip.gz',
+        );
+      } on FlutterError {
+        // Not included in this app version; try the verified download cache.
+      }
+    }
+    if (bundled != null) {
+      final bytes = Uint8List.sublistView(bundled);
+      if (!_matches(bytes, asset)) {
+        throw const FormatException('Animation verification failed');
+      }
+      final clip = await _decodeInIsolate(bytes, asset);
+      if (_closed) throw StateError('Animation downloads stopped');
+      ClipAssetLibrary.retain(asset.sha256, clip);
+      return clip;
+    }
     await _take();
     try {
       if (_closed) throw StateError('Animation downloads stopped');
