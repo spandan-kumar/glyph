@@ -1,7 +1,7 @@
 Glyph’s F-Droid submission draft targets **v1.4.0, arm64 only**. It follows the current [Flutter template](https://gitlab.com/fdroid/fdroiddata/-/blob/master/templates/build-flutter.yml), [Flutter srclib](https://gitlab.com/fdroid/fdroiddata/-/blob/master/srclibs/flutter.yml), and examples from [LocalSend](https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/org.localsend.localsend_app.yml), [Ente Photos](https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/io.ente.photos.fdroid.yml) and [Energize](https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/com.flasskamp.energize.yml). This is an untested packaging draft, not proof of a successful F-Droid build.
 
 **Since v1.4.7 (15 October 2026): the bundled imported collection.** The app
-now bundles 12,273 clips (30 MiB) from the [imported collection](../imported_COLLECTION.md),
+now bundles 12,273 clips (30 MiB) from an imported animation collection,
 included with its creator's permission but not under a free licence, and some
 of them show third-party characters (game, cartoon and brand mascots). This
 matters for F-Droid in two ways:

@@ -81,7 +81,7 @@ including on a fresh install. Files are checked against the hashes in the app.
 Older versions downloaded these files from GitHub Pages on first use.
 The loader retains that verified, cached download fallback for files not
 included in an app version. No account or identifier is sent.
-**Glyph does not contact imported's API or image host.**
+**Glyph does not contact the collection's original source.**
 
 ### Feedback
 **Device → Send feedback** does not send anything by itself. It opens your

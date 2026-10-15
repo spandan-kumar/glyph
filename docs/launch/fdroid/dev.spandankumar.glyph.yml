@@ -14,7 +14,7 @@ AntiFeatures:
   # Drop NonFreeAssets if the F-Droid build strips the imported collection
   # (see ../fdroid-submission.md).
   NonFreeAssets:
-    en-US: Bundles the imported animation collection, included with its
+    en-US: Bundles an imported animation collection, included with its
       creator's permission but not under a free licence.
   NonFreeNet:
     en-US: Promotes Discord and GitHub for community, feedback and the roadmap;
