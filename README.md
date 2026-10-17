@@ -16,7 +16,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <a href="https://github.com/spandan-kumar/glyph/actions/workflows/ci.yml"><img src="https://github.com/spandan-kumar/glyph/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph"><img src="https://img.shields.io/badge/Obtainium-get%20updates-5b3fd1" alt="Get it on Obtainium"></a>
-  <a href="https://discord.gg/9EeCFZAFvk"><img src="https://img.shields.io/badge/Discord-join-5865F2" alt="Discord"></a>
+  <a href="https://discord.gg/fMbzGQd6wk"><img src="https://img.shields.io/badge/Discord-join-5865F2" alt="Discord"></a>
 </p>
 
 <p align="center">
@@ -182,10 +182,10 @@ an animation or send a pull request. Glyph's code is released under the
 
 ## Community
 
-- **Chat** — the [Glyph Discord](https://discord.gg/9EeCFZAFvk): help, ideas, beta builds
+- **Chat** — the [Glyph Discord](https://discord.gg/fMbzGQd6wk): help, ideas, beta builds
 - **Questions and help** — [Discussions](https://github.com/spandan-kumar/glyph/discussions)
 - **Show your setup** — photos and clips of your matrix in
-  [Discord’s #show-your-setup](https://discord.gg/9EeCFZAFvk)
+  [Discord’s #show-your-setup](https://discord.gg/fMbzGQd6wk)
 - **Bugs, animation and display requests** — use **Send feedback** in the
   app, or the [issue forms](https://github.com/spandan-kumar/glyph/issues/new/choose);
   👍 the requests you want most

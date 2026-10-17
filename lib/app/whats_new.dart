@@ -4,6 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.9': [
+    'The Discord link now uses a permanent invite.',
+  ],
   '1.4.8': [
     'Drawings started from a picture keep their timing and use far less memory.',
     'Search picks finish loading after the search closes.',

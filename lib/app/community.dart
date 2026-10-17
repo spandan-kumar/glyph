@@ -12,7 +12,7 @@ abstract final class Community {
   static const repo = 'https://github.com/spandan-kumar/glyph';
 
   /// The Glyph Discord (a permanent invite).
-  static final discord = Uri.parse('https://discord.gg/9EeCFZAFvk');
+  static final discord = Uri.parse('https://discord.gg/fMbzGQd6wk');
 
   static final showAndTell = discord;
 
