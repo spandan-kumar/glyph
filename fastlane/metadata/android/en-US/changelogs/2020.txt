@@ -1,0 +1,4 @@
+Drawings started from a picture keep their timing and use far less memory.
+Search picks finish loading after the search closes, and "Use in drawing" handles double taps.
+Smoother browsing: clips decode a few at a time, playing first.
+Imported animations get tidier names; your favourites, Rotations and Saved looks carry over.
