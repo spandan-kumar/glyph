@@ -1,0 +1,43 @@
+# Builds the F-Droid recipe (docs/launch/fdroid/) in F-Droid's own buildserver
+# image, the way fdroiddata's merge-request pipeline does, so problems show up
+# before submission. Manual only; it builds whatever commit you choose.
+name: F-Droid check
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to build
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          path: glyph
+          persist-credentials: false
+      - name: Build like F-Droid
+        run: |
+          sha=$(git -C glyph rev-parse HEAD)
+          docker run --rm --privileged \
+            -v "$PWD/glyph:/glyph:ro" -v "$PWD/out:/out" \
+            registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie \
+            bash /glyph/tool/fdroid_check.sh /glyph "$sha"
+      - name: Keep the build log and APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fdroid-check
+          path: out/
+          if-no-files-found: ignore
