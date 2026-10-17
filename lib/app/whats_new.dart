@@ -4,6 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.8': [
+    'Drawings started from a picture keep their timing and use far less memory.',
+    'Search picks finish loading after the search closes.',
+    'Smoother browsing: animations load a few at a time, the one you play first.',
+    'Your favourites, Rotations and Saved looks carry over to tidier animation names.',
+  ],
   '1.4.7': [
     'All 12,361 imported animations are included in the app. Browse and play them offline from the start.',
     'Animations load locally without waiting for thumbnail downloads.',
