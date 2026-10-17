@@ -180,5 +180,5 @@ before that release and the date at the top will change. History is in git.
 
 Questions about privacy: open an issue at
 <https://github.com/spandan-kumar/glyph/issues> or join the
-[Discord](https://discord.gg/9EeCFZAFvk). For a security problem, see
+[Discord](https://discord.gg/fMbzGQd6wk). For a security problem, see
 [SECURITY.md](../SECURITY.md).

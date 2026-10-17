@@ -29,10 +29,10 @@ Budget roughly **US$40–80**, excluding phone, tools, shipping and taxes. This 
 
 ## Links, assets and contact
 
-[Source](https://github.com/spandan-kumar/glyph) · [APK/releases](https://github.com/spandan-kumar/glyph/releases/latest) · [Obtainium updates](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph) · [Discord](https://discord.gg/9EeCFZAFvk)
+[Source](https://github.com/spandan-kumar/glyph) · [APK/releases](https://github.com/spandan-kumar/glyph/releases/latest) · [Obtainium updates](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph) · [Discord](https://discord.gg/fMbzGQd6wk)
 
 Assets in [`docs/media`](../media/): `icon.png`, `social_preview.png`, `intro.gif`; screenshots `display.png`, `rails.png`, `tweak.png`, `make.png`, `draw.png`, `device.png`. Refresh outdated screenshots. Filming: [storyboard](video-storyboard.md).
 
-**Contact:** Spandan Kumar, maintainer, via [GitHub Discussions](https://github.com/spandan-kumar/glyph/discussions) or [Discord](https://discord.gg/9EeCFZAFvk); label creator/press requests.
+**Contact:** Spandan Kumar, maintainer, via [GitHub Discussions](https://github.com/spandan-kumar/glyph/discussions) or [Discord](https://discord.gg/fMbzGQd6wk); label creator/press requests.
 
 **Rights/credits:** Code and original artwork are MIT; retain copyright/licence notices when redistributing substantial portions. Suggested credit: “Glyph by Spandan Kumar, MIT; powered by WLED.” Glyph is independent of WLED. Public-domain art has source/jurisdiction notes; fonts use SIL OFL. Open-Meteo data is CC BY 4.0; preserve Open-Meteo, CAMS/Copernicus and applicable GeoNames credits. Air quality is a CAMS model forecast, not a sensor reading. Use creator-owned music/covers or obtain permission.

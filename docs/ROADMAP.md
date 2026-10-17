@@ -141,7 +141,7 @@ hardware or Apple setup have no date until the equipment exists.
 - [x] Social preview asset (`docs/media/social_preview.png`) and GitHub topics.
 - [x] CONTRIBUTING, sprite agent skill, issue forms, PR template and
       13 `good first issue`s (#7–#19).
-- [x] Discussions on; Glyph Discord https://discord.gg/9EeCFZAFvk
+- [x] Discussions on; Glyph Discord https://discord.gg/fMbzGQd6wk
 - [x] Public roadmap board: https://github.com/users/spandan-kumar/projects/4
 - [x] In-app feedback, animation requests, sharing link, What's new and
       Discord/roadmap links in the Glyph menu.

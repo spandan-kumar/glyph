@@ -21,9 +21,9 @@ RepoType: git
 Repo: https://github.com/spandan-kumar/glyph.git
 
 Builds:
-  - versionName: 1.4.8
-    versionCode: 2020
-    commit: v1.4.8
+  - versionName: 1.4.9
+    versionCode: 2021
+    commit: v1.4.9
     output: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
     srclibs:
       - flutter@3.47.6
@@ -48,5 +48,5 @@ UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
 VercodeOperation:
   - '%c + 2000'
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
-CurrentVersion: 1.4.8
-CurrentVersionCode: 2020
+CurrentVersion: 1.4.9
+CurrentVersionCode: 2021

@@ -13,7 +13,7 @@ Report it privately using GitHub's private vulnerability reporting:
 **Security → Report a vulnerability** on
 <https://github.com/spandan-kumar/glyph/security/advisories/new>.
 
-If that is unavailable, ask in the [Discord](https://discord.gg/9EeCFZAFvk)
+If that is unavailable, ask in the [Discord](https://discord.gg/fMbzGQd6wk)
 for a private way to reach the maintainer, without posting details.
 
 ## What to include
