@@ -40,6 +40,15 @@ recipe change.
 2. **Fork** <https://gitlab.com/fdroid/fdroiddata> (needs a GitLab account),
    branch `glyph`, and add `metadata/dev.spandankumar.glyph.yml` exactly as in
    this repo (no drafting comments).
+   ```bash
+   git clone --depth 50 https://gitlab.com/<your-gitlab-username>/fdroiddata.git
+   cd fdroiddata && git checkout -b glyph
+   cp ~/github.com/spandan-kumar/glyph/docs/launch/fdroid/dev.spandankumar.glyph.yml metadata/
+   git add metadata/dev.spandankumar.glyph.yml
+   git commit -m "New App: dev.spandankumar.glyph"
+   git push -u origin glyph
+   ```
+
 3. **Commit** as `New App: dev.spandankumar.glyph` and open the merge request
    with the text below. fdroiddata's pipeline builds it again; fix anything it
    reports here first, rerun the check, then update the fork.
