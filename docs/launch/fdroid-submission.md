@@ -1,5 +1,10 @@
 # F-Droid submission
 
+**Submitted 18 October 2026:** [fdroid/fdroiddata!53046](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/53046)
+from the `glyph` branch of `spandankumar9/fdroiddata`. The fork's pipeline
+can't run until a maintainer triggers it (new GitLab accounts get no shared
+runners without identity verification); a note on the MR asks for that.
+
 The recipe is [`fdroid/dev.spandankumar.glyph.yml`](fdroid/dev.spandankumar.glyph.yml).
 It targets **v1.4.9**, arm64, and is checked by the manual **F-Droid check**
 workflow (`.github/workflows/fdroid-check.yml`), which runs fdroiddata's own
