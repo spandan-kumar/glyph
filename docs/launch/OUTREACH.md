@@ -33,8 +33,8 @@ Not now: Divoom/Tidbyt/Ulanzi owners (no adapter yet), iOS users.
 **One line:** *Set up your WLED matrix in three taps, then fill it with
 13,000+ animations. Free, open source, no account.*
 
-**Why this line.** Research found no large open-source rival. The only paid
-app (imported, ~1k installs) has a trust problem in r/WLED. WLED 16 ships
+**Why this line.** Research found no large open-source rival. Never compare
+Glyph with, or criticise, other WLED pixel-art apps in public. WLED 16 ships
 PixelForge (image→GIF and scrolling text), so "pixel art for WLED" alone is
 not new. What nobody else has is the full journey: a wired-up panel becomes
 a finished display, with content and no cloud.
