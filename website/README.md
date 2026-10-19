@@ -16,8 +16,17 @@ then open <http://localhost:8765>.
   a stand-in. When the room video exists, swap the `<img>` in the hero figure
   for the `<video>` tag noted in the comment above it.
 - **Numbers** (looks, sprites, effects) are written into the copy; update them
-  when the catalog grows.
+  when the catalog grows. The headline is "13,000+ animations".
+- **No trademarked characters** in screenshots or the Stage demo, even
+  public-domain versions of them.
 - **Privacy copy** must stay true to `docs/PRIVACY.md`.
 
-Not deployed yet. GitHub Pages already serves the animation catalog, so plan
-the site's URL before publishing it there.
+**Deploying.** The site lives at the Pages root,
+<https://spandan-kumar.github.io/glyph/>, beside the signed animation catalog.
+Pages serves one artifact per repository, so the `catalog` workflow ships both:
+after building the catalog it copies `index.html` (over the generated stub) and
+`media/` into the same artifact. Catalog paths (`manifest-v1.json`, `payload/`,
+`collections/`) are untouched. A push to `main` that changes `website/` runs
+that workflow, which waits for the maintainer's approval of the `catalog`
+environment; unchanged catalog content keeps its existing signed manifest.
+Never add a `website/` file named like a catalog path.

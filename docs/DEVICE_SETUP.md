@@ -1,8 +1,9 @@
 # Device setup wizard
 
 Plan agreed on 9 October 2026, refined on 10 October. First implementation
-built on 11 October (see "As built"); physical QA on a spare controller is
-still pending, so no release includes it yet.
+built on 11 October (see "As built") and released in v1.4.0 the same day.
+Physical QA on a never-configured controller and on real panel grids is
+still pending; say so wherever the wizard is promoted.
 
 ## As built (11 October)
 
@@ -52,7 +53,7 @@ Where they differ from the plan below, these win.
   methods in `WledClient`, `lib/engine/setup_frames.dart`,
   `lib/features/device/setup/`, `lib/ui/setup/`, `android/.../SetupWifi.kt`.
 
-### Panel grids (built 11 October, not released)
+### Panel grids (built 11 October, released in v1.4.0)
 
 Several equal panels in a regular grid on one output (physical QA pending).
 Decisions, checked against WLED 16.0.1 (`setUpMatrix`, settings_2D.htm

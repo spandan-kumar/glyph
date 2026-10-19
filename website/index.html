@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Glyph is a free, open-source Android app for WLED LED matrices: 13,597 looks, a pixel editor, clocks, music, games and guided setup. No account.">
+<meta name="description" content="Glyph is a free, open-source Android app for WLED LED matrices: set it up in three taps, then fill it with 13,000+ animations, a pixel editor, clocks, music and games. No account.">
 <title>Glyph for WLED</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -147,12 +147,13 @@ footer a { color: var(--text2); }
     <div>
       <span class="label">For WLED LED matrices</span>
       <h1>Your matrix, <em>alive.</em></h1>
-      <p class="lede">Glyph is a fast, beautiful app for your WLED matrix. Swipe through 13,597 looks, draw, write, play and set it up without touching a settings page. Free, open source, no account.</p>
+      <p class="lede">Set up your WLED matrix in three taps, then fill it with 13,000+ animations. Draw, write, play and put your music on the wall. Free, open source, no account.</p>
       <div class="ctas">
         <a class="btn primary" href="https://github.com/spandan-kumar/glyph/releases/latest">Download for Android</a>
         <a class="btn" href="https://github.com/spandan-kumar/glyph">View on GitHub</a>
       </div>
-      <p class="label meta">Android 7+ · MIT licence · No account</p>
+      <p class="label meta">Android 7+ · 64-bit ARM · WLED matrix</p>
+      <p class="meta" style="margin-top:8px"><b>No device yet?</b> You can still browse, draw and play.</p>
     </div>
     <!-- Hero media: swap the boot GIF for the real-room video when it exists:
          <video src="media/hero.mp4" autoplay muted loop playsinline poster="media/hero.jpg"></video> -->
@@ -170,8 +171,8 @@ footer a { color: var(--text2); }
         <p>Your matrix sits at the top of the app as a glowing live Stage. Swipe it to change channel, roll the dice for a surprise, and the whole app takes on the colour of whatever is playing.</p>
         <p>Try the Stage here: swipe it or use the arrows.</p>
         <ul class="facts">
-          <li><b>13,597</b><span>looks in subject groups, all searchable and offline</span></li>
-          <li><b>12,361</b><span>from an imported pixel-art collection, shared with permission</span></li>
+          <li><b>13,000+</b><span>animations in subject groups, all searchable and offline</span></li>
+          <li><b>12,361</b><span>from a pixel-art collection, shared with its creator's permission</span></li>
           <li><b>356</b><span>original and CC0 pixel-art sprites, plus public-domain classics</span></li>
           <li><b>62</b><span>live effects: plasma, fire, aurora, falling sand…</span></li>
         </ul>
@@ -195,7 +196,7 @@ footer a { color: var(--text2); }
         <p>Pull up Tweak and the Stage stays in view. Spin through palettes on a reel, turn rotary knobs for speed and density, and every change lands on the matrix as you make it. There's no Apply button.</p>
       </div>
       <div class="phones">
-        <div class="phone"><img src="media/rails.jpg" alt="Glyph Display screen with channel rails of animations" loading="lazy" width="450" height="1000"></div>
+        <div class="phone"><img src="media/display.jpg" alt="Glyph Display screen with the live Stage and Send button" loading="lazy" width="450" height="1000"></div>
         <div class="phone"><img src="media/tweak.jpg" alt="Glyph Tweak panel with palette reel and knobs" loading="lazy" width="450" height="1000"></div>
       </div>
     </div>
@@ -305,13 +306,13 @@ footer a { color: var(--text2); }
           </tbody>
         </table>
       </div>
-      <p class="spec" style="margin-top:14px">Any WLED 2D matrix: WS2812B and SK6812 panels, HUB75 on ESP32 builds. 8×8, 16×16, 32×8, 32×32, 64×32 and up, including grids of panels.</p>
+      <p class="spec" style="margin-top:14px">Tested: a 16×16 WS2812B panel on an ESP32 with WLED 16.0.1. Expected to work: other single-panel sizes, SK6812, HUB75 on ESP32 builds. Not yet tried on hardware: a never-configured controller, grids of several panels, live Home Assistant, iOS. <a href="https://discord.gg/fMbzGQd6wk">Tell us how yours goes.</a></p>
     </div>
   </section>
 </main>
 
 <footer class="wrap">
-  <span>Glyph · MIT licence · by <a href="https://github.com/spandan-kumar">spandan-kumar</a></span>
+  <span>Glyph · MIT-licensed code; artwork terms vary · by <a href="https://github.com/spandan-kumar">spandan-kumar</a></span>
   <span><a href="https://github.com/spandan-kumar/glyph/blob/main/docs/PRIVACY.md">Privacy</a> · <a href="https://github.com/spandan-kumar/glyph/blob/main/CONTRIBUTING.md">Contribute</a></span>
 </footer>
 

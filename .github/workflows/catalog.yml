@@ -17,6 +17,7 @@ on:
       - 'lib/library/catalog_manifest.dart'
       - 'lib/library/catalog_key.dart'
       - '.github/workflows/catalog.yml'
+      - 'website/**'
   workflow_dispatch:
     inputs:
       mode:
@@ -68,6 +69,18 @@ jobs:
           args=(--published build/published --output build/catalog-site)
           if [ "$MODE" = rollback ]; then args+=(--rollback); fi
           dart run tool/build_remote_catalog.dart "${args[@]}"
+      # Pages serves one artifact, so the landing page ships inside the catalog
+      # site. It replaces the generated index.html; every catalog path
+      # (manifests, payload/, collections/) stays where existing apps fetch it.
+      - name: Add the landing page
+        run: |
+          set -euo pipefail
+          if [ -e build/catalog-site/media ]; then
+            echo "::error::The catalog site already has media/; the landing page would overwrite it"
+            exit 1
+          fi
+          cp website/index.html build/catalog-site/index.html
+          cp -R website/media build/catalog-site/media
       - uses: actions/upload-artifact@v4
         with:
           name: catalog-unsigned-${{ github.run_id }}

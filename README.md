@@ -6,34 +6,38 @@
 
 <p align="center">
   <b>Your matrix, alive.</b><br>
-  A fast, beautiful app for WLED LED matrices: guided setup, 13,597
-  animations, a pixel editor, text and clocks, GIF import, a music visualiser
-  and games. Free, open source, no account.
+  Set up your WLED matrix in three taps, then fill it with 13,000+
+  animations. Draw, write, play games and put your music on the wall.
+  Free, open source, no account.
+</p>
+
+<!-- Clip A (20 s: swipe channels, Send, phone off, panel keeps playing) replaces intro.gif here once filmed. Original/CC0 art only. -->
+<p align="center">
+  <img src="docs/media/intro.gif" width="240" alt="The Glyph boot animation: pixels rain down, pile up, pop and assemble into the logo">
+</p>
+
+<p align="center">
+  <a href="https://github.com/spandan-kumar/glyph/releases/latest"><b>⬇ Download the latest APK</b></a>
+  ·
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph">Get updates with Obtainium</a>
+</p>
+
+<p align="center">
+  Android 7+ · 64-bit ARM · a WLED matrix on your Wi-Fi<br>
+  <b>No device yet?</b> You can still browse, draw and play.
 </p>
 
 <p align="center">
   <a href="https://github.com/spandan-kumar/glyph/releases/latest"><img src="https://img.shields.io/github/v/release/spandan-kumar/glyph?label=release" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
   <a href="https://github.com/spandan-kumar/glyph/actions/workflows/ci.yml"><img src="https://github.com/spandan-kumar/glyph/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph"><img src="https://img.shields.io/badge/Obtainium-get%20updates-5b3fd1" alt="Get it on Obtainium"></a>
   <a href="https://discord.gg/fMbzGQd6wk"><img src="https://img.shields.io/badge/Discord-join-5865F2" alt="Discord"></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/spandan-kumar/glyph/releases/latest"><b>Download the latest APK</b></a>
-  ·
-  <a href="docs/design/UX.md">Design</a>
-  ·
-  <a href="CONTRIBUTING.md">Contributing</a>
-</p>
-
-<p align="center">
-  <img src="docs/media/intro.gif" width="240" alt="The Glyph boot animation: pixels rain down, pile up, pop and assemble into the logo">
 </p>
 
 Glyph renders everything on your phone and either **streams** it to the
 matrix live or **sends** it onto the matrix so it keeps playing without the
-phone. It works with any WLED controller, however little memory it has.
+phone. Live streaming works on any WLED build that accepts DDP, even one with
+little memory; see [What you need](#what-you-need) for what has been tested.
 
 ## Screenshots
 
@@ -75,10 +79,9 @@ with whatever is on your matrix.
 - **13,597 animations** in subject groups (Animals, Nature, Holidays, Gaming,
   Flags, Patterns and more): 62 procedural effects (plasma, fire, aurora,
   reaction–diffusion, falling sand…), 356 original and CC0 pixel-art sprites,
-  **Famous Classics** — public-domain characters and paintings such as the
-  1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night —
-  and 12,361 animations from an imported pixel-art collection, shared with
-  permission.
+  **Famous Classics** — public-domain characters and paintings such as
+  Pinocchio, Alice, Dracula and The Starry Night — and 12,361 animations from
+  an imported pixel-art collection, shared with permission.
 - Search the whole library by name, subject, colour or native size. Everything
   is bundled, so it works offline.
 - Seamless loops on the device, accurate colours (device gamma, true blacks,
@@ -113,19 +116,24 @@ with whatever is on your matrix.
 
 ## Install
 
-Download the APK from the [latest release](https://github.com/spandan-kumar/glyph/releases/latest)
-on an Android phone (7.0+, 64-bit ARM) and open it. It's for sideloading —
-not yet on the Play Store. To get updates automatically, add it to
+1. On your Android phone (7.0+, 64-bit ARM), open the
+   [latest release](https://github.com/spandan-kumar/glyph/releases/latest)
+   and download the file ending in `.apk`.
+2. Open it from your notifications or Downloads.
+3. If Android asks, allow installs from this source (your browser or file
+   manager), go back and tap **Install**.
+
+The `.sha256` file and the source archives on the release page aren't
+installers. Glyph isn't on the Play Store yet. To get updates automatically, add it to
 [Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph).
 Each release lists the APK's SHA-256 next to it.
 
 ## What you need
 
-- A WLED controller driving an LED matrix (developed on WLED 16.0.1, ESP32,
-  16×16 WS2812B)
-- WLED installed on the controller ([install.wled.me](https://install.wled.me));
-  Glyph's setup wizard configures the matrix layout for you
-- Your phone on the same Wi-Fi
+- A WLED controller driving an LED matrix, with WLED already installed
+  ([install.wled.me](https://install.wled.me)); Glyph's setup wizard
+  configures the matrix layout for you
+- An Android phone (7.0+, 64-bit ARM) on the same Wi-Fi
 
 | Controller | Live streaming | Send to device |
 |---|:---:|:---:|
@@ -135,10 +143,18 @@ Each release lists the APK's SHA-256 next to it.
 
 Glyph checks each controller when it connects and only offers what works.
 
-**Works with** any WLED 2D matrix: WS2812B/SK6812 panels and HUB75 panels
-(via WLED's ESP32_HUB75 builds), at whatever size you set up in Glyph
-or in WLED's **2D Configuration** — 8×8, 16×16, 32×8, 32×32, 64×32 and beyond. ESP8266
-controllers stream live but can't hold sent animations.
+**What has been tried on real hardware.** Glyph is a one-person project, so
+here is exactly what has been checked and what hasn't:
+
+| | Hardware and setups |
+|---|---|
+| ✅ **Tested** | 16×16 WS2812B panel on an ESP32 running WLED 16.0.1: streaming, Send and Saved, Now Playing, Glance, the seven games, and the setup wizard on an already-configured device |
+| 🟡 **Expected to work** (built to WLED's source, covered by automated tests) | Other single-panel sizes (8×8, 32×8, 32×32, 64×32…), SK6812 panels, HUB75 panels on WLED's ESP32_HUB75 builds, ESP32-S2/S3/C3, ESP8266 for streaming |
+| ⚪ **Not yet tested on hardware** | The wizard on a never-configured controller, grids of several physical panels, the Home Assistant blueprints against a live Home Assistant, iOS |
+
+If you try one of the untested setups, please tell us what happened in
+[Discord](https://discord.gg/fMbzGQd6wk) or an
+[issue](https://github.com/spandan-kumar/glyph/issues/new/choose).
 
 ## How it works
 
@@ -176,8 +192,9 @@ flutter build apk --release --split-per-abi --target-platform android-arm64
 ```
 
 See [AGENTS.md](AGENTS.md) for the project layout, conventions, tools and how
-to test against a real device, and [CONTRIBUTING.md](CONTRIBUTING.md) to add
-an animation or send a pull request. Glyph's code is released under the
+to test against a real device, [docs/design/UX.md](docs/design/UX.md) for
+the design language, and [CONTRIBUTING.md](CONTRIBUTING.md) to add an
+animation or send a pull request. Glyph's code is released under the
 [MIT License](LICENSE).
 
 ## Community

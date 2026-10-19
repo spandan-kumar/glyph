@@ -16,7 +16,7 @@ void render(Frame out, double t, double dt, Params p, Palette pal);
 
 `t` is elapsed seconds and `dt` is the interval since the previous frame. A plasma field can calculate its colours from time and position. Fire, falling sand and reaction-diffusion retain buffers between calls. The separation lets the engine run in command-line tools and worker isolates, and lets tests inspect RGB output without building widgets or connecting hardware.
 
-The bundled catalog has 1,209 looks in 22 categories, based on 62 procedural generators and 329 sprites. Those are different counts: a look can reuse a generator with another palette and parameter set. The catalog is data pointing to rendering code or sprite content, rather than 1,209 separate algorithms.
+Glyph's own catalog has 1,236 looks, based on 62 procedural generators and 356 sprites. Those are different counts: a look can reuse a generator with another palette and parameter set. The catalog is data pointing to rendering code or sprite content, rather than 1,236 separate algorithms. (The app also bundles 12,361 pre-rendered animations shared by their creator, for 13,597 looks in 32 subject groups; those are frame data rather than code.)
 
 Sprites are authored as text grids with named colours, frame sequences, durations and motion. Palette-linked inks allow recolouring; patches and reusable parts keep the source manageable. Original art and drawings based on public-domain works carry the project's content rules and provenance. This format also makes a small art contribution possible without writing a new Flutter screen.
 

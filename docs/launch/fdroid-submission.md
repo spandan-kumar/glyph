@@ -73,7 +73,7 @@ Title: `New App: Glyph (dev.spandankumar.glyph)`
 >   Google Play Services, Firebase or proprietary SDKs.
 > - Listing text, icon and screenshots come from upstream fastlane metadata.
 > - **NonFreeAssets:** the app bundles an imported pixel-art collection
->   (12,273 animations) included with its creator's permission but not under
+>   (12,361 animations, stored as 12,273 distinct files) included with its creator's permission but not under
 >   a free licence. The code and the rest of the art (original, CC0 and
 >   public-domain) are free.
 > - **scanignore `catalog_assets/imported`:** those files are animation data,

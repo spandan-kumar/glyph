@@ -140,16 +140,54 @@ jobs:
           cat "dist/$apk.sha256"
           echo "apk=dist/$apk" >> "$GITHUB_OUTPUT"
 
+      # The changelog says what's new; the block after it says what Glyph is
+      # and how to install it, for people arriving from a post or a link.
       - name: Release notes
         id: notes
+        env:
+          APK: glyph-${{ steps.version.outputs.version }}-arm64-v8a.apk
         run: |
           notes="fastlane/metadata/android/en-US/changelogs/${{ steps.version.outputs.code }}.txt"
           if [ -f "$notes" ]; then
-            cp "$notes" dist/body.md
+            cp "$notes" dist/changes.md
           else
             echo "::warning::No changelog at $notes"
-            : > dist/body.md
+            : > dist/changes.md
           fi
+          {
+            echo "## What's new"
+            echo
+            cat dist/changes.md
+            echo
+            cat <<EOF
+          ## What is Glyph?
+
+          A free, open-source Android app for WLED LED matrices. It sets up your
+          matrix in three taps, then fills it with 13,000+ animations, a pixel
+          editor, clocks, music and games. No account, no ads, no tracking.
+
+          **You need:** an Android phone (7.0+, 64-bit ARM) and a WLED matrix on
+          the same Wi-Fi. No device yet? You can still browse, draw and play.
+
+          ## Install
+
+          1. On your phone, download **\`$APK\`** below (the only installer).
+          2. Open it from your notifications or Downloads.
+          3. If Android asks, allow installs from this source (your browser or
+             file manager), go back and tap **Install**.
+
+          The \`.sha256\` file and the "Source code" archives aren't installers;
+          the \`.sha256\` lets you check the download.
+
+          **Updates:** add Glyph to
+          [Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph)
+          to get each new release automatically.
+
+          Help and setups: [Discord](https://discord.gg/fMbzGQd6wk) ·
+          [Discussions](https://github.com/spandan-kumar/glyph/discussions) ·
+          [Report a problem](https://github.com/spandan-kumar/glyph/issues/new/choose)
+          EOF
+          } > dist/body.md
 
       - uses: softprops/action-gh-release@v3
         id: release
@@ -173,7 +211,7 @@ jobs:
             echo "DISCORD_WEBHOOK_URL is not set; skipping."
             exit 0
           fi
-          body="$(cat dist/body.md 2>/dev/null | head -c 1500)"
+          body="$(cat dist/changes.md 2>/dev/null | head -c 1500)"
           jq -n --arg name "$NAME" --arg url "$URL" --arg body "$body" \
             '{username: "Glyph", content: ("**\($name)** is out\n\($url)\n\n\($body)")[0:2000]}' \
             | curl -fsS -H 'Content-Type: application/json' -d @- "$WEBHOOK"

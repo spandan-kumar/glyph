@@ -6,17 +6,18 @@ This plan merges product and marketing into one timeline, ordered for the
 most reach and community, based on research (October 2026) into what
 pixel-display owners want, which displays they own and where they talk.
 
-**Status, 11 October 2026.** v1.4.1+13 adds 27 credited CC0 animations,
-dependency updates and release-key rotation that preserves the existing
-Android signing history. The library has 1,236 looks, 62 procedural generators,
-356 sprites and 22 categories. [Release verification](QA_1_4_1.md).
+**Status, 18 October 2026.** The latest release is v1.4.9+21
+([notes](https://github.com/spandan-kumar/glyph/releases/tag/v1.4.9)). The
+library has 13,597 looks: 1,236 of Glyph's own (62 procedural generators,
+356 sprites, public-domain classics) plus 12,361 imported animations shared
+with their creator's permission, in 32 subject groups, all bundled for
+offline use. Public copy says "13,000+ animations". v1.4.2–v1.4.9 added the
+full-screen gamepad, the imported collection, search and picture-to-drawing.
+v1.4.1 rotated the release key and keeps the existing Android signing
+history ([release verification](QA_1_4_1.md)).
 
-v1.4.0+12 was published on 11 October. It adds the
-device setup wizard, automatic device time, Home Assistant blueprints and
-forecast and air quality Glance cards.
-
-**Latest release: v1.4.1+13**
-([notes](https://github.com/spandan-kumar/glyph/releases/tag/v1.4.1)). The
+v1.4.0+12 (11 October) added the device setup wizard, automatic device time,
+Home Assistant blueprints and forecast and air quality Glance cards. The
 wizard covers Wi-Fi join, panel size, a three-tap wiring test, grids of equal
 panels up to WLED's 18-panel limit, and apply with undo. Home Assistant
 blueprints live in `homeassistant/` ([guide](HOME_ASSISTANT.md)). Crypto was
@@ -27,6 +28,11 @@ redistribution. Planes overhead is deferred by the maintainer.
 check (no spare hardware). Panel grids and iOS have automated coverage only;
 the iOS test plan is [QA_IOS.md](QA_IOS.md). v1.3.6 QA is in
 [the QA record](QA_1_3_6.md). [PLAN.md](PLAN.md) owns release gates.
+
+**Outreach (18 October).** The launch and outreach plan of record is now
+[launch/OUTREACH.md](launch/OUTREACH.md), with ready drafts in
+[launch/posts.md](launch/posts.md). They supersede the launch dates, metrics
+and drafts in sections 4, 6 and 8 below.
 
 **Strategy.** Refresh the screenshots and listing, publish the privacy and
 security policies, film the hero video, then soft-launch to r/WLED with the
@@ -46,7 +52,7 @@ internet, rather than promising that all future features are offline.
 
 ## 1. Positioning
 
-**Tagline:** *Your LED matrix, alive — 1,200+ animations, pixel art, clocks,
+**Tagline:** *Your LED matrix, alive — 13,000+ animations, pixel art, clocks,
 games and your music's album art, from your phone. Free, local, no account.*
 
 **Audiences, in priority order**
@@ -63,7 +69,7 @@ games and your music's album art, from your phone. Free, local, no account.*
 
 | Claim | Show it |
 |---|---|
-| Content no one else has | Scroll the library; 1,209 animations, public-domain classics (1928 Steamboat Willie, The Starry Night) |
+| Content no one else has | Scroll the library; 13,000+ animations, public-domain classics (1928 Steamboat Willie, The Starry Night) |
 | Album art on your matrix | Spotify plays → cover appears with a moving progress bar |
 | It just works | Plug in, app finds the device, first animation in seconds |
 | Works on any ESP | The phone renders; even an ESP8266 streams 40 fps |
@@ -187,7 +193,7 @@ hardware or Apple setup have no date until the equipment exists.
 
 ### Weeks 3–4: feedback and the Home Assistant crowd (26 Oct – 8 Nov)
 
-- [ ] Triage r/WLED feedback onto the board; ship v1.4.1 fixes.
+- [ ] Triage r/WLED feedback onto the board; ship v1.4.x fixes.
 - [ ] **r/homeassistant** (~388k) + HA forum *Share your Projects*: lead with
       the blueprint and local, no-cloud control. Needs a live-HA check first
       (see [HOME_ASSISTANT.md](HOME_ASSISTANT.md)).
@@ -325,7 +331,8 @@ numbers and double down there.
 
 ## 8. Ready-to-post drafts
 
-Written for v1.4.0. Replace the bracketed placeholders. Plain claims only:
+Written for v1.4.0 and superseded by [launch/posts.md](launch/posts.md);
+kept for history. Replace the bracketed placeholders. Plain claims only:
 Android first, free, MIT. Say plainly that grids and iOS have had automated
 tests but no physical QA yet. Do not post anything until the screenshots and
 video exist.
@@ -333,7 +340,7 @@ video exist.
 ### r/WLED (soft launch)
 
 > **Title:** Free, open-source Android app that sets up a WLED matrix for you
-> (size, wiring, panel grids) and has 1,200+ animations
+> (size, wiring, panel grids) and has 13,000+ animations
 >
 > [video link]
 >
@@ -347,8 +354,8 @@ video exist.
 > After setup it is a content app. Your phone draws every frame and streams
 > it, or sends a GIF to the controller so it plays without the phone.
 >
-> - 1,200+ original animations plus public-domain pieces (1928 Steamboat
->   Willie, The Starry Night)
+> - 13,000+ animations: Glyph's own effects and pixel art, public-domain
+>   classics, and a collection shared with its creator's permission
 > - Now Playing album art, pixel editor that draws live, text and clocks,
 >   music visualisers, seven games
 > - Shows and schedules that run on the device
@@ -373,7 +380,7 @@ video exist.
 >
 > v1.4.0 adds a setup wizard: Wi-Fi join, panel size, a three-tap wiring test
 > and grids of equal panels up to the 18-panel limit, with a config snapshot
-> and undo. The rest is a library of 1,200+ looks, a pixel editor, clocks,
+> and undo. The rest is a library of 13,000+ looks, a pixel editor, clocks,
 > Now Playing and Shows.
 >
 > Notes for people who care about internals: streamed frames get gamma and
