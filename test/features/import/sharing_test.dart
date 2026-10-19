@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:glyph/library/legacy_ids.dart';
 import 'package:glyph/app/creations.dart';
 import 'package:glyph/engine/bake_limits.dart';
@@ -114,5 +116,30 @@ void main() {
     expect(f.path.endsWith('my-cat.glyph'), isTrue);
     expect(parseGlyphFile(await f.readAsString()).title, 'My Cat!');
     expect(fileSlug('***'), 'glyph');
+  });
+
+  test('the share caption is words beside the file, with the repo link', () async {
+    final dir = await Directory.systemTemp.createTemp('glyph_share');
+    addTearDown(() => dir.delete(recursive: true));
+    final sent = <ShareParams>[];
+    final before = shareLauncher;
+    shareLauncher = (p) async {
+      sent.add(p);
+      return const ShareResult('', ShareResultStatus.success);
+    };
+    addTearDown(() => shareLauncher = before);
+    final f = await writeCreationGlyph(_creation(), dir: dir);
+    await shareFile(f, 'application/json', title: 'My Cat!', text: shareCaptionText);
+    await shareFile(f, 'application/json', title: 'My Cat!');
+    expect(sent.first.text, 'Made on my LED display with Glyph\nhttps://github.com/spandan-kumar/glyph');
+    expect(sent.first.files!.single.path, f.path);
+    expect(sent.last.text, isNull);
+  });
+
+  test('the caption is on until switched off, and remembered', () async {
+    SharedPreferences.setMockInitialValues({});
+    expect(await ShareCaptionPref.get(), isTrue);
+    await ShareCaptionPref.set(false);
+    expect(await ShareCaptionPref.get(), isFalse);
   });
 }

@@ -264,11 +264,13 @@ class StudioAction {
   final bool danger;
 }
 
-/// A quiet action sheet: optional header, then icon + verb rows. The sheet
+/// A quiet action sheet: optional header, an optional [extra] (a setting
+/// the actions read, like a toggle), then icon + verb rows. The sheet
 /// closes before the chosen action runs.
 Future<void> showStudioActions(
   BuildContext context, {
   Widget? header,
+  Widget? extra,
   required List<StudioAction> actions,
 }) {
   HapticFeedback.selectionClick(); // opening a sheet is a pick
@@ -285,6 +287,7 @@ Future<void> showStudioActions(
               if (header != null)
                 Padding(padding: const EdgeInsets.fromLTRB(8, 0, 8, 12), child: header),
               if (header != null) const Divider(),
+              ?extra,
               for (final a in actions)
                 _ActionRow(
                   action: a,

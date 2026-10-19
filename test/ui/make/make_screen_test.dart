@@ -170,7 +170,7 @@ void main() {
     await tester.longPress(find.byType(CreationTile));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
-    for (final a in ['Play', 'Edit', 'Send to device', 'Share as GIF', 'Share Glyph file', 'Delete']) {
+    for (final a in ['Play', 'Edit', 'Send to device', 'Share', 'Delete']) {
       expect(find.text(a), findsWidgets, reason: a);
     }
     expect(find.text('Keep on matrix'), findsNothing);
@@ -182,6 +182,24 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Connect a device to send this to it.'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    playback.pause();
+  });
+
+  testWidgets('each creation has a visible Share key that opens sharing', (tester) async {
+    final (playback, _) = await pumpMake(tester, withCreation: true);
+    await tester.scrollUntilVisible(find.byType(CreationTile), 200,
+        scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.byType(CreationTile));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byKey(CreationTile.shareKeyId), findsOneWidget);
+    expect(tester.takeException(), isNull, reason: 'the key fits the grid cell');
+
+    await tester.tap(find.byKey(CreationTile.shareKeyId));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Share as GIF'), findsOneWidget);
+    expect(find.text('Add a caption'), findsOneWidget);
+    expect(playback.generator?.name, isNot('Blinky'), reason: 'sharing does not play it');
     playback.pause();
   });
 }

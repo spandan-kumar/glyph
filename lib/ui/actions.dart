@@ -20,6 +20,7 @@ import '../library/catalog.dart';
 import '../library/legacy_ids.dart';
 import '../wled/wled_client.dart';
 import '../wled/presets.dart';
+import 'cant_see_it.dart';
 import 'community/glyph_menu.dart';
 import 'scope.dart';
 
@@ -111,32 +112,63 @@ class _SendGuard {
   bool get ok => stopped == null;
 }
 
+/// Shows toasts for a play that may outlive its screen: through the app's
+/// messenger, with a "Can't see it?" route that works from anywhere.
+class _Teller {
+  _Teller(BuildContext context)
+      : _messenger = ScaffoldMessenger.maybeOf(context),
+        _help = cantSeeItAction(context);
+
+  final ScaffoldMessengerState? _messenger;
+  final SnackBarAction _help;
+
+  void call(String msg, {bool help = false}) {
+    final m = _messenger;
+    if (m == null || !m.mounted) return;
+    m
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+        // Long enough to read after onboarding's last step fades away.
+        duration: help ? const Duration(seconds: 10) : const Duration(seconds: 4),
+        action: help ? _help : null,
+      ));
+  }
+}
+
 class _SendStopped implements Exception {
   const _SendStopped();
 }
 
 /// User-level operations that touch both playback and the device.
 abstract final class GlyphActions {
-  static Future<void> play(BuildContext context, LibraryItem item) async {
+  /// [firstPlay] (the first vibe, which ends onboarding at once) also says
+  /// so when the device didn't answer, since nothing else will.
+  static Future<void> play(BuildContext context, LibraryItem item, {bool firstPlay = false}) async {
     final s = AppScope.of(context);
+    // Taken now: the screen may be gone by the time there's news.
+    final tell = _Teller(context);
     final selection = s.devices.selectionGeneration, control = s.devices.controlGeneration;
     final played = await s.playback.playItem(item, canPlay: () =>
         selection == s.devices.selectionGeneration && control == s.devices.controlGeneration);
     if (!played) {
-      if (context.mounted) {
-        if (s.playback.loadError case final error?) _toast(context, error);
-      }
+      if (s.playback.loadError case final error?) tell(error);
       return;
     }
     if (s.playback.item?.id != item.id) return;
-    await _ensureStreaming(context.mounted ? context : null, s);
+    final d = s.devices;
+    if (firstPlay && d.selected != null && !d.isConnected) {
+      return tell('Your device didn’t answer, so this is only on your phone.', help: true);
+    }
+    await _ensureStreaming(tell, s);
   }
 
   /// Starts streaming to the selected device if it's reachable.
   static Future<void> ensureStreaming(BuildContext context) =>
-      _ensureStreaming(context, AppScope.of(context));
+      _ensureStreaming(_Teller(context), AppScope.of(context));
 
-  static Future<void> _ensureStreaming(BuildContext? context, AppScope s) async {
+  static Future<void> _ensureStreaming(_Teller tell, AppScope s) async {
     final d = s.devices;
     if (!d.isConnected || d.selected == null || s.playback.isStreaming) return;
     final caps = d.caps!;
@@ -150,10 +182,7 @@ abstract final class GlyphActions {
     } catch (e) {
       // The raw error goes to the feedback report, not on screen.
       LastError.record('Couldn\'t start streaming: $e');
-      if (context != null && context.mounted) {
-        _toast(context, 'Couldn’t show this on your device. Check it’s on and on the same Wi-Fi.',
-            action: reportAction(context));
-      }
+      tell('Couldn’t show this on your device. Check it’s on and on the same Wi-Fi.', help: true);
     }
   }
 

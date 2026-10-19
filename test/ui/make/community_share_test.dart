@@ -14,6 +14,8 @@ import 'package:glyph/library/catalog.dart';
 import 'package:glyph/library/community_design.dart';
 import 'package:glyph/ui/make/community_share.dart';
 import 'package:glyph/ui/make/creation_tile.dart';
+import 'package:glyph/features/import/sharing.dart';
+import 'package:glyph/ui/design/toggle.dart';
 import 'package:glyph/ui/scope.dart';
 import 'package:glyph/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -233,9 +235,29 @@ void main() {
     for (final kind in ['text', 'import']) {
       testWidgets('$kind creations cannot', (tester) async {
         await openActions(tester, kind);
-        expect(find.text('Share Glyph file'), findsOneWidget);
+        expect(find.text('Share'), findsOneWidget);
         expect(find.text('Share with the community'), findsNothing);
       });
     }
+
+    testWidgets('Share offers a GIF, a Glyph file and Discord, with a caption that is on by default',
+        (tester) async {
+      await openActions(tester, 'drawing');
+      await tester.tap(find.text('Share'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 400));
+      for (final a in ['Add a caption', 'Share as GIF', 'Share Glyph file', 'Post in Show and tell']) {
+        expect(find.text(a), findsOneWidget, reason: a);
+      }
+      expect(find.textContaining(shareCaption), findsOneWidget);
+      expect(tester.widget<LbToggleTile>(find.byType(LbToggleTile)).value, isTrue);
+
+      // Switching it off sticks for next time.
+      await tester.tap(find.text('Add a caption'));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.widget<LbToggleTile>(find.byType(LbToggleTile)).value, isFalse);
+      expect(await ShareCaptionPref.get(), isFalse);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

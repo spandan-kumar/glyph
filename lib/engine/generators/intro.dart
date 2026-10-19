@@ -57,6 +57,9 @@ int glyphLogoColor(int x, int y) {
 class GlyphIntro extends Generator {
   static const duration = 5.0;
 
+  /// Beats on the timeline (seconds), for players that show only part of it.
+  static const popAt = _Intro._launch, settledAt = _Intro._settled, shineEndAt = _Intro._shineEnd;
+
   @override
   String get id => 'intro';
   @override

@@ -58,7 +58,7 @@ void main() {
     return (devices, playback);
   }
 
-  testWidgets('welcome → just looking around finishes without a device', (tester) async {
+  testWidgets('welcome → try without a device finishes without a device', (tester) async {
     var done = 0;
     final (devices, playback) = await pump(tester, onDone: () => done++);
     await settle(tester, 1800); // the wordmark sweep
@@ -66,7 +66,7 @@ void main() {
     expect(find.text('Find my device'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.text('Just looking around'));
+    await tester.tap(find.text('Try without a device'));
     await settle(tester);
     expect(done, 1);
     expect(await OnboardingFlow.isDone(), isTrue);

@@ -27,6 +27,10 @@ class HomeShell extends StatefulWidget {
   /// Lets any screen jump to another destination (e.g. "Connect a matrix").
   static void go(BuildContext context, int tab) => context.findAncestorStateOfType<_HomeShellState>()?._select(tab);
 
+  /// [go] for callers outside the shell (a toast action that outlived its
+  /// screen). Does nothing while no shell is showing.
+  static void goFromAnywhere(int tab) => _HomeShellState._live?._select(tab);
+
   /// Panels that need the full height (e.g. Display's Tweak) hide the dock.
   static final dockHidden = ValueNotifier<bool>(false);
 
@@ -35,6 +39,7 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
+  static _HomeShellState? _live;
   late int _tab = widget.initialTab;
 
   static const _items = [
@@ -82,6 +87,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
+    _live = this;
     if (widget.whatsNew) WidgetsBinding.instance.addPostFrameCallback((_) => _whatsNew());
   }
 
@@ -104,6 +110,7 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   void dispose() {
+    if (identical(_live, this)) _live = null;
     _scrolledAway.dispose();
     _storage?.dispose();
     super.dispose();

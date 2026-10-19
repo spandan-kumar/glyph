@@ -145,7 +145,7 @@ class _GlyphAppState extends State<GlyphApp> with WidgetsBindingObserver {
             child: _splash
                 ? IntroSplash(
                     key: const ValueKey('splash'),
-                    // The whole show on first run; a quick flourish after.
+                    // A brief cut on first run; a quick flourish after.
                     full: widget.showOnboarding,
                     onDone: () => setState(() => _splash = false),
                   )

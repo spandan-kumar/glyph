@@ -172,7 +172,8 @@ class _MakeScreenState extends State<MakeScreen> {
                       maxCrossAxisExtent: 128,
                       mainAxisSpacing: 14,
                       crossAxisSpacing: 12,
-                      childAspectRatio: 0.72,
+                      // Room under the panel for the name, kind and Share key.
+                      childAspectRatio: 0.68,
                     ),
                     itemCount: items.length,
                     itemBuilder: (context, i) =>

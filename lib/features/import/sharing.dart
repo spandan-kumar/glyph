@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../app/community.dart';
 import '../../app/creations.dart';
@@ -138,12 +139,32 @@ Future<File> _write(Directory? dir, String name, List<int> bytes) async {
   return File('${d.path}/$name').writeAsBytes(bytes, flush: true);
 }
 
-/// Opens the system share sheet for [file]. [origin] anchors the iPad popover.
-Future<ShareResult> shareFile(File file, String mimeType, {String? title, Rect? origin}) =>
-    SharePlus.instance.share(ShareParams(
+/// The optional words that go with a shared creation. Never drawn into the
+/// GIF itself: the art stays clean, the person decides.
+const shareCaption = 'Made on my LED display with Glyph';
+const shareCaptionText = '$shareCaption\n${Community.repo}';
+
+/// Whether shares carry [shareCaptionText] (on until switched off).
+abstract final class ShareCaptionPref {
+  static const key = 'share.caption.v1';
+
+  static Future<bool> get() async => (await SharedPreferences.getInstance()).getBool(key) ?? true;
+
+  static Future<void> set(bool on) async => (await SharedPreferences.getInstance()).setBool(key, on);
+}
+
+/// The system share sheet, swappable in tests.
+@visibleForTesting
+Future<ShareResult> Function(ShareParams) shareLauncher = (p) => SharePlus.instance.share(p);
+
+/// Opens the system share sheet for [file], with optional [text] beside it.
+/// [origin] anchors the iPad popover.
+Future<ShareResult> shareFile(File file, String mimeType, {String? title, String? text, Rect? origin}) =>
+    shareLauncher(ShareParams(
       files: [XFile(file.path, mimeType: mimeType)],
       title: title,
       subject: title,
+      text: text,
       sharePositionOrigin: origin,
     ));
 
@@ -159,19 +180,20 @@ String fileSlug(String s) {
 // ---------------------------------------------------------------------------
 // UI wrappers
 
-Future<void> shareCreationAsGif(BuildContext context, Creation c) => _share(
-    context, () => writeCreationGif(c), 'image/gif', c.title);
+/// [caption] adds [shareCaptionText] beside the file.
+Future<void> shareCreationAsGif(BuildContext context, Creation c, {bool caption = false}) => _share(
+    context, () => writeCreationGif(c), 'image/gif', c.title, caption);
 
-Future<void> shareCreationFile(BuildContext context, Creation c) => _share(
-    context, () => writeCreationGlyph(c), 'application/json', c.title);
+Future<void> shareCreationFile(BuildContext context, Creation c, {bool caption = false}) => _share(
+    context, () => writeCreationGlyph(c), 'application/json', c.title, caption);
 
-Future<void> _share(
-    BuildContext context, Future<File> Function() write, String mime, String title) async {
+Future<void> _share(BuildContext context, Future<File> Function() write, String mime, String title,
+    bool caption) async {
   final origin = _originOf(context);
   final messenger = ScaffoldMessenger.maybeOf(context);
   try {
     final file = await write();
-    await shareFile(file, mime, title: title, origin: origin);
+    await shareFile(file, mime, title: title, text: caption ? shareCaptionText : null, origin: origin);
   } catch (e) {
     LastError.record('Sharing failed: $e');
     messenger

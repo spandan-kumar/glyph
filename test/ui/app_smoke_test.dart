@@ -57,7 +57,7 @@ void main() {
   testWidgets('first run can be skipped straight into Display', (tester) async {
     final playback = await pumpApp(tester, onboarding: true);
     expect(find.text('Find my device'), findsOneWidget);
-    await tester.tap(find.text('Just looking around'));
+    await tester.tap(find.text('Try without a device'));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 200));
     }

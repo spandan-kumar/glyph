@@ -705,6 +705,9 @@ class _TuneScreenState extends State<TuneScreen> with TickerProviderStateMixin {
   }
 }
 
+/// Display's status line with no device: playback is on the phone only.
+const phoneOnlyStatus = 'Phone only · add a device';
+
 /// What Display says once a look is saved on the device.
 const sendSuccessMessage = 'Sent to your device. It keeps playing without your phone.';
 
@@ -884,7 +887,8 @@ class _Header extends StatelessWidget {
     if (d.selected != null) {
       return d.isLoading ? ('Looking for ${d.selected!.name}…', null) : ('Offline · tap to fix', connect);
     }
-    return ('Tap to connect a device', connect);
+    // Nothing to show it on yet: say plainly that the Stage is the phone's.
+    return (phoneOnlyStatus, connect);
   }
 }
 

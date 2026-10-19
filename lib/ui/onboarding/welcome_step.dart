@@ -6,6 +6,9 @@ import '../../features/text/fonts.dart';
 import '../design/tokens.dart';
 import '../design/type.dart';
 
+/// The welcome's no-device door.
+const tryWithoutDeviceLabel = 'Try without a device';
+
 /// Step 1: black room, the wordmark lights up dot by dot.
 class WelcomeStep extends StatelessWidget {
   const WelcomeStep({super.key, required this.onFind, required this.onBrowse});
@@ -30,13 +33,12 @@ class WelcomeStep extends StatelessWidget {
           child: const Text('Find my device'),
         ),
         const SizedBox(height: 8),
-        TextButton(
-          style: TextButton.styleFrom(
-            minimumSize: const Size.fromHeight(Lb.touch),
-            foregroundColor: Lb.text2,
-          ),
+        // A real second door, not a fine-print escape: the whole app works
+        // on the phone's own Stage until a device turns up.
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(Lb.touch)),
           onPressed: onBrowse,
-          child: const Text('Just looking around'),
+          child: const Text(tryWithoutDeviceLabel),
         ),
       ],
     ),

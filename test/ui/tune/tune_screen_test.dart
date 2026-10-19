@@ -153,7 +153,7 @@ void main() {
       expect(playback.generator, isNotNull);
       expect(find.text(playingTitle(playback)!), findsWidgets);
       expect(find.textContaining('CH 01 · RIGHT NOW').hitTestable(), findsOneWidget);
-      expect(find.text('TAP TO CONNECT A DEVICE'), findsOneWidget);
+      expect(find.text('PHONE ONLY · ADD A DEVICE'), findsOneWidget);
       expect(find.text('SWIPE THE DISPLAY'), findsOneWidget);
 
       // Scroll through the rails; the mini-stage takes over at the top.

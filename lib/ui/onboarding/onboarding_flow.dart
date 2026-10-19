@@ -312,9 +312,10 @@ class VibeStep extends StatelessWidget {
               label: label,
               item: item,
               onTap: () {
-                // It starts playing on the device.
+                // It starts playing on the device. Any trouble is told through
+                // the app's messenger, so it stays up on Display after we leave.
                 HapticFeedback.mediumImpact();
-                unawaited(GlyphActions.play(context, item));
+                unawaited(GlyphActions.play(context, item, firstPlay: true));
                 onDone();
               },
             ),
