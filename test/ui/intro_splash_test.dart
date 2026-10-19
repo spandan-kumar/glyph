@@ -51,4 +51,14 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     expect(done, 1);
   });
+
+  testWidgets('the hint has no debug underline under MaterialApp', (tester) async {
+    // The app shows the splash above any Material, where Flutter's fallback
+    // text style draws a yellow double underline.
+    await tester.pumpWidget(MaterialApp(home: IntroSplash(full: true, onDone: () {})));
+    final hint = tester.widget<RichText>(
+        find.descendant(of: find.text('TAP TO SKIP'), matching: find.byType(RichText)));
+    expect(hint.text.style?.decoration, isNot(TextDecoration.underline));
+    await tester.pump(const Duration(seconds: 3));
+  });
 }

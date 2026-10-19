@@ -130,7 +130,10 @@ class _IntroSplashState extends State<IntroSplash>
                     duration: Lb.slow,
                     curve: Lb.ease,
                     builder: (context, k, child) => Opacity(opacity: k, child: child),
-                    child: Text(skipHint.toUpperCase(), textAlign: TextAlign.center, style: LbType.label),
+                    // No Material above the splash: clear the fallback underline.
+                    child: Text(skipHint.toUpperCase(),
+                        textAlign: TextAlign.center,
+                        style: LbType.label.copyWith(decoration: TextDecoration.none)),
                   ),
                 ),
             ],
