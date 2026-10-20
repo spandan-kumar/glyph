@@ -1,0 +1,3 @@
+The library now has only original, CC0 and public-domain animations; the rest were removed.
+Favourites, Rotations and recents that pointed at removed looks are skipped.
+Safer device connections: the settings page stays on your device, and oversized replies are cut off.

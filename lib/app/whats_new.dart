@@ -4,6 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.11': [
+    'The library now has only original, CC0 and public-domain animations.',
+    'Favourites, Rotations and recents that pointed at removed looks are skipped.',
+    'Safer device connections: the settings page stays on your device.',
+  ],
   '1.4.10': [
     'A shorter intro you can tap to skip.',
     'Share your creations from the new Share key, with an optional caption and link.',
