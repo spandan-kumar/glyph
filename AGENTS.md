@@ -87,7 +87,7 @@ android/      MainActivity (platform channel), Wi-Fi setup bridge, notification 
 ios/          AppDelegate (platform channel), Info.plist (local network)
 assets/       catalog JSON, sprite packs, fonts (OFL), brand
 homeassistant/ blueprints (show a Saved look, play a Show)
-tool/         builders, previews, smoke tests, backup_secrets.sh
+tool/         builders, previews, smoke tests
 test/         mirrors lib/
 docs/         UX spec, plan, roadmap, setup, Glance, HA, privacy, signing, QA, launch kit
 skills/       portable agent skills (glyph-animation: draw a sprite and open a PR)

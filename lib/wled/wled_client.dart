@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import 'capped_client.dart';
 import 'device.dart';
 import 'panel_setup.dart';
 import 'presets.dart';
@@ -52,12 +53,17 @@ class WledException implements Exception {
 /// v0.14.4 sources (wled00/wled_server.cpp, json.cpp, presets.cpp).
 class WledClient {
   WledClient(this.host, {http.Client? client, Future<void> Function(Duration)? delay})
-      : _http = client ?? http.Client(),
+      : _http = CappedClient(client ?? http.Client(), maxResponseBytes),
         _delay = delay ?? Future<void>.delayed,
         _base = Uri.parse('http://${_authority(host)}');
 
   static const timeout = Duration(seconds: 4);
   static const uploadTimeout = Duration(seconds: 40);
+
+  /// Largest reply read from a device. Its biggest real files (GIFs,
+  /// presets.json) live in flash a few MB in size; anything past this is
+  /// broken or hostile and is cut off rather than held in memory.
+  static const maxResponseBytes = 16 * 1024 * 1024;
 
   /// presets.json writes finish in the device loop after the HTTP reply, so a
   /// write is confirmed by polling the file instead of sleeping a fixed time.

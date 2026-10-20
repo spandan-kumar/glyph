@@ -37,18 +37,9 @@ signed with both keys.
 | New (`glyph-release`, `CN=Glyph, O=Glyph`, RSA 4096, PKCS12) | v3 with lineage, read by Android 9+ | `d9f51a1f873db96bfec0be9c230e5ec2ead72660aa42abaf04389291ad84441e` |
 
 Where they live: `~/glyph-release-keys/` on the maintainer's Mac (new key, old
-key copy, lineage, README); a zipped copy in the maintainer's Google Drive; the
-new key's password only in the macOS Keychain ("Glyph release keystore") and the
+key copy, lineage, README) and an encrypted offline backup; the new key's
+password only in the macOS Keychain ("Glyph release keystore") and the
 maintainer's password manager.
-
-**Full secrets backup.** `tool/backup_secrets.sh` (run by the maintainer)
-collects everything Glyph depends on into one zip for the maintainer's Google
-Drive (plain by choice, 11 October 2026; `--encrypt` makes an AES-256 disk image
-instead): both Android keys, the lineage, the release key password, the
-catalog signing key (`CATALOG_SIGNING_KEY`, from Keychain) and optionally the
-Discord webhook, with restore instructions in `SECRETS.txt`. With it, a lost
-laptop loses nothing; anyone with access to that Drive file can sign Glyph
-releases and catalogs.
 
 ## Keys and GitHub secrets
 
@@ -93,7 +84,7 @@ the rotation lineage from `~/.android/debug.keystore` in `~/glyph-release-keys/`
 and set the five GitHub secrets. The same commands were dry-run with throwaway
 keys first: API 24–27 verified with the old certificate, API 28+ with the new
 one, and the APK's lineage listed both. To redo it from the backup, restore the
-files and set the secrets as `SECRETS.txt` describes.
+files and set the secrets listed under "Keys and GitHub secrets" below.
 
 ## Verifying a release
 
@@ -130,8 +121,9 @@ and aliases if you used other ones; do not overwrite a valid lineage):
 
 Back up **both `~/glyph-release-keys` and `~/.android/debug.keystore` offline in
 two separate places**, including the lineage. Back up your chosen paths too if
-you changed them. Protect the copies and keep recoverable passwords in your
-password manager. GitHub secrets are not a backup you can download. Never
+you changed them. Encrypt every copy (never a plain zip in cloud storage), keep
+its passphrase apart from it, and keep recoverable passwords in your password
+manager. GitHub secrets are not a backup you can download. Never
 delete/regenerate the original debug keystore: its default-looking name does
 not make a replacement equivalent.
 

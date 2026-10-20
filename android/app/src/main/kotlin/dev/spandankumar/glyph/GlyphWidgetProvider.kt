@@ -124,7 +124,7 @@ class GlyphWidgetProvider : HomeWidgetProvider() {
                     conn.outputStream.use { it.write(body.toByteArray()) }
                 }
                 if (conn.responseCode != 200) throw java.io.IOException("HTTP ${conn.responseCode}")
-                return conn.inputStream.bufferedReader().use { it.readText() }
+                return readCapped(conn)
             } catch (e: Exception) {
                 last = e
                 // A timed-out POST may still have been applied: never repeat a toggle or a skip.
@@ -135,7 +135,26 @@ class GlyphWidgetProvider : HomeWidgetProvider() {
         }
     }
 
+    /** Reads the reply, refusing anything past [MAX_REPLY_BYTES] so a broken device can't exhaust memory. */
+    private fun readCapped(conn: HttpURLConnection): String {
+        if (conn.contentLengthLong > MAX_REPLY_BYTES) throw java.io.IOException("reply too large")
+        conn.inputStream.use { input ->
+            val out = java.io.ByteArrayOutputStream()
+            val buf = ByteArray(8 * 1024)
+            while (true) {
+                val n = input.read(buf)
+                if (n < 0) break
+                if (out.size() + n > MAX_REPLY_BYTES) throw java.io.IOException("reply too large")
+                out.write(buf, 0, n)
+            }
+            return out.toString("UTF-8")
+        }
+    }
+
     companion object {
+        // State and presets.json only; the app's own client allows more for GIFs.
+        private const val MAX_REPLY_BYTES = 4 * 1024 * 1024
+
         const val ACTION_POWER = "dev.spandankumar.glyph.widget.POWER"
         const val ACTION_NEXT = "dev.spandankumar.glyph.widget.NEXT"
 

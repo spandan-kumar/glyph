@@ -22,11 +22,11 @@ jobs:
       GH_REPO: ${{ github.repository }}
       ISSUE: ${{ github.event.issue.number }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           persist-credentials: false
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.47.6
           channel: stable
@@ -51,7 +51,7 @@ jobs:
           test -f "$RUNNER_TEMP/community/report.md"
           echo "valid=$([ "$status" -eq 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - name: Publish preview and update the bot comment
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           VALID: ${{ steps.check.outputs.valid }}
         with:

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../app/devices.dart';
@@ -12,6 +13,14 @@ import '../../../ui/design/type.dart';
 /// Builds what stands in for the web view. Widget tests have no platform
 /// views, so they pass one of these instead.
 typedef SettingsViewBuilder = Widget Function(BuildContext context, Uri url);
+
+/// Whether [url] is on the device at [host] (same address and port), so the
+/// settings web view may load it.
+bool isDeviceSettingsUrl(Uri url, String host) {
+  final device = Uri.tryParse('http://$host/');
+  if (device == null || !url.isScheme('http')) return false;
+  return url.host == device.host && url.port == device.port;
+}
 
 /// WLED's own setup pages (`http://<host>/settings`), inside Glyph: Wi-Fi,
 /// LED wiring, 2D layout, time, security and updates.
@@ -69,6 +78,19 @@ class _DeviceSettingsPageState extends State<DeviceSettingsPage> {
     unawaited(c.setJavaScriptMode(JavaScriptMode.unrestricted));
     unawaited(c.setBackgroundColor(Lb.ink));
     unawaited(c.setNavigationDelegate(NavigationDelegate(
+      onNavigationRequest: (request) {
+        final target = Uri.tryParse(request.url);
+        if (target != null && isDeviceSettingsUrl(target, widget.host)) {
+          return NavigationDecision.navigate;
+        }
+        // Links off the device (WLED's docs, GitHub) open in the browser, so
+        // this page never shows another site under the device's name.
+        final web = target != null && (target.isScheme('https') || target.isScheme('http'));
+        if (request.isMainFrame && web) {
+          unawaited(launchUrl(target, mode: LaunchMode.externalApplication));
+        }
+        return NavigationDecision.prevent;
+      },
       onPageStarted: (_) => _set(() => _progress = 0),
       onProgress: (p) => _set(() => _progress = p),
       onPageFinished: (_) => _set(() => _progress = 100),
