@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../engine/clip.dart';
 import '../engine/clip_asset.dart';
+import 'imported_collection.dart';
 import 'remote_catalog.dart';
 
 /// Loads bundled clips first; downloads and caches only unbundled clips.
@@ -99,9 +100,7 @@ class ClipAssetStore {
       ByteData? bundled;
       if (bundle != null) {
         try {
-          bundled = await bundle!.load(
-            'catalog_assets/imported/${asset.sha256}.clip.gz',
-          );
+          bundled = await bundle!.load(privateClipAsset(asset.sha256));
         } on FlutterError {
           // Not included in this app version; try the verified download cache.
         }

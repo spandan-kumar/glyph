@@ -77,7 +77,7 @@ flutter:
 
   assets:
     - assets/catalog/
-    - catalog_assets/imported/
+    - catalog_assets/private/
 
   # OFL fonts; licences in assets/fonts/OFL-*.txt.
   fonts:

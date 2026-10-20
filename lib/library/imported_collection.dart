@@ -4,8 +4,11 @@ import '../engine/bake_limits.dart';
 import '../engine/clip_asset.dart';
 import 'catalog.dart';
 
-const importedIndexAsset = 'assets/catalog/imported.json';
-const importedNotice = 'Shared with permission by its creator.';
+/// The optional private pack: a git-ignored drop-in folder for private
+/// builds. Public builds ship only its `.gitkeep`, so no collection loads.
+const privatePackDir = 'catalog_assets/private';
+const importedIndexAsset = '$privatePackDir/imported.json';
+String privateClipAsset(String sha256) => '$privatePackDir/$sha256.clip.gz';
 
 List<String> _descriptionWords(dynamic value, int maximum) {
   if (value is! List ||
@@ -39,6 +42,12 @@ Catalog parseImportedCollection(String source) {
       : const ['Imported'];
   if (categories.isEmpty || categories.toSet().length != categories.length) {
     throw const FormatException('Invalid collection categories');
+  }
+  // The credit line, if any, comes from the pack itself.
+  final notice = doc['notice'];
+  if (notice != null &&
+      (notice is! String || notice.trim().isEmpty || notice.length > 200)) {
+    throw const FormatException('Invalid collection notice');
   }
   final ids = <int>{}, assets = <ClipAsset>[], items = <LibraryItem>[];
   final hash = RegExp(r'^[0-9a-f]{64}$');
@@ -119,11 +128,11 @@ Catalog parseImportedCollection(String source) {
         aliases: aliases,
         tags: ['imported', 'pixel art', '${w}x$h', ...colours, ...searchTags],
         added: 4,
-        notice: importedNotice,
+        notice: (notice as String?)?.trim(),
         asset: LibraryAsset(
           type: 'clip-gzip',
           url: 'collections/imported/$sha.clip.gz',
-          license: 'shared-with-permission',
+          license: 'private',
           extra: {'sha256': sha, 'bytes': size},
         ),
       ),

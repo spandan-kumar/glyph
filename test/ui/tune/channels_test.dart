@@ -58,4 +58,18 @@ void main() {
         favourites: [], recents: [], creations: []);
     expect(empty.where((c) => c.id == 'all'), isEmpty);
   });
+
+  test('saved favourites and recents for looks no longer in the library are skipped', () {
+    final catalog = Catalog(items: [_item('cat', 'Animals')]);
+    final channels = assembleChannels(base: CatalogChannels(catalog, now),
+        favourites: ['imported-42', 'cat', 'clip:imported-42'],
+        recents: ['imported-42', 'clip:imported-42', 'cat'], creations: []);
+    final favs = channels.singleWhere((c) => c.id == 'favs');
+    final lately = channels.singleWhere((c) => c.id == 'lately');
+    expect(favs.all.map((e) => e.key), ['i:cat']);
+    expect(lately.all.map((e) => e.key), ['i:cat']);
+    final none = assembleChannels(base: CatalogChannels(catalog, now),
+        favourites: ['imported-42'], recents: ['imported-42'], creations: []);
+    expect(none.where((c) => c.id == 'favs' || c.id == 'lately'), isEmpty);
+  });
 }

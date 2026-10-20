@@ -10,7 +10,7 @@ keeps the product timeline and links here.
 - 2 stars, about 50 APK downloads ever, 19 unique repo visitors in 14 days.
   Nothing has been launched publicly. We start from zero, which means every
   first impression is still ours to make.
-- The product is far ahead of its shopfront: 13,597 looks, setup wizard,
+- The product is far ahead of its shopfront: 1,236 looks, setup wizard,
   live drawing, Now Playing, games, Home Assistant blueprints, a working
   no-device mode. The README hero is a boot logo, numbers disagree across
   documents, screenshots show iPhone chrome, and there is no video of a real
@@ -20,7 +20,7 @@ keeps the product timeline and links here.
 
 | # | Audience | Size signal | What they want | Our proof |
 |---|---|---|---|---|
-| 1 | **WLED matrix owners** | r/WLED ~71k (+27%/yr); 33.9k HA installs run the WLED integration | Content without fiddling; 2D setup that isn't a puzzle | Setup wizard ("which corner lit up?"), 13,000+ looks, Send and it plays alone |
+| 1 | **WLED matrix owners** | r/WLED ~71k (+27%/yr); 33.9k HA installs run the WLED integration | Content without fiddling; 2D setup that isn't a puzzle | Setup wizard ("which corner lit up?"), 1,200+ looks, Send and it plays alone |
 | 2 | **Makers about to build one** | r/esp32 223k (+51%), r/arduino 788k | A reason to build; a $40–80 weekend project that ends somewhere fun | "Build a 16×16, install WLED, Glyph does the rest" |
 | 3 | **Home Assistant users** | 607k on r/homeassistant; 704k active HA installs | Local, no-cloud display for alerts and info | Blueprints, Routines, Glance, no account |
 | 4 | **FOSS Android users** | r/fossdroid 107k (+41%) | Open, no tracking, F-Droid/Obtainium | MIT, no analytics, Obtainium today, F-Droid pending |
@@ -31,7 +31,7 @@ Not now: Divoom/Tidbyt/Ulanzi owners (no adapter yet), iOS users.
 ## Positioning
 
 **One line:** *Set up your WLED matrix in three taps, then fill it with
-13,000+ animations. Free, open source, no account.*
+1,200+ original animations. Free, open source, no account.*
 
 **Why this line.** Research found no large open-source rival. Never compare
 Glyph with, or criticise, other WLED pixel-art apps in public. WLED 16 ships
@@ -41,14 +41,13 @@ a finished display, with content and no cloud.
 
 **Have this answer ready** ("how is this different from PixelForge / the WLED
 app?"): "Use them too. Glyph is a phone app that sets up the 2D layout for
-you, brings a 13,000-look library, draws and plays games live, and puts your
+you, brings a 1,200-look library, draws and plays games live, and puts your
 music's album art on the panel. It talks to WLED's normal API, so nothing
 else changes."
 
 **Never claim:** first or only; replacing the WLED app; iOS; Pixoo, Tidbyt or
-Ulanzi support; "all original art" (say *MIT-licensed code; artwork terms
-vary*); tested multi-panel grids or fresh-controller setup until hardware QA
-is done. Never name the source of the imported collection.
+Ulanzi support; "all original art" is now accurate; say *MIT-licensed code; original, CC0 and public-domain art*; tested multi-panel grids or fresh-controller setup until hardware QA
+is done.
 
 **Tone:** a maker showing a friend. Author says "I made this" up front.
 Video first. Honest limits in every long post.
@@ -71,7 +70,7 @@ the launch results in hand.
 |---|---|---|
 | **See** a post | No video of a real panel | 3 short clips (below) |
 | **Land** on repo/site | Boot-logo hero, requirements far down, contributor links beside Download | README first screen: clip → Download → "Android 7+ · 64-bit · WLED" → "No device yet? Try it anyway" |
-| **Trust** | Numbers disagree (1,100+ / 1,200+ / 13,597), iPhone screenshots | One fact sheet; Android screenshots; About text updated |
+| **Trust** | Numbers disagree (1,100+ / 1,200+ / 1,236), iPhone screenshots | One fact sheet; Android screenshots; About text updated |
 | **Install** | Release page explains the latest fix, not the app; sideload steps stop at "open it" | Evergreen install block on every release; site with a big download button |
 | **First light** | 5.6 s splash; no-device mode hidden behind "Just looking around" | Shorter skippable intro; "Try without a device" |
 | **Share** | Share leads to a Discord invite; no artifact | Share sheet with a GIF/clip + caption + link ("Made with Glyph") |
@@ -106,6 +105,14 @@ Dates are targets; a gate slips the phase, not the quality bar.
 - [ ] App: "Try without a device", short skippable intro, share sheet with
       caption + link (ships as 1.4.10 with the pending phone tests).
 - [x] **PR to WLED-Docs compatible-software page**: opened 19 Oct as [wled/WLED-Docs#383](https://github.com/wled/WLED-Docs/pull/383) (one alphabetical row, no count). Answer review comments within a day.
+      **20 Oct:** WLED maintainers (softhack007, DedeHai) asked for a store
+      link instead of sideloading, flagged AI-built code and 16×16-only
+      testing, and asked where the animations come from. We moved
+      the row to *Sources* with "Tested on a 16×16 panel so far", offered to
+      wait for F-Droid, and answered plainly. The large third-party collection
+      has since been removed (20 Oct). Lessons: lead with the
+      setup wizard, not the count; disclose AI assistance up front; get
+      F-Droid live and non-16×16 testers before wide posts.
 - [ ] Film clips A–C. Without clip A, Phase 1 moves.
 - [ ] Join the WLED Discord now and help in #help for a week before
       mentioning Glyph; ask a mod where project posts belong. Frame the
@@ -202,8 +209,11 @@ countries so far; sideloading is untouched until a 2027 global rollout, when
 registering the package and signing keys will be needed to stay installable.
 
 **Decisions taken (18 Oct):** no Play Store for now; maintainer films clips
-A–C by 25 Oct; headline "13,000+ animations" (footage uses only original/CC0
-art); landing page at the GitHub Pages root alongside the catalog.
+A–C by 25 Oct; headline "1,200+ original animations", setup wizard leads (footage
+uses only original/CC0 art); landing page at the GitHub Pages root alongside the catalog.
+
+**20 Oct:** removed animations that weren't original, CC0 or public domain
+from all public builds; the library is 1,236 looks.
 
 ## Product-led growth (build in this order)
 
@@ -244,7 +254,6 @@ modest. One creator video is worth more than every post combined.
 - AI assistance: never hidden, never the headline; answer plainly if asked
   (F-Droid MR already discloses it). Skip venues that ban AI-assisted
   projects.
-- The two things most likely to blow up a thread are "where did 13,000 come
-  from?" and "it didn't work on my grid". Answer the first plainly (reply
-  bank: about 1,300 original/CC0/public-domain, the rest a collection shared
-  with its creator's permission); invite the second and fix it in public.
+- The thing most likely to blow up a thread is "it didn't work on my grid".
+  Invite it and fix it in public. If asked where the animations come from:
+  original, CC0 or public domain (reply bank).

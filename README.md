@@ -6,8 +6,8 @@
 
 <p align="center">
   <b>Your matrix, alive.</b><br>
-  Set up your WLED matrix in three taps, then fill it with 13,000+
-  animations. Draw, write, play games and put your music on the wall.
+  Set up your WLED matrix in three taps, then fill it with 1,200+
+  original animations. Draw, write, play games and put your music on the wall.
   Free, open source, no account.
 </p>
 
@@ -76,12 +76,11 @@ for a surprise, and tap **Send** to put an animation on the device. Tweak
 colours and motion with a palette reel and rotary knobs; the whole app glows
 with whatever is on your matrix.
 
-- **13,597 animations** in subject groups (Animals, Nature, Holidays, Gaming,
+- **1,236 animations** in subject groups (Animals, Nature, Holidays, Gaming,
   Flags, Patterns and more): 62 procedural effects (plasma, fire, aurora,
   reaction–diffusion, falling sand…), 356 original and CC0 pixel-art sprites,
   **Famous Classics** — public-domain characters and paintings such as
-  Pinocchio, Alice, Dracula and The Starry Night — and 12,361 animations from
-  an imported pixel-art collection, shared with permission.
+  Pinocchio, Alice, Dracula and The Starry Night.
 - Search the whole library by name, subject, colour or native size. Everything
   is bundled, so it works offline.
 - Seamless loops on the device, accurate colours (device gamma, true blacks,
@@ -222,7 +221,6 @@ their source notes. No code was copied from WLED or other GPL/EUPL projects.
 Fonts: Bricolage Grotesque and DM Mono (SIL OFL).
 
 The code and original artwork are released under the [MIT License](LICENSE).
-The imported animation collection is included with its creator's permission
-and is **not** covered by the MIT License.
+Everything in the library is original, CC0 or public domain.
 
 Glyph is not affiliated with the WLED project.

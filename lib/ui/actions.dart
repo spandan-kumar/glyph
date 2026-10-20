@@ -17,7 +17,6 @@ import '../engine/gif_encoder.dart';
 import '../engine/palette.dart';
 import '../engine/registry.dart';
 import '../library/catalog.dart';
-import '../library/legacy_ids.dart';
 import '../wled/wled_client.dart';
 import '../wled/presets.dart';
 import 'cant_see_it.dart';
@@ -330,16 +329,13 @@ abstract final class GlyphActions {
       final presetId = await client.withPresetMutation(() async {
         if (!current()) throw const _SendStopped();
         final existing = await _existingPreset(client, title, uploadName);
-        final legacy = legacyCollectionFileName(uploadName);
-        final migrating = legacy != null && existing?.gifName != null &&
-            WledClient.matchesGifName(legacy, existing!.gifName!);
         if (existing?.gifName != null) {
           try {
             final name = existing!.gifName!;
             final path = name.startsWith('/') ? name : '/$name';
             final files = await client.files();
             final saved = files[path] == bytes.length ? await client.fileBytes(name) : null;
-            if (!migrating && saved != null && listEquals(saved, bytes)) {
+            if (saved != null && listEquals(saved, bytes)) {
               alreadySaved = true;
               return existing.id;
             }
@@ -361,7 +357,7 @@ abstract final class GlyphActions {
         return client.saveGifToDevice(
           fileName: uploadName,
           gif: bytes,
-          presetName: migrating ? existing.name : title,
+          presetName: title,
           caps: caps,
           // Sending the same animation again replaces it rather than adding a
           // duplicate entry.

@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import '../library/legacy_ids.dart';
 import 'bake_limits.dart';
 import 'clip.dart';
 import 'frame.dart';
@@ -35,7 +34,7 @@ abstract final class ClipAssetLibrary {
     }
   }
 
-  static AssetClipGenerator? byId(String id) => _generators[importedCollectionId(id)];
+  static AssetClipGenerator? byId(String id) => _generators[id];
   static FrameClip? cached(String sha) {
     final clip = _clips.remove(sha);
     if (clip != null) _clips[sha] = clip;

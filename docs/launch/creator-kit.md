@@ -1,13 +1,13 @@
 # Glyph creator kit
 
-Glyph is a free, MIT-licensed Flutter app that drives WLED LED matrices with 13,000+ animations, pixel art, clocks, games and live music features, with no account. Your phone renders the frames, streaming them live or sending a GIF to a compatible controller for playback without the phone.
+Glyph is a free, MIT-licensed Flutter app that drives WLED LED matrices with 1,200+ animations, pixel art, clocks, games and live music features, with no account. Your phone renders the frames, streaming them live or sending a GIF to a compatible controller for playback without the phone.
 
 **For:** WLED display owners, ESP32 makers building a first panel, pixel artists, and Home Assistant users who want an existing display to do more.
 
 ## What to show
 
 - **Set up display:** Wi-Fi join, size selection, three physical wiring answers, review and a visual check.
-- **Display:** swipe channels, choose palettes and tune motion across 13,597 looks in 32 subject groups: 62 procedural generators, 356 sprites, public-domain classics and a collection shared with its creator's permission.
+- **Display:** swipe channels, choose palettes and tune motion across 1,236 looks in 22 subject groups: 62 procedural generators, 356 sprites and public-domain classics.
 - **Make:** draw live, scrolling text, GIF/WebP/photo import, clocks/timers, nine microphone visualisers and seven games.
 - **Now Playing:** Android album art and progress, live on the panel. Needs the phone; covers are not stored.
 - **Device:** Send, Saved, Shows and Routines run without the phone on supported hardware. Home Assistant blueprints trigger existing Saved looks or Shows.

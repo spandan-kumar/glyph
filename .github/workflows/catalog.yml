@@ -71,7 +71,7 @@ jobs:
           dart run tool/build_remote_catalog.dart "${args[@]}"
       # Pages serves one artifact, so the landing page ships inside the catalog
       # site. It replaces the generated index.html; every catalog path
-      # (manifests, payload/, collections/) stays where existing apps fetch it.
+      # (manifests, payload/) stays where existing apps fetch it.
       - name: Add the landing page
         run: |
           set -euo pipefail

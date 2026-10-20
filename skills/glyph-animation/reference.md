@@ -288,7 +288,7 @@ on the source page; a download marked "free" is insufficient.
 
 | Key | Type | Notes |
 |---|---|---|
-| `license` | string | `CC0-1.0`; other imported licences are outside Glyph's content policy. |
+| `license` | string | `CC0-1.0`; other licences are outside Glyph's content policy. |
 | `url` | string | HTTPS page showing the work, creator and CC0 release. |
 | `licenseUrl` | string | `https://creativecommons.org/publicdomain/zero/1.0/`. |
 | `downloadUrl` | string | HTTPS URL of the original downloaded file. |

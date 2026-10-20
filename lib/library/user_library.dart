@@ -1,8 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'legacy_ids.dart';
-
 /// The user's favourites and recently played items, persisted by item id.
 /// Unknown ids (items removed from the catalog) are kept but simply never
 /// match anything, so a catalog downgrade doesn't wipe someone's hearts.
@@ -29,7 +27,7 @@ class UserLibrary extends ChangeNotifier {
   /// Most recent first.
   List<String> get recents => List.unmodifiable(_recents);
 
-  bool isFavourite(String id) => _favourites.contains(importedCollectionId(id));
+  bool isFavourite(String id) => _favourites.contains(id);
 
   Future<void> load() => _loading ??= _load();
 
@@ -38,23 +36,16 @@ class UserLibrary extends ChangeNotifier {
     // Merge rather than replace, in case the user tapped before load finished.
     final favourites = p.getStringList(favouritesKey) ?? const <String>[];
     final recents = p.getStringList(recentsKey) ?? const <String>[];
-    _favourites.addAll(favourites.map(importedCollectionId));
-    for (final id in recents.map(importedCollectionId)) {
+    _favourites.addAll(favourites);
+    for (final id in recents) {
       if (!_recents.contains(id)) _recents.add(id);
     }
     if (_recents.length > maxRecents) _recents.removeRange(maxRecents, _recents.length);
-    if (favourites.any((id) => importedCollectionId(id) != id)) {
-      await p.setStringList(favouritesKey, _favourites.toList());
-    }
-    if (recents.any((id) => importedCollectionId(id) != id)) {
-      await p.setStringList(recentsKey, _recents);
-    }
     _loaded = true;
     notifyListeners();
   }
 
   Future<void> toggleFavourite(String id) async {
-    id = importedCollectionId(id);
     if (!_favourites.remove(id)) _favourites.add(id);
     notifyListeners();
     await load();
@@ -62,7 +53,6 @@ class UserLibrary extends ChangeNotifier {
   }
 
   Future<void> markPlayed(String id) async {
-    id = importedCollectionId(id);
     if (_recents.isNotEmpty && _recents.first == id) return;
     _recents
       ..remove(id)

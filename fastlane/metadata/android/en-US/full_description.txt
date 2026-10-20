@@ -1,4 +1,4 @@
-Glyph sets up your WLED LED matrix and brings it to life. A guided wizard gets a new display working, then you swipe through more than 13,000 animations like TV channels, draw your own pixel art, show the time, put your music on the wall and play games, all from your phone. Free, open source, no account.
+Glyph sets up your WLED LED matrix and brings it to life. A guided wizard gets a new display working, then you swipe through more than 1,200 animations like TV channels, draw your own pixel art, show the time, put your music on the wall and play games, all from your phone. Free, open source, no account.
 
 Your matrix lives at the top of the screen as a glowing live panel. Swipe it to flip through animations, roll the dice for a surprise, and tap Send to put an animation on the device so it keeps playing with your phone off.
 
@@ -9,7 +9,7 @@ SET UP
 • Devices set their own clock from your phone's time zone, so Routines run on time.
 
 DISPLAY
-• 13,597 animations in subject groups such as Animals, Nature, Holidays, Gaming, Flags and Patterns: 62 procedural effects (plasma, fire, aurora, reaction–diffusion, falling sand…), 356 original and CC0 pixel-art sprites, Famous Classics (public-domain characters and paintings such as the 1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night) and 12,361 animations from an imported pixel-art collection, shared with permission.
+• 1,236 animations in subject groups such as Animals, Nature, Holidays, Gaming, Flags and Patterns: 62 procedural effects (plasma, fire, aurora, reaction–diffusion, falling sand…), 356 original and CC0 pixel-art sprites, Famous Classics (public-domain characters and paintings such as the 1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night).
 • Search the whole library by name, subject, colour or size. Everything is on your phone, so it works offline.
 • Tweak colours and motion with a palette reel and rotary knobs.
 • Seamless loops on the device and accurate colours: device gamma, true blacks and stable hues at low brightness.

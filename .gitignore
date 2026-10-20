@@ -54,3 +54,7 @@ key.properties
 
 # Catalog signing key (see docs/CATALOG_DELIVERY.md)
 catalog-signing-key*.txt
+
+# Private animation pack: drop-in for private builds only, never committed.
+/catalog_assets/private/*
+!/catalog_assets/private/.gitkeep

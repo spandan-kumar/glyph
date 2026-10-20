@@ -31,7 +31,7 @@ const whatsNewNotes = <String, List<String>>{
     'Start a drawing from a picture or GIF, with crop and colour controls.',
   ],
   '1.4.5': [
-    '12,361 more animations, shared with permission. Search them by name, size and colour.',
+    '12,361 more animations. Search them by name, size and colour.',
     'Animations download as you browse or play them, then stay cached for offline use.',
     'Your current look keeps playing while the next one loads. Send preserves long animation holds.',
   ],

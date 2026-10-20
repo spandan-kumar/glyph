@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/engine/clip_asset.dart';
 import 'package:glyph/library/clip_asset_store.dart';
+import 'package:glyph/library/imported_collection.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
@@ -38,7 +39,7 @@ void main() {
     final (asset, bytes) = clipFixture(delays: [120, 350]);
     final store = ClipAssetStore(
       bundle: _Bundle({
-        'catalog_assets/imported/${asset.sha256}.clip.gz': bytes,
+        privateClipAsset(asset.sha256): bytes,
       }),
       cacheDir: () async => throw StateError('No disk cache'),
       client: MockClient((_) async => throw StateError('Unexpected download')),
@@ -88,7 +89,7 @@ void main() {
       var active = 0, peak = 0;
       final store = ClipAssetStore(
         bundle: _Bundle({for (final (asset, bytes) in fixtures)
-          'catalog_assets/imported/${asset.sha256}.clip.gz': bytes}),
+          privateClipAsset(asset.sha256): bytes}),
         cacheDir: () async => throw StateError('No disk cache'),
         decode: (bytes, asset) async {
           active++;
@@ -125,7 +126,7 @@ void main() {
       final broken = Uint8List.fromList(bytes)..[15] ^= 1;
       final store = ClipAssetStore(
         bundle: _Bundle({
-          'catalog_assets/imported/${asset.sha256}.clip.gz': broken,
+          privateClipAsset(asset.sha256): broken,
         }),
         cacheDir: () async => throw StateError('No disk cache'),
         client: MockClient(

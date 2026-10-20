@@ -1,268 +1,184 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show FlutterError;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:glyph/library/legacy_ids.dart';
 import 'package:glyph/engine/clip_asset.dart';
 import 'package:glyph/engine/registry.dart';
 import 'package:glyph/library/bundled_catalog.dart';
 import 'package:glyph/library/catalog.dart';
-import 'package:glyph/library/catalog_manifest.dart';
+import 'package:glyph/library/clip_asset_store.dart';
 import 'package:glyph/library/imported_collection.dart';
+import 'package:http/testing.dart';
 
+import 'clip_asset_fixture.dart';
+
+/// Serves real repo assets plus an in-memory private pack.
 class _Bundle extends CachingAssetBundle {
+  _Bundle([this.pack = const {}]);
+  final Map<String, List<int>> pack;
   @override
-  Future<ByteData> load(String key) async =>
-      ByteData.sublistView(File(key).readAsBytesSync());
+  Future<ByteData> load(String key) async {
+    final bytes = pack[key];
+    if (bytes != null) return ByteData.sublistView(Uint8List.fromList(bytes));
+    if (key.startsWith('$privatePackDir/')) {
+      throw FlutterError('Unable to load asset: "$key".');
+    }
+    return ByteData.sublistView(File(key).readAsBytesSync());
+  }
 }
 
-void main() {
-  final source = File(importedIndexAsset).readAsStringSync();
-  final collection = parseImportedCollection(source);
+const _permission = 'maintainer-confirmed-collection-consent-2026-10-13';
 
-  test('legacy item and generator identities resolve to the imported item', () {
-    final item = collection.items.first;
-    final number = item.id.substring('imported-'.length);
-    final old = '$legacyCollectionPrefix-$number';
-    expect(collection.byId(old), same(item));
-    expect(collection.byId('clip:$old'), same(item));
-    expect(collection.byId(item.generatorId), same(item));
-    expect(findGenerator('clip:$old')?.id, item.generatorId);
-    expect(collection.search(old), [item]);
-    expect(collection.search('clip:$old'), [item]);
-    final json = {...item.toJson(), 'id': old, 'generator': 'clip:$old'};
-    expect(LibraryItem.fromJson(json).toJson(), item.toJson());
-    expect(collection.byId('$legacyCollectionPrefix-unknown'), isNull);
-    expect(item.revokedBy({old}), isTrue);
-    expect(item.revokedBy({'clip:$old'}), isTrue);
-    expect(importedCollectionId('my-$old'), 'my-$old');
+List<dynamic> _row(ClipAsset asset, int id, String title, String category) => [
+  id, asset.sha256, asset.bytes, asset.width, asset.height, asset.frames,
+  ['red'], title, ['boat'], ['$title Alias'], ['water', 'rocking'], category,
+];
+
+void main() {
+  final (boat, boatBytes) = clipFixture(id: 7);
+  final (cat, catBytes) = clipFixture(id: 8, colours: [0xffffff]);
+  Map<String, dynamic> index({String? notice}) => {
+    'version': 3,
+    'count': 2,
+    'permission': _permission,
+    'categories': ['Water', 'Animals'],
+    'notice': ?notice,
+    'rows': [
+      _row(boat, 7, 'Rocking Sailboat', 'Water'),
+      _row(cat, 8, 'White Cat', 'Animals'),
+    ],
+  };
+  Map<String, List<int>> pack({String? notice}) => {
+    importedIndexAsset: utf8.encode(jsonEncode(index(notice: notice))),
+    privateClipAsset(boat.sha256): boatBytes,
+    privateClipAsset(cat.sha256): catBytes,
+  };
+  final base = Catalog.parse(File(bundledCatalogAsset).readAsStringSync());
+
+  test('without a private pack the library is the base catalog only', () async {
+    expect(await loadPrivateCollection(_Bundle()), isNull);
+    final all = await loadBundledCatalog(_Bundle());
+    expect(all.items.length, base.items.length);
+    expect(all.items.length, 1236);
+    expect(all.items.where((i) => i.asset?.type == 'clip-gzip'), isEmpty);
+    expect(all.items.where((i) => i.collection == 'Imported'), isEmpty);
   });
 
-
-  test(
-    'all 12,361 source IDs are present, with permission and working generators',
-    () {
-      final provenance = jsonDecode(
-        File('catalog_assets/imported/provenance.json').readAsStringSync(),
-      ) as Map;
-      final sourceIds = {
-        for (final row in provenance['entries'] as List) 'imported-${row['id']}',
-      };
-      expect(collection.items.length, 12361);
-      expect(collection.items.map((i) => i.id).toSet(), sourceIds);
-      expect(collection.items.map((i) => i.title).toSet().length, 12361);
-      for (final item in collection.items) {
-        expect(findGenerator(item.generatorId), isA<AssetClipGenerator>());
-        expect(item.asset!.license, 'shared-with-permission');
-        expect(item.notice, importedNotice);
-        expect(item.isPixelArt, isTrue);
-        expect(item.title.startsWith('Imported '), isFalse);
-        expect(item.subjects, isNotEmpty);
-      }
-    },
-  );
-
-  test(
-    'every unique clip hash, header, frame count and full timing is valid',
-    () {
-      final checked = <String>{};
-      final provenance = jsonDecode(
-        File('catalog_assets/imported/provenance.json').readAsStringSync(),
-      ) as Map;
-      final records = {
-        for (final row in provenance['entries'] as List) row['id'] as int: row,
-      };
-      for (final item in collection.items) {
-        final asset = ClipAssetLibrary.byId(item.generatorId)!.asset;
-        final record =
-            records[int.parse(item.id.substring('imported-'.length))]!;
-        expect(asset.sha256, record['clip_sha256']);
-        expect(asset.width, record['width']);
-        expect(asset.height, record['height']);
-        expect(asset.frames, record['frames']);
-        if (!checked.add(asset.sha256)) continue;
-        final bytes = File('catalog_assets/imported/${asset.sha256}.clip.gz')
-            .readAsBytesSync();
-        expect(bytes.length, asset.bytes);
-        expect(CatalogManifest.sha256Hex(bytes), asset.sha256);
-        final raw = Uint8List.fromList(gzip.decode(bytes));
-        final clip = decodeClipAsset(raw, asset);
-        expect(clip.totalMs, record['duration_ms']);
-        expect(clip.frames.length, asset.frames);
-      }
-    },
-  );
-
-  test('bundled loading retains the existing library and adds every collection item', () async {
-    final old = Catalog.parse(File(bundledCatalogAsset).readAsStringSync());
-    final all = await loadBundledCatalog(_Bundle());
-    expect(all.items.length, old.items.length + 12361);
-    expect(all.items.where((i) => i.collection == 'Imported').length, 12361);
-    expect(all.inCategory('Imported'), isEmpty);
-    for (final item in old.items) {
+  test('a private pack adds its items and loads clips from the pack', () async {
+    final bundle = _Bundle(pack());
+    final all = await loadBundledCatalog(bundle);
+    expect(all.items.length, base.items.length + 2);
+    for (final item in base.items) {
       expect(all.byId(item.id)!.toJson(), item.toJson());
     }
-    expect(all.search('imported red'), isNotEmpty);
+    final item = all.byId('imported-7')!;
+    expect(item.title, 'Rocking Sailboat');
+    expect(item.category, 'Water');
+    expect(item.collection, 'Imported');
+    expect(item.isPixelArt, isTrue);
+    expect(item.notice, isNull, reason: 'no credit line unless the pack has one');
+    expect(all.byId('clip:imported-7'), same(item));
+    expect(findGenerator(item.generatorId), isA<AssetClipGenerator>());
+    expect(all.search('white cat').map((i) => i.id), contains('imported-8'));
+    expect(all.search('collection:imported imported-8').single.id, 'imported-8');
+
+    final store = ClipAssetStore(
+      bundle: bundle,
+      cacheDir: () async => throw StateError('Fresh install: no cache'),
+      client: MockClient((_) async => throw StateError('Offline: no network')),
+    );
+    addTearDown(store.close);
+    addTearDown(ClipAssetLibrary.clearCache);
+    final clip = await store.load(ClipAssetLibrary.byId(item.generatorId)!.asset);
+    expect(clip.frames.length, boat.frames);
   });
 
-  test('reviewed sample names and subject aliases are searchable in the full library', () {
-    final all = Catalog.parse(File(bundledCatalogAsset).readAsStringSync())
-        .merge(collection);
-    final queries = {
-      'boat': 17315,
-      'neon alien': 16050,
-      'pink flower': 5146,
-      'blue robot': 8751,
-      'rainbow circle': 12045,
-      'rgb grid': 12394,
-      'white cat': 15353,
-      'yellow bandage': 16704,
-    };
-    for (final entry in queries.entries) {
+  test('the credit line comes from the pack when it has one', () {
+    final c = parseImportedCollection(jsonEncode(index(notice: ' Thanks! ')));
+    expect(c.items.map((i) => i.notice).toSet(), {'Thanks!'});
+    for (final bad in ['', 'x' * 201]) {
       expect(
-        all.search(entry.key).map((i) => i.id),
-        contains('imported-${entry.value}'),
-        reason: entry.key,
+        () => parseImportedCollection(jsonEncode(index(notice: bad))),
+        throwsFormatException,
       );
     }
   });
 
-  test('curated subjects stay bound to the correct source clip', () {
-    expect(
-      collection.search('duck sunglasses').map((i) => i.id),
-      contains('imported-5307'),
-    );
-    expect(
-      collection.search('duck rail').map((i) => i.id),
-      contains('imported-8431'),
-    );
-    expect(
-      collection.search('red robot head').map((i) => i.id),
-      contains('imported-8473'),
-    );
-    expect(
-      collection.search('white cyan bar').map((i) => i.id),
-      contains('imported-8336'),
-    );
-    expect(collection.byId('imported-5307')!.subjects, isNot(contains('skull')));
-    expect(collection.byId('imported-8431')!.subjects, isNot(contains('love')));
-    expect(
-      collection.byId('imported-8336')!.subjects,
-      isNot(contains('pumpkin')),
-    );
-  });
-
-  test('categorized clips retain collection credit and join subject groups', () {
-    expect(collection.byId('imported-17315')!.category, 'Water');
-    expect(collection.byId('imported-15353')!.category, 'Animals');
-    expect(collection.byId('imported-5146')!.category, 'Nature');
-    expect(collection.byId('imported-12045')!.category, 'Abstract');
-    expect(collection.items.every((i) => i.collection == 'Imported'), isTrue);
-    expect(collection.categories, isNot(contains('Imported')));
-    final item = collection.byId('imported-15353')!;
-    expect(collection.search('collection:imported ${item.id}').single.id, item.id);
-    expect(collection.search('collection:animals ${item.id}'), isEmpty);
+  test('an unreadable pack is ignored and the base catalog stays', () async {
+    final all = await loadBundledCatalog(_Bundle({
+      importedIndexAsset: utf8.encode('{"version": 3, "rows": ['),
+    }));
+    expect(all.items.length, base.items.length);
   });
 
   test('categorized schema rejects undeclared groups before registration', () {
-    final doc = jsonDecode(source) as Map<String, dynamic>;
+    parseImportedCollection(jsonEncode(index()));
+    final doc = index();
     final row = List<dynamic>.of((doc['rows'] as List).first as List);
-    final originalName = collection.items.first.title;
     row[7] = 'Rejected name';
     row[11] = 'Undeclared group';
     doc['rows'] = [row];
     doc['count'] = 1;
     expect(() => parseImportedCollection(jsonEncode(doc)), throwsFormatException);
-    expect(findGenerator(collection.items.first.generatorId)!.name, originalName);
-    row[11] = (doc['categories'] as List).first;
-    doc['categories'] = [row[11], row[11]];
+    expect(findGenerator('clip:imported-7')!.name, 'Rocking Sailboat');
+    row[11] = 'Water';
+    doc['categories'] = ['Water', 'Water'];
     expect(() => parseImportedCollection(jsonEncode(doc)), throwsFormatException);
   });
 
   test('malformed or duplicate entries are rejected before registration', () {
-    final doc = jsonDecode(source) as Map<String, dynamic>;
+    final doc = index();
     final rows = doc['rows'] as List;
     doc['rows'] = [rows.first, rows.first];
-    doc['count'] = 2;
+    expect(() => parseImportedCollection(jsonEncode(doc)), throwsFormatException);
+    final wrongPermission = index()..['permission'] = 'CC0';
     expect(
-      () => parseImportedCollection(jsonEncode(doc)),
-      throwsFormatException,
-    );
-    doc['permission'] = 'CC0';
-    expect(
-      () => parseImportedCollection(jsonEncode(doc)),
+      () => parseImportedCollection(jsonEncode(wrongPermission)),
       throwsFormatException,
     );
   });
 
-  test(
-    'named schema preserves content identities and adds reviewed search words',
-    () {
-      final original = (jsonDecode(source) as Map)['rows'].first as List;
-      final row = [
-        ...original.take(7),
-        'Sailboat Review Fixture',
-        ['boat', 'sailboat'],
-        ['Sailing Boat Review Fixture'],
-        ['water', 'rocking'],
-      ];
-      final doc = {
-        'version': 2,
-        'count': 1,
-        'permission': 'maintainer-confirmed-collection-consent-2026-10-13',
-        'rows': [row],
-      };
-      addTearDown(() => parseImportedCollection(source));
-      final named = parseImportedCollection(jsonEncode(doc));
-      final item = named.items.single;
-      expect(item.id, 'imported-${original[0]}');
-      expect(item.asset!.extra['sha256'], original[1]);
-      expect(item.asset!.extra['bytes'], original[2]);
-      expect(item.title, 'Sailboat Review Fixture');
-      expect(named.search('boat rocking').single.id, item.id);
-      expect(named.search('sailing boat review fixture').single.id, item.id);
-      expect(named.search(item.id).single.id, item.id);
-      for (final broken in [
-        [...row]..[7] = '',
-        [...row]..[7] = 'x' * 81,
-        [...row]..[8] = [],
-        [...row]..[8] = ['x' * 65],
-        [...row]..[9] = [false],
-        [...row]..[9] = List.filled(9, 'alias'),
-        [...row]..[10] = [],
-        [...row]..[10] = ['bad\nword'],
-      ]) {
-        expect(
-          () => parseImportedCollection(
-            jsonEncode({
-              ...doc,
-              'rows': [broken],
-            }),
-          ),
-          throwsFormatException,
-        );
-        expect(
-          findGenerator(item.generatorId)!.name,
-          item.title,
-          reason: 'a rejected index cannot replace registered metadata',
-        );
-      }
-    },
-  );
+  test('named schema validates its search words', () {
+    final row = _row(boat, 7, 'Sailboat Review Fixture', 'Water').take(11).toList();
+    final doc = {'version': 2, 'count': 1, 'permission': _permission, 'rows': [row]};
+    final named = parseImportedCollection(jsonEncode(doc));
+    final item = named.items.single;
+    expect(item.id, 'imported-7');
+    expect(item.asset!.extra['sha256'], boat.sha256);
+    expect(item.asset!.extra['bytes'], boat.bytes);
+    expect(named.search('boat rocking').single.id, item.id);
+    expect(named.search('sailboat review fixture alias').single.id, item.id);
+    expect(named.search(item.id).single.id, item.id);
+    for (final broken in [
+      [...row]..[7] = '',
+      [...row]..[7] = 'x' * 81,
+      [...row]..[8] = [],
+      [...row]..[8] = ['x' * 65],
+      [...row]..[9] = [false],
+      [...row]..[9] = List.filled(9, 'alias'),
+      [...row]..[10] = [],
+      [...row]..[10] = ['bad\nword'],
+    ]) {
+      expect(
+        () => parseImportedCollection(jsonEncode({...doc, 'rows': [broken]})),
+        throwsFormatException,
+      );
+      expect(
+        findGenerator(item.generatorId)!.name,
+        item.title,
+        reason: 'a rejected index cannot replace registered metadata',
+      );
+    }
+  });
 
-  test('legacy schema still loads its exact source records', () {
-    final original = (jsonDecode(source) as Map)['rows'].first as List;
-    final doc = {
-      'version': 1,
-      'count': 1,
-      'permission': 'maintainer-confirmed-collection-consent-2026-10-13',
-      'rows': [original.take(7).toList()],
-    };
-    addTearDown(() => parseImportedCollection(source));
+  test('the original schema still loads its records', () {
+    final row = _row(boat, 7, 'unused', 'Water').take(7).toList();
+    final doc = {'version': 1, 'count': 1, 'permission': _permission, 'rows': [row]};
     final legacy = parseImportedCollection(jsonEncode(doc));
-    expect(legacy.items.single.title, 'Imported ${original[0]}');
+    expect(legacy.items.single.title, 'Imported 7');
     expect(legacy.items.single.subjects, isEmpty);
-    expect(legacy.search('${original[0]}').single.id, 'imported-${original[0]}');
+    expect(legacy.search('7').single.id, 'imported-7');
   });
 }

@@ -8,11 +8,10 @@ pixel-display owners want, which displays they own and where they talk.
 
 **Status, 18 October 2026.** The latest release is v1.4.9+21
 ([notes](https://github.com/spandan-kumar/glyph/releases/tag/v1.4.9)). The
-library has 13,597 looks: 1,236 of Glyph's own (62 procedural generators,
-356 sprites, public-domain classics) plus 12,361 imported animations shared
-with their creator's permission, in 32 subject groups, all bundled for
-offline use. Public copy says "13,000+ animations". v1.4.2–v1.4.9 added the
-full-screen gamepad, the imported collection, search and picture-to-drawing.
+library has 1,236 looks (62 procedural generators, 356 sprites,
+public-domain classics) in 22 subject groups, all bundled for offline use,
+and all original, CC0 or public domain. Public copy says "1,200+ animations".
+v1.4.2–v1.4.9 added the full-screen gamepad, search and picture-to-drawing.
 v1.4.1 rotated the release key and keeps the existing Android signing
 history ([release verification](QA_1_4_1.md)).
 
@@ -52,7 +51,7 @@ internet, rather than promising that all future features are offline.
 
 ## 1. Positioning
 
-**Tagline:** *Your LED matrix, alive — 13,000+ animations, pixel art, clocks,
+**Tagline:** *Your LED matrix, alive — 1,200+ animations, pixel art, clocks,
 games and your music's album art, from your phone. Free, local, no account.*
 
 **Audiences, in priority order**
@@ -69,7 +68,7 @@ games and your music's album art, from your phone. Free, local, no account.*
 
 | Claim | Show it |
 |---|---|
-| Content no one else has | Scroll the library; 13,000+ animations, public-domain classics (1928 Steamboat Willie, The Starry Night) |
+| Content no one else has | Scroll the library; 1,200+ animations, public-domain classics (Pinocchio, The Starry Night) |
 | Album art on your matrix | Spotify plays → cover appears with a moving progress bar |
 | It just works | Plug in, app finds the device, first animation in seconds |
 | Works on any ESP | The phone renders; even an ESP8266 streams 40 fps |
@@ -340,7 +339,7 @@ video exist.
 ### r/WLED (soft launch)
 
 > **Title:** Free, open-source Android app that sets up a WLED matrix for you
-> (size, wiring, panel grids) and has 13,000+ animations
+> (size, wiring, panel grids) and has 1,200+ animations
 >
 > [video link]
 >
@@ -354,8 +353,8 @@ video exist.
 > After setup it is a content app. Your phone draws every frame and streams
 > it, or sends a GIF to the controller so it plays without the phone.
 >
-> - 13,000+ animations: Glyph's own effects and pixel art, public-domain
->   classics, and a collection shared with its creator's permission
+> - 1,200+ animations: Glyph's own effects and pixel art, public-domain
+>   classics
 > - Now Playing album art, pixel editor that draws live, text and clocks,
 >   music visualisers, seven games
 > - Shows and schedules that run on the device
@@ -380,7 +379,7 @@ video exist.
 >
 > v1.4.0 adds a setup wizard: Wi-Fi join, panel size, a three-tap wiring test
 > and grids of equal panels up to the 18-panel limit, with a config snapshot
-> and undo. The rest is a library of 13,000+ looks, a pixel editor, clocks,
+> and undo. The rest is a library of 1,200+ looks, a pixel editor, clocks,
 > Now Playing and Shows.
 >
 > Notes for people who care about internals: streamed frames get gamma and

@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../engine/clip.dart';
-import '../library/legacy_ids.dart';
 
 /// Something the user made: a drawing, imported GIF or text animation.
 class Creation {
@@ -44,7 +43,7 @@ class Creation {
         title: j['title'] as String,
         kind: j['kind'] as String,
         updatedAt: DateTime.parse(j['updatedAt'] as String),
-        meta: Map<String, dynamic>.from(migrateCollectionReferences(j['meta'] ?? const {}) as Map),
+        meta: Map<String, dynamic>.from(j['meta'] as Map? ?? const {}),
         clip: FrameClip.fromJson(Map<String, dynamic>.from(j['clip'] as Map)),
       );
 }
@@ -73,19 +72,7 @@ class CreationsStore extends ChangeNotifier {
       if (f is! File || !f.path.endsWith('.json')) continue;
       try {
         final data = jsonDecode(await f.readAsString()) as Map<String, dynamic>;
-        final meta = data['meta'];
-        final migrated = migrateCollectionReferences(meta);
-        final creation = Creation.fromJson({...data, 'meta': migrated});
-        out.add(creation);
-        if (jsonEncode(meta) != jsonEncode(migrated)) {
-          try {
-            final pending = File('${f.path}.migrating');
-            await pending.writeAsString(jsonEncode({...data, 'meta': migrated}), flush: true);
-            await pending.rename(f.path);
-          } catch (_) {
-            // Keep the creation visible; retry the rewrite next load.
-          }
-        }
+        out.add(Creation.fromJson(data));
       } catch (_) {
         // A corrupt file shouldn't take the whole list down.
       }
@@ -109,7 +96,7 @@ class CreationsStore extends ChangeNotifier {
       title: title,
       kind: kind,
       clip: clip,
-      meta: Map<String, dynamic>.from(migrateCollectionReferences(meta) as Map),
+      meta: Map<String, dynamic>.from(meta),
       updatedAt: DateTime.now(),
     );
     final dir = await _directory();

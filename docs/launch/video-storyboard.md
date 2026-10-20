@@ -13,7 +13,7 @@ No voiceover required. Use quiet, licensed music or room sound; keep captions re
 | 3 · 6–9 s · 3 s | “Which corner lit up?” Tap the matching corner. | Physical LED zero lights in that corner. | Phone and corner in the same locked shot; finger does not cover target. | “Tap the lit corner” |
 | 4 · 9–12 s · 3 s | Run-direction answer, then second-run answer; two short cuts. | LEDs travel along the first run, then light the next run's start. | Same framing, cut only after the observed response. | “Follow the lights” |
 | 5 · 12–15 s · 3 s | Brief Review/Applying insert, then “Does it match?” and “It matches”. | Arrow upright, orange block top left, asymmetric check pattern. | Match cut from diagram to physical panel, then finger confirms. | “Check. Done.” |
-| 6 · 15–20 s · 5 s | Display; two deliberate channel swipes, leaving each result visible. | Changes to corresponding procedural look, then sprite. | Static phone/panel two-shot; insert screen recording only after proving a real response. | “13,000+ animations” |
+| 6 · 15–20 s · 5 s | Display; two deliberate channel swipes, leaving each result visible. | Changes to corresponding procedural look, then sprite. | Static phone/panel two-shot; insert screen recording only after proving a real response. | “1,200+ animations” |
 | 7 · 20–24 s · 4 s | Palette reel or motion knob changes the selected look. | Colour or motion responds. | Close on hand and control; rack focus to panel only after the action. | “Make it yours” |
 | 8 · 24–28 s · 4 s | Make → Draw; add a few pixels to a prepared original drawing. | The same strokes appear live. | Overhead phone close-up with panel above, or locked side-by-side shot. | “Draw live” |
 | 9 · 28–32 s · 4 s | Now Playing with creator-owned cover art and active progress. | Pixel version of that cover and progress bar. | Phone/panel two-shot, hold still long enough to compare them. | “Your music, in pixels” / small “Needs your phone” |
@@ -50,7 +50,7 @@ Use the real wiring answers for this panel. Do not rotate footage to make a chos
 |---|---|---|---|---|
 | D1 · 3 s | Display with one procedural look running. | Matching look. | Stable two-shot, fingertip ready. | “Swipe a channel” |
 | D2 · 3 s | One channel swipe, hold on new title/preview. | Matching sprite appears. | Same take, no cut over the response. | “See it on your device” |
-| D3 · 3 s | Second swipe, then hold. | Third look appears. | Same framing or tighter insert after response. | “13,000+ animations” |
+| D3 · 3 s | Second swipe, then hold. | Third look appears. | Same framing or tighter insert after response. | “1,200+ animations” |
 | D4 · 3 s | Adjust palette. | Colours change; keep motion visible. | Hand/control and panel both readable. | “Tune the colours” |
 
 Choose three visually distinct looks in advance. Capture real latency; do not accelerate the finger-to-panel interval. Use the 9:16 stacked or 16:9 side-by-side framing described above.

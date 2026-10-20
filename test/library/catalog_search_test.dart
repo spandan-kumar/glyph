@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/library/catalog.dart';
-import 'package:glyph/library/imported_collection.dart';
 
 LibraryItem item(
   String id,
@@ -191,7 +189,7 @@ void main() {
       );
       expect(ids(c, 'kiten 32x32 collection:imported'), ['cat']);
       expect(ids(c, 'kiten 16x16 collection:imported'), isEmpty);
-      expect(ids(c, 'kiten collection:imported'), isEmpty);
+      expect(ids(c, 'kiten collection:elsewhere'), isEmpty);
       expect(ids(c, 'kiten collection:imported collection:originals'), isEmpty);
       expect(c.searchResults('powefupp girls 16x16').suggestions, isEmpty);
       expect(
@@ -249,133 +247,6 @@ void main() {
         3,
         reason: 'deduplication only changes search presentation',
       );
-    },
-  );
-
-  test(
-    'reviewed names and franchise aliases find the actual clips',
-    () {
-      final c = parseImportedCollection(
-        File(importedIndexAsset).readAsStringSync(),
-      );
-      for (final entry in {
-        'mario': 'imported-2005',
-        'super mario': 'imported-2005',
-        'wolverine': 'imported-2032',
-        'logan': 'imported-2032',
-        'x men': 'imported-2032',
-        'xmen': 'imported-2032',
-        'blossom': 'imported-2264',
-        'powerpuff girls': 'imported-2264',
-        'fallout': 'imported-10134',
-        'vault boy': 'imported-10134',
-        'anya forger': 'imported-2524',
-        'spy family': 'imported-2524',
-        'sonic hedgehog': 'imported-13873',
-        'hollow knight': 'imported-4563',
-        'silksong': 'imported-4622',
-        'futurama': 'imported-10182',
-        'pokemon': 'imported-2838',
-        'shinchan': 'imported-2323',
-        'game boy': 'imported-7178',
-        'robocop': 'imported-2186',
-        'peashooter': 'imported-8755',
-        'plants vs zombies': 'imported-8755',
-        'bullet bill': 'imported-5754',
-        'pokémon': 'imported-2241',
-        'ken kaneki': 'imported-14467',
-        'tokyo ghoul': 'imported-14467',
-        'twitch': 'imported-6111',
-        'game controller': 'imported-6840',
-        'burger': 'imported-4714',
-        'duck splashes': 'imported-2826',
-        'playing card suits': 'imported-6975',
-        'pink lettering': 'imported-5990',
-        'fairy princess': 'imported-2087',
-        'jet takeoff': 'imported-2321',
-        'pug': 'imported-5011',
-        'tiger sunglasses': 'imported-5083',
-        'telephone': 'imported-6309',
-        'duck knife': 'imported-11821',
-        'maracas': 'imported-13898',
-        'energy ball': 'imported-14304',
-      }.entries) {
-        expect(ids(c, entry.key), contains(entry.value), reason: entry.key);
-      }
-      for (final entry in {
-        'imported-2005': 'Mario',
-        'imported-2032': 'Wolverine',
-        'imported-2264': 'Blossom',
-      }.entries) {
-        expect(c.byId(entry.key)!.title, contains(entry.value));
-      }
-      expect(
-        ids(c, 'pikachu'),
-        isNot(contains('imported-5319')),
-        reason: 'an ordinary yellow duck is not Pikachu',
-      );
-      expect(
-        ids(c, 'pikachu'),
-        isNot(contains('imported-3565')),
-        reason: 'a generic white skull is not Pikachu',
-      );
-      expect(
-        ids(c, 'wolverine'),
-        isNot(contains('imported-14887')),
-        reason: 'the cat in a Christmas stocking is not Wolverine',
-      );
-      expect(
-        ids(c, 'clothing'),
-        isNot(contains('imported-7178')),
-        reason: 'the rotating handheld is a game console, not clothing',
-      );
-      expect(
-        ids(c, 'tree'),
-        isNot(contains('imported-8755')),
-        reason: 'the Peashooter is not a tree',
-      );
-      expect(
-        ids(c, 'creature'),
-        isNot(contains('imported-6309')),
-        reason: 'the ringing telephone is not a grinning creature',
-      );
-      expect(
-        c.byId('imported-2321')!.title,
-        'Jet Taking Off',
-      );
-    },
-  );
-
-  test(
-    'full collection searches use known metadata without false rainbow matches',
-    () {
-      final bundled = Catalog.parse(
-        File('assets/catalog/catalog.json').readAsStringSync(),
-      );
-      final c = bundled.merge(
-        parseImportedCollection(File(importedIndexAsset).readAsStringSync()),
-      );
-      final rainbows = c
-          .search('rainbow')
-          .where((i) => i.collection == 'Imported')
-          .toList();
-      expect(rainbows, isNotEmpty);
-      expect(rainbows.length, lessThan(c.items.where((i) => i.collection == 'Imported').length));
-      for (final item in rainbows) {
-        expect(
-          [item.title, ...item.subjects, ...item.aliases, ...item.tags].any(
-            (t) => t
-                .toLowerCase()
-                .split(RegExp(r'[^a-z0-9]+'))
-                .contains('rainbow'),
-          ),
-          isTrue,
-        );
-      }
-      expect(c.search('imported red 32x32'), isNotEmpty);
-      final duplicate = c.items.firstWhere((i) => i.id.startsWith('imported-'));
-      expect(c.search(duplicate.id).single.id, duplicate.id);
-      expect(c.search('zzzz-nothing'), isEmpty);
     },
   );
 }

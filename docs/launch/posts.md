@@ -9,12 +9,12 @@ approves and sends every post, email and PR.
 | Fact | Say exactly |
 |---|---|
 | Version | v1.4.9 (check the latest release before posting) |
-| Library | "13,000+ animations" (catalog: 13,597 looks) |
-| Made of | 62 procedural effects, 356 sprites, public-domain "Famous Classics", plus a collection shared with permission by its creator |
+| Library | "1,200+ animations" (catalog: 1,236 looks) |
+| Made of | 62 procedural effects, 356 sprites, public-domain "Famous Classics" |
 | Platform | Android 7+, 64-bit ARM. Sideload the APK, or add it to Obtainium. No iOS. |
 | F-Droid | Pending (merge request open). Never say "available on F-Droid". |
 | Play Store | Not there yet. Don't promise a date. |
-| Licence | "MIT-licensed code; artwork terms vary." Never "all original". Never name the imported collection's source. |
+| Licence | "MIT-licensed code; original, CC0 and public-domain art." |
 | Cost | Free, no account, no analytics, no Glyph server |
 | Games / visualisers | Seven games, nine microphone visualisers |
 | Developed on | WLED 16.0.1, ESP32, 16x16 WS2812B |
@@ -94,10 +94,10 @@ Two things I found on WLED 16.0.1 that might save someone time:
 - `hw.led.ins` entries are rebuilt from defaults, so you have to post the full
   entry, not a patch.
 
-What's in it: 13,000+ animations (62 procedural effects, 356 sprites, public
-domain classics, and a collection shared with permission), a pixel editor that
+What's in it: 1,200+ original animations (62 procedural effects, 356 sprites, public
+domain classics), a pixel editor that
 draws live, text, clocks, seven games, and album art from whatever your phone
-is playing. Code is MIT; artwork terms vary, details in the README.
+is playing. Code is MIT; art is original, CC0 or public domain, details in the README.
 
 Limits, plainly: I developed it on WLED 16.0.1 with an ESP32 and a 16x16
 WS2812B panel. The wizard hasn't been run on a factory-fresh controller yet,
@@ -290,7 +290,7 @@ planned. For now Home Assistant chooses what plays and Glyph supplies the
 looks.
 
 The app is Android 7+ (64-bit ARM), sideloaded or through Obtainium. It's
-MIT-licensed code; artwork terms vary (details in the README).
+MIT-licensed code; original, CC0 and public-domain art (details in the README).
 
 Guide: https://github.com/spandan-kumar/glyph/blob/main/docs/HOME_ASSISTANT.md
 Repo: https://github.com/spandan-kumar/glyph
@@ -409,8 +409,8 @@ settings back. It also handles grids of equal panels, up to WLED's
 
 After that it's a content app, so the panel has something to show:
 
-- 13,000+ animations (effects, pixel art, public-domain classics like The
-  Starry Night and Dracula, plus a collection shared with permission),
+- 1,200+ animations (effects, pixel art, public-domain classics like The
+  Starry Night and Dracula),
   with a Halloween pack for today
 - a pixel editor that draws on the panel live, text and clocks, seven games,
   album art from your phone
@@ -420,7 +420,7 @@ This is not a PixelForge replacement. PixelForge is great for turning one
 image into a GIF. Glyph is the setup around it plus a library, and it uses
 WLED's normal API, so everything still works in the WLED app and web UI.
 
-Free, MIT-licensed code (artwork terms vary, README has the detail), no
+Free, MIT-licensed code (art is original, CC0 or public domain, README has the detail), no
 account, no Glyph server. Android 7+ and 64-bit ARM; sideload the APK or add
 it to Obtainium. No iOS.
 
@@ -496,7 +496,7 @@ A typical weekend build: a 16x16 WS2812B panel (256 LEDs), an ESP32 running
 WLED 16 (install at install.wled.me), a 5 V supply with a separate power feed
 to the panel, and wiring. Roughly US$40 to 80 depending on supplier, before
 tools and shipping. Then I made Glyph, a free Android app, for the
-remaining part: a setup wizard for the 2D layout, 13,000+ animations, a
+remaining part: a setup wizard for the 2D layout, 1,200+ animations, a
 pixel editor, games with your phone as the controller, and album art.
 
 The phone renders every frame, so even small controllers work. It streams
@@ -525,7 +525,7 @@ APK: https://github.com/spandan-kumar/glyph/releases/latest
 **Body:**
 
 I made Glyph, an Android app for WLED LED matrices. It's licensed MIT (the code;
-artwork terms vary and are listed in the README), has no account, no ads and no
+art is original, CC0 or public domain and credited in the README), has no account, no ads and no
 analytics, and talks to the devices on your Wi-Fi. The only other network
 calls are optional: Open-Meteo for weather and air quality, and GitHub Pages
 for catalog updates, and only when you check. The privacy details are in
@@ -563,13 +563,13 @@ I think this sub will like: Now Playing takes the cover of whatever your
 phone is playing (Spotify, YouTube Music, any player) and draws it on the
 matrix with a progress bar. Covers aren't stored on your phone or the device.
 
-It also has 13,000+ animations, a pixel editor that draws on the matrix live,
+It also has 1,200+ animations, a pixel editor that draws on the matrix live,
 seven games with your phone as the controller, and a setup wizard for the
 matrix itself.
 
 To be clear about who it's for: you need a WLED LED matrix on your Wi-Fi. If
 you don't have one, "Try without a device" lets you browse and play on your
-phone. No account, no ads, no tracking. MIT-licensed code, artwork terms vary.
+phone. No account, no ads, no tracking. MIT-licensed code, original, CC0 and public-domain art.
 
 Requirements: Android 7+ on a 64-bit ARM phone. It's sideloaded for now: get
 the APK from GitHub or add it to Obtainium. Not on the Play Store yet. No iOS.
@@ -660,10 +660,10 @@ only for now.
 
 **Title:** Glyph, an MIT-licensed Android app for WLED LED matrices (no account, no tracking)
 
-**Body:** I made this. Glyph sets up a WLED matrix and fills it with 13,000+
+**Body:** I made this. Glyph sets up a WLED matrix and fills it with 1,200+
 animations, a pixel editor, games and album art. The phone renders every frame
-and either streams it or sends it to the device. Code is MIT; artwork terms
-vary. No account, no analytics, no server of mine. F-Droid merge request is
+and either streams it or sends it to the device. Code is MIT; art is original,
+CC0 or public domain. No account, no analytics, no server of mine. F-Droid merge request is
 pending; for now sideload the APK or use Obtainium. Android 7+, 64-bit ARM.
 https://github.com/spandan-kumar/glyph
 
@@ -703,7 +703,7 @@ yet. https://github.com/spandan-kumar/glyph/blob/main/docs/HOME_ASSISTANT.md
   tags. Post from your own account.
 
 > I made Glyph: a free Android app that sets up your WLED LED matrix in a few
-> taps, then fills it with 13,000+ animations. Swipe to change what's showing,
+> taps, then fills it with 1,200+ animations. Swipe to change what's showing,
 > tap Send, and the panel keeps playing with the phone off.
 >
 > MIT-licensed code, no account, no tracking. Sideload or Obtainium; F-Droid
@@ -721,7 +721,7 @@ panel keeps playing an animation. [adjust to the final footage]
 ### 6e. Bluesky (300 characters)
 
 > I made Glyph, a free Android app that sets up your WLED LED matrix and fills
-> it with 13,000+ animations. Tap Send and it plays on its own. MIT code, no
+> it with 1,200+ animations. Tap Send and it plays on its own. MIT code, no
 > account. Android only for now.
 > https://github.com/spandan-kumar/glyph
 > #WLED #pixelart #LEDmatrix #opensource
@@ -806,9 +806,9 @@ original matrix was, and the moment you decided a phone app was the fix. I
 have not invented a backstory.]
 
 Around that sits a setup wizard (it asks which corner lit up and writes the
-2D layout), 13,000+ animations, a live pixel editor, seven games with the
+2D layout), 1,200+ animations, a live pixel editor, seven games with the
 phone as the controller, and album art. No account, no analytics, no server of
-mine. The code is MIT; the artwork terms vary and are in the README.
+mine. The code is MIT; the art is original, CC0 or public domain, with credits in the README.
 
 Limits: Android 7+ and 64-bit ARM only, no iOS. Developed on WLED 16.0.1 with an
 ESP32 and a 16x16 panel. The wizard hasn't run on a factory-fresh controller,
@@ -842,7 +842,7 @@ Maher last, with the polished clip and any coverage so far.
 >
 > I made Glyph, a free, open-source Android app for WLED matrices (MIT, no
 > account). It sets up the 2D layout with a "which corner lit up?" test, then
-> fills the panel with 13,000+ animations, and Send makes it play without the
+> fills the panel with 1,200+ animations, and Send makes it play without the
 > phone. Here's 15 seconds on a real panel: [clip B link].
 >
 > I'm not asking for a review or paying for one. It's free; try it on a panel
@@ -951,7 +951,7 @@ Both suit someone with a first matrix, which is who I made Glyph for.
 **URL:** https://github.com/spandan-kumar/glyph
 
 **Description:** Glyph is an MIT-licensed Android app that sets up a WLED 2D
-matrix with a "which corner lit up?" wiring test, then fills it with 13,000+
+matrix with a "which corner lit up?" wiring test, then fills it with 1,200+
 animations, a live pixel editor, games and album art. The phone renders every
 frame and either streams it over DDP or bakes a GIF for WLED's Image effect.
 Developed on an ESP32 with a 16x16 WS2812B panel. Video: [clip A link].
@@ -965,7 +965,7 @@ if the question is different.
 
 **How is this different from PixelForge or the WLED app?**
 Use them too. Glyph is a phone app that sets up the 2D layout for you, brings
-a 13,000-look library, draws and plays games live, and puts your music's album
+a 1,200-look library, draws and plays games live, and puts your music's album
 art on the panel. It talks to WLED's normal API, so nothing else changes.
 
 **Is there an iOS version?**
@@ -979,10 +979,8 @@ myself on a real WLED matrix, not only in unit tests. The repo has the tests
 and the AGENTS.md that guides the assistants, if you want to look.
 
 **Where do the animations come from?**
-About 1,300 are effects and sprites made for the project (MIT), CC0 art with
-credits, and public-domain originals such as The Starry Night and Dracula. The other ~12,000 are a collection of pixel art shared
-with permission by its creator. The code is MIT; artwork terms vary, and that last collection isn't
-covered by the MIT licence. The README lists the details.
+All original, CC0 or public domain: effects and sprites made for the project (MIT), CC0 art with
+credits, and public-domain originals such as The Starry Night and Dracula. The code is MIT. The README lists the details.
 
 **Why isn't it on the Play Store?**
 Not yet, and I won't promise a date. For now it's a GitHub release you
@@ -1019,7 +1017,7 @@ docs/PRIVACY.md.
 **Exact Markdown line to add (Controllers table):**
 
 ```markdown
-| [Glyph](https://github.com/spandan-kumar/glyph) | Free, open-source (MIT) Android app for 2D matrices. It has a setup wizard for the matrix layout, a library of 13,000+ animations, a live pixel editor and games. Streams frames over DDP, or sends a GIF to the device for the Image effect (WLED 16+ on ESP32). |
+| [Glyph](https://github.com/spandan-kumar/glyph) | Free, open-source (MIT) Android app for 2D matrices. It has a setup wizard for the matrix layout, a library of 1,200+ animations, a live pixel editor and games. Streams frames over DDP, or sends a GIF to the device for the Image effect (WLED 16+ on ESP32). |
 ```
 
 **Branch/commit:** `Add Glyph to compatible software`

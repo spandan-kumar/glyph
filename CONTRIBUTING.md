@@ -217,12 +217,8 @@ must be safe to share:
 - No pixels traced or copied from other people's sprite sheets without an
   explicit CC0 release. A free download alone is not permission to bundle art.
 
-**One exception, not open to contributions:** the imported animation
-collection was added by the maintainer with
-permission from its creator. It isn't covered by
-the MIT licence or by these rules, and some of its animations show
-third-party characters. Don't use it as a precedent: new art in pull
-requests still has to be original, public domain or CC0.
+There are no exceptions: every animation in Glyph is original, CC0 or public
+domain, and pull requests that add anything else will be closed.
 
 Drawings based on public-domain works carry a `source` block so the app can
 show where they come from (see `masterpieces.json` and

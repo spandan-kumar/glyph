@@ -1,5 +1,4 @@
 import 'catalog.dart';
-import 'legacy_ids.dart';
 
 class CatalogSearchResult {
   const CatalogSearchResult(
@@ -166,7 +165,7 @@ class CatalogSearch {
       .toList();
 
   CatalogSearchResult search(String text) {
-    final query = _Query(importedCollectionId(text));
+    final query = _Query(text);
     final direct = _match(query);
     if (direct.isNotEmpty || query.tokens.isEmpty) {
       return CatalogSearchResult(direct);

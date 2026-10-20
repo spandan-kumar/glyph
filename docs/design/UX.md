@@ -67,8 +67,7 @@ the app's own light comes from what the matrix is showing.
   becomes the surf order.
   All opens a lazy full-library grid through See all. Its preview includes
   different categories; favourites and recents do not duplicate entries.
-  Imported animations join their subject categories while retaining a
-  separate collection shelf and credit. Pixel Pals shows characters, animals
+  Pixel Pals shows characters, animals
   and expressive sprites; abstract patterns have their own group.
 - Scrolling down collapses the Stage into a **mini-stage** pinned at the top
   (live thumbnail, title, ‹ ›). There is no bottom "now playing" bar.
@@ -81,7 +80,7 @@ the app's own light comes from what the matrix is showing.
   word like "cat" into "cathedral". Correct only small, unambiguous spelling
   slips when direct search finds nothing, and show the correction. Larger
   slips offer up to three named suggestions; tapping one changes the query.
-  Sizes (`32x32`, `32×32`) and `collection:imported` (quoted for multiword
+  Sizes (`32x32`, `32×32`) and `collection:<name>` (quoted for multiword
   names) are strict constraints, including during correction/suggestion.
   Identical hash-pinned clips appear once in search; exact source-ID queries
   can still retrieve each record. Internal generator/palette IDs do not

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/engine/clip_asset.dart';
+import 'package:glyph/library/bundled_catalog.dart';
 import 'package:glyph/library/clip_asset_store.dart';
 import 'package:glyph/library/imported_collection.dart';
 import 'package:http/testing.dart';
@@ -10,22 +11,25 @@ import 'package:http/testing.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('every collection clip ships in the app and loads on a fresh offline install', () async {
+  test('the app bundles clips only from a private pack, and all of them', () async {
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final clips =
+        manifest.listAssets().where((s) => s.endsWith('.clip.gz')).toSet();
+    expect(ClipAssetStore.shared.bundle, same(rootBundle));
+    if (!manifest.listAssets().contains(importedIndexAsset)) {
+      // Public builds: no collection index, no clip files, nothing to load.
+      expect(clips, isEmpty);
+      expect(await loadPrivateCollection(rootBundle), isNull);
+      return;
+    }
+    // A private build with the pack dropped in: every clip ships offline.
     final catalog = parseImportedCollection(
       await rootBundle.loadString(importedIndexAsset),
     );
-    final expected = {
+    expect(clips, {
       for (final item in catalog.items)
-        'catalog_assets/imported/${ClipAssetLibrary.byId(item.generatorId)!.asset.sha256}.clip.gz',
-    };
-    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    expect(
-      manifest.listAssets().where((s) => s.endsWith('.clip.gz')).toSet(),
-      expected,
-    );
-    expect(expected.length, 12273);
-    expect(ClipAssetStore.shared.bundle, same(rootBundle));
-
+        privateClipAsset(ClipAssetLibrary.byId(item.generatorId)!.asset.sha256),
+    });
     final store = ClipAssetStore(
       bundle: rootBundle,
       cacheDir: () async => throw StateError('Fresh install: no cache'),
@@ -43,8 +47,6 @@ void main() {
       final asset = ClipAssetLibrary.byId('clip:imported-${row[0]}')!.asset;
       final clip = await store.load(asset);
       expect(clip.frames.length, asset.frames);
-      expect(clip.width, asset.width);
-      expect(clip.height, asset.height);
     }
   });
 }

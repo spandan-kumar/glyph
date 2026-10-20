@@ -1,9 +1,6 @@
 # Artist collection
 
-The separately permitted 12,361-entry Imported collection is documented in
-[Imported collection](IMPORTED_COLLECTION.md), including its permission record,
-credit, source ledger and delivery. The CC0 records below apply to these
-four creator-published packs.
+The CC0 records below apply to these four creator-published packs.
 
 Content revision 4 adds 27 animations from four creator-published CC0 packs.
 Each animation gets one catalogue entry and an artist credit in its details.

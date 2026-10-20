@@ -63,7 +63,7 @@ The validator re-checks both.
 
 ## 4. Design for LEDs
 
-For imported art, use only a creator's explicit CC0 release. Preserve its
+For art from another creator, use only a creator's explicit CC0 release. Preserve its
 source page, download hash, archive member and adaptation details in `source`
 (see `reference.md` → Source). Credit the artist in the user-facing notice.
 Existing curated imports can be reproduced with `tool/import_cc0_sprites.py`;

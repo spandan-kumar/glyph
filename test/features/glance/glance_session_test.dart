@@ -92,6 +92,15 @@ void main() {
         .setMockMethodCallHandler(channel, null);
     dir.deleteSync(recursive: true);
   });
+  test('a Rotation entry for a look no longer in the library is unavailable, not broken', () {
+    final entry = PhoneShowEntry.fromJson(
+      {'kind': 'library', 'id': 'imported-42', 'seconds': 10},
+    );
+    expect(entry.id, 'imported-42');
+    expect(session.resolve(entry), isNull);
+    expect(session.entryTitle(entry), 'Unavailable');
+  });
+
   test('load never starts playback; foreground card stops on app background and exits live only', () async {
     expect(session.playing, false);
     expect(session.background, false);
