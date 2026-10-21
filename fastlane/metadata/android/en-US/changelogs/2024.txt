@@ -1,0 +1,4 @@
+Safer imports: very large or long images and Glyph files are refused instead of slowing the app.
+Setup says where your Wi-Fi password goes before you send it.
+Alerts explain that notification access can be turned off anytime.
+Updated libraries and build tools.

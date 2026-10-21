@@ -4,6 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.12': [
+    'Safer imports: very large or long images are refused instead of slowing Glyph down.',
+    'Setup says where your Wi-Fi password goes before you send it.',
+    'Updated libraries and build tools.',
+  ],
   '1.4.11': [
     'The library now has only original, CC0 and public-domain animations.',
     'Favourites, Rotations and recents that pointed at removed looks are skipped.',
