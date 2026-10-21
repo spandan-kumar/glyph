@@ -81,7 +81,7 @@ jobs:
           fi
           cp website/index.html build/catalog-site/index.html
           cp -R website/media build/catalog-site/media
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: catalog-unsigned-${{ github.run_id }}
           path: build/catalog-site
@@ -114,7 +114,7 @@ jobs:
         env:
           CATALOG_SIGNING_KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
         run: dart run tool/catalog_sign.dart --site build/catalog-site
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: catalog-signed-${{ github.run_id }}
           path: build/catalog-site
