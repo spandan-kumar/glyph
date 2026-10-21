@@ -380,7 +380,7 @@ class _PrimaryAction extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Android asks once. Glyph only sees which app sent something, never what it says.',
+          'Android asks once. Glyph only sees which app sent something, never what it says. You can turn this off anytime in Android settings.',
           textAlign: TextAlign.center,
           style: LbType.small.copyWith(color: Lb.text3),
         ),

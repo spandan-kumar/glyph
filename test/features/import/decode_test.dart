@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -51,6 +52,72 @@ void main() {
     expect(src.sourceWidth, 1200);
     expect(src.frames.first.sublist(0, 3), [10, 20, 30]);
     expect(src.looksPixelArt, isFalse);
+  });
+
+  test('APNG decodes only the first maxFrames with their delays', () {
+    final image = _solid(4, 4, 255, 0, 0)..frameDuration = 120;
+    image.addFrame(_solid(4, 4, 0, 255, 0)..frameDuration = 0);
+    image.addFrame(_solid(4, 4, 0, 0, 255)..frameDuration = 80);
+    final src = decodeSource(img.encodePng(image), maxFrames: 2);
+    expect(src.frameCount, 2);
+    expect(src.sourceFrameCount, 3);
+    expect(src.wasSampled, isTrue);
+    expect(src.delaysMs, [120, 100]);
+    expect(src.frames[0].sublist(0, 3), [255, 0, 0]);
+    expect(src.frames[1].sublist(0, 3), [0, 255, 0]);
+  });
+
+  test('APNG never decodes missing frames beyond maxFrames', () {
+    final encoder = img.PngEncoder()..start(3);
+    encoder.addFrame(_solid(4, 4, 255, 0, 0)..frameDuration = 120);
+    encoder.addFrame(_solid(4, 4, 0, 255, 0)..frameDuration = 80);
+    // The header declares a third frame, but decoding it would fail.
+    final bytes = encoder.finish()!;
+    expect(() => decodeSource(bytes), throwsA(isA<ImportException>()));
+    final src = decodeSource(bytes, maxFrames: 2);
+    expect(src.frameCount, 2);
+    expect(src.delaysMs, [120, 80]);
+  });
+
+  test('APNG keeps patch offsets, blending and restore-previous disposal', () {
+    // Original 2×1 RGB art: red canvas, green patch at x=1 (restore previous),
+    // then blue at x=0. Each patch is a separately compressed APNG frame.
+    final bytes = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAACGFjVEwAAAADAAAAAM7tusAA'
+      'AAAaZmNUTAAAAAAAAAACAAAAAQAAAAAAAAAAAGQD6AAAECjlZAAAAA5JREFUeJxj+M/A8B+E'
+      'ARH3A/3jxfXvAAAAGmZjVEwAAAABAAAAAQAAAAEAAAABAAAAAADIA+gCARlldloAAAARZmRB'
+      'VAAAAAJ4nGNg+M/wHwAEAQH/YufpnAAAABpmY1RMAAAAAwAAAAEAAAABAAAAAAAAAAABLAPo'
+      'AABmRJrdAAAAEWZkQVQAAAAEeJxjYGD4/x8AAwIB/w257mEAAAAASUVORK5CYII=',
+    );
+    final src = decodeSource(bytes);
+    expect(src.delaysMs, [100, 200, 300]);
+    expect(src.frames[0], [255, 0, 0, 255, 0, 0]);
+    expect(src.frames[1], [255, 0, 0, 0, 255, 0]);
+    expect(src.frames[2], [0, 0, 255, 255, 0, 0]);
+  });
+
+  test('decoded RGB budget rejects oversized animations before decoding', () {
+    final image = _solid(4, 4, 255, 0, 0);
+    image.addFrame(_solid(4, 4, 0, 255, 0));
+    image.addFrame(_solid(4, 4, 0, 0, 255));
+    final bytes = img.encodePng(image);
+    const budget = 4 * 4 * 3 * 2;
+    expect(
+      () => decodeSource(bytes, maxFrames: 2, maxDecodedBytes: budget - 1),
+      throwsA(isA<ImportException>().having((e) => e.message, 'message',
+          'That animation is too large to import. Try a shorter or smaller one.')),
+    );
+    // Only the capped frame count contributes to the budget; equality fits.
+    expect(decodeSource(bytes, maxFrames: 2, maxDecodedBytes: budget).frameCount, 2);
+  });
+
+  test('decoded RGB budget counts a still image as one frame', () {
+    final bytes = img.encodePng(_solid(4, 4, 255, 0, 0));
+    expect(
+      () => decodeSource(bytes, maxDecodedBytes: 4 * 4 * 3 - 1),
+      throwsA(isA<ImportException>().having((e) => e.message, 'message',
+          'That animation is too large to import. Try a shorter or smaller one.')),
+    );
   });
 
   test('transparency flattens onto black (LED off)', () {

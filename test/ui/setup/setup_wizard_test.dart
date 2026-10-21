@@ -117,6 +117,9 @@ void main() {
       expect(ys, orderedEquals([...ys]..sort()));
       expect(find.text('Other network'), findsOneWidget);
       expect(find.textContaining('2.4 GHz'), findsOneWidget);
+      expect(find.text(
+        'Your Wi-Fi password goes only to the device you\'re setting up, over its own setup network. Continue only if that device is in front of you.',
+      ), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Join'), findsOneWidget);
       expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Join')).onPressed, isNull);
 

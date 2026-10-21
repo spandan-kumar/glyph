@@ -285,6 +285,9 @@ class WifiScreen extends StatelessWidget {
           lit: true,
           text: 'Your device needs 2.4 GHz Wi-Fi. If yours isn\'t listed, it may only be 5 GHz.',
         ),
+        const Note(
+          text: 'Your Wi-Fi password goes only to the device you\'re setting up, over its own setup network. Continue only if that device is in front of you.',
+        ),
         TextButton(
           style: TextButton.styleFrom(minimumSize: const Size(Lb.touch, Lb.touch), foregroundColor: Lb.text2),
           onPressed: c.scanning ? null : c.scan,

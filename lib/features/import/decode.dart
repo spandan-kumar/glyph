@@ -18,6 +18,9 @@ abstract final class ImportLimits {
 
   static const maxFileBytes = 40 * 1024 * 1024;
 
+  /// Largest decoded RGB footprint across the frames being imported.
+  static const maxDecodedBytes = 256 * 1024 * 1024;
+
   /// Total working pixels across all kept frames (×3 bytes of RGB).
   static const workingPixelBudget = 9000000;
   static const maxWorkingSide = 384;
@@ -77,7 +80,10 @@ class DecodedSource {
 /// Decodes GIF, PNG, JPEG, WebP, BMP and the other formats package:image
 /// reads. Animated GIF and WebP are composited frame by frame on one canvas
 /// and shrunk straight away, so memory stays bounded by [ImportLimits].
-DecodedSource decodeSource(Uint8List bytes, {int maxFrames = ImportLimits.maxFrames}) {
+DecodedSource decodeSource(Uint8List bytes, {
+  int maxFrames = ImportLimits.maxFrames,
+  int maxDecodedBytes = ImportLimits.maxDecodedBytes,
+}) {
   if (bytes.length > ImportLimits.maxFileBytes) {
     throw const ImportException('That file is too big (max 40 MB).');
   }
@@ -92,6 +98,11 @@ DecodedSource decodeSource(Uint8List bytes, {int maxFrames = ImportLimits.maxFra
   if (info.width * info.height > ImportLimits.maxSourcePixels) {
     throw const ImportException('That image is too large (max 40 megapixels).');
   }
+  final frameCount = math.min(math.max(1, info.numFrames), maxFrames);
+  if (info.width * info.height * 3 * frameCount > maxDecodedBytes) {
+    throw const ImportException(
+        'That animation is too large to import. Try a shorter or smaller one.');
+  }
   final name = decoder.format.name;
   try {
     if (decoder is img.GifDecoder && info.numFrames > 1) {
@@ -99,6 +110,33 @@ DecodedSource decodeSource(Uint8List bytes, {int maxFrames = ImportLimits.maxFra
     }
     if (decoder is img.WebPDecoder && decoder.info!.hasAnimation) {
       return _decodeWebP(decoder, decoder.info!, maxFrames, name);
+    }
+    if (info.numFrames > 1) {
+      final b = _Builder(info.width, info.height, frameCount, maxFrames, name);
+      var canvas = Uint8List(info.width * info.height * 3);
+      for (var i = 0; i < frameCount; i++) {
+        final frame = decoder.decodeFrame(i);
+        if (frame == null) throw const ImportException('The image looks damaged.');
+        // PNG's raw patches keep timing and composition in decoder metadata.
+        final patch = decoder is img.PngDecoder ? decoder.info.frames[i] : null;
+        final x = patch?.xOffset ?? 0, y = patch?.yOffset ?? 0;
+        final saved = patch?.dispose == img.PngDisposeMode.previous
+            ? Uint8List.fromList(canvas) : null;
+        if (patch == null) {
+          canvas.fillRange(0, canvas.length, 0);
+        } else if (patch.blend == img.PngBlendMode.source) {
+          _clear(canvas, info.width, info.height, x, y, frame.width, frame.height);
+        }
+        _draw(canvas, info.width, info.height, frame, x, y, blend: true);
+        final duration = patch == null ? frame.frameDuration : (patch.delay * 1000).toInt();
+        b.add(canvas, duration > 0 ? duration : 100);
+        if (patch?.dispose == img.PngDisposeMode.background) {
+          _clear(canvas, info.width, info.height, x, y, frame.width, frame.height);
+        } else if (saved != null) {
+          canvas = saved;
+        }
+      }
+      return b.build(sourceFrameCount: info.numFrames);
     }
     var image = decoder.decode(bytes);
     if (image == null) throw const ImportException('The image looks damaged.');
@@ -241,7 +279,7 @@ class _Builder {
     }
   }
 
-  DecodedSource build() {
+  DecodedSource build({int? sourceFrameCount}) {
     if (frames.isEmpty) throw const ImportException('The image has no frames.');
     return DecodedSource(
       width: ww,
@@ -250,7 +288,7 @@ class _Builder {
       delaysMs: delays,
       sourceWidth: w,
       sourceHeight: h,
-      sourceFrameCount: n,
+      sourceFrameCount: sourceFrameCount ?? n,
       format: format,
     );
   }

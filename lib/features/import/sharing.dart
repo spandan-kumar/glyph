@@ -25,6 +25,7 @@ const glyphFileExtension = 'glyph';
 
 /// Largest clip a `.glyph` file may hold, so a hostile file can't OOM us.
 const _maxGlyphSide = 256, _maxGlyphFrames = 2000;
+const _maxGlyphFileBytes = 8 * 1024 * 1024;
 
 /// Serialises [c] as a versioned `.glyph` document.
 String encodeGlyphFile(Creation c) => jsonEncode({
@@ -87,9 +88,15 @@ Creation parseGlyphFile(String text) {
 /// Parses [bytes] and adds the creation to [store] under a new id, so an
 /// import never overwrites something already there.
 Future<Creation> importGlyphFile(CreationsStore store, Uint8List bytes) async {
-  final c = parseGlyphFile(utf8.decode(bytes, allowMalformed: true));
+  if (bytes.length > _maxGlyphFileBytes) {
+    throw const FormatException('That Glyph file is too big.');
+  }
+  final c = await compute(_parseGlyphFileMessage, bytes);
   return store.save(title: c.title, kind: c.kind, clip: c.clip, meta: c.meta);
 }
+
+Creation _parseGlyphFileMessage(Uint8List bytes) =>
+    parseGlyphFile(utf8.decode(bytes, allowMalformed: true));
 
 /// Encodes [clip] as a looping GIF that keeps each frame's own delay,
 /// upscaled with hard pixel edges so it isn't a speck in a chat app.

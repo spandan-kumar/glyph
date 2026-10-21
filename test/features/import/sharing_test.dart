@@ -80,10 +80,27 @@ void main() {
     final dir = await Directory.systemTemp.createTemp('glyph_share');
     addTearDown(() => dir.delete(recursive: true));
     final store = CreationsStore(directory: () async => dir);
+    addTearDown(store.dispose);
     final saved = await importGlyphFile(store, utf8.encode(encodeGlyphFile(_creation())));
     expect(saved.id, isNot('abc'));
     expect(saved.title, 'My Cat!');
     expect(store.items.single.clip.frames.length, 2);
+    expect(saved.clip.toJson(), _creation().clip.toJson());
+    expect(saved.meta, _creation().meta);
+  });
+
+  test('importGlyphFile rejects files over 8 MiB before parsing or saving', () async {
+    final dir = await Directory.systemTemp.createTemp('glyph_share');
+    addTearDown(() => dir.delete(recursive: true));
+    final store = CreationsStore(directory: () async => dir);
+    addTearDown(store.dispose);
+    await expectLater(
+      importGlyphFile(store, Uint8List(8 * 1024 * 1024 + 1)),
+      throwsA(isA<FormatException>().having(
+          (e) => e.message, 'message', 'That Glyph file is too big.')),
+    );
+    expect(store.items, isEmpty);
+    expect(await dir.list().toList(), isEmpty);
   });
 
   test('share GIF keeps per-frame delays and is upscaled', () async {
