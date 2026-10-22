@@ -8,11 +8,11 @@ approves and sends every post, email and PR.
 
 | Fact | Say exactly |
 |---|---|
-| Version | v1.4.9 (check the latest release before posting) |
+| Version | v1.4.12 (check the latest release before posting) |
 | Library | "1,200+ animations" (catalog: 1,236 looks) |
 | Made of | 62 procedural effects, 356 sprites, public-domain "Famous Classics" |
 | Platform | Android 7+, 64-bit ARM. Sideload the APK, or add it to Obtainium. No iOS. |
-| F-Droid | Pending (merge request open). Never say "available on F-Droid". |
+| F-Droid | Not yet: F-Droid asks for three months of development history, so it comes in January. Never say "available" or "pending". |
 | Play Store | Not there yet. Don't promise a date. |
 | Licence | "MIT-licensed code; original, CC0 and public-domain art." |
 | Cost | Free, no account, no analytics, no Glyph server |
@@ -513,14 +513,14 @@ APK: https://github.com/spandan-kumar/glyph/releases/latest
 
 ### 5c. r/fossdroid
 
-- **Date:** Wed 11 Nov 2026
+- **Date:** Hold until the F-Droid listing is live (January 2027); it's the better launch moment for this sub
 - **Asset:** Clip C or A (a short clip; screenshots of Settings > privacy
   optional)
 - **Flair/format to check:** unverified; rules page. The sub's purpose is
   FOSS on Android, so promotion is the point, but keep it factual.
-- **Angle:** openness, no tracking, how to get it today, F-Droid pending.
+- **Angle:** openness, no tracking, now on F-Droid.
 
-**Title:** Glyph: MIT-licensed Android app for WLED LED matrices, no account or tracking (F-Droid merge request open)
+**Title:** Glyph: MIT-licensed Android app for WLED LED matrices, no account or tracking, now on F-Droid
 
 **Body:**
 
@@ -532,9 +532,8 @@ for catalog updates, and only when you check. The privacy details are in
 `docs/PRIVACY.md`.
 
 How to get it today: download the signed APK from the GitHub release (its
-SHA-256 is next to it), or add the repo to Obtainium. It is **not on F-Droid
-yet**: the merge request is open and I'm waiting for review. It's not on the
-Play Store either. Android 7+, 64-bit ARM.
+SHA-256 is next to it), add the repo to Obtainium, or install it from F-Droid
+[F-Droid link, once live]. Android 7+, 64-bit ARM.
 
 It's a Flutter app; the engine is plain Dart. Notification alerts (an option)
 send only the app's logo to the display, never message content. I use AI
@@ -663,8 +662,8 @@ only for now.
 **Body:** I made this. Glyph sets up a WLED matrix and fills it with 1,200+
 animations, a pixel editor, games and album art. The phone renders every frame
 and either streams it or sends it to the device. Code is MIT; art is original,
-CC0 or public domain. No account, no analytics, no server of mine. F-Droid merge request is
-pending; for now sideload the APK or use Obtainium. Android 7+, 64-bit ARM.
+CC0 or public domain. No account, no analytics, no server of mine. Sideload the APK or use
+Obtainium; F-Droid follows in January. Android 7+, 64-bit ARM.
 https://github.com/spandan-kumar/glyph
 
 ### 6b. Lemmy: !android@lemmy.world
@@ -707,7 +706,7 @@ yet. https://github.com/spandan-kumar/glyph/blob/main/docs/HOME_ASSISTANT.md
 > tap Send, and the panel keeps playing with the phone off.
 >
 > MIT-licensed code, no account, no tracking. Sideload or Obtainium; F-Droid
-> pending. Android only for now.
+> in January. Android only for now.
 >
 > https://github.com/spandan-kumar/glyph
 >
@@ -984,8 +983,8 @@ credits, and public-domain originals such as The Starry Night and Dracula. The c
 
 **Why isn't it on the Play Store?**
 Not yet, and I won't promise a date. For now it's a GitHub release you
-sideload, with an Obtainium link for updates, and an F-Droid merge request is
-open.
+sideload, with an Obtainium link for updates. F-Droid asks for three months of
+development history, so it's coming in January.
 
 **Does it need internet or an account?**
 No account, ever. The phone talks to your matrix over your Wi-Fi, and the

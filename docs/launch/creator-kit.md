@@ -13,7 +13,7 @@ Glyph is a free, MIT-licensed Flutter app that drives WLED LED matrices with 1,2
 - **Device:** Send, Saved, Shows and Routines run without the phone on supported hardware. Home Assistant blueprints trigger existing Saved looks or Shows.
 - **Glance:** weather, forecast, modelled air quality and day counters. Cards/Rotations need the phone; weather/air quality use Open-Meteo. Counters work offline.
 
-**Coverage:** v1.4.9 is current; setup, Glance and Home Assistant blueprints shipped in v1.4.0. Fresh-controller and live Home Assistant checks remain pending; grids and iOS have automated coverage only. Android first; iOS is untested on hardware.
+**Coverage:** v1.4.12 is current; setup, Glance and Home Assistant blueprints shipped in v1.4.0. Fresh-controller and live Home Assistant checks remain pending; grids and iOS have automated coverage only. Android first; iOS is untested on hardware.
 
 ## Hardware and budget
 

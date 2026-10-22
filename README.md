@@ -179,6 +179,14 @@ Wi-Fi, and drawings and audio stay on your phone. Details, including the few
 optional internet lookups, are in [docs/PRIVACY.md](docs/PRIVACY.md).
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
+## How it's built
+
+Glyph is a one-person project, written with AI coding assistants (Claude Code
+and Codex). Every change is reviewed, about 1,600 automated tests run in CI on
+every push, and device features are tried on real hardware before a release —
+so far one 16×16 panel (see [What you need](#what-you-need)). Reports from
+other panels and controllers are the most useful help you can give.
+
 ## Build from source
 
 Requires Flutter 3.47+ (Dart 3.13) and the Android SDK.

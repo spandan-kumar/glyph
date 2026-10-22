@@ -23,7 +23,7 @@ keeps the product timeline and links here.
 | 1 | **WLED matrix owners** | r/WLED ~71k (+27%/yr); 33.9k HA installs run the WLED integration | Content without fiddling; 2D setup that isn't a puzzle | Setup wizard ("which corner lit up?"), 1,200+ looks, Send and it plays alone |
 | 2 | **Makers about to build one** | r/esp32 223k (+51%), r/arduino 788k | A reason to build; a $40–80 weekend project that ends somewhere fun | "Build a 16×16, install WLED, Glyph does the rest" |
 | 3 | **Home Assistant users** | 607k on r/homeassistant; 704k active HA installs | Local, no-cloud display for alerts and info | Blueprints, Routines, Glance, no account |
-| 4 | **FOSS Android users** | r/fossdroid 107k (+41%) | Open, no tracking, F-Droid/Obtainium | MIT, no analytics, Obtainium today, F-Droid pending |
+| 4 | **FOSS Android users** | r/fossdroid 107k (+41%) | Open, no tracking, F-Droid/Obtainium | MIT, no analytics, Obtainium today, F-Droid in January |
 | 5 | **Pixel artists** | r/PixelArt 2.7M | Their art glowing on real hardware | Live drawing on the panel (art-first posts only) |
 
 Not now: Divoom/Tidbyt/Ulanzi owners (no adapter yet), iOS users.
@@ -98,12 +98,12 @@ Dates are targets; a gate slips the phase, not the quality bar.
 
 ### Phase 0: shopfront (18–28 Oct)
 
-- [ ] Sync all public numbers and claims; GitHub About text.
-- [ ] README first screen; tested/expected/untested hardware table.
-- [ ] Evergreen install block in `release.yml` notes.
-- [ ] Deploy the landing page with the catalog on Pages.
-- [ ] App: "Try without a device", short skippable intro, share sheet with
-      caption + link (ships as 1.4.10 with the pending phone tests).
+- [x] Sync all public numbers and claims; GitHub About text (22 Oct).
+- [x] README first screen; tested/expected/untested hardware table.
+- [x] Evergreen install block in `release.yml` notes.
+- [x] Deploy the landing page with the catalog on Pages.
+- [x] App: "Try without a device", short skippable intro, share sheet with
+      caption + link (shipped in 1.4.10, phone-tested 19 Oct).
 - [x] **PR to WLED-Docs compatible-software page**: opened 19 Oct as [wled/WLED-Docs#383](https://github.com/wled/WLED-Docs/pull/383) (one alphabetical row, no count). Answer review comments within a day.
       **20 Oct:** WLED maintainers (softhack007, DedeHai) asked for a store
       link instead of sideloading, flagged AI-built code and 16×16-only
@@ -121,8 +121,8 @@ Dates are targets; a gate slips the phase, not the quality bar.
       check r/WLED's top matrix posts of the year.
 - [ ] Fresh-ESP32 check before 29 Oct if any spare controller is available;
       otherwise keep saying it plainly in every post.
-- [ ] No trademarked characters in screenshots, the site, clips or the first
-      catalog screen people see.
+- [x] No trademarked characters in screenshots, the site, clips or the first
+      catalog screen people see (third-party collection removed in 1.4.11).
 
 ### Phase 1: owners, creators and vendors (29 Oct – 8 Nov)
 
@@ -158,7 +158,8 @@ video before Black Friday.
 Three strong venues beat ten thin ones. Budget two hours a day for replies.
 
 - **Tue 10 Nov:** r/homeassistant (*Show & Tell*), r/esp32 (*I made a thing!*).
-- **Wed 11 Nov:** r/fossdroid.
+- **Wed 11 Nov:** r/androidapps (developer format), if replies from Tue are
+  under control. r/fossdroid waits for the F-Droid listing (January).
 - **Thu 12 Nov:** Hackaday tip (engineering hook: the phone renders every
   frame; the WLED GIF frame-delay quirk).
 - **When time allows (not on a date):** r/androidapps, r/coolgithubprojects,
@@ -181,8 +182,10 @@ People buy panels for Black Friday (27 Nov) and holiday builds. Push the
 
 ### Phase 4: second wave (December)
 
-- F-Droid live (if the MR is merged): "now on F-Droid" posts in r/fossdroid,
-  r/WLED (as an update comment), Discord, Mastodon.
+- Google Play production (if started in October): "now on Google Play" for
+  r/WLED (update comment), r/androidapps and Discord.
+- January: F-Droid resubmission (its three-month rule); "now on F-Droid" for
+  r/fossdroid, Lemmy and Mastodon.
 - Christmas pack (early Dec), New Year countdown; year-in-review post.
 - Next display adapter (AWTRIX NG / Art-Net) gets its own mini-launch.
 
@@ -200,7 +203,7 @@ People buy panels for Black Friday (27 Nov) and holiday builds. Push the
 | Channel | Role | Status |
 |---|---|---|
 | GitHub Releases + Obtainium | Trust, early adopters | Live |
-| F-Droid | FOSS trust, r/fossdroid post | MR !53046 pending |
+| F-Droid | FOSS trust, r/fossdroid post | MR !53046 closed 19 Oct (needs three months of history); resubmit ~3 Jan 2027 |
 | Google Play | Reach | Deferred by the maintainer (18 Oct); revisit January 2027. $25, ID verification, 12 testers × 14 days for new personal accounts; check the notification-listener policy before submitting |
 | Landing page | Search, non-GitHub visitors | Built, undeployed |
 
@@ -214,6 +217,10 @@ uses only original/CC0 art); landing page at the GitHub Pages root alongside the
 
 **20 Oct:** removed animations that weren't original, CC0 or public domain
 from all public builds; the library is 1,236 looks.
+
+**22 Oct:** with F-Droid out until January and a WLED maintainer saying they
+only install from Google Play, Play is back on the table (decision pending).
+r/fossdroid moves to the F-Droid launch in January.
 
 ## Product-led growth (build in this order)
 
