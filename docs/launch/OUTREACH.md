@@ -182,8 +182,6 @@ People buy panels for Black Friday (27 Nov) and holiday builds. Push the
 
 ### Phase 4: second wave (December)
 
-- Google Play production (if started in October): "now on Google Play" for
-  r/WLED (update comment), r/androidapps and Discord.
 - January: F-Droid resubmission (its three-month rule); "now on F-Droid" for
   r/fossdroid, Lemmy and Mastodon.
 - Christmas pack (early Dec), New Year countdown; year-in-review post.
@@ -218,9 +216,11 @@ uses only original/CC0 art); landing page at the GitHub Pages root alongside the
 **20 Oct:** removed animations that weren't original, CC0 or public domain
 from all public builds; the library is 1,236 looks.
 
-**22 Oct:** with F-Droid out until January and a WLED maintainer saying they
-only install from Google Play, Play is back on the table (decision pending).
-r/fossdroid moves to the F-Droid launch in January.
+**22 Oct:** F-Droid is out until January (its three-month rule), and a WLED
+maintainer said they only install from Google Play. The maintainer kept Play
+off for now; r/fossdroid moves to the F-Droid launch in January. Clips A–C
+by 25 Oct keep r/WLED on 31 Oct. The virtual size test on the maintainer's
+panel is approved.
 
 ## Product-led growth (build in this order)
 
