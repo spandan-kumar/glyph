@@ -9,7 +9,7 @@ SET UP
 • Devices set their own clock from your phone's time zone, so Routines run on time.
 
 DISPLAY
-• 1,236 animations in subject groups such as Animals, Nature, Holidays, Gaming, Flags and Patterns: 62 procedural effects (plasma, fire, aurora, reaction–diffusion, falling sand…), 356 original and CC0 pixel-art sprites, Famous Classics (public-domain characters and paintings such as the 1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night).
+• 1,236 animations in 22 subject groups such as Holidays, Animals, Nature, Space and Gaming: 62 procedural effects (plasma, fire, aurora, reaction–diffusion, falling sand…), 356 original and CC0 pixel-art sprites, Famous Classics (public-domain characters and paintings such as the 1928 Steamboat Willie mouse, Pinocchio, Alice, Dracula and The Starry Night).
 • Search the whole library by name, subject, colour or size. Everything is on your phone, so it works offline.
 • Tweak colours and motion with a palette reel and rotary knobs.
 • Seamless loops on the device and accurate colours: device gamma, true blacks and stable hues at low brightness.

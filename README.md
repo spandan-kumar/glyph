@@ -76,8 +76,8 @@ for a surprise, and tap **Send** to put an animation on the device. Tweak
 colours and motion with a palette reel and rotary knobs; the whole app glows
 with whatever is on your matrix.
 
-- **1,236 animations** in subject groups (Animals, Nature, Holidays, Gaming,
-  Flags, Patterns and more): 62 procedural effects (plasma, fire, aurora,
+- **1,236 animations** in 22 subject groups (Holidays, Animals, Nature,
+  Space, Gaming and more): 62 procedural effects (plasma, fire, aurora,
   reaction–diffusion, falling sand…), 356 original and CC0 pixel-art sprites,
   **Famous Classics** — public-domain characters and paintings such as
   Pinocchio, Alice, Dracula and The Starry Night.

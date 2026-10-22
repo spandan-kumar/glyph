@@ -84,7 +84,7 @@ the launch results in hand.
 | **Clip B, 15 s:** "Which corner lit up?" wiring test → upright arrow | Maintainer films | Lead for r/WLED and the WLED forum |
 | **Clip C, 12 s:** album art + progress bar on the panel | Maintainer films | Lead for Shorts/Reels and r/androidapps; creator-owned cover |
 | Landing page at `spandan-kumar.github.io/glyph` | Agent | `website/` exists; must ship alongside the catalog files on Pages |
-| Android screenshots, feature graphic that says "for WLED" | Agent + phone | Current ones show iPhone chrome and old counts |
+| Android screenshots, feature graphic that says "for WLED" | Agent + phone | Feature graphic done 22 Oct. Screenshots still show iPhone chrome: retake on the Pixel over adb |
 | Fact sheet (counts, requirements, tested hardware) | Agent | Single source for every post |
 | Channel copy | Agent | `posts.md` |
 | Creator kit refresh | Agent | `creator-kit.md` |
