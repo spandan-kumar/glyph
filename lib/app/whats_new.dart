@@ -4,6 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Add an entry for each release worth a note; versions without one show
 /// nothing. Keep each line short and in plain words.
 const whatsNewNotes = <String, List<String>>{
+  '1.4.13': [
+    'Glyph now tells you when a new version is out. Turn it off in the Glyph menu.',
+    'Update automatically: Obtainium can install new versions for you.',
+  ],
   '1.4.12': [
     'Safer imports: very large or long images are refused instead of slowing Glyph down.',
     'Setup says where your Wi-Fi password goes before you send it.',

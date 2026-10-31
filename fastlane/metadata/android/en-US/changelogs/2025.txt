@@ -1,0 +1,3 @@
+Glyph now tells you when a new version is out, with a link to get it. Turn it off in the Glyph menu.
+Update automatically: one tap adds Glyph to Obtainium, which installs new versions for you.
+Tidier store listing and release notes.
