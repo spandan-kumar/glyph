@@ -1,4 +1,6 @@
-# Send kit: Thu 29 – Fri 30 Oct 2026
+# Send kit: Tue 3 – Fri 7 Nov 2026
+
+Re-dated 31 Oct (nothing went out on 29 Oct; clips are filmed on 6 Nov).
 
 Paste-ready, in send order. Every item goes out from Spandan's own accounts,
 one at a time. Contact routes were checked on 27 Oct 2026 (sources in the
@@ -9,7 +11,7 @@ Images available now (no clip needed): `docs/media/setup-wiring.png`,
 `docs/media/setup.png` and `docs/media/display.png` (wiring answer, direction
 question, Display with Send).
 
-## Thursday 29 Oct
+## Tuesday 3 Nov
 
 ### 1. WLED forum, Projects (the main post)
 
@@ -27,7 +29,8 @@ question, Display with Send).
 ### 2. WLED forum reply: the artist thread
 
 - **Where:** https://wled.discourse.group/t/artist-looking-for-help-in-implementing-a-design-via-wled/15553
-  (open, last post 15 Oct, unanswered beyond one GIF tip).
+  (open, last post 15 Oct, unanswered beyond one GIF tip; re-check it's still
+  open before replying).
 - **Text:** [posts.md §2b](posts.md#2b-wled-forum-15553-artist-and-the-hospital-panel-post-this-one), as is.
 
 Skip 15261 (captive portal, last active May) and the Home Assistant Pixel
@@ -70,7 +73,7 @@ Select thread (last active December 2025): replies now would be necro-bumps.
 > trying it, I'd love to hear what works and what doesn't.
 > https://github.com/spandan-kumar/glyph
 
-## Friday 30 Oct (only once clip A exists)
+## Friday 7 Nov (only once clip A exists)
 
 Each pitch links clip A. No clip, no pitch: hold them to the next day.
 
@@ -130,7 +133,7 @@ Each pitch links clip A. No clip, no pitch: hold them to the next day.
 
 Dropped: Bytes Of Pi (no contact route, last upload November 2025).
 
-### 9. Home Assistant community (from the plan)
+### 9. Home Assistant community (Wed 4 Nov, from the plan)
 
 [posts.md §3a–3c](posts.md#3-home-assistant-community): Share your Projects,
 and both blueprints in Blueprints Exchange, marked beta.

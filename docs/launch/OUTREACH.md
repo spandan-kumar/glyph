@@ -124,55 +124,55 @@ Dates are targets; a gate slips the phase, not the quality bar.
 - [x] No trademarked characters in screenshots, the site, clips or the first
       catalog screen people see (third-party collection removed in 1.4.11).
 
-### Phase 1: owners, creators and vendors (29 Oct – 8 Nov)
+### Phase 1: owners, creators and vendors (3 – 14 Nov)
 
-Goal: 10 real setups, honest feedback, first stars, and creator and vendor
-conversations started early. Creators need 2–4 weeks of lead time to land a
-video before Black Friday.
+Re-dated 31 Oct: nothing went out on 29 Oct, the volunteer footage didn't
+arrive, and the maintainer's panel is back on Thu 6 Nov. Clips are filmed on
+the maintainer's own panel that day ([panel-day.md](panel-day.md)).
 
-- **Thu 29 Oct:** WLED forum *Projects*; Glyph Discord #announcements;
-  helpful replies where Glyph genuinely answers the question (WLED forum
-  15261 and 15553; HA 955482 optional).
-- **Thu 29 Oct:** pitch the five small channels (MyBritishComputerGuy, Jason
-  Winfield, Starlit Electronics, Electriangle, Bytes Of Pi).
-- **Thu 29 Oct – 1 Nov:** short notes to hardware vendors and kit makers
-  offering a "recommended app" line or a one-page quick start: QuinLED
-  (Quindor's dig2go wiki) and Apollo first, then Athom, Gledopto,
-  BTF-Lighting, the DrZzs shop. Their docs reach buyers at unboxing, and
-  that compounds.
-- **Fri 30 Oct:** HA community *Share your Projects* + both blueprints in
-  *Blueprints Exchange* (marked beta until the live-HA check).
-- **Sat 31 Oct, Halloween: r/WLED, the main shot, not a rehearsal.** Lead
-  with clip A ending on a Halloween look; clip B in the body. **Gate:** clip A
-  filmed and 1.4.10 shipped. If either slips, post Sat 7 Nov instead. Reply
-  to every comment for 48 h.
-- **Tue 3 – Thu 5 Nov:** pitch the mid channels (Smart Home Junkie and
+- **Tue 3 Nov (no clip needed):** WLED forum *Projects* post with screenshots,
+  the reply in thread 15553, the Apollo email, the QuinLED Discord post, and
+  Glyph Discord #announcements ([send-kit-thursday.md](send-kit-thursday.md)
+  items 1–4).
+- **Wed 4 Nov:** HA community *Share your Projects* + both blueprints in
+  *Blueprints Exchange* (marked beta until the live-HA check), after the
+  Home Assistant 2026.11 release.
+- **Thu 6 Nov: panel day.** Film clips A–C (one look for Diwali), run the
+  32×32 / 32×8 / 8×8 live-preview size test, phone-test 1.4.12 over old data,
+  then restore the device.
+- **Fri 7 Nov:** cut the clips; clip A goes into the README, the site and a
+  reply on the forum post; pitch the small channels (Starlit Electronics
+  first, then Jason Winfield, MyBritishComputerGuy, an Electriangle comment).
+- **Sun 8 Nov, Diwali: r/WLED, the main shot.** Lead with clip A; clip B in
+  the body; the size-test results let it say more than "16×16 only". Reply to
+  every comment for 48 h.
+- **Tue 10 – Thu 12 Nov:** triage feedback and ship fixes; post the size-test
+  results on wled/WLED-Docs#383; pitch the mid channels (Smart Home Junkie and
   haus:automation with the Awtrix-alternative angle, DrZzs, Andy Huot,
-  ResinChem Tech, Make It Work), then Chris Maher and Core Electronics with
-  the r/WLED result attached.
-- **Week of 2 Nov:** triage feedback; ship fixes.
-- **Sun 8 Nov, Diwali:** clip on Discord, and on r/WLED as an update.
+  ResinChem Tech, Make It Work) with the r/WLED result attached.
 
-### Phase 2: wide window (Tue 10 – Thu 12 Nov), kept small
+### Phase 2: wide window (Tue 17 – Thu 19 Nov), kept small
 
 Three strong venues beat ten thin ones. Budget two hours a day for replies.
 
-- **Tue 10 Nov:** r/homeassistant (*Show & Tell*), r/esp32 (*I made a thing!*).
-- **Wed 11 Nov:** r/androidapps (developer format), if replies from Tue are
+- **Tue 17 Nov:** r/homeassistant (*Show & Tell*), r/esp32 (*I made a thing!*).
+- **Wed 18 Nov:** r/androidapps (developer format), if replies from Tue are
   under control. r/fossdroid waits for the F-Droid listing (January).
-- **Thu 12 Nov:** Hackaday tip (engineering hook: the phone renders every
+- **Thu 19 Nov:** Hackaday tip (engineering hook: the phone renders every
   frame; the WLED GIF frame-delay quirk).
-- **When time allows (not on a date):** r/androidapps, r/coolgithubprojects,
+- **When time allows (not on a date):** r/coolgithubprojects,
   r/FlutterDev with the engineering write-up, Lemmy, Mastodon/Bluesky.
 - **Show HN only if a real story emerges** (a creator video, a striking
   build); then a Sunday at 12:00 UTC. WLED-matrix Show HNs without a story
   got 1–3 points.
 
-### Phase 3: the build season (16 Nov – 6 Dec)
+### Phase 3: the build season (20 Nov – 6 Dec)
 
 People buy panels for Black Friday (27 Nov) and holiday builds. Push the
 "$40 weekend build, Glyph does the rest" angle.
 
+- Pitch Chris Maher and Core Electronics with the polished clip and any
+  coverage so far.
 - Follow up once with creators who haven't replied; send clips to anyone
   who covers it.
 - Adafruit blog tip; AlternativeTo listing; r/PixelArt art post (art first,
