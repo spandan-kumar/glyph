@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../app/creations.dart';
+import '../app/app_updates.dart';
 import '../app/devices.dart';
 import '../app/playback.dart';
 import '../features/notifications/notification_controller.dart';
@@ -19,6 +20,7 @@ class AppScope extends InheritedWidget {
     this.notifications,
     this.glance,
     this.catalogStore,
+    this.appUpdates,
     required super.child,
   });
 
@@ -26,6 +28,7 @@ class AppScope extends InheritedWidget {
   final DeviceStore devices;
   final Catalog catalog;
   final CatalogStore? catalogStore;
+  final AppUpdates? appUpdates;
   final CreationsStore creations;
   final NotificationController? notifications;
   final GlanceSession? glance;
@@ -38,6 +41,9 @@ class AppScope extends InheritedWidget {
       playback != old.playback ||
       devices != old.devices ||
       catalog != old.catalog ||
-      creations != old.creations || notifications != old.notifications || glance != old.glance ||
-      catalogStore != old.catalogStore;
+      creations != old.creations ||
+      notifications != old.notifications ||
+      glance != old.glance ||
+      catalogStore != old.catalogStore ||
+      appUpdates != old.appUpdates;
 }

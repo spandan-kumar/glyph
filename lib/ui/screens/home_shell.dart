@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../app/community.dart';
+import '../../app/app_updates.dart';
 import '../../app/storage_alerts.dart';
 import '../../app/whats_new.dart';
 import '../community/whats_new_sheet.dart';
 import '../design/ambient.dart';
 import '../design/dock.dart';
 import '../design/tokens.dart';
+import '../../features/device/widgets/common.dart';
+import '../community/glyph_menu.dart';
 import '../make/make_screen.dart';
 import '../matrix/matrix_screen.dart';
 import '../scope.dart';
@@ -14,7 +17,12 @@ import '../tune/tune_screen.dart';
 
 /// The app: one room lit by the matrix, three places, a dock strip.
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key, this.initialTab = 0, this.whatsNew = false, this.firstRun = false});
+  const HomeShell({
+    super.key,
+    this.initialTab = 0,
+    this.whatsNew = false,
+    this.firstRun = false,
+  });
 
   final int initialTab;
 
@@ -25,7 +33,8 @@ class HomeShell extends StatefulWidget {
   final bool firstRun;
 
   /// Lets any screen jump to another destination (e.g. "Connect a matrix").
-  static void go(BuildContext context, int tab) => context.findAncestorStateOfType<_HomeShellState>()?._select(tab);
+  static void go(BuildContext context, int tab) =>
+      context.findAncestorStateOfType<_HomeShellState>()?._select(tab);
 
   /// [go] for callers outside the shell (a toast action that outlived its
   /// screen). Does nothing while no shell is showing.
@@ -64,7 +73,9 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   bool _onScroll(ScrollNotification n) {
-    if (n is! ScrollUpdateNotification || n.metrics.axis != Axis.vertical) return false;
+    if (n is! ScrollUpdateNotification || n.metrics.axis != Axis.vertical) {
+      return false;
+    }
     final d = n.scrollDelta ?? 0;
     if (n.metrics.pixels <= n.metrics.minScrollExtent + 8) {
       _showDock();
@@ -83,12 +94,45 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   StorageAlerts? _storage;
+  AppUpdates? _updates;
+  bool _announcementPending = false;
+  bool _routeIsCurrent = false;
+
+  void _updatesChanged() => _scheduleAnnouncement();
+
+  void _scheduleAnnouncement() {
+    if (_announcementPending || !mounted) return;
+    _announcementPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _announcementPending = false;
+      if (!mounted || !_routeIsCurrent) return;
+      final updates = _updates;
+      final version = updates?.latestVersion;
+      final url = updates?.latestUrl;
+      if (updates == null ||
+          version == null ||
+          url == null ||
+          !updates.takeAnnouncement()) {
+        return;
+      }
+      toast(
+        context,
+        'Glyph $version is out.',
+        action: SnackBarAction(
+          label: 'Get it',
+          onPressed: () => openCommunityLink(context, url),
+        ),
+      );
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     _live = this;
-    if (widget.whatsNew) WidgetsBinding.instance.addPostFrameCallback((_) => _whatsNew());
+    if (widget.whatsNew) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _whatsNew());
+    }
   }
 
   Future<void> _whatsNew() async {
@@ -105,7 +149,18 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _storage ??= StorageAlerts(AppScope.of(context).devices, onAlert: _storageAlert);
+    _routeIsCurrent = ModalRoute.of(context)?.isCurrent == true;
+    _storage ??= StorageAlerts(
+      AppScope.of(context).devices,
+      onAlert: _storageAlert,
+    );
+    final updates = AppScope.of(context).appUpdates;
+    if (_updates != updates) {
+      _updates?.removeListener(_updatesChanged);
+      _updates = updates;
+      _updates?.addListener(_updatesChanged);
+    }
+    _scheduleAnnouncement();
   }
 
   @override
@@ -113,6 +168,7 @@ class _HomeShellState extends State<HomeShell> {
     if (identical(_live, this)) _live = null;
     _scrolledAway.dispose();
     _storage?.dispose();
+    _updates?.removeListener(_updatesChanged);
     super.dispose();
   }
 
@@ -152,7 +208,14 @@ class _HomeShellState extends State<HomeShell> {
               children: [
                 for (var i = 0; i < 3; i++)
                   // Hidden destinations stop their tickers.
-                  TickerMode(enabled: i == _tab, child: const [TuneScreen(), MakeScreen(), MatrixScreen()][i]),
+                  TickerMode(
+                    enabled: i == _tab,
+                    child: const [
+                      TuneScreen(),
+                      MakeScreen(),
+                      MatrixScreen(),
+                    ][i],
+                  ),
               ],
             ),
           ),

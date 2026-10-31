@@ -269,7 +269,9 @@ Advanced details may live behind "Details". Dates are friendly, never ISO.
 Glyph has no account, ads, analytics, tracking or Glyph server
 (`docs/PRIVACY.md`). The only network calls besides the user's own devices
 are Open-Meteo (weather, air quality), GitHub Pages (the signed catalog, only
-when checked) and links the user taps. Don't add another service, SDK or
+when checked), the GitHub API's latest-release number (once a day, on by
+default, off in the Glyph menu, compiled out of F-Droid builds with
+`--dart-define=GLYPH_UPDATE_CHECK=false`) and links the user taps. Don't add another service, SDK or
 telemetry without updating `docs/PRIVACY.md` and asking the maintainer.
 Notification alerts send only the app's logo to the device, never message
 content. Report vulnerabilities per `SECURITY.md`.

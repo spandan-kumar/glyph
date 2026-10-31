@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app/creations.dart';
+import 'app/app_updates.dart';
 import 'app/devices.dart';
 import 'app/playback.dart';
 import 'features/device/device_features.dart';
@@ -29,15 +30,17 @@ Future<void> main() async {
   devices.load();
   creations.load();
   final onboarded = await OnboardingFlow.isDone();
-  runApp(GlyphApp(
-    catalog: catalog,
-    devices: devices,
-    playback: playback,
-    creations: creations,
-    showOnboarding: !onboarded,
-    showSplash: true,
-    whatsNew: true,
-  ));
+  runApp(
+    GlyphApp(
+      catalog: catalog,
+      devices: devices,
+      playback: playback,
+      creations: creations,
+      showOnboarding: !onboarded,
+      showSplash: true,
+      whatsNew: true,
+    ),
+  );
 }
 
 class GlyphApp extends StatefulWidget {
@@ -51,10 +54,12 @@ class GlyphApp extends StatefulWidget {
     this.showSplash = false,
     this.whatsNew = false,
     this.catalogStore,
+    this.appUpdates,
   });
 
   final Catalog catalog;
   final CatalogStore? catalogStore;
+  final AppUpdates? appUpdates;
   final DeviceStore devices;
   final PlaybackController playback;
   final CreationsStore creations;
@@ -75,8 +80,12 @@ class GlyphApp extends StatefulWidget {
 class _GlyphAppState extends State<GlyphApp> with WidgetsBindingObserver {
   late final _catalog =
       widget.catalogStore ?? CatalogStore.forApp(widget.catalog);
+  late final _appUpdates = widget.appUpdates ?? AppUpdates();
   late final _ambient = AmbientController(widget.playback);
-  late final _notifications = NotificationController(devices: widget.devices, playback: widget.playback);
+  late final _notifications = NotificationController(
+    devices: widget.devices,
+    playback: widget.playback,
+  );
 
   @override
   void initState() {
@@ -90,7 +99,10 @@ class _GlyphAppState extends State<GlyphApp> with WidgetsBindingObserver {
     _glance.load();
     _catalog.addListener(_catalogChanged);
     _catalog.load();
+    _appUpdates.load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _appUpdates.check());
   }
+
   void _catalogChanged() {
     if (!mounted) return;
     _glance.catalog = _catalog.catalog;
@@ -100,6 +112,7 @@ class _GlyphAppState extends State<GlyphApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     widget.playback.foreground = state == AppLifecycleState.resumed;
+    if (state == AppLifecycleState.resumed) _appUpdates.check();
   }
 
   late final _glance = GlanceSession(
@@ -116,6 +129,7 @@ class _GlyphAppState extends State<GlyphApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _catalog.removeListener(_catalogChanged);
     if (widget.catalogStore == null) _catalog.dispose();
+    if (widget.appUpdates == null) _appUpdates.dispose();
     _glance.dispose();
     _notifications.dispose();
     _ambient.dispose();
@@ -129,6 +143,7 @@ class _GlyphAppState extends State<GlyphApp> with WidgetsBindingObserver {
       devices: widget.devices,
       catalog: _catalog.catalog,
       catalogStore: _catalog,
+      appUpdates: _appUpdates,
       creations: widget.creations,
       notifications: _notifications,
       glance: _glance,
@@ -150,8 +165,13 @@ class _GlyphAppState extends State<GlyphApp> with WidgetsBindingObserver {
                     onDone: () => setState(() => _splash = false),
                   )
                 : _onboarding
-                    ? OnboardingFlow(onDone: () => setState(() => _onboarding = false))
-                    : HomeShell(whatsNew: widget.whatsNew, firstRun: widget.showOnboarding),
+                ? OnboardingFlow(
+                    onDone: () => setState(() => _onboarding = false),
+                  )
+                : HomeShell(
+                    whatsNew: widget.whatsNew,
+                    firstRun: widget.showOnboarding,
+                  ),
           ),
         ),
       ),

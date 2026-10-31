@@ -1,6 +1,6 @@
 # Glyph privacy policy
 
-*Updated 20 October 2026.*
+*Updated 31 October 2026.*
 
 Glyph is a free, open-source (MIT) app that draws on your WLED LED display.
 It has **no account, no ads, no analytics, no tracking and no Glyph server**.
@@ -20,7 +20,8 @@ Everything below is checked against the source code, which you can read at
 | A request for an animation file not included in your app version (your IP address and the requested file) | **GitHub Pages** (`spandan-kumar.github.io`) | When you browse or play an unbundled animation that is not cached; the bundled library needs no requests | Yes |
 | A bug report, idea or request you choose to file | **GitHub** (a web page opened in your browser) | Only when you tap a feedback item and press Submit there | Yes |
 | Chat invite | **Discord** (opens in your browser) | Only when you tap the link | Yes |
-| Glyph app updates | **GitHub Releases** or your update app (for example Obtainium) | Only if you update that way. The app does not check for updates by itself | Yes |
+| A request for the latest release number (your IP address, like any web request; no app version, device or ID is sent) | **GitHub** (`api.github.com`) | At most once a day while Glyph is open, to tell you when a new version is out. On by default; turn it off in the Glyph menu with *Tell me about new versions*. Not in the F-Droid build, where F-Droid handles updates | Yes |
+| Glyph app updates | **GitHub Releases** or your update app (for example Obtainium) | Only when you choose to download one; Glyph never installs updates itself | Yes |
 
 Nothing else leaves your phone. In particular, **your microphone audio,
 notification contents, music titles, creations, saved devices and device

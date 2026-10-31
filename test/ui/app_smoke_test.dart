@@ -3,12 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph/app/creations.dart';
+import 'package:glyph/app/app_updates.dart';
 import 'package:glyph/app/devices.dart';
 import 'package:glyph/app/playback.dart';
 import 'package:glyph/library/catalog.dart';
 import 'package:glyph/main.dart';
 import 'package:glyph/ui/design/led_text.dart';
 import 'package:glyph/ui/design/dock.dart';
+import 'package:http/testing.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -16,38 +19,59 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    catalog = Catalog.parse(File('assets/catalog/catalog.json').readAsStringSync());
+    catalog = Catalog.parse(
+      File('assets/catalog/catalog.json').readAsStringSync(),
+    );
   });
 
-  Future<PlaybackController> pumpApp(WidgetTester tester,
-      {Size size = const Size(412, 915), bool onboarding = false}) async {
+  Future<PlaybackController> pumpApp(
+    WidgetTester tester, {
+    Size size = const Size(412, 915),
+    bool onboarding = false,
+  }) async {
     tester.view.physicalSize = size * 2.625;
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
     final playback = PlaybackController();
     addTearDown(playback.dispose);
-    final creations = CreationsStore(directory: () async => Directory.systemTemp.createTemp('glyph'));
-    await tester.pumpWidget(GlyphApp(
-      catalog: catalog,
-      devices: DeviceStore(),
-      playback: playback,
-      creations: creations,
-      showOnboarding: onboarding,
-    ));
+    final creations = CreationsStore(
+      directory: () async => Directory.systemTemp.createTemp('glyph'),
+    );
+    await tester.pumpWidget(
+      GlyphApp(
+        catalog: catalog,
+        devices: DeviceStore(),
+        playback: playback,
+        creations: creations,
+        showOnboarding: onboarding,
+      ),
+    );
     // Previews tick forever, so pump fixed durations instead of settling.
     await tester.pump(const Duration(milliseconds: 400));
     return playback;
   }
 
-  testWidgets('every destination builds without overflow on a narrow phone', (tester) async {
+  testWidgets('every destination builds without overflow on a narrow phone', (
+    tester,
+  ) async {
     final playback = await pumpApp(tester, size: const Size(360, 740));
     for (final tab in ['Make', 'Device', 'Display']) {
-      await tester.tap(find.descendant(of: find.byType(Dock), matching: find.bySemanticsLabel(tab)));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(Dock),
+          matching: find.bySemanticsLabel(tab),
+        ),
+      );
       await tester.pump(const Duration(milliseconds: 400));
       expect(tester.takeException(), isNull, reason: tab);
     }
     // No matrix yet: the hub invites a connection.
-    await tester.tap(find.descendant(of: find.byType(Dock), matching: find.bySemanticsLabel('Device')));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Dock),
+        matching: find.bySemanticsLabel('Device'),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.textContaining('Connect'), findsWidgets);
     playback.pause();
@@ -67,47 +91,88 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('the dock is a small floating island in the pixel font', (tester) async {
+  testWidgets('the dock is a small floating island in the pixel font', (
+    tester,
+  ) async {
     final playback = await pumpApp(tester);
     final dock = find.byType(Dock);
     expect(dock, findsOneWidget);
-    expect(find.descendant(of: dock, matching: find.byType(Icon)), findsNothing);
+    expect(
+      find.descendant(of: dock, matching: find.byType(Icon)),
+      findsNothing,
+    );
     // Labels are LED pixel text, reachable by their accessibility labels.
-    expect(find.descendant(of: dock, matching: find.byType(LedText)), findsNWidgets(3));
+    expect(
+      find.descendant(of: dock, matching: find.byType(LedText)),
+      findsNWidgets(3),
+    );
     for (final label in ['Display', 'Make', 'Device']) {
-      expect(find.descendant(of: dock, matching: find.bySemanticsLabel(label)), findsOneWidget);
+      expect(
+        find.descendant(of: dock, matching: find.bySemanticsLabel(label)),
+        findsOneWidget,
+      );
     }
     final screen = tester.getSize(find.byType(MaterialApp));
-    final island = tester.getRect(find.descendant(of: dock, matching: find.byType(BackdropFilter)));
-    expect(island.width, lessThan(screen.width * 0.75), reason: 'floats, doesn\'t span the screen');
-    expect((island.center.dx - screen.width / 2).abs(), lessThan(1), reason: 'centred');
+    final island = tester.getRect(
+      find.descendant(of: dock, matching: find.byType(BackdropFilter)),
+    );
+    expect(
+      island.width,
+      lessThan(screen.width * 0.75),
+      reason: 'floats, doesn\'t span the screen',
+    );
+    expect(
+      (island.center.dx - screen.width / 2).abs(),
+      lessThan(1),
+      reason: 'centred',
+    );
 
     // Equal tabs: Make sits dead centre.
-    final make = tester.getCenter(find.descendant(of: dock, matching: find.bySemanticsLabel('Make')));
-    expect((make.dx - screen.width / 2).abs(), lessThan(1), reason: 'symmetric');
+    final make = tester.getCenter(
+      find.descendant(of: dock, matching: find.bySemanticsLabel('Make')),
+    );
+    expect(
+      (make.dx - screen.width / 2).abs(),
+      lessThan(1),
+      reason: 'symmetric',
+    );
 
     final indicator = find.byKey(const ValueKey('dock-indicator'));
     double block() => tester.getRect(indicator).center.dx;
     final atDisplay = block();
-    await tester.tap(find.descendant(of: dock, matching: find.bySemanticsLabel('Device')));
+    await tester.tap(
+      find.descendant(of: dock, matching: find.bySemanticsLabel('Device')),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     final midway = block();
     await tester.pump(const Duration(milliseconds: 400));
     final atDevice = block();
-    expect(midway, inExclusiveRange(atDisplay, atDevice), reason: 'the block slides');
+    expect(
+      midway,
+      inExclusiveRange(atDisplay, atDevice),
+      reason: 'the block slides',
+    );
     expect(tester.takeException(), isNull);
     playback.pause();
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('the dock tucks away scrolling down and returns scrolling up', (tester) async {
+  testWidgets('the dock tucks away scrolling down and returns scrolling up', (
+    tester,
+  ) async {
     final playback = await pumpApp(tester);
     final dock = find.byType(Dock);
-    await tester.tap(find.descendant(of: dock, matching: find.bySemanticsLabel('Make')));
+    await tester.tap(
+      find.descendant(of: dock, matching: find.bySemanticsLabel('Make')),
+    );
     await tester.pump(const Duration(milliseconds: 500));
     final screenH = tester.getSize(find.byType(MaterialApp)).height;
-    double top() => tester.getRect(find.descendant(of: dock, matching: find.byType(BackdropFilter))).top;
+    double top() => tester
+        .getRect(
+          find.descendant(of: dock, matching: find.byType(BackdropFilter)),
+        )
+        .top;
     final shown = top();
     expect(shown, lessThan(screenH));
 
@@ -120,6 +185,48 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(top(), closeTo(shown, 0.5), reason: 'back');
+    playback.pause();
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a cached new version is announced once from the home shell', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      AppUpdates.latestKey: '1.4.0',
+      AppUpdates.latestUrlKey:
+          'https://github.com/spandan-kumar/glyph/releases/tag/v1.4.0',
+    });
+    final updates = AppUpdates(
+      client: MockClient((_) async => http.Response(
+        '{"tag_name":"v1.4.0","draft":false,"prerelease":false,"html_url":"https://github.com/spandan-kumar/glyph/releases/tag/v1.4.0"}',
+        200,
+      )),
+      version: () async => '1.3.0',
+    );
+    addTearDown(updates.dispose);
+    tester.view.physicalSize = const Size(412, 915) * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final playback = PlaybackController();
+    addTearDown(playback.dispose);
+    final creations = CreationsStore(
+      directory: () async => Directory.systemTemp.createTemp('glyph'),
+    );
+    await tester.pumpWidget(
+      GlyphApp(
+        catalog: catalog,
+        devices: DeviceStore(),
+        playback: playback,
+        creations: creations,
+        appUpdates: updates,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('Glyph 1.4.0 is out.'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Glyph 1.4.0 is out.'), findsOneWidget);
     playback.pause();
     await tester.pumpWidget(const SizedBox());
   });
