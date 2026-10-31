@@ -213,6 +213,8 @@ void main() {
       await settle(tester);
       expect(find.text('Glyph 1.4.0 is out'), findsOneWidget);
       expect(find.text('You\'re on 1.3.0 · Get it'), findsOneWidget);
+      expect(find.text('Update automatically'), findsOneWidget);
+      expect(find.text('Obtainium installs new versions for you'), findsOneWidget);
       expect(find.text('Tell me about new versions'), findsOneWidget);
       expect(
         find.text('Checks GitHub once a day while Glyph is open'),
@@ -226,6 +228,7 @@ void main() {
       await tester.tap(find.text('Tell me about new versions'));
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.text('Glyph 1.4.0 is out'), findsNothing);
+      expect(find.text('Update automatically'), findsNothing);
       playback.pause();
       await tester.pumpWidget(const SizedBox());
     },

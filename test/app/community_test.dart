@@ -69,6 +69,8 @@ void main() {
     expect(anim, {'template': 'animation_request.yml', 'labels': 'animation-request,community', 'panel': '16×16'});
     expect(Community.displayRequest().queryParameters, {'template': 'display_request.yml'});
     expect('${Community.showAndTell}', 'https://discord.gg/fMbzGQd6wk');
+    expect('${Community.obtainium}',
+        'https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/spandan-kumar/glyph');
     expect('${Community.roadmap}', 'https://github.com/users/spandan-kumar/projects/4');
   });
 

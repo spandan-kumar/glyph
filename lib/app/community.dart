@@ -16,8 +16,13 @@ abstract final class Community {
 
   static final showAndTell = discord;
 
-  /// The public board (Ideas → Planned → Building → Shipped).
   static final latestRelease = Uri.parse('$repo/releases/latest');
+
+  /// Adds Glyph to Obtainium, which installs new releases by itself.
+  static final obtainium = Uri.parse(
+      'https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/$repo');
+
+  /// The public board (Ideas → Planned → Building → Shipped).
 
   static final roadmap = Uri.parse('https://github.com/users/spandan-kumar/projects/4');
 

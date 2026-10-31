@@ -160,6 +160,15 @@ class _GlyphMenu extends StatelessWidget {
                       _out,
                       (c) => openCommunityLink(c, updates.latestUrl!),
                     ),
+                  // Right under the notice: the way to never miss one again.
+                  if (updateCheckEnabled && updates?.hasUpdate == true)
+                    row(
+                      Icons.autorenew_sharp,
+                      'Update automatically',
+                      'Obtainium installs new versions for you',
+                      _out,
+                      (c) => openCommunityLink(c, Community.obtainium),
+                    ),
                   // Only once the signed catalog is switched on; until then new
                   // animations simply arrive with app updates.
                   if (AppScope.of(context).catalogStore?.enabled ?? false)
