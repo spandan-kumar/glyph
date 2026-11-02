@@ -7,7 +7,7 @@ panel. The full storyboard, with shot-by-shot timings, is in
 
 ## Before you film
 
-- **Install the latest release** (v1.4.12 or newer) from
+- **Install the latest release** (v1.4.13 or newer) from
   [GitHub Releases](https://github.com/spandan-kumar/glyph/releases/latest).
   Note your phone, WLED version, controller and panel size; we'll credit
   the build in the post.

@@ -8,7 +8,7 @@ approves and sends every post, email and PR.
 
 | Fact | Say exactly |
 |---|---|
-| Version | v1.4.12 (check the latest release before posting) |
+| Version | v1.4.13 (check the latest release before posting) |
 | Library | "1,200+ animations" (catalog: 1,236 looks) |
 | Made of | 62 procedural effects, 356 sprites, public-domain "Famous Classics" |
 | Platform | Android 7+, 64-bit ARM. Sideload the APK, or add it to Obtainium. No iOS. |
@@ -527,9 +527,10 @@ APK: https://github.com/spandan-kumar/glyph/releases/latest
 I made Glyph, an Android app for WLED LED matrices. It's licensed MIT (the code;
 art is original, CC0 or public domain and credited in the README), has no account, no ads and no
 analytics, and talks to the devices on your Wi-Fi. The only other network
-calls are optional: Open-Meteo for weather and air quality, and GitHub Pages
-for catalog updates, and only when you check. The privacy details are in
-`docs/PRIVACY.md`.
+calls: Open-Meteo for weather and air quality, GitHub Pages for catalog
+updates when you check, and (in the GitHub build only) a once-a-day check of
+the latest release number on GitHub, which you can switch off. The F-Droid
+build leaves that check out. The privacy details are in `docs/PRIVACY.md`.
 
 How to get it today: download the signed APK from the GitHub release (its
 SHA-256 is next to it), add the repo to Obtainium, or install it from F-Droid
@@ -988,9 +989,11 @@ development history, so it's coming in January.
 
 **Does it need internet or an account?**
 No account, ever. The phone talks to your matrix over your Wi-Fi, and the
-library is bundled, so it works offline. The only optional internet calls are
-Open-Meteo for weather and air quality, and checking GitHub Pages for new
-catalog items when you ask it to. No analytics, no Glyph server. Details:
+library is bundled, so it works offline. The only internet calls are
+Open-Meteo for weather and air quality, GitHub Pages for new catalog items
+when you ask, and a once-a-day check of the latest release number on GitHub
+(no app version, device or ID is sent; switch it off in the Glyph menu). No
+analytics, no Glyph server. Details:
 docs/PRIVACY.md.
 
 ---

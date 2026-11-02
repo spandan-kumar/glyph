@@ -138,7 +138,7 @@ the maintainer's own panel that day ([panel-day.md](panel-day.md)).
   *Blueprints Exchange* (marked beta until the live-HA check), after the
   Home Assistant 2026.11 release.
 - **Thu 6 Nov: panel day.** Film clips A–C (one look for Diwali), run the
-  32×32 / 32×8 / 8×8 live-preview size test, phone-test 1.4.12 over old data,
+  32×32 / 32×8 / 8×8 live-preview size test, phone-test the latest release over old data,
   then restore the device.
 - **Fri 7 Nov:** cut the clips; clip A goes into the README, the site and a
   reply on the forum post; pitch the small channels (Starlit Electronics
